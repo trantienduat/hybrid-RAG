@@ -53,13 +53,16 @@ def index(
     console.rule(f"[bold cyan]hybrid-rag index[/] — {repo}")
     t0 = time.perf_counter()
 
-    # Lazy imports so CLI is fast to load
+    # Lazy imports so CLI is fast to load.
+    # Composition root: business logic is typed against ports; concrete adapters
+    # are wired here so the rest of the codebase stays vendor-neutral.
     from hybrid_rag.ingestion.parser import parse_repo
     from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
     from hybrid_rag.ingestion.chunker import chunk_nodes
-    from hybrid_rag.ingestion.embedder import Embedder
-    from hybrid_rag.graph.client import GraphClient
-    from hybrid_rag.vector.client import VectorClient
+    from hybrid_rag.ports import GraphStore, VectorStore, BaseEmbedder
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 
     # ── 1. Parse ───────────────────────────────────────────────────────────────
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
@@ -88,10 +91,10 @@ def index(
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                   console=console) as progress:
         task = progress.add_task("Writing to FalkorDB…", total=None)
-        graph_client = GraphClient(
+        graph_store: GraphStore = FalkorDBStore(
             host=graph_host, port=graph_port, graph_name=graph_name
         )
-        counts = graph_client.ingest(result)
+        counts = graph_store.ingest(result)
         progress.update(task, description=f"FalkorDB — {counts['nodes']} nodes, "
                                           f"{counts['edges']} edges upserted")
 
@@ -117,7 +120,8 @@ def index(
         with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                       console=console) as progress:
             task = progress.add_task("Embedding chunks…", total=None)
-            with Embedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            embedder: BaseEmbedder
+            with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
                 # Build chunks per file then embed
                 seen_files: set[str] = set()
                 for node in result.nodes:
@@ -137,10 +141,10 @@ def index(
                             })
                 progress.update(task, description=f"Embedded {len(all_chunks)} chunks")
 
-        vector_client = VectorClient(
+        vector_store: VectorStore = QdrantStore(
             host=qdrant_host, port=qdrant_port, collection=qdrant_collection
         )
-        upserted = vector_client.upsert(all_chunks)
+        upserted = vector_store.upsert(all_chunks)
         console.print(f"[green]✓[/] Vectors: {upserted} chunks upserted to Qdrant")
 
     except Exception as exc:  # noqa: BLE001
@@ -170,8 +174,8 @@ def status(
 
     # FalkorDB
     try:
-        from hybrid_rag.graph.client import GraphClient
-        gc = GraphClient(host=graph_host, port=graph_port, graph_name=graph_name)
+        from hybrid_rag.graph.falkordb_store import FalkorDBStore
+        gc = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         n = gc.node_count()
         console.print(f"[green]✓[/] FalkorDB  {graph_host}:{graph_port}/{graph_name}  — {n} nodes")
     except Exception as exc:  # noqa: BLE001
@@ -180,8 +184,8 @@ def status(
 
     # Qdrant
     try:
-        from hybrid_rag.vector.client import VectorClient
-        vc = VectorClient(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+        from hybrid_rag.vector.qdrant_store import QdrantStore
+        vc = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
         n = vc.point_count()
         console.print(f"[green]✓[/] Qdrant    {qdrant_host}:{qdrant_port}/{qdrant_collection}  — {n} points")
     except Exception as exc:  # noqa: BLE001

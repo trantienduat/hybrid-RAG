@@ -34,7 +34,7 @@ Reflects thesis milestones. Updated as work progresses.
 | `vector/client.py` — Qdrant write client (`QdrantStore` adapter) | #8 | ✅ |
 | `ingestion/embedder.py` — local embedding via Ollama | #9 | ✅ |
 | `cli.py` — `hybrid-rag index <repo>` command | #10 | ✅ |
-| Unit tests for parser + extractor | #11 | ⬜ |
+| Unit tests for parser + extractor | #11 | ✅ |
 | Integration test: index small fixture repo end-to-end | #12 | ✅ |
 
 **M1 Done When:** `make index REPO=./fixtures/small_repo` runs without error, FalkorDB has nodes/edges, Qdrant has vectors.

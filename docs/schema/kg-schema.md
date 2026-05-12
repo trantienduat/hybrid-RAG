@@ -104,18 +104,20 @@ Class inherits from another class.
 Function calls another function.
 
 ```
-(:Function)-[:CALLS {line: int}]->(:Function)
+(:Function)-[:CALLS {line: int, callee_expr: str}]->(:Function)
 ```
 
 | Property | Description |
 |----------|-------------|
 | `line` | Line number of the call site |
+| `callee_expr` | Full call expression text (e.g. `self.retrieve`) |
 
 ### `[:USES]`
-Function uses a variable (reads/writes parameter or attribute).
+Function uses a variable or references a user-defined class via type annotation.
 
 ```
 (:Function)-[:USES]->(:Variable)
+(:Function)-[:USES]->(:Class)   # from LLM-assisted extraction (type annotations)
 ```
 
 No properties.

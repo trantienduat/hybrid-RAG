@@ -14,11 +14,11 @@ Version: 0.1
 │  ┌──────────────┐    ┌──────────────────────────────────────┐   │
 │  │   Codebase   │    │         INDEXING PIPELINE            │   │
 │  │  (Python /   │───►│                                      │   │
-│  │   Java repo) │    │  1. Language Detection               │   │
-│  └──────────────┘    │  2. AST Parsing (tree-sitter)        │   │
-│                      │  3. Triplet Extraction               │   │
-│                      │  4. Chunking (CodeSplitter)          │   │
-│                      │  5. Embedding (nomic-embed-text)     │   │
+│  │   Java repo) │    │  1. AST Parsing (tree-sitter)        │   │
+│  └──────────────┘    │  2. Entity Resolution                │   │
+│                      │  3. Graph Write (FalkorDB)           │   │
+│                      │  4. Chunking + Embedding             │   │
+│                      │  5. Vector Write (Qdrant)            │   │
 │                      └──────────┬──────────────────────┬───┘   │
 │                                 │                      │        │
 │                          Graph Store            Vector Store     │
@@ -64,23 +64,24 @@ Steps:
       │ glob *.py / *.java
       ▼
   Language Detection
-      │ file extension + shebang check
+      │ file extension
       ▼
   AST Parsing (tree-sitter)
-      │ produces: functions, classes, imports, call sites
+      │ produces: Module/Class/Function nodes + IMPORTS/DEFINES/INHERITS/CALLS edges
       ▼
-  Triplet Extraction
-      │ maps AST nodes → KG schema (see docs/schema/kg-schema.md)
-      │ produces: (subject, predicate, object) + properties
+  LLM-assisted Extraction  (optional, --llm-extract)
+      │ qwen2.5-coder:7b supplements USES edges from type annotations
+      │ merged with AST result; confidence threshold: 0.7
       ▼
   Entity Resolution
-      │ dedup by ID key, merge stubs for external deps
+      │ dedup stub Module/Class nodes against real nodes
+      │ cross-file INHERITS stubs resolved to real Class nodes
       ▼
   Graph Write (FalkorDB)
-      │ batch Cypher CREATE statements
+      │ Cypher MERGE upserts (idempotent)
       ▼
   Chunking (chunker.py — custom AST-aware)
-      │ AST-aware chunks, preserves function/class boundaries
+      │ one chunk per Function/Class/Module, sliding window for large nodes
       │ chunk_size: 512 tokens, overlap: 64 tokens
       ▼
   Embedding (nomic-embed-text via Ollama)
@@ -88,7 +89,7 @@ Steps:
       ▼
   Vector Write (Qdrant)
       collection: "code_chunks"
-      metadata: {file_path, node_type, name, line_start, line_end}
+      payload: {node_id, label, file_path, text}
 ```
 
 **Key constraint:** No network calls during indexing. All embedding via local Ollama.
@@ -176,15 +177,13 @@ Fallback: llama3.2:3b for low-RAM situations
 ```python
 # Point
 {
-  "id": uuid,
-  "vector": List[float],  # 768-dim
+  "id": uuid,           # deterministic SHA-256 of node_id
+  "vector": List[float],  # 768-dim (nomic-embed-text)
   "payload": {
-    "text": str,          # raw chunk
+    "node_id": str,       # matches FalkorDB node id
+    "label": str,         # "Function" | "Class" | "Module"
     "file_path": str,
-    "node_type": str,     # "function" | "class" | "module"
-    "name": str,
-    "line_start": int,
-    "line_end": int
+    "text": str,          # raw chunk text (source code)
   }
 }
 ```
@@ -210,12 +209,11 @@ Fallback: llama3.2:3b for low-RAM situations
 |-----------|-----------|---------|------|
 | Inference | Ollama + qwen2.5-coder:7b | latest | 11434 |
 | Embedding | Ollama + nomic-embed-text | latest | 11434 |
-| Orchestration | LlamaIndex | ≥0.10 | — |
 | Graph Store | FalkorDB | latest | 6379 |
 | Vector Store | Qdrant | latest | 6333 |
 | AST Parser | tree-sitter | ≥0.20 | — |
 | API Layer | FastAPI | ≥0.110 | 8000 |
-| Language | Python | ≥3.11 | — |
+| Language | Python | ≥3.12,<3.14 | — |
 
 ---
 
@@ -241,9 +239,9 @@ make down     # docker compose down
 
 ---
 
-## Open Questions (resolve before M1 complete)
+## Open Questions
 
-- [ ] tree-sitter vs Python `ast` module — see experiments/spike-ast-parsing.ipynb
+- [x] ~~tree-sitter vs Python `ast` module~~ — Resolved: tree-sitter (ADR-002 Accepted)
 - [ ] Max hop limit: 3 fixed or query-adaptive?
 - [ ] RRF weights: equal (0.5/0.5) or graph-weighted for structural queries?
-- [ ] Chunk size: 512 tokens optimal? Validate on LlamaIndex repo.
+- [ ] Chunk size: 512 tokens optimal? Validate on target repo.

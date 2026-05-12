@@ -2,7 +2,7 @@
 AST-based source code parser using tree-sitter.
 
 Extracts raw node data (modules, classes, functions, variables) from Python
-and Java files. Output is a list of NodeData and EdgeData dicts that match
+and Java files. Output is NodeData and EdgeData dataclasses that match
 the KG schema in docs/schema/kg-schema.md.
 """
 from __future__ import annotations

@@ -14,7 +14,7 @@ Reflects thesis milestones. Updated as work progresses.
 | Architecture data flow | ✅ Done |
 | Project structure init | ✅ Done |
 | `pyproject.toml` / `docker-compose.yml` / `Makefile` | ✅ Done |
-| First line of src code | ⬜ Not started |
+| First line of src code | ✅ Done |
 
 ---
 
@@ -24,18 +24,18 @@ Reflects thesis milestones. Updated as work progresses.
 
 | Task | Issue | Status |
 |------|-------|--------|
-| Spike: tree-sitter vs ast module | #1 | ⬜ |
-| ADR: AST parser choice | #2 | ⬜ |
-| `ingestion/parser.py` — AST → raw nodes | #3 | ⬜ |
-| `ingestion/triplet_extractor.py` — raw nodes → KG triplets | #4 | ⬜ |
-| `ingestion/entity_resolver.py` — dedup + merge | #5 | ⬜ |
-| `graph/client.py` — FalkorDB write client | #6 | ⬜ |
-| `ingestion/chunker.py` — AST-aware code splitting | #7 | ⬜ |
-| `vector/client.py` — Qdrant write client | #8 | ⬜ |
-| `ingestion/embedder.py` — local embedding via Ollama | #9 | ⬜ |
-| `cli.py` — `hybrid-rag index <repo>` command | #10 | ⬜ |
+| Spike: tree-sitter vs ast module | #1 | ✅ |
+| ADR: AST parser choice | #2 | ✅ |
+| `ingestion/parser.py` — AST → raw nodes | #3 | ✅ |
+| `ingestion/triplet_extractor.py` — raw nodes → KG triplets | #4 | ✅ |
+| `ingestion/entity_resolver.py` — dedup + merge | #5 | ✅ |
+| `graph/client.py` — FalkorDB write client (`FalkorDBStore` adapter) | #6 | ✅ |
+| `ingestion/chunker.py` — AST-aware code splitting | #7 | ✅ |
+| `vector/client.py` — Qdrant write client (`QdrantStore` adapter) | #8 | ✅ |
+| `ingestion/embedder.py` — local embedding via Ollama | #9 | ✅ |
+| `cli.py` — `hybrid-rag index <repo>` command | #10 | ✅ |
 | Unit tests for parser + extractor | #11 | ⬜ |
-| Integration test: index small fixture repo end-to-end | #12 | ⬜ |
+| Integration test: index small fixture repo end-to-end | #12 | ✅ |
 
 **M1 Done When:** `make index REPO=./fixtures/small_repo` runs without error, FalkorDB has nodes/edges, Qdrant has vectors.
 
@@ -51,7 +51,7 @@ Reflects thesis milestones. Updated as work progresses.
 | `ingestion/llm_extractor.py` — LLM-based supplemental extraction | #14 | ⬜ |
 | Merge LLM results with AST results | #15 | ⬜ |
 | Improve entity resolution: cross-file class linking | #16 | ⬜ |
-| Handle external/stdlib stubs | #17 | ⬜ |
+| Handle external/stdlib stubs | #17 | ✅ (done in M1 via `entity_resolver.py`) |
 | Test: index LlamaIndex repo (medium-scale) | #18 | ⬜ |
 | Graph fidelity evaluation vs known structure | #19 | ⬜ |
 
@@ -119,6 +119,6 @@ PR checklist:
 | ID | Decision | Status |
 |----|----------|--------|
 | 001 | Graph store: FalkorDB | Accepted |
-| 002 | AST parser: TBD (spike #1) | Pending |
+| 002 | AST parser: tree-sitter | Accepted |
 | 003 | Embedding model: nomic-embed-text | Accepted |
 | 004 | LLM: qwen2.5-coder:7b | Accepted |

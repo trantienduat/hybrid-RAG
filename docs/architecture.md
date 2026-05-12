@@ -79,7 +79,7 @@ Steps:
   Graph Write (FalkorDB)
       │ batch Cypher CREATE statements
       ▼
-  Chunking (CodeSplitter)
+  Chunking (chunker.py — custom AST-aware)
       │ AST-aware chunks, preserves function/class boundaries
       │ chunk_size: 512 tokens, overlap: 64 tokens
       ▼

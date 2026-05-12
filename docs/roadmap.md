@@ -48,7 +48,7 @@ Reflects thesis milestones. Updated as work progresses.
 | Task | Issue | Status |
 |------|-------|--------|
 | Spike: LLM triplet extraction prompt design | #13 | ✅ |
-| `ingestion/llm_extractor.py` — LLM-based supplemental extraction | #14 | ✅ |
+| `ports/llm_extractor.py` (ABC) + `ingestion/ollama_llm_extractor.py` (adapter) | #14 | ✅ |
 | Merge LLM results with AST results | #15 | ✅ |
 | Improve entity resolution: cross-file class linking | #16 | ✅ |
 | Handle external/stdlib stubs | #17 | ✅ (done in M1 via `entity_resolver.py`) |

@@ -17,8 +17,8 @@ from hybrid_rag.retrieval.query_analyzer import QueryAnalysis
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TOP_K = 20
-_NEIGHBOR_SEEDS = 5   # expand neighbors from top N matched nodes
-_NEIGHBOR_LIMIT = 15  # neighbors per seed node
+_NEIGHBOR_SEEDS = 10   # expand neighbors from top N matched nodes
+_NEIGHBOR_LIMIT = 30   # neighbors per seed per direction (in + out queried separately)
 
 
 class GraphRetriever:
@@ -44,8 +44,9 @@ class GraphRetriever:
         seen_ids: set[str] = set()
         results: list[dict[str, Any]] = []
 
-        # Search by entities first (more precise), then keywords
-        search_terms = list(dict.fromkeys(analysis.entities + analysis.keywords))
+        # Search by entities only — keywords are generic terms (e.g. "classes",
+        # "inherit") that produce noisy graph matches; vector search handles them.
+        search_terms = list(dict.fromkeys(analysis.entities))
 
         for term in search_terms:
             if len(results) >= top_k:
@@ -57,27 +58,31 @@ class GraphRetriever:
                     seen_ids.add(nid)
                     results.append(_node_to_result(node))
 
-        # For structural / hybrid queries expand direct neighbors of seed nodes
+        # For structural / hybrid queries expand direct neighbors of seed nodes.
+        # Query in-bound and out-bound separately so each direction gets its own
+        # slot budget — prevents outgoing DEFINES edges (methods) from drowning
+        # out incoming INHERITS edges (subclasses / callers) when limit is shared.
         if analysis.query_type in ("structural", "hybrid"):
             seed_ids = [r["node_id"] for r in results[:_NEIGHBOR_SEEDS]]
             for seed_id in seed_ids:
-                if len(results) >= top_k * 2:
+                if len(results) >= top_k * 4:
                     break
-                neighbors = self._store.find_neighbors(
-                    seed_id, direction="both", max_hops=1, limit=_NEIGHBOR_LIMIT
-                )
-                for nb in neighbors:
-                    nid = nb.get("dst_id", "")
-                    if nid and nid not in seen_ids:
-                        seen_ids.add(nid)
-                        results.append({
-                            "node_id": nid,
-                            "base_node_id": nid,
-                            "name": nb.get("dst_name", ""),
-                            "label": nb.get("dst_label", ""),
-                            "file_path": nb.get("dst_file_path", ""),
-                            "rel": nb.get("rel", ""),
-                            "text": "",
+                for direction in ("in", "out"):
+                    neighbors = self._store.find_neighbors(
+                        seed_id, direction=direction, max_hops=1, limit=_NEIGHBOR_LIMIT
+                    )
+                    for nb in neighbors:
+                        nid = nb.get("dst_id", "")
+                        if nid and nid not in seen_ids:
+                            seen_ids.add(nid)
+                            results.append({
+                                "node_id": nid,
+                                "base_node_id": nid,
+                                "name": nb.get("dst_name", ""),
+                                "label": nb.get("dst_label", ""),
+                                "file_path": nb.get("dst_file_path", ""),
+                                "rel": nb.get("rel", ""),
+                                "text": "",
                             "source": "graph",
                         })
 

@@ -23,12 +23,17 @@ def reciprocal_rank_fusion(
     *ranked_lists: list[dict[str, Any]],
     id_key: str = "base_node_id",
     k: int = _DEFAULT_K,
+    weights: tuple[float, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Merge *ranked_lists* using Reciprocal Rank Fusion.
 
     Each list element must have a non-empty string at *id_key*.
     Items missing *id_key* or with an empty value are silently skipped.
+
+    *weights* — optional per-list multipliers (same length as ranked_lists).
+    Defaults to 1.0 for every list.  Use e.g. ``weights=(3.0, 1.0)`` to give
+    the graph list 3× more influence than the vector list for structural queries.
 
     When the same document appears in multiple lists, the result dict is
     merged with the following rules:
@@ -42,12 +47,13 @@ def reciprocal_rank_fusion(
     scores: dict[str, float] = {}
     merged: dict[str, dict[str, Any]] = {}
 
-    for ranked in ranked_lists:
+    for list_idx, ranked in enumerate(ranked_lists):
+        w = weights[list_idx] if weights and list_idx < len(weights) else 1.0
         for rank, item in enumerate(ranked, start=1):
             doc_id = item.get(id_key, "")
             if not doc_id:
                 continue
-            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+            scores[doc_id] = scores.get(doc_id, 0.0) + w / (k + rank)
             if doc_id not in merged:
                 merged[doc_id] = dict(item)
             else:

@@ -304,8 +304,10 @@ class TestGraphRetriever:
         analysis = self._analysis(entities=["Foo"], keywords=["bar"])
         GraphRetriever(store).retrieve(analysis)
         calls = [c.args[0] for c in store.find_nodes.call_args_list]
+        # Graph search uses entities only; keywords belong to vector search
+        # to avoid noisy structural matches on generic terms like "inherit".
         assert "Foo" in calls
-        assert "bar" in calls
+        assert "bar" not in calls
 
     def test_top_k_respected(self):
         nodes = [self._node(f"n{i}", f"Node{i}") for i in range(50)]

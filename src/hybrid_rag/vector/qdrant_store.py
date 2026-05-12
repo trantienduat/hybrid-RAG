@@ -41,11 +41,13 @@ class QdrantStore(VectorStore):
         port: int | None = None,
         collection: str | None = None,
         vector_size: int = _VECTOR_SIZE,
+        upsert_batch_size: int = 500,
     ) -> None:
         self._host = host or os.environ.get("QDRANT_HOST", _DEFAULT_HOST)
         self._port = int(port or os.environ.get("QDRANT_PORT", _DEFAULT_PORT))
         self._collection = collection or os.environ.get("QDRANT_COLLECTION", _DEFAULT_COLLECTION)
         self._vector_size = vector_size
+        self._upsert_batch_size = upsert_batch_size
         self._client = QdrantClient(host=self._host, port=self._port)
         self._ensure_collection()
         logger.info(
@@ -57,7 +59,8 @@ class QdrantStore(VectorStore):
 
     def upsert(self, chunks: list[dict[str, Any]]) -> int:
         """
-        Upsert a list of chunk dicts.
+        Upsert a list of chunk dicts, automatically batched to stay under
+        Qdrant's payload size limit.
 
         Each chunk must have: node_id, label, file_path, text, embedding.
         """
@@ -76,7 +79,11 @@ class QdrantStore(VectorStore):
         ]
         if not points:
             return 0
-        self._client.upsert(collection_name=self._collection, points=points)
+        self._client.upload_points(
+            collection_name=self._collection,
+            points=points,
+            batch_size=self._upsert_batch_size,
+        )
         logger.debug("Upserted %d points to %s", len(points), self._collection)
         return len(points)
 

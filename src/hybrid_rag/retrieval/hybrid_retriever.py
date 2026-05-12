@@ -72,7 +72,19 @@ class HybridRetriever(BaseRetriever):
         vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2)
         logger.debug("Vector results: %d chunks", len(vector_results))
 
-        fused = reciprocal_rank_fusion(graph_results, vector_results, k=self._rrf_k)
+        # Structural queries are relationship/structure lookups — graph evidence
+        # should dominate so that structural nodes (which have no vector text)
+        # aren't outranked by semantically-similar but irrelevant vector chunks.
+        if analysis.query_type == "structural":
+            rrf_weights = (3.0, 1.0)
+        elif analysis.query_type == "hybrid":
+            rrf_weights = (1.5, 1.0)
+        else:
+            rrf_weights = (1.0, 1.0)
+
+        fused = reciprocal_rank_fusion(
+            graph_results, vector_results, k=self._rrf_k, weights=rrf_weights
+        )
         return fused[:top_k]
 
     def close(self) -> None:

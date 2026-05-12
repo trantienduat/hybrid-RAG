@@ -41,3 +41,34 @@ class GraphStore(ABC):
     @abstractmethod
     def clear(self) -> None:
         """Delete all nodes and edges. Intended for tests only."""
+
+    @abstractmethod
+    def find_nodes(
+        self,
+        name: str,
+        label: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """
+        Find nodes whose name property matches (substring).
+
+        Returns list of dicts with keys: node_id, label, name, file_path.
+        """
+
+    @abstractmethod
+    def find_neighbors(
+        self,
+        node_id: str,
+        rel: str | None = None,
+        direction: str = "out",
+        max_hops: int = 1,
+        limit: int = 30,
+    ) -> list[dict[str, Any]]:
+        """
+        Find nodes connected to node_id.
+
+        direction: "out" (n→m), "in" (m→n), "both" (undirected).
+        max_hops: 1 returns direct neighbors with rel type; >1 returns reachable
+          endpoints (rel set to "REACHABLE").
+        Returns list of dicts: src_id, rel, dst_id, dst_label, dst_name, dst_file_path.
+        """

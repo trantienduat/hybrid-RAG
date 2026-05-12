@@ -65,6 +65,116 @@ class FalkorDBStore(GraphStore):
         """Delete all nodes and edges. Use in tests only."""
         self._graph.query("MATCH (n) DETACH DELETE n")
 
+    def find_nodes(
+        self,
+        name: str,
+        label: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Find nodes whose name contains *name* (case-sensitive substring)."""
+        if not name:
+            return []
+        if label:
+            cypher = (
+                f"MATCH (n:{label}) WHERE n.name CONTAINS $name "
+                f"RETURN n LIMIT {limit}"
+            )
+        else:
+            cypher = (
+                f"MATCH (n) WHERE n.name CONTAINS $name "
+                f"RETURN n LIMIT {limit}"
+            )
+        res = self._graph.query(cypher, {"name": name})
+        results: list[dict[str, Any]] = []
+        for row in (res.result_set or []):
+            node = row[0]
+            props = getattr(node, "properties", {})
+            labels = getattr(node, "labels", [])
+            results.append({
+                "node_id": props.get("id", ""),
+                "label": labels[0] if labels else "Unknown",
+                "name": props.get("name", ""),
+                "file_path": props.get("file_path", ""),
+            })
+        return results
+
+    def find_neighbors(
+        self,
+        node_id: str,
+        rel: str | None = None,
+        direction: str = "out",
+        max_hops: int = 1,
+        limit: int = 30,
+    ) -> list[dict[str, Any]]:
+        """Find nodes connected to *node_id*."""
+        rel_filter = f"[r:{rel}]" if rel else "[r]"
+
+        if max_hops > 1:
+            # Variable-length path: return reachable endpoint nodes only
+            hops = f"*1..{max_hops}"
+            if direction == "out":
+                cypher = (
+                    f"MATCH (n {{id: $id}})-[{hops}]->(m) "
+                    f"RETURN m LIMIT {limit}"
+                )
+            elif direction == "in":
+                cypher = (
+                    f"MATCH (m)-[{hops}]->(n {{id: $id}}) "
+                    f"RETURN m LIMIT {limit}"
+                )
+            else:
+                cypher = (
+                    f"MATCH (n {{id: $id}})-[{hops}]-(m) "
+                    f"RETURN m LIMIT {limit}"
+                )
+            res = self._graph.query(cypher, {"id": node_id})
+            results: list[dict[str, Any]] = []
+            for row in (res.result_set or []):
+                m_node = row[0]
+                m_props = getattr(m_node, "properties", {})
+                m_labels = getattr(m_node, "labels", [])
+                results.append({
+                    "src_id": node_id,
+                    "rel": "REACHABLE",
+                    "dst_id": m_props.get("id", ""),
+                    "dst_label": m_labels[0] if m_labels else "Unknown",
+                    "dst_name": m_props.get("name", ""),
+                    "dst_file_path": m_props.get("file_path", ""),
+                })
+            return results
+
+        # Single-hop: include relationship type
+        if direction == "out":
+            cypher = (
+                f"MATCH (n {{id: $id}})-{rel_filter}->(m) "
+                f"RETURN type(r) AS rel_type, m LIMIT {limit}"
+            )
+        elif direction == "in":
+            cypher = (
+                f"MATCH (m)-{rel_filter}->(n {{id: $id}}) "
+                f"RETURN type(r) AS rel_type, m LIMIT {limit}"
+            )
+        else:
+            cypher = (
+                f"MATCH (n {{id: $id}})-{rel_filter}-(m) "
+                f"RETURN type(r) AS rel_type, m LIMIT {limit}"
+            )
+        res = self._graph.query(cypher, {"id": node_id})
+        results = []
+        for row in (res.result_set or []):
+            rel_str, m_node = row[0], row[1]
+            m_props = getattr(m_node, "properties", {})
+            m_labels = getattr(m_node, "labels", [])
+            results.append({
+                "src_id": node_id,
+                "rel": rel_str,
+                "dst_id": m_props.get("id", ""),
+                "dst_label": m_labels[0] if m_labels else "Unknown",
+                "dst_name": m_props.get("name", ""),
+                "dst_file_path": m_props.get("file_path", ""),
+            })
+        return results
+
     # ── Internal ──────────────────────────────────────────────────
 
     def _upsert_nodes(self, nodes: list[NodeData]) -> int:

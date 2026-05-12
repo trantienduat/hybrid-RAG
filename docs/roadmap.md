@@ -65,11 +65,11 @@ Reflects thesis milestones. Updated as work progresses.
 
 | Task | Issue | Status |
 |------|-------|--------|
-| `retrieval/query_analyzer.py` — classify structural/semantic/hybrid | #20 | ⬜ |
-| `retrieval/graph_retriever.py` — Cypher query generator + executor | #21 | ⬜ |
-| `retrieval/vector_retriever.py` — Qdrant semantic search | #22 | ⬜ |
-| `retrieval/rrf.py` — Reciprocal Rank Fusion merger | #23 | ⬜ |
-| `retrieval/context_assembler.py` — format context for LLM | #24 | ⬜ |
+| `retrieval/query_analyzer.py` — classify structural/semantic/hybrid | #20 | ✅ |
+| `retrieval/graph_retriever.py` — Cypher query generator + executor | #21 | ✅ |
+| `retrieval/vector_retriever.py` — Qdrant semantic search | #22 | ✅ |
+| `retrieval/rrf.py` — Reciprocal Rank Fusion merger | #23 | ✅ |
+| `retrieval/context_assembler.py` — format context for LLM | #24 | ✅ |
 | Baseline evaluation: Vector-only vs Hybrid on Q1–Q20 | #25 | ⬜ |
 | Tune RRF k + weights | #26 | ⬜ |
 

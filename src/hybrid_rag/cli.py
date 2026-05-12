@@ -235,5 +235,67 @@ def status(
         raise typer.Exit(1)
 
 
+# ── query command ──────────────────────────────────────────────────────────────
+
+@app.command()
+def query(
+    question: str = typer.Argument(..., help="Natural language question about the codebase."),
+    top_k: int = typer.Option(10, help="Total candidates to retrieve before context assembly."),
+    context_n: int = typer.Option(5, help="Top results to include in the assembled context."),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    qdrant_host: str = typer.Option("localhost", envvar="QDRANT_HOST"),
+    qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
+    qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    rrf_k: int = typer.Option(60, help="RRF k parameter (default: 60)."),
+) -> None:
+    """Query the indexed codebase using hybrid graph + vector retrieval."""
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
+    from hybrid_rag.retrieval.query_analyzer import analyze
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+
+    console.rule("[bold cyan]hybrid-rag query[/]")
+
+    analysis = analyze(question)
+    console.print(
+        f"[dim]Query type:[/] [bold]{analysis.query_type}[/]  "
+        f"entities: {analysis.entities}  keywords: {analysis.keywords[:5]}"
+    )
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+        with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            retriever = HybridRetriever(
+                graph_store=graph_store,
+                vector_store=vector_store,
+                embedder=embedder,
+                rrf_k=rrf_k,
+            )
+            ctx = retriever.retrieve_with_context(question, top_k=top_k, context_n=context_n)
+
+        console.print(
+            f"\n[bold]Retrieved {ctx.metadata['total_results']} results "
+            f"(showing top {ctx.metadata['shown']})[/]"
+        )
+        console.print(
+            f"Sources: graph={ctx.metadata['has_graph']}, "
+            f"vector={ctx.metadata['has_vector']}\n"
+        )
+        console.rule("[dim]Context[/]")
+        console.print(ctx.text)
+        console.rule()
+
+    except Exception as exc:  # noqa: BLE001
+        err_console.print(f"[ERROR] Query failed: {exc}")
+        raise typer.Exit(1) from exc
+
+
 if __name__ == "__main__":
     app()

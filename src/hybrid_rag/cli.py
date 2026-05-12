@@ -12,6 +12,7 @@ Usage:
 """
 from __future__ import annotations
 
+import logging
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 app = typer.Typer(name="hybrid-rag", help="Privacy-preserving Graph-Hybrid RAG for codebases.")
 console = Console()
 err_console = Console(stderr=True, style="bold red")
+logger = logging.getLogger(__name__)
 
 
 # ── index command ──────────────────────────────────────────────────────────────
@@ -42,6 +44,11 @@ def index(
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    llm_model: str = typer.Option("qwen2.5-coder:7b", envvar="LLM_MODEL"),
+    llm_extract: bool = typer.Option(
+        False, "--llm-extract/--no-llm-extract",
+        help="Run LLM-assisted extraction to supplement AST edges (slower, more complete).",
+    ),
     max_tokens: int = typer.Option(512, help="Max tokens per chunk."),
 ) -> None:
     """Parse REPO and ingest code graph + embeddings into FalkorDB and Qdrant."""
@@ -56,10 +63,11 @@ def index(
     # Lazy imports so CLI is fast to load.
     # Composition root: business logic is typed against ports; concrete adapters
     # are wired here so the rest of the codebase stays vendor-neutral.
-    from hybrid_rag.ingestion.parser import parse_repo
+    from hybrid_rag.ingestion.parser import parse_repo, parse_file
     from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+    from hybrid_rag.ingestion.merger import merge_supplemental
     from hybrid_rag.ingestion.chunker import chunk_nodes
-    from hybrid_rag.ports import GraphStore, VectorStore, BaseEmbedder
+    from hybrid_rag.ports import GraphStore, VectorStore, BaseEmbedder, BaseLLMExtractor
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
     from hybrid_rag.vector.qdrant_store import QdrantStore
     from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
@@ -80,14 +88,35 @@ def index(
         if len(result.errors) > 5:
             console.print(f"  … and {len(result.errors) - 5} more")
 
-    # ── 2. Entity resolution ───────────────────────────────────────────────────
+    # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
+    if llm_extract:
+        from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
+        all_extra_edges: list = []
+        py_files = sorted(repo.rglob("*.py"))
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                      console=console) as progress:
+            task = progress.add_task(f"LLM extraction (0/{len(py_files)} files)…", total=None)
+            with OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model) as extractor:
+                for i, fp in enumerate(py_files, start=1):
+                    try:
+                        file_text = fp.read_text(encoding="utf-8", errors="replace")
+                        file_result = parse_file(fp, repo)
+                        extra = extractor.extract(file_text, file_result)
+                        all_extra_edges.extend(extra)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("LLM extraction skipped %s: %s", fp, exc)
+                    progress.update(task, description=f"LLM extraction ({i}/{len(py_files)} files)…")
+        result = merge_supplemental(result, all_extra_edges)
+        console.print(f"[green]✓[/] LLM extraction: {len(all_extra_edges)} supplemental edges added")
+
+    # ── 3. Entity resolution ───────────────────────────────────────────────────
     before_stubs = stub_count(result)
     result = resolve(result)
     after_stubs = stub_count(result)
     resolved = before_stubs - after_stubs
     console.print(f"Entity resolver: {resolved} stubs merged → {after_stubs} external stubs remain")
 
-    # ── 3. Graph ingest ────────────────────────────────────────────────────────
+    # ── 4. Graph ingest ────────────────────────────────────────────────────────
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                   console=console) as progress:
         task = progress.add_task("Writing to FalkorDB…", total=None)
@@ -100,7 +129,7 @@ def index(
 
     console.print(f"[green]✓[/] Graph: {counts['nodes']} nodes, {counts['edges']} edges")
 
-    # ── 4. Chunk + embed + vector upsert ───────────────────────────────────────
+    # ── 5. Chunk + embed + vector upsert ───────────────────────────────────────
     try:
         source_lines: dict[str, list[str]] = {}
         for node in result.nodes:

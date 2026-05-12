@@ -47,10 +47,10 @@ Reflects thesis milestones. Updated as work progresses.
 
 | Task | Issue | Status |
 |------|-------|--------|
-| Spike: LLM triplet extraction prompt design | #13 | ⬜ |
-| `ingestion/llm_extractor.py` — LLM-based supplemental extraction | #14 | ⬜ |
-| Merge LLM results with AST results | #15 | ⬜ |
-| Improve entity resolution: cross-file class linking | #16 | ⬜ |
+| Spike: LLM triplet extraction prompt design | #13 | ✅ |
+| `ingestion/llm_extractor.py` — LLM-based supplemental extraction | #14 | ✅ |
+| Merge LLM results with AST results | #15 | ✅ |
+| Improve entity resolution: cross-file class linking | #16 | ✅ |
 | Handle external/stdlib stubs | #17 | ✅ (done in M1 via `entity_resolver.py`) |
 | Test: index LlamaIndex repo (medium-scale) | #18 | ⬜ |
 | Graph fidelity evaluation vs known structure | #19 | ⬜ |

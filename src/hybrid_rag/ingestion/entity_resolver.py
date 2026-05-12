@@ -25,16 +25,18 @@ from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
 def resolve(result: ParseResult) -> ParseResult:
     """
-    Merge external stub Module nodes into real Module nodes where possible.
+    Merge external stub nodes into real nodes where possible.
 
     Steps:
     1. Build map: module_stem → real Module node id
-    2. For each stub Module whose stem matches a real module, record a redirect
-    3. Rewrite all edges src/dst that reference the stub → real id
-    4. Drop stub nodes that were fully resolved
+    2. Build map: class_simple_name → real Class node id  (M2: cross-file class linking)
+    3. For stubs that match a real node, record a redirect
+    4. Rewrite all edges src/dst that reference a stub → real id
+    5. Drop stub nodes that were fully resolved
     """
     # Separate real vs stub nodes
     real_modules: dict[str, str] = {}   # stem → real node id
+    real_classes: dict[str, str] = {}   # simple name → real node id
     stub_ids: set[str] = set()
 
     for node in result.nodes:
@@ -48,16 +50,27 @@ def resolve(result: ParseResult) -> ParseResult:
                 # Also index by the last component of dotted module path
                 name = node.properties.get("name", stem)
                 real_modules.setdefault(name, node.id)
+        elif node.label == "Class":
+            simple_name = node.properties.get("name", node.id.split("::")[-1])
+            # First definition wins (avoids ambiguity in large repos)
+            real_classes.setdefault(simple_name, node.id)
 
-    # Build redirect map: stub_id → real_id (only where a match exists)
+    # Build redirect map: stub_id → real_id
     redirect: dict[str, str] = {}
+
+    # Module stubs → real Module nodes (existing M1 behaviour)
     for stub_id in stub_ids:
-        # stub id is typically the bare package name, e.g. "falkordb"
         stem = stub_id.split(".")[-1]
         if stem in real_modules:
             redirect[stub_id] = real_modules[stem]
         elif stub_id in real_modules:
             redirect[stub_id] = real_modules[stub_id]
+        # M2: class name stubs used in INHERITS/USES edges (stored as Module stubs
+        # because _ensure_stub always creates Module stubs)
+        elif stub_id in real_classes:
+            redirect[stub_id] = real_classes[stub_id]
+        elif stem in real_classes:
+            redirect[stub_id] = real_classes[stem]
 
     if not redirect:
         return result  # nothing to resolve, return unchanged

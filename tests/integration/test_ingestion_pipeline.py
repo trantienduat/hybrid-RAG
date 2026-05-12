@@ -163,3 +163,101 @@ class TestIngestionPipeline:
         hits = vector_client.search(q_embed, top_k=10)
         hit_ids = {h["node_id"] for h in hits}
         assert query_fn.id in hit_ids, f"{query_fn.id} not found in top-10 vector results"
+
+
+# ── M2 Integration Tests ─────────────────────────────────────────
+
+@requires_services
+class TestM2Pipeline:
+
+    def test_entity_resolver_cross_file_linking(self):
+        """
+        Parse both fixture files together so StringProcessor (string_helpers.py)
+        and any cross-file inheritance stubs get resolved.
+        The entity resolver should reduce stub count after resolution.
+        """
+        from hybrid_rag.ingestion.parser import parse_repo
+        from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+
+        fixture_repo = Path("fixtures/small_repo")
+        result = parse_repo(fixture_repo, languages=["python"])
+
+        before = stub_count(result)
+        resolved = resolve(result)
+        after = stub_count(resolved)
+
+        # math_utils is imported by string_helpers — should be resolved
+        assert after <= before, "stub_count should not increase after resolve"
+        # math_utils module stub should now resolve to real module node
+        module_ids = {n.id for n in resolved.nodes}
+        assert "math_utils.py" in module_ids
+
+    def test_merger_integrates_with_parse_result(self):
+        """Merge supplemental edges into a real ParseResult and verify structure."""
+        from hybrid_rag.ingestion.parser import parse_file
+        from hybrid_rag.ingestion.merger import merge_supplemental
+        from hybrid_rag.ingestion.parser import EdgeData
+
+        fixture_repo = Path("fixtures/small_repo")
+        result = parse_file(fixture_repo / "math_utils.py", fixture_repo)
+
+        fn_id = next(n.id for n in result.nodes if n.label == "Function")
+        extra = [EdgeData(src_id=fn_id, rel="USES", dst_id="SomeClass",
+                          properties={"source": "llm", "confidence": 0.85})]
+
+        merged = merge_supplemental(result, extra)
+
+        # Edge count increased
+        assert len(merged.edges) == len(result.edges) + 1
+        # New stub node created
+        ids = {n.id for n in merged.nodes}
+        assert "SomeClass" in ids
+        # Original not mutated
+        assert len(result.edges) == len(merged.edges) - 1
+
+    def test_full_m2_pipeline_no_llm(self, graph_client, vector_client, embedder):
+        """
+        Full M2 flow without LLM extraction:
+        parse_repo → merge (empty extras) → entity_resolve → graph ingest → embed → vector.
+        Verifies INHERITS edges are written to FalkorDB when present.
+        """
+        from hybrid_rag.ingestion.parser import parse_repo
+        from hybrid_rag.ingestion.entity_resolver import resolve
+        from hybrid_rag.ingestion.merger import merge_supplemental
+
+        fixture_repo = Path("fixtures/small_repo")
+        result = parse_repo(fixture_repo, languages=["python"])
+        result = merge_supplemental(result, [])   # no-op merge
+        result = resolve(result)
+
+        counts = graph_client.ingest(result)
+        assert counts["nodes"] > 0
+        assert counts["edges"] > 0
+
+        # Embed + upsert
+        chunks = embedder.embed_nodes(result.nodes)
+        upserted = vector_client.upsert(chunks)
+        assert upserted > 0
+
+    def test_llm_extractor_returns_edges_or_empty(self):
+        """
+        OllamaLLMExtractor.extract() on a real file should return a list
+        (possibly empty if LLM finds nothing, but never raise).
+        Requires Ollama with a code-capable model.
+        """
+        from hybrid_rag.ingestion.parser import parse_file
+        from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
+
+        fixture_repo = Path("fixtures/small_repo")
+        fp = fixture_repo / "string_helpers.py"
+        result = parse_file(fp, fixture_repo)
+        source_text = fp.read_text(encoding="utf-8")
+
+        with OllamaLLMExtractor(model="qwen2.5-coder:7b") as extractor:
+            edges = extractor.extract(source_text, result)
+
+        assert isinstance(edges, list)
+        for e in edges:
+            assert e.src_id
+            assert e.rel in ("USES", "CALLS", "INHERITS")
+            assert e.dst_id

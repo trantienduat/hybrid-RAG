@@ -45,27 +45,40 @@ class HybridRetriever(BaseRetriever):
         vector_store: VectorStore,
         embedder: BaseEmbedder,
         rrf_k: int = 60,
+        rrf_structural_weight: float = 3.0,
+        rrf_hybrid_weight: float = 1.5,
     ) -> None:
         self._graph_retriever = GraphRetriever(graph_store)
         self._vector_retriever = VectorRetriever(vector_store, embedder)
         self._assembler = ContextAssembler()
         self._rrf_k = rrf_k
+        self._rrf_structural_weight = rrf_structural_weight
+        self._rrf_hybrid_weight = rrf_hybrid_weight
 
     # ── BaseRetriever interface ────────────────────────────────────
 
-    def retrieve(self, query: str, top_k: int = 10) -> list[dict[str, Any]]:
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 10,
+        skip_graph: bool = False,
+    ) -> list[dict[str, Any]]:
         """
         Run hybrid retrieval and return top_k fused results sorted by rrf_score.
 
         Each result dict has at least:
           node_id, base_node_id, name, label, file_path,
           text, rel, source, rrf_score.
+
+        Args:
+            skip_graph: When True, skip graph retrieval entirely (vector-only
+                        baseline for evaluation / ablation studies).
         """
         analysis = analyze(query)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
         graph_results: list[dict[str, Any]] = []
-        if analysis.query_type in ("structural", "hybrid"):
+        if not skip_graph and analysis.query_type in ("structural", "hybrid"):
             graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2)
             logger.debug("Graph results: %d nodes", len(graph_results))
 
@@ -75,10 +88,12 @@ class HybridRetriever(BaseRetriever):
         # Structural queries are relationship/structure lookups — graph evidence
         # should dominate so that structural nodes (which have no vector text)
         # aren't outranked by semantically-similar but irrelevant vector chunks.
-        if analysis.query_type == "structural":
-            rrf_weights = (3.0, 1.0)
+        if skip_graph:
+            rrf_weights = (0.0, 1.0)
+        elif analysis.query_type == "structural":
+            rrf_weights = (self._rrf_structural_weight, 1.0)
         elif analysis.query_type == "hybrid":
-            rrf_weights = (1.5, 1.0)
+            rrf_weights = (self._rrf_hybrid_weight, 1.0)
         else:
             rrf_weights = (1.0, 1.0)
 

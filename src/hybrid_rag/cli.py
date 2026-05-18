@@ -297,5 +297,301 @@ def query(
         raise typer.Exit(1) from exc
 
 
+# ── eval command ───────────────────────────────────────────────────────────────
+
+@app.command()
+def eval(
+    queries: list[str] = typer.Option(
+        [], "--query", "-q",
+        help="Run only these query IDs (e.g. Q4 Q9). Defaults to full Q1-Q20 corpus.",
+    ),
+    top_k: int = typer.Option(10, help="Candidates to retrieve per query."),
+    rrf_k: int = typer.Option(60, help="RRF k parameter."),
+    rrf_structural_weight: float = typer.Option(3.0, help="Graph weight for structural queries."),
+    rrf_hybrid_weight: float = typer.Option(1.5, help="Graph weight for hybrid queries."),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    qdrant_host: str = typer.Option("localhost", envvar="QDRANT_HOST"),
+    qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
+    qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    json_out: bool = typer.Option(False, "--json", help="Emit raw JSON results to stdout."),
+) -> None:
+    """Run M3 baseline evaluation: hybrid vs vector-only on Q1-Q20."""
+    import json as _json
+
+    from rich.table import Table
+
+    from hybrid_rag.eval.corpus import EVAL_CORPUS
+    from hybrid_rag.eval.runner import EvalRunner
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+
+    # Filter corpus if caller specified specific IDs
+    corpus = EVAL_CORPUS
+    if queries:
+        ids = {q.upper() for q in queries}
+        corpus = [c for c in EVAL_CORPUS if c.id.upper() in ids]
+        if not corpus:
+            err_console.print(f"[ERROR] No matching query IDs found: {queries}")
+            raise typer.Exit(1)
+
+    console.rule("[bold cyan]hybrid-rag eval[/]")
+    console.print(
+        f"Corpus: {len(corpus)} queries  |  top_k={top_k}  "
+        f"rrf_k={rrf_k}  w_structural={rrf_structural_weight}  w_hybrid={rrf_hybrid_weight}"
+    )
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+        with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            runner = EvalRunner(
+                graph_store=graph_store,
+                vector_store=vector_store,
+                embedder=embedder,
+                rrf_k=rrf_k,
+                rrf_structural_weight=rrf_structural_weight,
+                rrf_hybrid_weight=rrf_hybrid_weight,
+            )
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(f"Running {len(corpus)} queries…", total=None)
+                report = runner.run(corpus, top_k=top_k)
+                progress.update(task, description="Done")
+
+    except Exception as exc:  # noqa: BLE001
+        err_console.print(f"[ERROR] Eval failed: {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        rows = []
+        for r in report.results:
+            rows.append({
+                "id": r.query_id, "hops": r.hops, "query_type": r.query_type,
+                "gt_count": len(r.ground_truth),
+                "hit5_hybrid": r.hit_at5_hybrid, "hit5_vector": r.hit_at5_vector,
+                "mrr_hybrid": r.mrr_hybrid, "mrr_vector": r.mrr_vector,
+                "delta_hit": r.delta_hit,
+            })
+        console.print(_json.dumps(rows, indent=2))
+        return
+
+    # ── Rich results table ────────────────────────────────────────────────────
+    console.print()
+    tbl = Table(title="Q1-Q20 Evaluation Results", show_lines=True)
+    tbl.add_column("ID",    style="bold", width=4)
+    tbl.add_column("Hops",  justify="center", width=5)
+    tbl.add_column("Type",  width=11)
+    tbl.add_column("GT",    justify="right", width=4)
+    tbl.add_column("Hit@5 Hybrid", justify="center", width=13)
+    tbl.add_column("Hit@5 Vector", justify="center", width=13)
+    tbl.add_column("Δ",     justify="center", width=6)
+    tbl.add_column("MRR Hybrid", justify="center", width=11)
+    tbl.add_column("MRR Vector", justify="center", width=11)
+
+    for r in report.results:
+        gt_str = str(len(r.ground_truth)) if r.ground_truth else "[dim]0[/]"
+        h_hit  = f"[green]{r.hit_at5_hybrid:.1f}[/]" if r.hit_at5_hybrid >= 0.5 else f"[red]{r.hit_at5_hybrid:.1f}[/]"
+        v_hit  = f"[green]{r.hit_at5_vector:.1f}[/]" if r.hit_at5_vector >= 0.5 else f"[red]{r.hit_at5_vector:.1f}[/]"
+        delta  = (
+            f"[bold green]+{r.delta_hit:.1f}[/]" if r.delta_hit > 0
+            else (f"[red]{r.delta_hit:.1f}[/]" if r.delta_hit < 0 else f"[dim]{r.delta_hit:.1f}[/]")
+        )
+        tbl.add_row(
+            r.query_id, str(r.hops), r.query_type, gt_str,
+            h_hit, v_hit, delta,
+            f"{r.mrr_hybrid:.2f}", f"{r.mrr_vector:.2f}",
+        )
+
+    console.print(tbl)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    console.print()
+    summary = Table(title="Summary", show_lines=False, box=None)
+    summary.add_column("Metric", style="bold", width=40)
+    summary.add_column("Hybrid", justify="right", width=10)
+    summary.add_column("Vector-only", justify="right", width=12)
+    summary.add_column("Δ", justify="right", width=8)
+
+    def _row(label: str, h: float, v: float) -> None:
+        d = h - v
+        d_str = f"[bold green]+{d:.3f}[/]" if d > 0 else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+        summary.add_row(label, f"{h:.3f}", f"{v:.3f}", d_str)
+
+    _row("Hit@5 (all)",          report.hit5_hybrid_all,  report.hit5_vector_all)
+    _row("Hit@5 (1-hop)",        report.hit5_hybrid_by_hops[1], report.hit5_vector_by_hops[1])
+    _row("Hit@5 (2-hop)",        report.hit5_hybrid_by_hops[2], report.hit5_vector_by_hops[2])
+    _row("Hit@5 (3-hop)",        report.hit5_hybrid_by_hops[3], report.hit5_vector_by_hops[3])
+    _row("MRR  (all)",           report.mrr_hybrid_all,   report.mrr_vector_all)
+    _row("ΔHitRate 2-3hop",      report.delta_hit_2_3hop + report.hit5_vector_all,
+         report.hit5_vector_all)  # formatted separately below
+
+    # Override last row with cleaner format
+    console.print(summary)
+    console.print()
+
+    target_met = report.delta_hit_2_3hop >= 0.20
+    delta_color = "bold green" if target_met else "yellow"
+    console.print(
+        f"[{delta_color}]ΔHitRate 2-3hop = {report.delta_hit_2_3hop:+.3f}[/]  "
+        f"(thesis target: ≥ +0.20  {'✓ MET' if target_met else '✗ not met yet'})"
+    )
+
+
+# ── eval command ───────────────────────────────────────────────────────────────
+
+@app.command()
+def eval(
+    queries: list[str] = typer.Option(
+        [], "--query", "-q",
+        help="Run only these query IDs (e.g. Q4 Q9). Defaults to full Q1-Q20 corpus.",
+    ),
+    top_k: int = typer.Option(10, help="Candidates to retrieve per query."),
+    rrf_k: int = typer.Option(60, help="RRF k parameter."),
+    rrf_structural_weight: float = typer.Option(3.0, help="Graph weight for structural queries."),
+    rrf_hybrid_weight: float = typer.Option(1.5, help="Graph weight for hybrid queries."),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    qdrant_host: str = typer.Option("localhost", envvar="QDRANT_HOST"),
+    qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
+    qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    json_out: bool = typer.Option(False, "--json", help="Emit raw JSON results to stdout."),
+) -> None:
+    """Run M3 baseline evaluation: hybrid vs vector-only on Q1-Q20."""
+    import json as _json
+
+    from rich.table import Table
+
+    from hybrid_rag.eval.corpus import EVAL_CORPUS
+    from hybrid_rag.eval.runner import EvalRunner
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+
+    # Filter corpus if caller specified specific IDs
+    corpus = EVAL_CORPUS
+    if queries:
+        ids = {q.upper() for q in queries}
+        corpus = [c for c in EVAL_CORPUS if c.id.upper() in ids]
+        if not corpus:
+            err_console.print(f"[ERROR] No matching query IDs found: {queries}")
+            raise typer.Exit(1)
+
+    console.rule("[bold cyan]hybrid-rag eval[/]")
+    console.print(
+        f"Corpus: {len(corpus)} queries  |  top_k={top_k}  "
+        f"rrf_k={rrf_k}  w_structural={rrf_structural_weight}  w_hybrid={rrf_hybrid_weight}"
+    )
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+        with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            runner = EvalRunner(
+                graph_store=graph_store,
+                vector_store=vector_store,
+                embedder=embedder,
+                rrf_k=rrf_k,
+                rrf_structural_weight=rrf_structural_weight,
+                rrf_hybrid_weight=rrf_hybrid_weight,
+            )
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(f"Running {len(corpus)} queries…", total=None)
+                report = runner.run(corpus, top_k=top_k)
+                progress.update(task, description="Done")
+
+    except Exception as exc:  # noqa: BLE001
+        err_console.print(f"[ERROR] Eval failed: {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        rows = []
+        for r in report.results:
+            rows.append({
+                "id": r.query_id, "hops": r.hops, "query_type": r.query_type,
+                "gt_count": len(r.ground_truth),
+                "hit5_hybrid": r.hit_at5_hybrid, "hit5_vector": r.hit_at5_vector,
+                "mrr_hybrid": r.mrr_hybrid, "mrr_vector": r.mrr_vector,
+                "delta_hit": r.delta_hit,
+            })
+        console.print(_json.dumps(rows, indent=2))
+        return
+
+    # ── Rich results table ────────────────────────────────────────────────────
+    console.print()
+    tbl = Table(title="Q1-Q20 Evaluation Results", show_lines=True)
+    tbl.add_column("ID",    style="bold", width=4)
+    tbl.add_column("Hops",  justify="center", width=5)
+    tbl.add_column("Type",  width=11)
+    tbl.add_column("GT",    justify="right", width=4)
+    tbl.add_column("Hit@5 Hybrid", justify="center", width=13)
+    tbl.add_column("Hit@5 Vector", justify="center", width=13)
+    tbl.add_column("Δ",     justify="center", width=6)
+    tbl.add_column("MRR Hybrid", justify="center", width=11)
+    tbl.add_column("MRR Vector", justify="center", width=11)
+
+    for r in report.results:
+        gt_str = str(len(r.ground_truth)) if r.ground_truth else "[dim]0[/]"
+        h_hit  = f"[green]{r.hit_at5_hybrid:.1f}[/]" if r.hit_at5_hybrid >= 0.5 else f"[red]{r.hit_at5_hybrid:.1f}[/]"
+        v_hit  = f"[green]{r.hit_at5_vector:.1f}[/]" if r.hit_at5_vector >= 0.5 else f"[red]{r.hit_at5_vector:.1f}[/]"
+        delta  = (
+            f"[bold green]+{r.delta_hit:.1f}[/]" if r.delta_hit > 0
+            else (f"[red]{r.delta_hit:.1f}[/]" if r.delta_hit < 0 else f"[dim]{r.delta_hit:.1f}[/]")
+        )
+        tbl.add_row(
+            r.query_id, str(r.hops), r.query_type, gt_str,
+            h_hit, v_hit, delta,
+            f"{r.mrr_hybrid:.2f}", f"{r.mrr_vector:.2f}",
+        )
+
+    console.print(tbl)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    console.print()
+    summary = Table(title="Summary", show_lines=False, box=None)
+    summary.add_column("Metric", style="bold", width=40)
+    summary.add_column("Hybrid", justify="right", width=10)
+    summary.add_column("Vector-only", justify="right", width=12)
+    summary.add_column("Δ", justify="right", width=8)
+
+    def _row(label: str, h: float, v: float) -> None:
+        d = h - v
+        d_str = f"[bold green]+{d:.3f}[/]" if d > 0 else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+        summary.add_row(label, f"{h:.3f}", f"{v:.3f}", d_str)
+
+    _row("Hit@5 (all)",          report.hit5_hybrid_all,  report.hit5_vector_all)
+    _row("Hit@5 (1-hop)",        report.hit5_hybrid_by_hops[1], report.hit5_vector_by_hops[1])
+    _row("Hit@5 (2-hop)",        report.hit5_hybrid_by_hops[2], report.hit5_vector_by_hops[2])
+    _row("Hit@5 (3-hop)",        report.hit5_hybrid_by_hops[3], report.hit5_vector_by_hops[3])
+    _row("MRR  (all)",           report.mrr_hybrid_all,   report.mrr_vector_all)
+    _row("ΔHitRate 2-3hop",      report.delta_hit_2_3hop + report.hit5_vector_all,
+         report.hit5_vector_all)  # formatted separately below
+
+    # Override last row with cleaner format
+    console.print(summary)
+    console.print()
+
+    target_met = report.delta_hit_2_3hop >= 0.20
+    delta_color = "bold green" if target_met else "yellow"
+    console.print(
+        f"[{delta_color}]ΔHitRate 2-3hop = {report.delta_hit_2_3hop:+.3f}[/]  "
+        f"(thesis target: ≥ +0.20  {'✓ MET' if target_met else '✗ not met yet'})"
+    )
+
+
 if __name__ == "__main__":
     app()

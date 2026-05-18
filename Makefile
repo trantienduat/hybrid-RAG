@@ -13,16 +13,21 @@ restart: down up
 # ── Dev setup ──────────────────────────────────────────────────────
 install:
 	python3.12 -m venv .venv
-	. .venv/bin/activate && pip install -e ".[dev]"
+	. .venv/bin/activate && pip install -e ".[dev,api,eval]"
 
 # ── Indexing ───────────────────────────────────────────────────────
 # Usage: make index REPO=/path/to/target/repo
 index:
-	python -m hybrid_rag.cli index $(REPO)
+	. .venv/bin/activate && hybrid-rag index $(REPO)
 
-# ── API server ─────────────────────────────────────────────────────
-serve:
-	uvicorn hybrid_rag.api.main:app --host 0.0.0.0 --port 8000 --reload
+# ── Querying ───────────────────────────────────────────────────────
+# Usage: make query Q="your question"
+query:
+	. .venv/bin/activate && hybrid-rag query "$(Q)"
+
+# ── Status ─────────────────────────────────────────────────────────
+status:
+	. .venv/bin/activate && hybrid-rag status
 
 # ── Tests ──────────────────────────────────────────────────────────
 test:

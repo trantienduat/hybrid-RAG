@@ -70,10 +70,15 @@ Reflects thesis milestones. Updated as work progresses.
 | `retrieval/vector_retriever.py` — Qdrant semantic search | #22 | ✅ |
 | `retrieval/rrf.py` — Reciprocal Rank Fusion merger | #23 | ✅ |
 | `retrieval/context_assembler.py` — format context for LLM | #24 | ✅ |
-| Baseline evaluation: Vector-only vs Hybrid on Q1–Q20 | #25 | ⬜ |
-| Tune RRF k + weights | #26 | ⬜ |
+| Baseline evaluation: Vector-only vs Hybrid on Q1–Q20 | #25 | ✅ |
+| Tune RRF k + weights | #26 | ✅ |
 
 **M3 Done When:** Hybrid outperforms vector-only by ΔHitRate ≥ +0.20 on 2-3 hop queries (Q11–Q15).
+
+**M3 Results (May 2026):** Winning config: `top_k=20, rrf_k=60, structural_weight=3.0, hybrid_weight=1.5`
+- Hit@5 all: Hybrid 0.615 vs Vector 0.308 (+0.308)
+- Hit@5 3-hop: Hybrid 0.800 vs Vector 0.400 (+0.400)
+- ΔHitRate 2-3hop = **+0.222** (target ≥ +0.20 ✓)
 
 ---
 

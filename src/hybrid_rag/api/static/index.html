@@ -4,25 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>hybrid-rag — Graph Explorer</title>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
   <style>
     :root {
-      --bg: #0f1117;
+      --bg:      #0f1117;
       --surface: #1a1d27;
-      --border: #2e3148;
-      --text: #e2e8f0;
-      --muted: #8892a4;
-      --accent: #6366f1;
+      --border:  #2e3148;
+      --text:    #e2e8f0;
+      --muted:   #8892a4;
+      --accent:  #6366f1;
       --accent2: #22d3ee;
-      --green: #34d399;
-      --yellow: #fbbf24;
-      --red: #f87171;
+      --green:   #34d399;
+      --yellow:  #fbbf24;
+      --red:     #f87171;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'SF Mono', 'Consolas', monospace;
+      font-family: 'SF Mono', Consolas, monospace;
       font-size: 13px;
       display: flex;
       flex-direction: column;
@@ -34,25 +37,29 @@
     header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       padding: 10px 16px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
-    header h1 { font-size: 14px; color: var(--accent); letter-spacing: 0.05em; }
-    header span { color: var(--muted); font-size: 11px; }
-
-    /* ── Layout ── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
+    header h1  { font-size: 14px; color: var(--accent); letter-spacing: 0.05em; }
+    header .sub { color: var(--muted); font-size: 11px; flex: 1; }
+    .badge-local {
+      font-size: 10px;
+      background: rgba(52,211,153,0.12);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 3px;
+      padding: 2px 8px;
     }
 
-    /* ── Sidebar ── */
+    /* ── 3-panel layout ── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left sidebar ── */
     .sidebar {
-      width: 280px;
+      width: 220px;
       flex-shrink: 0;
       background: var(--surface);
       border-right: 1px solid var(--border);
@@ -60,12 +67,9 @@
       flex-direction: column;
       overflow: hidden;
     }
-    .sidebar-section {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-    }
+    .sidebar-section { padding: 10px; border-bottom: 1px solid var(--border); }
     .sidebar-section label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
-    input[type=text], textarea {
+    input[type=text] {
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--border);
@@ -76,10 +80,10 @@
       font-size: 12px;
       outline: none;
     }
-    input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+    input[type=text]:focus { border-color: var(--accent); }
     button {
       background: var(--accent);
-      color: white;
+      color: #fff;
       border: none;
       border-radius: 4px;
       padding: 6px 12px;
@@ -89,200 +93,243 @@
       margin-top: 6px;
       width: 100%;
     }
-    button:hover { opacity: 0.85; }
-    button.secondary {
-      background: var(--border);
-      color: var(--text);
-    }
+    button:hover:not(:disabled) { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* ── Search results ── */
-    .results-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
+    /* ── Results list ── */
+    .results-list { flex: 1; overflow-y: auto; padding: 6px; }
     .result-item {
-      padding: 7px 8px;
+      padding: 6px 8px;
       border-radius: 4px;
       cursor: pointer;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
       border: 1px solid transparent;
     }
-    .result-item:hover { background: var(--border); }
+    .result-item:hover  { background: var(--border); }
     .result-item.active { border-color: var(--accent); background: rgba(99,102,241,0.12); }
-    .result-item .name { color: var(--text); font-weight: 600; }
+    .result-item .name { color: var(--text); font-weight: 600; font-size: 11px; }
     .result-item .meta { color: var(--muted); font-size: 10px; margin-top: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .label-badge {
-      display: inline-block;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-size: 10px;
-      margin-right: 4px;
-    }
-    .label-Class    { background: rgba(99,102,241,0.25); color: var(--accent); }
-    .label-Function { background: rgba(34,211,238,0.2); color: var(--accent2); }
-    .label-Module   { background: rgba(52,211,153,0.2); color: var(--green); }
-    .label-Variable { background: rgba(251,191,36,0.2); color: var(--yellow); }
 
-    /* ── Query panel ── */
-    .query-panel {
-      padding: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    textarea { resize: vertical; min-height: 60px; max-height: 120px; }
-    #answerBox {
-      margin-top: 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 8px;
-      min-height: 60px;
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      line-height: 1.5;
-      font-size: 12px;
-      color: var(--text);
-    }
-    #answerBox .cursor {
-      display: inline-block;
-      width: 2px;
-      height: 12px;
-      background: var(--accent);
-      animation: blink 1s step-end infinite;
-    }
-    @keyframes blink { 50% { opacity: 0; } }
-    .latency { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    /* ── Label badges ── */
+    .label-badge    { display: inline-block; padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-right: 3px; }
+    .label-Class    { background: rgba(99,102,241,0.25); color: var(--accent); }
+    .label-Function { background: rgba(34,211,238,0.20); color: var(--accent2); }
+    .label-Module   { background: rgba(52,211,153,0.20); color: var(--green); }
+    .label-Variable { background: rgba(251,191,36,0.20); color: var(--yellow); }
 
     /* ── Graph canvas ── */
     .canvas-wrap {
       flex: 1;
+      min-width: 280px;
       position: relative;
       overflow: hidden;
+      background: var(--bg);
     }
-    svg { width: 100%; height: 100%; background: var(--bg); }
-
-    /* ── Node colors per label ── */
-    circle.Class    { fill: rgba(99,102,241,0.85); }
-    circle.Function { fill: rgba(34,211,238,0.85); }
-    circle.Module   { fill: rgba(52,211,153,0.85); }
-    circle.Variable { fill: rgba(251,191,36,0.85); }
-    circle.anchor   { stroke: white; stroke-width: 2px; }
-
-    .link { stroke: var(--border); stroke-width: 1.5px; }
-    .link-label {
-      fill: var(--muted);
-      font-size: 9px;
-      pointer-events: none;
+    #graph-3d { width: 100%; height: 100%; }
+    /* 3d-force-graph tooltip override */
+    .graph-tooltip {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 6px !important;
+      padding: 6px 10px !important;
+      font-size: 11px !important;
+      font-family: 'SF Mono', Consolas, monospace !important;
+      color: var(--text) !important;
     }
-    .node-label {
-      fill: var(--text);
-      font-size: 10px;
-      pointer-events: none;
-    }
+    .g-tip-label { color: var(--muted); font-size: 10px; }
+    .g-tip-path  { color: var(--muted); font-size: 10px; margin-top: 2px; word-break: break-all; }
 
-    /* ── Node detail tooltip ── */
-    #tooltip {
-      position: absolute;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 11px;
-      pointer-events: none;
-      display: none;
-      max-width: 260px;
-      z-index: 100;
+    /* ── Graph overlays ── */
+    .empty-state {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      text-align: center; color: var(--muted); pointer-events: none;
     }
-    #tooltip .t-name { font-weight: 700; color: var(--text); }
-    #tooltip .t-label { color: var(--muted); font-size: 10px; }
-    #tooltip .t-path { color: var(--muted); font-size: 10px; word-break: break-all; margin-top: 3px; }
-
-    /* ── Legend ── */
-    .legend {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 10px;
-    }
-    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── Status bar ── */
+    .empty-state p { margin-top: 6px; font-size: 12px; }
     .status-bar {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(26,29,39,0.9);
+      position: absolute; top: 8px; left: 8px;
+      background: rgba(26,29,39,0.92);
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 4px 8px;
+      font-size: 11px; color: var(--muted);
+    }
+    .legend {
+      position: absolute; bottom: 12px; right: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px; font-size: 10px;
+    }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Chat panel ── */
+    .chat-panel {
+      width: 420px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .chat-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
       font-size: 11px;
       color: var(--muted);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-
-    .empty-state {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%,-50%);
-      text-align: center;
+    .btn-clear {
+      background: none;
+      border: 1px solid var(--border);
       color: var(--muted);
-      pointer-events: none;
+      font-size: 10px;
+      padding: 2px 8px;
+      margin: 0;
+      width: auto;
+      cursor: pointer;
+      border-radius: 3px;
     }
-    .empty-state p { margin-top: 6px; font-size: 12px; }
+    .btn-clear:hover { background: var(--border); }
+
+    /* ── Messages ── */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .chat-empty { color: var(--muted); font-size: 12px; text-align: center; margin: auto; }
+    .msg-user      { align-self: flex-end;   max-width: 88%; }
+    .msg-assistant { align-self: flex-start; max-width: 100%; }
+    .msg-role { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+    .msg-user .msg-role { text-align: right; }
+    .msg-body {
+      padding: 8px 10px;
+      border-radius: 8px;
+      line-height: 1.55;
+      font-size: 12px;
+      word-break: break-word;
+    }
+    .msg-user      .msg-body { background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.25); }
+    .msg-assistant .msg-body { background: var(--bg); border: 1px solid var(--border); }
+    .msg-meta { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .msg-user .msg-meta { text-align: right; }
+
+    /* ── Citations ── */
+    .citations { margin-top: 6px; }
+    .citations > summary {
+      font-size: 10px; color: var(--muted); cursor: pointer;
+      padding: 2px 0; list-style: none; user-select: none;
+    }
+    .citations > summary::before { content: '▶  '; }
+    .citations[open] > summary::before { content: '▼  '; }
+    .citations-body { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
+    .citation-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 10px;
+    }
+    .citation-name  { color: var(--text); font-weight: 600; margin-right: 4px; }
+    .citation-score { color: var(--green); float: right; }
+    .citation-path  { color: var(--muted); margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+    /* ── Code blocks (highlight.js) ── */
+    .code-block {
+      position: relative;
+      margin: 6px 0;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .code-lang { position: absolute; right: 6px; top: 4px; font-size: 9px; color: var(--muted); pointer-events: none; }
+    .code-block pre { margin: 0; overflow-x: auto; }
+    .code-block code.hljs { font-size: 11px; padding: 10px 12px; border-radius: 0; }
+    code:not(.hljs) { background: rgba(255,255,255,0.07); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+
+    /* ── Chat input bar ── */
+    .chat-input-bar {
+      flex-shrink: 0;
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .chat-input-bar textarea {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      resize: none;
+      min-height: 38px;
+      max-height: 140px;
+      overflow-y: auto;
+      line-height: 1.4;
+    }
+    .chat-input-bar textarea:focus { border-color: var(--accent); }
+    .chat-input-bar button { width: auto; margin: 0; padding: 8px 16px; flex-shrink: 0; }
+
+    /* ── Streaming cursor ── */
+    .cursor {
+      display: inline-block;
+      width: 2px; height: 12px;
+      background: var(--accent);
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+      margin-left: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
   </style>
 </head>
 <body>
 
 <header>
   <h1>hybrid-rag</h1>
-  <span>Graph Explorer + Query Interface</span>
+  <span class="sub">Knowledge Graph Explorer + RAG Query</span>
+  <span class="badge-local">🔒 Local</span>
 </header>
 
 <div class="layout">
-  <!-- ── Sidebar ── -->
+
+  <!-- ── Left: search sidebar ── -->
   <div class="sidebar">
-
-    <!-- Search -->
     <div class="sidebar-section">
-      <label>SEARCH KG NODES</label>
+      <label for="searchInput">Search KG Nodes</label>
       <input type="text" id="searchInput" placeholder="e.g. BaseRetriever" />
-      <button id="searchBtn">Search</button>
+      <button id="searchBtn" type="button">Search</button>
     </div>
-
-    <!-- Results list -->
     <div class="results-list" id="resultsList">
       <div style="color:var(--muted);padding:8px;font-size:11px;">
         Search for a node to explore the graph.
       </div>
     </div>
-
-    <!-- Query panel -->
-    <div class="query-panel">
-      <label style="display:block;color:var(--muted);font-size:11px;margin-bottom:6px;">ASK THE CODEBASE</label>
-      <textarea id="questionInput" placeholder="e.g. Which classes inherit from BaseRetriever?"></textarea>
-      <button id="askBtn">Ask (streaming)</button>
-      <div id="answerBox" style="display:none"></div>
-      <div class="latency" id="latencyInfo"></div>
-    </div>
-
   </div>
 
-  <!-- ── Graph canvas ── -->
+  <!-- ── Centre: 3-D knowledge graph ── -->
   <div class="canvas-wrap" id="canvasWrap">
-    <svg id="graph"></svg>
+    <div id="graph-3d"></div>
 
     <div class="empty-state" id="emptyState">
       <span style="font-size:32px;opacity:0.3">⬡</span>
       <p>Select a node from the search results<br>to visualise its relationships.</p>
     </div>
 
-    <div class="status-bar" id="statusBar" style="display:none"></div>
+    <div class="status-bar" id="statusBar" style="display:none" aria-live="polite"></div>
 
     <div class="legend">
       <div class="legend-row"><div class="legend-dot" style="background:rgba(99,102,241,0.85)"></div>Class</div>
@@ -291,52 +338,67 @@
       <div class="legend-row"><div class="legend-dot" style="background:rgba(251,191,36,0.85)"></div>Variable</div>
     </div>
   </div>
-</div>
 
-<div id="tooltip">
-  <div class="t-name" id="tip-name"></div>
-  <div class="t-label" id="tip-label"></div>
-  <div class="t-path" id="tip-path"></div>
+  <!-- ── Right: chat panel ── -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <span>Ask the Codebase</span>
+      <button class="btn-clear" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty">Ask anything about the indexed codebase…</div>
+    </div>
+    <div class="chat-input-bar">
+      <textarea id="questionInput"
+                placeholder="e.g. Which classes inherit from BaseRetriever? (Enter ↵ to send, Shift+Enter for newline)"
+                rows="1"></textarea>
+      <button id="askBtn" type="button">Ask</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ── API helpers ──────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const API = '';  // relative — works when served by FastAPI
+const API = '';  // relative — FastAPI serves the static file
 
-async function apiSearch(q, limit = 20) {
-  const r = await fetch(`${API}/graph/search?q=${encodeURIComponent(q)}&limit=${limit}`);
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
+const LABEL_COLORS = {
+  Class:    'rgba(99,102,241,0.9)',
+  Function: 'rgba(34,211,238,0.9)',
+  Module:   'rgba(52,211,153,0.9)',
+  Variable: 'rgba(251,191,36,0.9)',
+};
 
-async function apiNeighbors(nodeId, direction = 'both', limit = 40) {
-  const r = await fetch(
-    `${API}/graph/neighbors/${encodeURIComponent(nodeId)}?direction=${direction}&limit=${limit}`
-  );
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
+// ── State ─────────────────────────────────────────────────────────────────────
 
-// ── State ────────────────────────────────────────────────────────────────────
+let currentNodeId  = null;
+let graphInstance  = null;   // ForceGraph3D instance
+let currentAsk     = null;   // AbortController for the in-flight stream
+let statusTimer    = null;   // auto-clear timer for status bar
+const messages     = [];     // { id, role, text, sources, latency, streaming }
+let msgIdCounter   = 0;
 
-let currentNodeId = null;
-let simulation = null;
-
-// ── DOM refs ─────────────────────────────────────────────────────────────────
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 
 const searchInput   = document.getElementById('searchInput');
 const searchBtn     = document.getElementById('searchBtn');
 const resultsList   = document.getElementById('resultsList');
 const questionInput = document.getElementById('questionInput');
 const askBtn        = document.getElementById('askBtn');
-const answerBox     = document.getElementById('answerBox');
-const latencyInfo   = document.getElementById('latencyInfo');
+const clearBtn      = document.getElementById('clearBtn');
+const chatMessages  = document.getElementById('chatMessages');
 const emptyState    = document.getElementById('emptyState');
 const statusBar     = document.getElementById('statusBar');
-const tooltip       = document.getElementById('tooltip');
 
-// ── Search ───────────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
+
+// Event delegation — no inline onclick (XSS prevention)
+resultsList.addEventListener('click', e => {
+  const item = e.target.closest('.result-item');
+  if (!item) return;
+  selectNode(item.dataset.id, item.dataset.label, item.dataset.name);
+});
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
@@ -346,10 +408,12 @@ async function doSearch() {
   if (!q) return;
   searchBtn.textContent = '…';
   try {
-    const data = await apiSearch(q);
+    const r = await fetch(`${API}/graph/search?q=${encodeURIComponent(q)}&limit=20`);
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
     renderResultsList(data.nodes);
   } catch (err) {
-    resultsList.innerHTML = `<div style="color:var(--red);padding:8px;font-size:11px;">Error: ${err.message}</div>`;
+    resultsList.innerHTML = `<div role="alert" style="color:var(--red);padding:8px;font-size:11px;">Error: ${escHtml(err.message)}</div>`;
   } finally {
     searchBtn.textContent = 'Search';
   }
@@ -361,9 +425,12 @@ function renderResultsList(nodes) {
     return;
   }
   resultsList.innerHTML = nodes.map(n => `
-    <div class="result-item" data-id="${escHtml(n.id)}" onclick="selectNode('${escHtml(n.id)}', '${escHtml(n.label)}', '${escHtml(n.name)}')">
+    <div class="result-item"
+         data-id="${escHtml(n.id)}"
+         data-label="${escHtml(n.label)}"
+         data-name="${escHtml(n.name)}">
       <div class="name">
-        <span class="label-badge label-${n.label}">${n.label}</span>
+        <span class="label-badge label-${escHtml(n.label)}">${escHtml(n.label)}</span>
         ${escHtml(n.name || n.id.split('::').pop())}
       </div>
       <div class="meta">${escHtml(n.file_path)}</div>
@@ -371,20 +438,23 @@ function renderResultsList(nodes) {
   `).join('');
 }
 
-// ── Node selection → load neighbors → render graph ───────────────────────────
+// ── Node selection → 3-D graph ────────────────────────────────────────────────
 
 async function selectNode(nodeId, label, name) {
-  // Highlight in list
+  if (nodeId === currentNodeId) return;
+  currentNodeId = nodeId;
+
   document.querySelectorAll('.result-item').forEach(el => el.classList.remove('active'));
   const el = document.querySelector(`.result-item[data-id="${CSS.escape(nodeId)}"]`);
   if (el) el.classList.add('active');
 
-  currentNodeId = nodeId;
   showStatus(`Loading neighbors of ${name}…`);
   emptyState.style.display = 'none';
 
   try {
-    const data = await apiNeighbors(nodeId);
+    const r = await fetch(`${API}/graph/neighbors/${encodeURIComponent(nodeId)}?direction=both&limit=40`);
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
     renderGraph(nodeId, label, name, data.neighbors);
     showStatus(`${data.neighbors.length} neighbors · click node to expand`);
   } catch (err) {
@@ -392,203 +462,262 @@ async function selectNode(nodeId, label, name) {
   }
 }
 
-// ── D3 graph ─────────────────────────────────────────────────────────────────
+// ── 3-D Force Graph ───────────────────────────────────────────────────────────
 
 function renderGraph(anchorId, anchorLabel, anchorName, edges) {
-  const svg = d3.select('#graph');
-  svg.selectAll('*').remove();
-
-  const wrap = document.getElementById('canvasWrap');
-  const W = wrap.clientWidth;
-  const H = wrap.clientHeight;
-
-  // Build node + link sets
   const nodeMap = new Map();
-  const addNode = (id, label, name, fileP, isAnchor) => {
-    if (!nodeMap.has(id)) nodeMap.set(id, { id, label, name, file_path: fileP, isAnchor });
+  const addNode = (id, lbl, nm, fp, isAnchor) => {
+    if (!nodeMap.has(id)) nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', isAnchor });
   };
 
   addNode(anchorId, anchorLabel, anchorName, '', true);
-  edges.forEach(e => {
-    addNode(e.dst_id, e.dst_label, e.dst_name, '', false);
-  });
+  edges.forEach(e => addNode(e.dst_id, e.dst_label, e.dst_name, e.dst_file_path, false));
 
-  const nodes = [...nodeMap.values()];
-  const links = edges.map(e => ({
-    source: e.src_id,
-    target: e.dst_id,
-    rel: e.rel,
-  }));
+  const gData = {
+    nodes: [...nodeMap.values()],
+    links: edges.map(e => ({ source: e.src_id, target: e.dst_id, rel: e.rel })),
+  };
 
-  // Zoom/pan
-  const g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', ev => g.attr('transform', ev.transform)));
+  const container = document.getElementById('graph-3d');
+  const wrap      = document.getElementById('canvasWrap');
 
-  // Arrow markers per relationship
-  const rels = [...new Set(links.map(l => l.rel))];
-  svg.append('defs').selectAll('marker')
-    .data(rels)
-    .join('marker')
-    .attr('id', d => `arr-${d}`)
-    .attr('viewBox', '0 -4 8 8')
-    .attr('refX', 18)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', '#4b5280');
+  if (!graphInstance) {
+    graphInstance = ForceGraph3D()(container)
+      .backgroundColor('#0f1117')
+      .nodeLabel(n => {
+        const nm  = escHtml(n.name || n.id.split('::').pop());
+        const lbl = escHtml(n.label);
+        const fp  = n.file_path ? `<div class="g-tip-path">${escHtml(n.file_path)}</div>` : '';
+        return `<div><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}</div>`;
+      })
+      .nodeColor(n  => LABEL_COLORS[n.label] || '#8892a4')
+      .nodeVal(n    => n.isAnchor ? 6 : 2)
+      .nodeOpacity(0.9)
+      .linkColor(()  => '#4b5280')
+      .linkLabel(l   => l.rel)
+      .linkWidth(1)
+      .linkDirectionalArrowLength(4)
+      .linkDirectionalArrowRelPos(1)
+      .linkDirectionalParticles(1)
+      .linkDirectionalParticleWidth(1)
+      .width(wrap.clientWidth)
+      .height(wrap.clientHeight)
+      .onNodeClick(n => { if (!n.isAnchor) selectNode(n.id, n.label, n.name); });
+  }
 
-  // Links
-  const link = g.append('g').selectAll('line')
-    .data(links).join('line')
-    .attr('class', 'link')
-    .attr('marker-end', d => `url(#arr-${d.rel})`);
-
-  const linkLabel = g.append('g').selectAll('text')
-    .data(links).join('text')
-    .attr('class', 'link-label')
-    .text(d => d.rel);
-
-  // Nodes
-  const nodeG = g.append('g').selectAll('g')
-    .data(nodes).join('g')
-    .attr('cursor', 'pointer')
-    .call(d3.drag()
-      .on('start', dragStart)
-      .on('drag', dragged)
-      .on('end', dragEnd))
-    .on('click', (ev, d) => {
-      if (!d.isAnchor) selectNode(d.id, d.label, d.name);
-    })
-    .on('mousemove', (ev, d) => showTooltip(ev, d))
-    .on('mouseleave', () => { tooltip.style.display = 'none'; });
-
-  nodeG.append('circle')
-    .attr('r', d => d.isAnchor ? 14 : 9)
-    .attr('class', d => `${d.label}${d.isAnchor ? ' anchor' : ''}`);
-
-  nodeG.append('text')
-    .attr('class', 'node-label')
-    .attr('dy', d => (d.isAnchor ? 14 : 9) + 12)
-    .attr('text-anchor', 'middle')
-    .text(d => truncate(d.name || d.id.split('::').pop(), 20));
-
-  // Force simulation
-  if (simulation) simulation.stop();
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(90).strength(0.7))
-    .force('charge', d3.forceManyBody().strength(-200))
-    .force('center', d3.forceCenter(W / 2, H / 2))
-    .force('collide', d3.forceCollide(22))
-    .on('tick', () => {
-      link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
-      linkLabel
-        .attr('x', d => (d.source.x + d.target.x) / 2)
-        .attr('y', d => (d.source.y + d.target.y) / 2);
-      nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
-    });
+  graphInstance.graphData(gData);
 }
 
-function dragStart(ev, d) {
-  if (!ev.active) simulation.alphaTarget(0.3).restart();
-  d.fx = d.x; d.fy = d.y;
-}
-function dragged(ev, d) { d.fx = ev.x; d.fy = ev.y; }
-function dragEnd(ev, d) {
-  if (!ev.active) simulation.alphaTarget(0);
-  d.fx = null; d.fy = null;
-}
+// Resize 3-D canvas when container size changes
+new ResizeObserver(() => {
+  if (graphInstance) {
+    const wrap = document.getElementById('canvasWrap');
+    graphInstance.width(wrap.clientWidth).height(wrap.clientHeight);
+  }
+}).observe(document.getElementById('canvasWrap'));
 
-// ── Tooltip ──────────────────────────────────────────────────────────────────
+// ── Chat — message history ────────────────────────────────────────────────────
 
-function showTooltip(ev, d) {
-  document.getElementById('tip-name').textContent  = d.name || d.id.split('::').pop();
-  document.getElementById('tip-label').textContent = d.label;
-  document.getElementById('tip-path').textContent  = d.file_path || d.id;
-  tooltip.style.display = 'block';
-  tooltip.style.left = (ev.pageX + 12) + 'px';
-  tooltip.style.top  = (ev.pageY - 10) + 'px';
+function pushMessage(role, text, sources = [], latency = null, streaming = false) {
+  const id = ++msgIdCounter;
+  messages.push({ id, role, text, sources, latency, streaming });
+  renderMessages();
+  return id;
 }
 
-// ── Ask / streaming ──────────────────────────────────────────────────────────
+function renderMessages() {
+  if (!messages.length) {
+    chatMessages.innerHTML = '<div class="chat-empty">Ask anything about the indexed codebase…</div>';
+    return;
+  }
+  chatMessages.innerHTML = messages.map(renderMessage).join('');
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function renderMessage(m) {
+  const isUser   = m.role === 'user';
+  const bodyHtml = isUser
+    ? escHtml(m.text)
+    : (m.streaming ? escHtml(m.text) : renderMarkdown(m.text));
+  const cursor  = m.streaming ? '<span class="cursor"></span>' : '';
+  const sources = (!isUser && m.sources && m.sources.length) ? renderCitations(m.id, m.sources) : '';
+  const latency = m.latency ? `<div class="msg-meta">${m.latency}s</div>` : '';
+  return `
+    <div class="msg msg-${m.role}" id="msg-${m.id}">
+      <div class="msg-role">${isUser ? 'You' : 'Assistant'}</div>
+      <div class="msg-body" id="msg-body-${m.id}">${bodyHtml}${cursor}</div>
+      ${sources}${latency}
+    </div>`;
+}
+
+function renderCitations(msgId, sources) {
+  const items = sources.slice(0, 8).map(s => {
+    const shortName = (s.node_id || '').split('::').pop() || s.node_id;
+    return `
+      <div class="citation-item">
+        <span class="label-badge label-${escHtml(s.label)}">${escHtml(s.label)}</span>
+        <span class="citation-name">${escHtml(shortName)}</span>
+        <span class="citation-score">${s.score != null ? (s.score * 100).toFixed(0) + '%' : ''}</span>
+        <div class="citation-path">${escHtml(s.file_path || '')}</div>
+      </div>`;
+  }).join('');
+  return `
+    <details class="citations" id="cite-${msgId}">
+      <summary>${sources.length} source${sources.length > 1 ? 's' : ''}</summary>
+      <div class="citations-body">${items}</div>
+    </details>`;
+}
+
+// ── Markdown → HTML (safe; LLM output only) ───────────────────────────────────
+
+function renderMarkdown(raw) {
+  if (!raw) return '';
+  const parts = [];
+  let last = 0;
+  const fence = /```(\w*)\n([\s\S]*?)```/g;
+  let m;
+  while ((m = fence.exec(raw)) !== null) {
+    if (m.index > last) parts.push({ type: 'text', content: raw.slice(last, m.index) });
+    parts.push({ type: 'code', lang: m[1] || null, content: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < raw.length) parts.push({ type: 'text', content: raw.slice(last) });
+
+  return parts.map(p => {
+    if (p.type === 'code') {
+      const lang        = p.lang && hljs.getLanguage(p.lang) ? p.lang : null;
+      const highlighted = lang
+        ? hljs.highlight(p.content.trimEnd(), { language: lang }).value
+        : escHtml(p.content.trimEnd());
+      const langBadge   = p.lang ? `<span class="code-lang">${escHtml(p.lang)}</span>` : '';
+      return `<div class="code-block">${langBadge}<pre><code class="hljs">${highlighted}</code></pre></div>`;
+    }
+    return escHtml(p.content)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g,     '<em>$1</em>')
+      .replace(/`([^`]+)`/g,     '<code>$1</code>')
+      .replace(/\n/g,            '<br>');
+  }).join('');
+}
+
+// ── Ask / SSE streaming ───────────────────────────────────────────────────────
 
 askBtn.addEventListener('click', doAsk);
 questionInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAsk(); }
 });
 
+// Auto-grow textarea
+questionInput.addEventListener('input', () => {
+  questionInput.style.height = 'auto';
+  questionInput.style.height = Math.min(questionInput.scrollHeight, 140) + 'px';
+});
+
+// Clear chat history
+clearBtn.addEventListener('click', () => {
+  messages.length = 0;
+  renderMessages();
+});
+
 async function doAsk() {
   const q = questionInput.value.trim();
   if (!q) return;
 
-  answerBox.style.display = 'block';
-  answerBox.innerHTML = '<span class="cursor"></span>';
-  latencyInfo.textContent = '';
-  askBtn.textContent = '…';
+  // Abort any in-flight request
+  if (currentAsk) { currentAsk.abort(); }
+  currentAsk = new AbortController();
+  askBtn.disabled = true;
+  questionInput.value = '';
+  questionInput.style.height = 'auto';
+
+  // Add user message immediately
+  pushMessage('user', q);
+
+  // Placeholder assistant message (streaming state)
+  const assistantId = ++msgIdCounter;
+  messages.push({ id: assistantId, role: 'assistant', text: '', sources: [], latency: null, streaming: true });
+  renderMessages();
+
   const t0 = performance.now();
+  let streamBuf       = '';
+  let capturedSources = [];
 
   try {
     const resp = await fetch(`${API}/query/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: q, top_k: 20, context_n: 5, stream: true }),
+      signal: currentAsk.signal,
     });
     if (!resp.ok) throw new Error(await resp.text());
 
-    const reader = resp.body.getReader();
+    const reader  = resp.body.getReader();
     const decoder = new TextDecoder();
-    let buf = '';
+    let lineBuf    = '';
     let firstEvent = true;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buf += decoder.decode(value, { stream: true });
+      lineBuf += decoder.decode(value, { stream: true });
 
-      const lines = buf.split('\n');
-      buf = lines.pop();  // keep incomplete last line
+      const lines = lineBuf.split('\n');
+      lineBuf = lines.pop();   // keep incomplete last line
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         try {
           const ev = JSON.parse(line.slice(6));
+
           if (firstEvent) {
-            // first event has sources + query_type
-            firstEvent = false;
-            answerBox.innerHTML = '<span class="cursor"></span>';
+            // First event carries sources + query_type metadata
+            firstEvent      = false;
+            capturedSources = ev.sources || [];
             continue;
           }
-          // Append token
-          const cursor = answerBox.querySelector('.cursor');
-          if (cursor) cursor.insertAdjacentText('beforebegin', ev.token);
+
+          if (ev.token) streamBuf += ev.token;
+
+          // Live update — only the streaming message body (no full re-render on each token)
+          const bodyEl = document.getElementById(`msg-body-${assistantId}`);
+          if (bodyEl) {
+            bodyEl.innerHTML = escHtml(streamBuf) + '<span class="cursor"></span>';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          }
+
           if (ev.done) {
-            if (cursor) cursor.remove();
-            latencyInfo.textContent = `${((performance.now() - t0) / 1000).toFixed(2)}s`;
+            const latency = ((performance.now() - t0) / 1000).toFixed(2);
+            const entry   = messages.find(x => x.id === assistantId);
+            if (entry) {
+              Object.assign(entry, {
+                text: streamBuf, sources: capturedSources, latency, streaming: false,
+              });
+            }
+            renderMessages();   // final render: markdown + citations
           }
         } catch (_) {}
       }
     }
   } catch (err) {
-    answerBox.textContent = `Error: ${err.message}`;
+    if (err.name !== 'AbortError') {
+      const entry = messages.find(x => x.id === assistantId);
+      if (entry) Object.assign(entry, { text: `Error: ${err.message}`, streaming: false });
+      renderMessages();
+    }
   } finally {
-    askBtn.textContent = 'Ask (streaming)';
+    currentAsk = null;
+    askBtn.disabled = false;
   }
 }
 
-// ── Utilities ────────────────────────────────────────────────────────────────
+// ── Utilities ─────────────────────────────────────────────────────────────────
 
 function showStatus(msg) {
   statusBar.style.display = 'block';
   statusBar.textContent = msg;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
 }
-
-function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 function escHtml(s) {
   return String(s)

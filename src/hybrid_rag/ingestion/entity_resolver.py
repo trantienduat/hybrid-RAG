@@ -1,0 +1,106 @@
+"""
+Entity resolver: deduplicates stub Module nodes against real KG nodes.
+
+When the parser sees `import falkordb` in repo code, it creates a stub
+  Module(id="falkordb", type="external")
+
+If the codebase actually contains a file that resolves to that same module
+name (e.g. `src/falkordb/__init__.py`), all IMPORTS edges pointing at the
+stub should instead point at the real Module node.
+
+This is a lightweight heuristic resolver — it does NOT do full package
+resolution. It matches stubs by stem name against real module names.
+
+Public API:
+  resolve(result: ParseResult) -> ParseResult
+      Returns a NEW ParseResult with stubs merged and edges rewritten.
+"""
+from __future__ import annotations
+
+import copy
+from pathlib import Path
+
+from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
+
+
+def resolve(result: ParseResult) -> ParseResult:
+    """
+    Merge external stub nodes into real nodes where possible.
+
+    Steps:
+    1. Build map: module_stem → real Module node id
+    2. Build map: class_simple_name → real Class node id  (M2: cross-file class linking)
+    3. For stubs that match a real node, record a redirect
+    4. Rewrite all edges src/dst that reference a stub → real id
+    5. Drop stub nodes that were fully resolved
+    """
+    # Separate real vs stub nodes
+    real_modules: dict[str, str] = {}   # stem → real node id
+    real_classes: dict[str, str] = {}   # simple name → real node id
+    stub_ids: set[str] = set()
+
+    for node in result.nodes:
+        if node.label == "Module":
+            if node.properties.get("type") == "external":
+                stub_ids.add(node.id)
+            else:
+                # Real module: index by stem (filename without extension)
+                stem = Path(node.properties.get("file_path", node.id)).stem
+                real_modules[stem] = node.id
+                # Also index by the last component of dotted module path
+                name = node.properties.get("name", stem)
+                real_modules.setdefault(name, node.id)
+        elif node.label == "Class":
+            simple_name = node.properties.get("name", node.id.split("::")[-1])
+            # First definition wins (avoids ambiguity in large repos)
+            real_classes.setdefault(simple_name, node.id)
+
+    # Build redirect map: stub_id → real_id
+    redirect: dict[str, str] = {}
+
+    # Module stubs → real Module nodes (existing M1 behaviour)
+    for stub_id in stub_ids:
+        stem = stub_id.split(".")[-1]
+        if stem in real_modules:
+            redirect[stub_id] = real_modules[stem]
+        elif stub_id in real_modules:
+            redirect[stub_id] = real_modules[stub_id]
+        # M2: class name stubs used in INHERITS/USES edges (stored as Module stubs
+        # because _ensure_stub always creates Module stubs)
+        elif stub_id in real_classes:
+            redirect[stub_id] = real_classes[stub_id]
+        elif stem in real_classes:
+            redirect[stub_id] = real_classes[stem]
+
+    if not redirect:
+        return result  # nothing to resolve, return unchanged
+
+    # Deep-copy so original is untouched
+    resolved = ParseResult(
+        nodes=copy.deepcopy(result.nodes),
+        edges=copy.deepcopy(result.edges),
+        errors=list(result.errors),
+    )
+
+    # Drop resolved stubs from node list
+    resolved.nodes = [
+        n for n in resolved.nodes
+        if not (n.label == "Module" and n.id in redirect)
+    ]
+
+    # Rewrite edges
+    for edge in resolved.edges:
+        if edge.src_id in redirect:
+            edge.src_id = redirect[edge.src_id]
+        if edge.dst_id in redirect:
+            edge.dst_id = redirect[edge.dst_id]
+
+    return resolved
+
+
+def stub_count(result: ParseResult) -> int:
+    """Return number of unresolved external stub Module nodes."""
+    return sum(
+        1 for n in result.nodes
+        if n.label == "Module" and n.properties.get("type") == "external"
+    )

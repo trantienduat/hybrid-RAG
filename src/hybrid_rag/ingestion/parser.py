@@ -25,6 +25,7 @@ _PARSERS: dict[str, Parser] = {
     "java": Parser(_JAVA_LANG),
 }
 
+# Mapping of file extensions to their respective languages
 LANGUAGE_BY_EXT: dict[str, str] = {
     ".py": "python",
     ".java": "java",
@@ -35,7 +36,14 @@ LANGUAGE_BY_EXT: dict[str, str] = {
 
 @dataclass
 class NodeData:
-    """Represents a KG node to be written to FalkorDB."""
+    """
+    Represents a Knowledge Graph (KG) node to be written to FalkorDB.
+    
+    Attributes:
+        label: The type of node (e.g., Module, Class, Function, Variable).
+        id: Unique identifier for the node, following the schema defined in docs/schema/kg-schema.md.
+        properties: A dictionary of key-value pairs representing node attributes.
+    """
     label: str          # Module | Class | Function | Variable
     id: str             # Unique key (see schema)
     properties: dict[str, Any] = field(default_factory=dict)
@@ -43,7 +51,15 @@ class NodeData:
 
 @dataclass
 class EdgeData:
-    """Represents a KG edge to be written to FalkorDB."""
+    """
+    Represents a Knowledge Graph (KG) edge/relationship to be written to FalkorDB.
+    
+    Attributes:
+        src_id: The ID of the source node.
+        rel: The relationship type (e.g., IMPORTS, DEFINES, CALLS).
+        dst_id: The ID of the destination node.
+        properties: A dictionary of key-value pairs representing edge attributes (e.g., line numbers).
+    """
     src_id: str
     rel: str            # IMPORTS | DEFINES | INHERITS | CALLS | USES | DEFINED_IN
     dst_id: str
@@ -52,6 +68,14 @@ class EdgeData:
 
 @dataclass
 class ParseResult:
+    """
+    Container for the results of a parsing operation.
+    
+    Attributes:
+        nodes: List of discovered NodeData objects.
+        edges: List of discovered EdgeData objects linking the nodes.
+        errors: List of error messages encountered during parsing.
+    """
     nodes: list[NodeData] = field(default_factory=list)
     edges: list[EdgeData] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -60,7 +84,16 @@ class ParseResult:
 # ── Public API ────────────────────────────────────────────────────
 
 def parse_file(file_path: Path, repo_root: Path) -> ParseResult:
-    """Parse a single source file and return nodes + edges."""
+    """
+    Parse a single source file and return its graph representation (nodes + edges).
+    
+    Args:
+        file_path: The absolute path to the file to be parsed.
+        repo_root: The root directory of the repository, used to calculate relative paths for node IDs.
+        
+    Returns:
+        A ParseResult containing the extracted nodes, edges, and any errors.
+    """
     ext = file_path.suffix.lower()
     language = LANGUAGE_BY_EXT.get(ext)
     if language is None:
@@ -82,7 +115,16 @@ def parse_file(file_path: Path, repo_root: Path) -> ParseResult:
 
 
 def parse_repo(repo_root: Path, languages: list[str] | None = None) -> ParseResult:
-    """Parse all supported source files under repo_root."""
+    """
+    Recursively parse all supported source files under the given repository root.
+    
+    Args:
+        repo_root: The root directory of the repository to scan.
+        languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
+        
+    Returns:
+        A combined ParseResult containing graph data from all parsed files.
+    """
     languages = languages or ["python"]
     exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
 
@@ -99,16 +141,21 @@ def parse_repo(repo_root: Path, languages: list[str] | None = None) -> ParseResu
 # ── Python extraction ─────────────────────────────────────────────
 
 def _text(node: Node, src: bytes) -> str:
+    """Helper to extract and decode text from a tree-sitter node."""
     return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
 
 
 def _child_text(node: Node, field_name: str, src: bytes) -> str | None:
+    """Helper to extract text from a specific child node identified by field name."""
     child = node.child_by_field_name(field_name)
     return _text(child, src) if child else None
 
 
 def _docstring(node: Node, src: bytes) -> str | None:
-    """Extract first string literal if it's the first statement (docstring convention)."""
+    """
+    Extract the docstring of a Python block (class/function/module).
+    Following Python convention, it looks for the first statement if it is a string literal.
+    """
     for child in node.children:
         if child.type == "block":
             for stmt in child.children:
@@ -116,18 +163,22 @@ def _docstring(node: Node, src: bytes) -> str | None:
                     for s in stmt.children:
                         if s.type == "string":
                             raw = _text(s, src)
-                            # Strip quotes
+                            # Strip quotes (triple or single)
                             return re.sub(r'^["\' ]{1,3}|["\' ]{1,3}$', '', raw).strip()
                 break  # only check first statement
     return None
 
 
 def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
+    """
+    Internal driver for Python file extraction. 
+    Walks the AST top-level and delegates to specific handlers.
+    """
     result = ParseResult()
     module_name = Path(rel_path).stem
     module_id = rel_path
 
-    # Determine module type
+    # Determine module type based on path conventions
     if rel_path.endswith("__init__.py"):
         mod_type = "init"
     elif "/test" in rel_path or rel_path.startswith("test"):
@@ -148,7 +199,7 @@ def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
     )
     result.nodes.append(module_node)
 
-    # Walk top-level children
+    # Walk top-level children in the module
     for node in root.children:
         if node.type == "import_statement":
             _handle_import(node, src, module_id, result)
@@ -163,12 +214,12 @@ def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
 
 
 def _handle_import(node: Node, src: bytes, module_id: str, result: ParseResult) -> None:
-    """import foo, import foo as bar"""
+    """Handles `import foo` or `import foo as bar` statements."""
     for child in node.children:
         if child.type in ("dotted_name", "aliased_import"):
             name_node = child.child_by_field_name("name") or child
             name = _text(name_node, src).split(".")[0]
-            dst_id = name  # external stub id
+            dst_id = name  # external stub id reference
             _ensure_stub(name, result)
             result.edges.append(EdgeData(
                 src_id=module_id,
@@ -179,7 +230,7 @@ def _handle_import(node: Node, src: bytes, module_id: str, result: ParseResult) 
 
 
 def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseResult) -> None:
-    """from foo.bar import baz"""
+    """Handles `from foo import bar` statements."""
     module_part = None
     for child in node.children:
         if child.type == "dotted_name" and module_part is None:
@@ -190,6 +241,7 @@ def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseRes
             break
 
     if module_part:
+        # We use the base package name for external dependency tracking
         base = module_part.lstrip(".").split(".")[0]
         if base:
             _ensure_stub(base, result)
@@ -204,9 +256,11 @@ def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseRes
 def _handle_class(
     node: Node, src: bytes, rel_path: str, module_id: str, result: ParseResult
 ) -> None:
+    """Extracts Class node data and its members (methods)."""
     name = _child_text(node, "name", src) or "UnknownClass"
     class_id = f"{rel_path}::{name}"
 
+    # Extract base classes (inheritance)
     bases: list[str] = []
     arg_list = node.child_by_field_name("superclasses")
     if arg_list:
@@ -214,6 +268,7 @@ def _handle_class(
             if arg.type in ("identifier", "attribute"):
                 bases.append(_text(arg, src))
 
+    # Check for abstract markers
     is_abstract = any(
         _text(d, src) in ("ABC", "ABCMeta", "abstractmethod")
         for d in node.children
@@ -234,6 +289,7 @@ def _handle_class(
     )
     result.nodes.append(class_node)
 
+    # Establish ownership relationships
     # Module DEFINES Class
     result.edges.append(EdgeData(src_id=module_id, rel="DEFINES", dst_id=class_id))
     # Class DEFINED_IN Module
@@ -266,10 +322,12 @@ def _handle_function(
     class_name: str | None,
     result: ParseResult,
 ) -> None:
+    """Extracts Function/Method node data and its call sites."""
     name = _child_text(node, "name", src) or "unknown"
     fn_id = f"{rel_path}::{class_name}::{name}" if class_name else f"{rel_path}::{name}"
     parent_id = f"{rel_path}::{class_name}" if class_name else module_id
 
+    # Metadata extraction
     is_async = any(c.type == "async" for c in node.children)
     is_abstract = any(
         "abstractmethod" in _text(d, src)
@@ -303,7 +361,7 @@ def _handle_function(
     )
     result.nodes.append(fn_node)
 
-    # Parent DEFINES Function
+    # Parent (Module or Class) DEFINES Function
     result.edges.append(EdgeData(src_id=parent_id, rel="DEFINES", dst_id=fn_id))
     # Function DEFINED_IN Module
     result.edges.append(EdgeData(src_id=fn_id, rel="DEFINED_IN", dst_id=module_id))
@@ -315,17 +373,18 @@ def _handle_function(
 
 
 def _extract_calls(body: Node, src: bytes, caller_id: str, result: ParseResult) -> None:
-    """Walk body for call expressions and emit CALLS edges (stub targets)."""
+    """Helper to initiate walking the function body for call sites."""
     for child in body.children:
         _walk_calls(child, src, caller_id, result)
 
 
 def _walk_calls(node: Node, src: bytes, caller_id: str, result: ParseResult) -> None:
+    """Recursively search for `call` nodes in the AST and emit CALLS edges."""
     if node.type == "call":
         fn_node = node.child_by_field_name("function")
         if fn_node:
             callee_text = _text(fn_node, src)
-            # Simple name: `foo()` or `self.foo()` → use last segment
+            # Simple name: `foo()` or `self.foo()` → use last segment as a stub ID
             callee_name = callee_text.split(".")[-1]
             stub_id = f"__call__{callee_name}"
             result.edges.append(EdgeData(
@@ -339,7 +398,10 @@ def _walk_calls(node: Node, src: bytes, caller_id: str, result: ParseResult) -> 
 
 
 def _ensure_stub(name: str, result: ParseResult) -> None:
-    """Add external stub node if not already present."""
+    """
+    Ensure an external stub node exists in the result. 
+    Stubs are placeholders for entities defined outside the current file.
+    """
     stub_id = name
     if not any(n.id == stub_id for n in result.nodes):
         result.nodes.append(NodeData(

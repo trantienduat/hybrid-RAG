@@ -593,5 +593,223 @@ def eval(
     )
 
 
+# ── serve command ──────────────────────────────────────────────────────────────
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", help="Bind host."),
+    port: int = typer.Option(8000, help="Bind port."),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload (dev mode)."),
+    workers: int = typer.Option(1, help="Number of worker processes (ignored with --reload)."),
+    log_level: str = typer.Option("info", help="Uvicorn log level."),
+) -> None:
+    """Start the hybrid-rag FastAPI server (M4 #27)."""
+    try:
+        import uvicorn  # type: ignore[import]
+    except ImportError:
+        err_console.print("[ERROR] uvicorn not installed. Run: pip install 'hybrid-rag[api]'")
+        raise typer.Exit(1)
+
+    console.rule("[bold cyan]hybrid-rag serve[/]")
+    console.print(f"  API:    http://{host}:{port}")
+    console.print(f"  UI:     http://{host}:{port}/")
+    console.print(f"  Docs:   http://{host}:{port}/docs")
+    console.rule()
+
+    uvicorn.run(
+        "hybrid_rag.api.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        workers=1 if reload else workers,
+        log_level=log_level,
+    )
+
+
+# ── ragas command ──────────────────────────────────────────────────────────────
+
+@app.command()
+def ragas(
+    top_k: int = typer.Option(20, help="Retrieval candidates per query."),
+    context_n: int = typer.Option(5, help="Context chunks assembled for LLM."),
+    llm_model: str = typer.Option("qwen2.5-coder:7b", envvar="LLM_MODEL"),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    qdrant_host: str = typer.Option("localhost", envvar="QDRANT_HOST"),
+    qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
+    qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
+    subset: str = typer.Option("all", help="Corpus subset: all | 1hop | 2hop | 3hop | hybrid"),
+) -> None:
+    """Run RAGAS generation-quality evaluation (M4 #31)."""
+    import json as _json
+
+    from rich.table import Table
+
+    from hybrid_rag.eval.corpus import EVAL_CORPUS, ONE_HOP, TWO_HOP, THREE_HOP
+    from hybrid_rag.eval.corpus import HYBRID as HYBRID_CASES
+    from hybrid_rag.eval.ragas_runner import RagasRunner
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+
+    subsets = {
+        "all": EVAL_CORPUS, "1hop": ONE_HOP, "2hop": TWO_HOP,
+        "3hop": THREE_HOP, "hybrid": HYBRID_CASES,
+    }
+    corpus = subsets.get(subset, EVAL_CORPUS)
+
+    console.rule("[bold cyan]hybrid-rag ragas[/]")
+    console.print(f"Corpus: {len(corpus)} queries  |  llm={llm_model}  top_k={top_k}")
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+        with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            retriever = HybridRetriever(
+                graph_store=graph_store,
+                vector_store=vector_store,
+                embedder=embedder,
+            )
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(f"Generating + scoring {len(corpus)} queries…", total=None)
+                runner = RagasRunner(retriever=retriever, ollama_url=ollama_url, llm_model=llm_model)
+                report = runner.run(corpus, top_k=top_k, context_n=context_n)
+                progress.update(task, description="Done")
+
+    except Exception as exc:  # noqa: BLE001
+        err_console.print(f"[ERROR] RAGAS eval failed: {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        console.print(_json.dumps(report.as_dict(), indent=2))
+        return
+
+    # Rich table
+    tbl = Table(title="RAGAS Results", show_lines=True)
+    tbl.add_column("ID", width=4)
+    tbl.add_column("Hops", justify="center", width=5)
+    tbl.add_column("Type", width=11)
+    tbl.add_column("Faithfulness", justify="center", width=14)
+    tbl.add_column("Ans. Relevancy", justify="center", width=15)
+    tbl.add_column("Ctx. Precision", justify="center", width=15)
+    tbl.add_column("Latency (ms)", justify="right", width=13)
+
+    for s in report.samples:
+        def _fmt(v: float) -> str:
+            colour = "green" if v >= 0.7 else ("yellow" if v >= 0.4 else "red")
+            return f"[{colour}]{v:.3f}[/]"
+        tbl.add_row(
+            s.query_id, str(s.hops), s.query_type,
+            _fmt(s.faithfulness), _fmt(s.answer_relevancy), _fmt(s.context_precision),
+            f"{s.latency_ms:.0f}",
+        )
+
+    console.print(tbl)
+    console.print()
+
+    d = report.as_dict()
+    console.print(
+        f"[bold]Overall[/]  faithfulness={d['faithfulness']:.3f}  "
+        f"answer_relevancy={d['answer_relevancy']:.3f}  "
+        f"context_precision={d.get('context_precision', 0):.3f}  "
+        f"avg_latency={d['avg_latency_ms']:.0f}ms"
+    )
+    console.rule()
+
+
+# ── bench command ──────────────────────────────────────────────────────────────
+
+@app.command()
+def bench(
+    n_runs: int = typer.Option(5, help="Timed runs per query."),
+    top_k: int = typer.Option(20, help="Retrieval candidates (match production config)."),
+    corpus: bool = typer.Option(False, "--corpus", help="Use Q1-Q20 corpus instead of default queries."),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    qdrant_host: str = typer.Option("localhost", envvar="QDRANT_HOST"),
+    qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
+    qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
+) -> None:
+    """Measure p50/p95/p99 retrieval latency per query type (M4 #32)."""
+    import json as _json
+
+    from rich.table import Table
+
+    from hybrid_rag.eval.benchmark import BenchmarkRunner
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
+    from hybrid_rag.vector.qdrant_store import QdrantStore
+
+    console.rule("[bold cyan]hybrid-rag bench[/]")
+    console.print(f"n_runs={n_runs}  top_k={top_k}  corpus={corpus}")
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+        with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
+            retriever = HybridRetriever(
+                graph_store=graph_store,
+                vector_store=vector_store,
+                embedder=embedder,
+            )
+            runner = BenchmarkRunner(retriever)
+            with Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Running benchmark…", total=None)
+                if corpus:
+                    report = runner.run_from_corpus(n_runs=n_runs, top_k=top_k)
+                else:
+                    report = runner.run(n_runs=n_runs, top_k=top_k)
+                progress.update(task, description="Done")
+
+    except Exception as exc:  # noqa: BLE001
+        err_console.print(f"[ERROR] Benchmark failed: {exc}")
+        raise typer.Exit(1) from exc
+
+    if json_out:
+        console.print(_json.dumps(report.as_dict(), indent=2))
+        return
+
+    tbl = Table(title="Retrieval Latency Benchmark", show_lines=True)
+    tbl.add_column("Query Type", width=13)
+    tbl.add_column("n", justify="right", width=5)
+    tbl.add_column("p50 (ms)", justify="right", width=9)
+    tbl.add_column("p95 (ms)", justify="right", width=9)
+    tbl.add_column("p99 (ms)", justify="right", width=9)
+    tbl.add_column("mean (ms)", justify="right", width=10)
+    tbl.add_column("min (ms)", justify="right", width=9)
+    tbl.add_column("max (ms)", justify="right", width=9)
+
+    for s in report.stats:
+        def _c(v: float) -> str:
+            colour = "green" if v < 500 else ("yellow" if v < 1500 else "red")
+            return f"[{colour}]{v:.1f}[/]"
+        tbl.add_row(
+            s.query_type, str(s.n_runs),
+            _c(s.p50), _c(s.p95), _c(s.p99),
+            _c(s.mean), f"{s.min:.1f}", f"{s.max:.1f}",
+        )
+
+    console.print(tbl)
+    console.rule()
+
+
 if __name__ == "__main__":
     app()

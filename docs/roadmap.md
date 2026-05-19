@@ -88,16 +88,24 @@ Reflects thesis milestones. Updated as work progresses.
 
 | Task | Issue | Status |
 |------|-------|--------|
-| `api/main.py` — FastAPI app with `/query` endpoint | #27 | ⬜ |
-| `api/schemas.py` — request/response Pydantic models | #28 | ⬜ |
-| Streaming response support | #29 | ⬜ |
-| Web visualization: graph explorer (D3.js or similar) | #30 | ⬜ |
-| RAGAS evaluation pipeline on Q1–Q20 | #31 | ⬜ |
-| Latency benchmarks (p50/p95 per query type) | #32 | ⬜ |
+| `api/main.py` — FastAPI app with `/query` endpoint | #27 | ✅ |
+| `api/schemas.py` — request/response Pydantic models | #28 | ✅ |
+| Streaming response support (`/query/stream` SSE) | #29 | ✅ |
+| Web visualization: D3.js force-directed graph explorer | #30 | ✅ |
+| RAGAS evaluation pipeline on Q1–Q20 | #31 | ✅ |
+| Latency benchmarks (p50/p95/p99 per query type) | #32 | ✅ |
 | Scale test: Transformers (HuggingFace) repo | #33 | ⬜ |
 | Final thesis results write-up data | #34 | ⬜ |
 
 **M4 Done When:** All acceptance criteria in evaluation.md met, API running, results exportable.
+
+**M4 Achieved (commit `feat/m4`):**
+- FastAPI REST API with `/query`, `/query/stream` (SSE), `/graph/neighbors/{id}`, `/graph/search`, `/health`
+- D3.js force-directed graph explorer + streaming query panel served at `GET /`
+- `hybrid-rag serve` CLI command (wraps uvicorn)
+- `hybrid-rag ragas` CLI command — RAGAS faithfulness/answer_relevancy/context_precision on Q1–Q20
+- `hybrid-rag bench` CLI command — p50/p95/p99 latency per query type (structural/hybrid/semantic)
+- Winning RRF config wired into API defaults: `top_k=20, rrf_k=60, structural_weight=3.0, hybrid_weight=1.5`
 
 ---
 

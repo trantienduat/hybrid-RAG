@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hybrid-rag — Graph Explorer</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2e3148;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 14px; color: var(--accent); letter-spacing: 0.05em; }
+    header span { color: var(--muted); font-size: 11px; }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+    input[type=text], textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+    input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      margin-top: 6px;
+      width: 100%;
+    }
+    button:hover { opacity: 0.85; }
+    button.secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* ── Search results ── */
+    .results-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .result-item {
+      padding: 7px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 3px;
+      border: 1px solid transparent;
+    }
+    .result-item:hover { background: var(--border); }
+    .result-item.active { border-color: var(--accent); background: rgba(99,102,241,0.12); }
+    .result-item .name { color: var(--text); font-weight: 600; }
+    .result-item .meta { color: var(--muted); font-size: 10px; margin-top: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .label-badge {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-right: 4px;
+    }
+    .label-Class    { background: rgba(99,102,241,0.25); color: var(--accent); }
+    .label-Function { background: rgba(34,211,238,0.2); color: var(--accent2); }
+    .label-Module   { background: rgba(52,211,153,0.2); color: var(--green); }
+    .label-Variable { background: rgba(251,191,36,0.2); color: var(--yellow); }
+
+    /* ── Query panel ── */
+    .query-panel {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    textarea { resize: vertical; min-height: 60px; max-height: 120px; }
+    #answerBox {
+      margin-top: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 12px;
+      color: var(--text);
+    }
+    #answerBox .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 12px;
+      background: var(--accent);
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .latency { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Graph canvas ── */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    svg { width: 100%; height: 100%; background: var(--bg); }
+
+    /* ── Node colors per label ── */
+    circle.Class    { fill: rgba(99,102,241,0.85); }
+    circle.Function { fill: rgba(34,211,238,0.85); }
+    circle.Module   { fill: rgba(52,211,153,0.85); }
+    circle.Variable { fill: rgba(251,191,36,0.85); }
+    circle.anchor   { stroke: white; stroke-width: 2px; }
+
+    .link { stroke: var(--border); stroke-width: 1.5px; }
+    .link-label {
+      fill: var(--muted);
+      font-size: 9px;
+      pointer-events: none;
+    }
+    .node-label {
+      fill: var(--text);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    /* ── Node detail tooltip ── */
+    #tooltip {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      pointer-events: none;
+      display: none;
+      max-width: 260px;
+      z-index: 100;
+    }
+    #tooltip .t-name { font-weight: 700; color: var(--text); }
+    #tooltip .t-label { color: var(--muted); font-size: 10px; }
+    #tooltip .t-path { color: var(--muted); font-size: 10px; word-break: break-all; margin-top: 3px; }
+
+    /* ── Legend ── */
+    .legend {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10px;
+    }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(26,29,39,0.9);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      text-align: center;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .empty-state p { margin-top: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>hybrid-rag</h1>
+  <span>Graph Explorer + Query Interface</span>
+</header>
+
+<div class="layout">
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+
+    <!-- Search -->
+    <div class="sidebar-section">
+      <label>SEARCH KG NODES</label>
+      <input type="text" id="searchInput" placeholder="e.g. BaseRetriever" />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <!-- Results list -->
+    <div class="results-list" id="resultsList">
+      <div style="color:var(--muted);padding:8px;font-size:11px;">
+        Search for a node to explore the graph.
+      </div>
+    </div>
+
+    <!-- Query panel -->
+    <div class="query-panel">
+      <label style="display:block;color:var(--muted);font-size:11px;margin-bottom:6px;">ASK THE CODEBASE</label>
+      <textarea id="questionInput" placeholder="e.g. Which classes inherit from BaseRetriever?"></textarea>
+      <button id="askBtn">Ask (streaming)</button>
+      <div id="answerBox" style="display:none"></div>
+      <div class="latency" id="latencyInfo"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Graph canvas ── -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <svg id="graph"></svg>
+
+    <div class="empty-state" id="emptyState">
+      <span style="font-size:32px;opacity:0.3">⬡</span>
+      <p>Select a node from the search results<br>to visualise its relationships.</p>
+    </div>
+
+    <div class="status-bar" id="statusBar" style="display:none"></div>
+
+    <div class="legend">
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(99,102,241,0.85)"></div>Class</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(34,211,238,0.85)"></div>Function</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(52,211,153,0.85)"></div>Module</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(251,191,36,0.85)"></div>Variable</div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip">
+  <div class="t-name" id="tip-name"></div>
+  <div class="t-label" id="tip-label"></div>
+  <div class="t-path" id="tip-path"></div>
+</div>
+
+<script>
+// ── API helpers ──────────────────────────────────────────────────────────────
+
+const API = '';  // relative — works when served by FastAPI
+
+async function apiSearch(q, limit = 20) {
+  const r = await fetch(`${API}/graph/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function apiNeighbors(nodeId, direction = 'both', limit = 40) {
+  const r = await fetch(
+    `${API}/graph/neighbors/${encodeURIComponent(nodeId)}?direction=${direction}&limit=${limit}`
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+let currentNodeId = null;
+let simulation = null;
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+
+const searchInput   = document.getElementById('searchInput');
+const searchBtn     = document.getElementById('searchBtn');
+const resultsList   = document.getElementById('resultsList');
+const questionInput = document.getElementById('questionInput');
+const askBtn        = document.getElementById('askBtn');
+const answerBox     = document.getElementById('answerBox');
+const latencyInfo   = document.getElementById('latencyInfo');
+const emptyState    = document.getElementById('emptyState');
+const statusBar     = document.getElementById('statusBar');
+const tooltip       = document.getElementById('tooltip');
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+searchBtn.addEventListener('click', doSearch);
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
+  const q = searchInput.value.trim();
+  if (!q) return;
+  searchBtn.textContent = '…';
+  try {
+    const data = await apiSearch(q);
+    renderResultsList(data.nodes);
+  } catch (err) {
+    resultsList.innerHTML = `<div style="color:var(--red);padding:8px;font-size:11px;">Error: ${err.message}</div>`;
+  } finally {
+    searchBtn.textContent = 'Search';
+  }
+}
+
+function renderResultsList(nodes) {
+  if (!nodes.length) {
+    resultsList.innerHTML = '<div style="color:var(--muted);padding:8px;font-size:11px;">No nodes found.</div>';
+    return;
+  }
+  resultsList.innerHTML = nodes.map(n => `
+    <div class="result-item" data-id="${escHtml(n.id)}" onclick="selectNode('${escHtml(n.id)}', '${escHtml(n.label)}', '${escHtml(n.name)}')">
+      <div class="name">
+        <span class="label-badge label-${n.label}">${n.label}</span>
+        ${escHtml(n.name || n.id.split('::').pop())}
+      </div>
+      <div class="meta">${escHtml(n.file_path)}</div>
+    </div>
+  `).join('');
+}
+
+// ── Node selection → load neighbors → render graph ───────────────────────────
+
+async function selectNode(nodeId, label, name) {
+  // Highlight in list
+  document.querySelectorAll('.result-item').forEach(el => el.classList.remove('active'));
+  const el = document.querySelector(`.result-item[data-id="${CSS.escape(nodeId)}"]`);
+  if (el) el.classList.add('active');
+
+  currentNodeId = nodeId;
+  showStatus(`Loading neighbors of ${name}…`);
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await apiNeighbors(nodeId);
+    renderGraph(nodeId, label, name, data.neighbors);
+    showStatus(`${data.neighbors.length} neighbors · click node to expand`);
+  } catch (err) {
+    showStatus(`Error: ${err.message}`);
+  }
+}
+
+// ── D3 graph ─────────────────────────────────────────────────────────────────
+
+function renderGraph(anchorId, anchorLabel, anchorName, edges) {
+  const svg = d3.select('#graph');
+  svg.selectAll('*').remove();
+
+  const wrap = document.getElementById('canvasWrap');
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+
+  // Build node + link sets
+  const nodeMap = new Map();
+  const addNode = (id, label, name, fileP, isAnchor) => {
+    if (!nodeMap.has(id)) nodeMap.set(id, { id, label, name, file_path: fileP, isAnchor });
+  };
+
+  addNode(anchorId, anchorLabel, anchorName, '', true);
+  edges.forEach(e => {
+    addNode(e.dst_id, e.dst_label, e.dst_name, '', false);
+  });
+
+  const nodes = [...nodeMap.values()];
+  const links = edges.map(e => ({
+    source: e.src_id,
+    target: e.dst_id,
+    rel: e.rel,
+  }));
+
+  // Zoom/pan
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', ev => g.attr('transform', ev.transform)));
+
+  // Arrow markers per relationship
+  const rels = [...new Set(links.map(l => l.rel))];
+  svg.append('defs').selectAll('marker')
+    .data(rels)
+    .join('marker')
+    .attr('id', d => `arr-${d}`)
+    .attr('viewBox', '0 -4 8 8')
+    .attr('refX', 18)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L8,0L0,4')
+    .attr('fill', '#4b5280');
+
+  // Links
+  const link = g.append('g').selectAll('line')
+    .data(links).join('line')
+    .attr('class', 'link')
+    .attr('marker-end', d => `url(#arr-${d.rel})`);
+
+  const linkLabel = g.append('g').selectAll('text')
+    .data(links).join('text')
+    .attr('class', 'link-label')
+    .text(d => d.rel);
+
+  // Nodes
+  const nodeG = g.append('g').selectAll('g')
+    .data(nodes).join('g')
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragged)
+      .on('end', dragEnd))
+    .on('click', (ev, d) => {
+      if (!d.isAnchor) selectNode(d.id, d.label, d.name);
+    })
+    .on('mousemove', (ev, d) => showTooltip(ev, d))
+    .on('mouseleave', () => { tooltip.style.display = 'none'; });
+
+  nodeG.append('circle')
+    .attr('r', d => d.isAnchor ? 14 : 9)
+    .attr('class', d => `${d.label}${d.isAnchor ? ' anchor' : ''}`);
+
+  nodeG.append('text')
+    .attr('class', 'node-label')
+    .attr('dy', d => (d.isAnchor ? 14 : 9) + 12)
+    .attr('text-anchor', 'middle')
+    .text(d => truncate(d.name || d.id.split('::').pop(), 20));
+
+  // Force simulation
+  if (simulation) simulation.stop();
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(90).strength(0.7))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collide', d3.forceCollide(22))
+    .on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+      linkLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2);
+      nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
+function dragStart(ev, d) {
+  if (!ev.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragged(ev, d) { d.fx = ev.x; d.fy = ev.y; }
+function dragEnd(ev, d) {
+  if (!ev.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+
+function showTooltip(ev, d) {
+  document.getElementById('tip-name').textContent  = d.name || d.id.split('::').pop();
+  document.getElementById('tip-label').textContent = d.label;
+  document.getElementById('tip-path').textContent  = d.file_path || d.id;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (ev.pageX + 12) + 'px';
+  tooltip.style.top  = (ev.pageY - 10) + 'px';
+}
+
+// ── Ask / streaming ──────────────────────────────────────────────────────────
+
+askBtn.addEventListener('click', doAsk);
+questionInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAsk(); }
+});
+
+async function doAsk() {
+  const q = questionInput.value.trim();
+  if (!q) return;
+
+  answerBox.style.display = 'block';
+  answerBox.innerHTML = '<span class="cursor"></span>';
+  latencyInfo.textContent = '';
+  askBtn.textContent = '…';
+  const t0 = performance.now();
+
+  try {
+    const resp = await fetch(`${API}/query/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, top_k: 20, context_n: 5, stream: true }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let firstEvent = true;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      const lines = buf.split('\n');
+      buf = lines.pop();  // keep incomplete last line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (firstEvent) {
+            // first event has sources + query_type
+            firstEvent = false;
+            answerBox.innerHTML = '<span class="cursor"></span>';
+            continue;
+          }
+          // Append token
+          const cursor = answerBox.querySelector('.cursor');
+          if (cursor) cursor.insertAdjacentText('beforebegin', ev.token);
+          if (ev.done) {
+            if (cursor) cursor.remove();
+            latencyInfo.textContent = `${((performance.now() - t0) / 1000).toFixed(2)}s`;
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (err) {
+    answerBox.textContent = `Error: ${err.message}`;
+  } finally {
+    askBtn.textContent = 'Ask (streaming)';
+  }
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function showStatus(msg) {
+  statusBar.style.display = 'block';
+  statusBar.textContent = msg;
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>

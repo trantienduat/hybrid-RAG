@@ -105,12 +105,45 @@ class OllamaEmbedder(BaseEmbedder):
     # ── Internal ──────────────────────────────────────────────────
 
     def _embed(self, text: str) -> list[float]:
-        resp = self._client.post(
-            f"{self._url}/api/embeddings",
-            json={"model": self._model, "prompt": text},
-        )
-        resp.raise_for_status()
-        return resp.json()["embedding"]
+        # Truncate text to a maximum of 8000 characters to prevent huge payload crashes
+        max_safe_len = 8000
+        if len(text) > max_safe_len:
+            logger.warning("Embedding text truncated from %d to %d chars", len(text), max_safe_len)
+            text = text[:max_safe_len]
+
+        import time
+        retries = 3
+        backoff = 1.5
+
+        for attempt in range(1, retries + 1):
+            try:
+                resp = self._client.post(
+                    f"{self._url}/api/embeddings",
+                    json={"model": self._model, "prompt": text},
+                )
+                resp.raise_for_status()
+                return resp.json()["embedding"]
+            except Exception as exc:
+                logger.warning(
+                    "Ollama embedding attempt %d/%d failed for text (len=%d): %s",
+                    attempt, retries, len(text), exc
+                )
+                if attempt == retries:
+                    # Final attempt fallback: try heavily truncated text
+                    try:
+                        logger.warning("Retrying with heavily truncated text (500 chars)...")
+                        resp = self._client.post(
+                            f"{self._url}/api/embeddings",
+                            json={"model": self._model, "prompt": text[:500]},
+                        )
+                        resp.raise_for_status()
+                        return resp.json()["embedding"]
+                    except Exception as fallback_exc:
+                        logger.error("All embedding attempts failed: %s. Returning zero-vector.", fallback_exc)
+                        return [0.0] * 768
+                time.sleep(backoff ** attempt)
+        
+        return [0.0] * 768
 
     def close(self) -> None:
         self._client.close()

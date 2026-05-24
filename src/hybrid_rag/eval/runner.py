@@ -12,8 +12,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from hybrid_rag.eval.corpus import QueryCase
-from hybrid_rag.eval.metrics import EvalReport, QueryResult
+from hybrid_rag.eval.corpus import QueryCase, RepoQACase
+from hybrid_rag.eval.metrics import EvalReport, QueryResult, RepoQAQueryResult, RepoQAEvalReport
 from hybrid_rag.ports.embedder import BaseEmbedder
 from hybrid_rag.ports.graph_store import GraphStore
 from hybrid_rag.ports.vector_store import VectorStore
@@ -131,3 +131,111 @@ class EvalRunner:
             )
 
         return report
+
+
+class RepoQAEvalRunner:
+    """
+    Run evaluation on RepoQA: hybrid vs vector-only on a list of RepoQACases.
+    """
+
+    def __init__(
+        self,
+        graph_store: GraphStore,
+        vector_store: VectorStore,
+        embedder: BaseEmbedder,
+        rrf_k: int = 60,
+        rrf_structural_weight: float = 3.0,
+        rrf_hybrid_weight: float = 1.5,
+    ) -> None:
+        self._graph_store = graph_store
+        self._hybrid_retriever = HybridRetriever(
+            graph_store=graph_store,
+            vector_store=vector_store,
+            embedder=embedder,
+            rrf_k=rrf_k,
+            rrf_structural_weight=rrf_structural_weight,
+            rrf_hybrid_weight=rrf_hybrid_weight,
+        )
+
+    def _find_target_rank(self, results: list[dict[str, Any]], case: RepoQACase) -> int:
+        """Find the 1-based rank of the first chunk/node matching target function in results."""
+        target_func = case.target_function
+        target_file = case.file_path
+
+        for rank, item in enumerate(results, start=1):
+            # 1. Match file path
+            item_file = item.get("file_path", "") or ""
+            file_match = False
+            if item_file:
+                file_match = item_file.lower().endswith(target_file.lower())
+
+            # 2. Match function/entity name
+            item_name = item.get("name", "") or ""
+            node_id = item.get("node_id", "") or ""
+            base_node_id = item.get("base_node_id", "") or ""
+
+            name_match = (
+                item_name.lower() == target_func.lower()
+                or node_id.lower().endswith("::" + target_func.lower())
+                or f"::{target_func.lower()}::" in node_id.lower()
+                or base_node_id.lower().endswith("::" + target_func.lower())
+                or f"::{target_func.lower()}::" in base_node_id.lower()
+            )
+
+            if file_match and name_match:
+                return rank
+
+        return 0
+
+    def run(
+        self,
+        cases: list[RepoQACase],
+        top_k: int = 10,
+    ) -> RepoQAEvalReport:
+        """
+        Run evaluation across RepoQA *cases*.
+
+        For each case:
+        1. Run hybrid retrieval.
+        2. Run vector-only retrieval (no graph).
+        3. Identify matching target function rank in both modes.
+        4. Assemble RepoQAQueryResult and add to report.
+        """
+        report = RepoQAEvalReport()
+        for case in cases:
+            logger.info("Evaluating RepoQA %s: %s", case.id, case.question[:60])
+
+            # Hybrid mode retrieval
+            hybrid_results = self._hybrid_retriever.retrieve(case.question, top_k=top_k)
+            rank_hybrid = self._find_target_rank(hybrid_results, case)
+
+            # Vector-only mode retrieval
+            vector_results = self._hybrid_retriever.retrieve(
+                case.question, top_k=top_k, skip_graph=True
+            )
+            rank_vector = self._find_target_rank(vector_results, case)
+
+            qr = RepoQAQueryResult(
+                query_id=case.id,
+                question=case.question,
+                target_function=case.target_function,
+                file_path=case.file_path,
+                rank_hybrid=rank_hybrid,
+                rank_vector=rank_vector,
+            )
+            report.results.append(qr)
+            logger.info(
+                "RepoQA %s | hybrid rank=%d vector rank=%d | hit@1 hybrid=%.1f vector=%.1f | hit@5 hybrid=%.1f vector=%.1f | MRR hybrid=%.2f vector=%.2f",
+                case.id,
+                rank_hybrid,
+                rank_vector,
+                qr.hit_at1_hybrid,
+                qr.hit_at1_vector,
+                qr.hit_at5_hybrid,
+                qr.hit_at5_vector,
+                qr.mrr_hybrid,
+                qr.mrr_vector,
+            )
+
+        return report
+

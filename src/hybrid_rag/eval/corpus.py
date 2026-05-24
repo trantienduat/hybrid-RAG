@@ -15,7 +15,9 @@ correct regardless of which repository is indexed.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,39 @@ class QueryCase:
     ground_truth_cypher: str
     gt_col_index: int = 0    # column index in Cypher result for expected name
     notes: str = ""
+
+
+@dataclass(frozen=True)
+class RepoQACase:
+    id: str
+    question: str          # Natural language function behavior description
+    target_function: str   # Name of function (e.g. "add")
+    file_path: str         # File containing the function (e.g. "math_utils.py")
+    notes: str = ""
+
+
+def load_repoqa_json(filepath: Path | str) -> list[RepoQACase]:
+    """Load RepoQA cases from a JSON file."""
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"RepoQA benchmark file not found: {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    cases = []
+    for item in data:
+        cases.append(
+            RepoQACase(
+                id=item["id"],
+                question=item["question"],
+                target_function=item["target_function"],
+                file_path=item["file_path"],
+                notes=item.get("notes", ""),
+            )
+        )
+    return cases
+
 
 
 # ── Q1-Q5: 1-hop ──────────────────────────────────────────────────────────────

@@ -51,7 +51,10 @@ def resolve(result: ParseResult) -> ParseResult:
                 name = node.properties.get("name", stem)
                 real_modules.setdefault(name, node.id)
         elif node.label == "Class":
-            simple_name = node.properties.get("name", node.id.split("::")[-1])
+            class_nid = node.id.split("::")[-1]
+            if "." in class_nid:
+                class_nid = class_nid.split(".")[-1]
+            simple_name = node.properties.get("name", class_nid)
             # First definition wins (avoids ambiguity in large repos)
             real_classes.setdefault(simple_name, node.id)
 
@@ -85,7 +88,7 @@ def resolve(result: ParseResult) -> ParseResult:
     # Drop resolved stubs from node list
     resolved.nodes = [
         n for n in resolved.nodes
-        if not (n.label == "Module" and n.id in redirect)
+        if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
     ]
 
     # Rewrite edges

@@ -320,10 +320,14 @@ async def graph_neighbors(
     store: FalkorDBStore = app.state.graph_store
 
     # Resolve the anchor node metadata
-    nodes = store.find_nodes(node_id.rsplit("::", 1)[-1], limit=5)
+    simple_name = node_id.rsplit("::", 1)[-1]
+    if "." in simple_name:
+        simple_name = simple_name.rsplit(".", 1)[-1]
+    
+    nodes = store.find_nodes(simple_name, limit=5)
     anchor = next((n for n in nodes if n.get("node_id") == node_id), None)
     label = anchor.get("label", "") if anchor else ""
-    name = anchor.get("name", node_id.rsplit("::", 1)[-1]) if anchor else node_id
+    name = anchor.get("name", simple_name) if anchor else node_id
 
     directions = ["in", "out"] if direction == "both" else [direction]
     seen: set[str] = set()

@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `embed_texts` method to `BaseEmbedder` interface to support batch text embedding with a default sequential fallback for backward compatibility.
 - Implemented concurrent `embed_texts` in `OllamaEmbedder` utilizing a `ThreadPoolExecutor` with a configurable concurrency limit (defaults to `EMBED_CONCURRENCY=8`) to prevent hardware resource exhaustion.
 - Added comprehensive unit tests in `tests/unit/test_ollama_embedder.py` covering embedding single queries, concurrent batch execution, sequential fallbacks, stubs filtering, and error handling.
+- Added fully FQN-aware node ID generation in `parser.py` using dot-notation (e.g. `module.class.func`) to completely eliminate class and function name collisions.
+- Added helper `rel_path_to_fqn` to parse package structure cleanly from file paths in Python and Java.
 
 ### Changed
 - Refactored the embedding phase in `cli.py` to pre-collect all AST chunks prior to embedding, enabling batch ingestion with a fixed size of 128.
 - Improved the CLI user experience by updating the Rich progress bar smoothly per batch of 128, eliminating terminal spinner freeze during large repository ingestion.
+- Refactored `entity_resolver.py` to resolve class and module stubs using FQN dot-notation mappings.
+- Refactored `runner.py` RepoQA name parsing and matching, `main.py` neighbor explorer, and static frontend explorers to extract FQN simple names flawlessly.
+- Updated all unit and integration test assertions to align with FQN module, class, and function node ID structures.
 
 ## [0.1.0] - 2026-05-24
 

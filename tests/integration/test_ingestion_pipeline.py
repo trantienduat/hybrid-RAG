@@ -190,7 +190,7 @@ class TestM2Pipeline:
         assert after <= before, "stub_count should not increase after resolve"
         # math_utils module stub should now resolve to real module node
         module_ids = {n.id for n in resolved.nodes}
-        assert "math_utils.py" in module_ids
+        assert "math_utils" in module_ids
 
     def test_merger_integrates_with_parse_result(self):
         """Merge supplemental edges into a real ParseResult and verify structure."""

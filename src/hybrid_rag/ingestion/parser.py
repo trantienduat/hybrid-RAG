@@ -81,6 +81,35 @@ class ParseResult:
     errors: list[str] = field(default_factory=list)
 
 
+def rel_path_to_fqn(rel_path: str) -> str:
+    """
+    Convert a repository-relative file path to a Fully Qualified Name (FQN) module name.
+
+    Examples:
+        src/hybrid_rag/ports/embedder.py -> hybrid_rag.ports.embedder
+        src/hybrid_rag/__init__.py -> hybrid_rag
+        tests/unit/test_retrieval.py -> tests.unit.test_retrieval
+    """
+    p = rel_path.replace("\\", "/")
+    if p.endswith(".py"):
+        p = p[:-3]
+    elif p.endswith(".java"):
+        p = p[:-5]
+
+    if p.endswith("/__init__"):
+        p = p[:-9]
+
+    parts = p.split("/")
+    if len(parts) >= 3 and parts[:3] == ["src", "main", "java"]:
+        parts = parts[3:]
+    elif len(parts) >= 3 and parts[:3] == ["src", "test", "java"]:
+        parts = parts[3:]
+    elif parts and parts[0] == "src":
+        parts = parts[1:]
+
+    return ".".join(parts)
+
+
 # ── Public API ────────────────────────────────────────────────────
 
 def parse_file(file_path: Path, repo_root: Path) -> ParseResult:
@@ -175,8 +204,8 @@ def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
     Walks the AST top-level and delegates to specific handlers.
     """
     result = ParseResult()
-    module_name = Path(rel_path).stem
-    module_id = rel_path
+    module_fqn = rel_path_to_fqn(rel_path)
+    module_id = module_fqn
 
     # Determine module type based on path conventions
     if rel_path.endswith("__init__.py"):
@@ -190,7 +219,7 @@ def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
         label="Module",
         id=module_id,
         properties={
-            "name": module_name,
+            "name": module_fqn.split(".")[-1],
             "file_path": rel_path,
             "language": "python",
             "type": mod_type,
@@ -258,7 +287,7 @@ def _handle_class(
 ) -> None:
     """Extracts Class node data and its members (methods)."""
     name = _child_text(node, "name", src) or "UnknownClass"
-    class_id = f"{rel_path}::{name}"
+    class_id = f"{module_id}.{name}"
 
     # Extract base classes (inheritance)
     bases: list[str] = []
@@ -324,8 +353,8 @@ def _handle_function(
 ) -> None:
     """Extracts Function/Method node data and its call sites."""
     name = _child_text(node, "name", src) or "unknown"
-    fn_id = f"{rel_path}::{class_name}::{name}" if class_name else f"{rel_path}::{name}"
-    parent_id = f"{rel_path}::{class_name}" if class_name else module_id
+    parent_id = f"{module_id}.{class_name}" if class_name else module_id
+    fn_id = f"{parent_id}.{name}"
 
     # Metadata extraction
     is_async = any(c.type == "async" for c in node.children)

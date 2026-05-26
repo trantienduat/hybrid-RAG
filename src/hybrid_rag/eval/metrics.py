@@ -118,3 +118,66 @@ class EvalReport:
     @property
     def hit5_vector_by_hops(self) -> dict[int, float]:
         return {h: self._avg("hit_at5_vector", self._filter_hops(h)) for h in (1, 2, 3)}
+
+
+@dataclass
+class RepoQAQueryResult:
+    """Per-query evaluation outcome for RepoQA retrieval."""
+    query_id: str
+    question: str
+    target_function: str
+    file_path: str
+
+    # 1-based rank where the first matching target function was found (0 if not found)
+    rank_hybrid: int = 0
+    rank_vector: int = 0
+
+    hit_at1_hybrid: float = 0.0
+    hit_at1_vector: float = 0.0
+    hit_at5_hybrid: float = 0.0
+    hit_at5_vector: float = 0.0
+    mrr_hybrid: float = 0.0
+    mrr_vector: float = 0.0
+
+    def __post_init__(self) -> None:
+        self.hit_at1_hybrid = 1.0 if 0 < self.rank_hybrid <= 1 else 0.0
+        self.hit_at1_vector = 1.0 if 0 < self.rank_vector <= 1 else 0.0
+        self.hit_at5_hybrid = 1.0 if 0 < self.rank_hybrid <= 5 else 0.0
+        self.hit_at5_vector = 1.0 if 0 < self.rank_vector <= 5 else 0.0
+        self.mrr_hybrid     = 1.0 / self.rank_hybrid if self.rank_hybrid > 0 else 0.0
+        self.mrr_vector     = 1.0 / self.rank_vector if self.rank_vector > 0 else 0.0
+
+
+@dataclass
+class RepoQAEvalReport:
+    """Aggregated RepoQA evaluation report across all queries."""
+    results: list[RepoQAQueryResult] = field(default_factory=list)
+
+    def _avg(self, attr: str) -> float:
+        vals = [getattr(r, attr) for r in self.results]
+        return sum(vals) / len(vals) if vals else 0.0
+
+    @property
+    def hit1_hybrid(self) -> float:
+        return self._avg("hit_at1_hybrid")
+
+    @property
+    def hit1_vector(self) -> float:
+        return self._avg("hit_at1_vector")
+
+    @property
+    def hit5_hybrid(self) -> float:
+        return self._avg("hit_at5_hybrid")
+
+    @property
+    def hit5_vector(self) -> float:
+        return self._avg("hit_at5_vector")
+
+    @property
+    def mrr_hybrid(self) -> float:
+        return self._avg("mrr_hybrid")
+
+    @property
+    def mrr_vector(self) -> float:
+        return self._avg("mrr_vector")
+

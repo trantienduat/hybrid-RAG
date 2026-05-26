@@ -1,0 +1,30 @@
+[
+  {
+    "id": "repoqa-small-1",
+    "question": "A function that returns the sum of two integers.",
+    "target_function": "add",
+    "file_path": "math_utils.py",
+    "notes": "math_utils.py::add"
+  },
+  {
+    "id": "repoqa-small-2",
+    "question": "A simple calculator supporting basic arithmetic operations.",
+    "target_function": "Calculator",
+    "file_path": "math_utils.py",
+    "notes": "math_utils.py::Calculator"
+  },
+  {
+    "id": "repoqa-small-3",
+    "question": "Convert a given string text into a URL-friendly slug.",
+    "target_function": "slugify",
+    "file_path": "string_helpers.py",
+    "notes": "string_helpers.py::slugify"
+  },
+  {
+    "id": "repoqa-small-4",
+    "question": "Count the number of words in a given text.",
+    "target_function": "word_count",
+    "file_path": "string_helpers.py",
+    "notes": "string_helpers.py::word_count"
+  }
+]

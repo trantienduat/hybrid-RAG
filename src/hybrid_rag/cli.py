@@ -141,34 +141,44 @@ def index(
                 except OSError:
                     source_lines[fp] = []
 
-        chunks = chunk_nodes(result.nodes, [], max_tokens=max_tokens)
         # chunk_nodes needs per-file lines; do it per-file instead
         from hybrid_rag.ingestion.chunker import chunk_file
+        chunks_to_embed = []
+        seen_files: set[str] = set()
+        for node in result.nodes:
+            fp = node.properties.get("file_path", "")
+            if fp and fp not in seen_files:
+                seen_files.add(fp)
+                abs_fp = repo / fp
+                file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens)
+                chunks_to_embed.extend(file_chunks)
+
+        total_chunks = len(chunks_to_embed)
         all_chunks: list[dict] = []
 
         with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                       console=console) as progress:
-            task = progress.add_task("Embedding chunks…", total=None)
+            task = progress.add_task(f"Embedding chunks (0/{total_chunks})…", total=total_chunks)
             embedder: BaseEmbedder
             with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
-                # Build chunks per file then embed
-                seen_files: set[str] = set()
-                for node in result.nodes:
-                    fp = node.properties.get("file_path", "")
-                    if fp and fp not in seen_files:
-                        seen_files.add(fp)
-                        abs_fp = repo / fp
-                        file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens)
-                        for ch in file_chunks:
-                            emb = embedder.embed_query(ch.text)
-                            all_chunks.append({
-                                "node_id": f"{ch.node_id}::{ch.chunk_index}",
-                                "label": ch.label,
-                                "file_path": ch.file_path,
-                                "text": ch.text,
-                                "embedding": emb,
-                            })
-                progress.update(task, description=f"Embedded {len(all_chunks)} chunks")
+                batch_size = 128
+                for i in range(0, total_chunks, batch_size):
+                    batch = chunks_to_embed[i : i + batch_size]
+                    batch_texts = [ch.text for ch in batch]
+                    embeddings = embedder.embed_texts(batch_texts)
+                    for ch, emb in zip(batch, embeddings):
+                        all_chunks.append({
+                            "node_id": f"{ch.node_id}::{ch.chunk_index}",
+                            "label": ch.label,
+                            "file_path": ch.file_path,
+                            "text": ch.text,
+                            "embedding": emb,
+                        })
+                    progress.update(
+                        task,
+                        advance=len(batch),
+                        description=f"Embedding chunks ({min(i + len(batch), total_chunks)}/{total_chunks})…"
+                    )
 
         vector_store: VectorStore = QdrantStore(
             host=qdrant_host, port=qdrant_port, collection=qdrant_collection

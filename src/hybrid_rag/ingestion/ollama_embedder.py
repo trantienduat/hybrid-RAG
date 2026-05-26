@@ -102,6 +102,20 @@ class OllamaEmbedder(BaseEmbedder):
         """Embed a query string for similarity search."""
         return self._embed(query)
 
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """
+        Embed multiple text strings concurrently using a ThreadPoolExecutor.
+        """
+        import concurrent.futures
+
+        max_workers = int(os.environ.get("EMBED_CONCURRENCY", "8"))
+        if max_workers <= 1:
+            return [self._embed(t) for t in texts]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = list(executor.map(self._embed, texts))
+        return results
+
     # ── Internal ──────────────────────────────────────────────────
 
     def _embed(self, text: str) -> list[float]:

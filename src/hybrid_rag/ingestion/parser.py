@@ -112,13 +112,14 @@ def rel_path_to_fqn(rel_path: str) -> str:
 
 # ── Public API ────────────────────────────────────────────────────
 
-def parse_file(file_path: Path, repo_root: Path) -> ParseResult:
+def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseResult:
     """
     Parse a single source file and return its graph representation (nodes + edges).
     
     Args:
         file_path: The absolute path to the file to be parsed.
         repo_root: The root directory of the repository, used to calculate relative paths for node IDs.
+        repo_name: The custom namespace name for the repository.
         
     Returns:
         A ParseResult containing the extracted nodes, edges, and any errors.
@@ -139,17 +140,22 @@ def parse_file(file_path: Path, repo_root: Path) -> ParseResult:
     rel_path = str(file_path.relative_to(repo_root))
 
     if language == "python":
-        return _extract_python(tree.root_node, src_bytes, rel_path)
+        res = _extract_python(tree.root_node, src_bytes, rel_path)
+        # Assign repository property to all nodes in the file
+        for node in res.nodes:
+            node.properties["repository"] = repo_name
+        return res
     return ParseResult(errors=[f"Java extraction not yet implemented: {rel_path}"])
 
 
-def parse_repo(repo_root: Path, languages: list[str] | None = None) -> ParseResult:
+def parse_repo(repo_root: Path, languages: list[str] | None = None, repo_name: str = "") -> ParseResult:
     """
     Recursively parse all supported source files under the given repository root.
     
     Args:
         repo_root: The root directory of the repository to scan.
         languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
+        repo_name: The custom namespace name for the repository.
         
     Returns:
         A combined ParseResult containing graph data from all parsed files.
@@ -160,7 +166,7 @@ def parse_repo(repo_root: Path, languages: list[str] | None = None) -> ParseResu
     combined = ParseResult()
     for ext in exts:
         for fpath in sorted(repo_root.rglob(f"*{ext}")):
-            result = parse_file(fpath, repo_root)
+            result = parse_file(fpath, repo_root, repo_name=repo_name)
             combined.nodes.extend(result.nodes)
             combined.edges.extend(result.edges)
             combined.errors.extend(result.errors)

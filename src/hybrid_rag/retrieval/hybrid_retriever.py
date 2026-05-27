@@ -62,6 +62,7 @@ class HybridRetriever(BaseRetriever):
         query: str,
         top_k: int = 10,
         skip_graph: bool = False,
+        repository: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Run hybrid retrieval and return top_k fused results sorted by rrf_score.
@@ -73,16 +74,18 @@ class HybridRetriever(BaseRetriever):
         Args:
             skip_graph: When True, skip graph retrieval entirely (vector-only
                         baseline for evaluation / ablation studies).
+            repository: Custom repository namespace to filter results by.
         """
         analysis = analyze(query)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
         graph_results: list[dict[str, Any]] = []
         if not skip_graph and analysis.query_type in ("structural", "hybrid"):
-            graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2)
+            graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2, repository=repository)
             logger.debug("Graph results: %d nodes", len(graph_results))
 
-        vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2)
+        filter_payload = {"repository": repository} if repository else None
+        vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2, filter_payload=filter_payload)
         logger.debug("Vector results: %d chunks", len(vector_results))
 
         # Structural queries are relationship/structure lookups — graph evidence
@@ -114,9 +117,10 @@ class HybridRetriever(BaseRetriever):
         max_tokens: int | None = 2048,
         max_chars: int | None = None,
         context_n: int | None = None,
+        repository: str | None = None,
     ) -> RetrievalContext:
-        """Retrieve and assemble context in one call with dynamic token/char budgeting."""
-        results = self.retrieve(query, top_k=top_k)
+        """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
+        results = self.retrieve(query, top_k=top_k, repository=repository)
 
         # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
         if max_tokens is None and max_chars is None and context_n is not None:

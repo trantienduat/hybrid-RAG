@@ -107,3 +107,63 @@ def stub_count(result: ParseResult) -> int:
         1 for n in result.nodes
         if n.label == "Module" and n.properties.get("type") == "external"
     )
+
+
+def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
+    """
+    Query FalkorDB to resolve remaining external stubs against real nodes in previously indexed repositories.
+
+    Enables Multi-Repo cross-linking: (RepoB.Class)-[:INHERITS/CALLS]->(RepoA.Class).
+    """
+    # 1. Gather unresolved external module stubs in the current parse results
+    external_stubs = [
+        node.id for node in result.nodes
+        if node.label == "Module" and node.properties.get("type") == "external"
+    ]
+    if not external_stubs:
+        return result
+
+    redirect: dict[str, str] = {}
+
+    # 2. Query FalkorDB to check if a real node matching that FQN ID already exists
+    for stub_id in external_stubs:
+        # Check if there is a real (non-external) node matching the stub's FQN ID in FalkorDB
+        query = (
+            "MATCH (n) WHERE (n.id = $stub_id OR n.name = $stub_id OR n.id ENDS WITH $ends_with) "
+            "AND (n.type IS NULL OR n.type <> 'external') RETURN n.id LIMIT 1"
+        )
+        ends_with = f".{stub_id}"
+        try:
+            res = graph_store.query(query, {"stub_id": stub_id, "ends_with": ends_with})
+            if res.result_set:
+                row = res.result_set[0]
+                real_id = row[0]
+                redirect[stub_id] = real_id
+        except Exception:
+            # Skip gracefully if database isn't initialized or query fails
+            continue
+
+    if not redirect:
+        return result
+
+    # 3. Create a deep copy to avoid modifying original results in-place
+    resolved = ParseResult(
+        nodes=copy.deepcopy(result.nodes),
+        edges=copy.deepcopy(result.edges),
+        errors=list(result.errors),
+    )
+
+    # 4. Remove resolved stubs from the node list
+    resolved.nodes = [
+        n for n in resolved.nodes
+        if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
+    ]
+
+    # 5. Rewrite all edges in-place
+    for edge in resolved.edges:
+        if edge.src_id in redirect:
+            edge.src_id = redirect[edge.src_id]
+        if edge.dst_id in redirect:
+            edge.dst_id = redirect[edge.dst_id]
+
+    return resolved

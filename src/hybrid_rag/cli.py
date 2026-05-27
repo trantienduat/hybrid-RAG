@@ -36,6 +36,7 @@ def index(
         ["python"], "--languages", "-l",
         help="Source languages to parse (python, java).",
     ),
+    repo_name: str = typer.Option(None, help="Custom namespace name for the repository."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -57,7 +58,8 @@ def index(
         err_console.print(f"[ERROR] Not a directory: {repo}")
         raise typer.Exit(1)
 
-    console.rule(f"[bold cyan]hybrid-rag index[/] — {repo}")
+    repo_namespace = repo_name or repo.name
+    console.rule(f"[bold cyan]hybrid-rag index[/] — {repo} [dim](namespace: {repo_namespace})[/]")
     t0 = time.perf_counter()
 
     # Lazy imports so CLI is fast to load.
@@ -76,7 +78,7 @@ def index(
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                   console=console) as progress:
         task = progress.add_task("Parsing source files…", total=None)
-        result = parse_repo(repo, languages=languages)
+        result = parse_repo(repo, languages=languages, repo_name=repo_namespace)
         progress.update(task, description=f"Parsed — {len(result.nodes)} nodes, "
                                           f"{len(result.edges)} edges, "
                                           f"{len(result.errors)} errors")
@@ -100,7 +102,7 @@ def index(
                 for i, fp in enumerate(py_files, start=1):
                     try:
                         file_text = fp.read_text(encoding="utf-8", errors="replace")
-                        file_result = parse_file(fp, repo)
+                        file_result = parse_file(fp, repo, repo_name=repo_namespace)
                         extra = extractor.extract(file_text, file_result)
                         all_extra_edges.extend(extra)
                     except Exception as exc:  # noqa: BLE001
@@ -116,13 +118,22 @@ def index(
     resolved = before_stubs - after_stubs
     console.print(f"Entity resolver: {resolved} stubs merged → {after_stubs} external stubs remain")
 
+    # ── 3b. Global Cross-Repo Entity resolution ────────────────────────────────
+    graph_store: GraphStore = FalkorDBStore(
+        host=graph_host, port=graph_port, graph_name=graph_name
+    )
+    from hybrid_rag.ingestion.entity_resolver import resolve_global
+    before_global_stubs = stub_count(result)
+    result = resolve_global(result, graph_store)
+    after_global_stubs = stub_count(result)
+    global_resolved = before_global_stubs - after_global_stubs
+    if global_resolved > 0:
+        console.print(f"Global Entity resolver: {global_resolved} stubs resolved against FalkorDB → {after_global_stubs} external stubs remain")
+
     # ── 4. Graph ingest ────────────────────────────────────────────────────────
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
                   console=console) as progress:
         task = progress.add_task("Writing to FalkorDB…", total=None)
-        graph_store: GraphStore = FalkorDBStore(
-            host=graph_host, port=graph_port, graph_name=graph_name
-        )
         counts = graph_store.ingest(result)
         progress.update(task, description=f"FalkorDB — {counts['nodes']} nodes, "
                                           f"{counts['edges']} edges upserted")
@@ -173,6 +184,7 @@ def index(
                             "file_path": ch.file_path,
                             "text": ch.text,
                             "embedding": emb,
+                            "repository": repo_namespace,
                         })
                     progress.update(
                         task,
@@ -254,6 +266,7 @@ def query(
     context_n: int = typer.Option(5, help="Legacy top results limit fallback."),
     max_tokens: int = typer.Option(None, help="Maximum tokens for dynamic context budget."),
     max_chars: int = typer.Option(None, help="Maximum characters for dynamic context budget."),
+    repo_name: str = typer.Option(None, help="Scope query search to a specific repository namespace."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -290,14 +303,14 @@ def query(
                 embedder=embedder,
                 rrf_k=rrf_k,
             )
-            # Route dynamic vs legacy parameters
+            # Route dynamic vs legacy parameters with repository scoping
             if max_tokens is None and max_chars is None:
                 ctx = retriever.retrieve_with_context(
-                    question, top_k=top_k, max_tokens=None, max_chars=None, context_n=context_n
+                    question, top_k=top_k, max_tokens=None, max_chars=None, context_n=context_n, repository=repo_name
                 )
             else:
                 ctx = retriever.retrieve_with_context(
-                    question, top_k=top_k, max_tokens=max_tokens, max_chars=max_chars
+                    question, top_k=top_k, max_tokens=max_tokens, max_chars=max_chars, repository=repo_name
                 )
 
         if ctx.metadata.get("use_budget"):

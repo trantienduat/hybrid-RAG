@@ -73,6 +73,7 @@ class QdrantStore(VectorStore):
                     "label": c["label"],
                     "file_path": c["file_path"],
                     "text": c["text"],
+                    "repository": c.get("repository", ""),
                 },
             )
             for c in chunks

@@ -31,6 +31,7 @@ class GraphRetriever:
         self,
         analysis: QueryAnalysis,
         top_k: int = _DEFAULT_TOP_K,
+        repository: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Return up to top_k graph nodes relevant to the analysis.
@@ -53,6 +54,9 @@ class GraphRetriever:
                 break
             nodes = self._store.find_nodes(term, limit=top_k)
             for node in nodes:
+                # Apply repository filter if provided
+                if repository and node.get("repository") != repository:
+                    continue
                 nid = node.get("node_id", "")
                 if nid and nid not in seen_ids:
                     seen_ids.add(nid)
@@ -72,6 +76,9 @@ class GraphRetriever:
                         seed_id, direction=direction, max_hops=1, limit=_NEIGHBOR_LIMIT
                     )
                     for nb in neighbors:
+                        # Apply repository filter if provided
+                        if repository and nb.get("dst_repository") != repository:
+                            continue
                         nid = nb.get("dst_id", "")
                         if nid and nid not in seen_ids:
                             seen_ids.add(nid)
@@ -83,10 +90,10 @@ class GraphRetriever:
                                 "file_path": nb.get("dst_file_path", ""),
                                 "rel": nb.get("rel", ""),
                                 "text": "",
-                            "source": "graph",
-                        })
+                                "source": "graph",
+                            })
 
-        logger.debug("GraphRetriever: %d results for %r", len(results), analysis)
+        logger.debug("GraphRetriever: %d results for %r (scoped to repo=%s)", len(results), analysis, repository)
         return results[:top_k]
 
 

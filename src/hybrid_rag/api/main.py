@@ -226,18 +226,20 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     retriever: HybridRetriever = app.state.retriever
 
     try:
-        results = retriever.retrieve(req.question, top_k=req.top_k)
+        # Route budget parameters
+        if req.max_tokens is None and req.max_chars is None:
+            ctx = retriever.retrieve_with_context(
+                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n
+            )
+        else:
+            ctx = retriever.retrieve_with_context(
+                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars
+            )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Retrieval failed")
         raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    ctx_results = results[: req.context_n]
-    context_text = "\n\n".join(
-        f"[{r.get('label', '')}] {r.get('name', '')} ({r.get('file_path', '')})\n{r.get('text', '')}"
-        for r in ctx_results
-        if r.get("text")
-    )
-    prompt = _build_prompt(req.question, context_text or "(no code context retrieved)")
+    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)")
 
     try:
         answer = await _ollama_generate(prompt, req.llm_model)
@@ -247,11 +249,25 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
 
     latency_ms = (time.perf_counter() - t0) * 1000
 
+    # Build response sources from actually packed context chunks
+    sources = [
+        SourceChunk(
+            node_id=r.get("node_id", ""),
+            name=r.get("name", ""),
+            label=r.get("label", ""),
+            file_path=r.get("file_path", ""),
+            text=r.get("text", ""),
+            source=r.get("source", ""),
+            rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+        )
+        for r in ctx.chunks
+    ]
+
     return QueryResponse(
         question=req.question,
         answer=answer,
         query_type=analysis.query_type,
-        sources=_to_source_chunks(results, req.context_n),
+        sources=sources,
         latency_ms=round(latency_ms, 2),
     )
 
@@ -271,18 +287,32 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     retriever: HybridRetriever = app.state.retriever
 
     try:
-        results = retriever.retrieve(req.question, top_k=req.top_k)
+        # Route budget parameters
+        if req.max_tokens is None and req.max_chars is None:
+            ctx = retriever.retrieve_with_context(
+                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n
+            )
+        else:
+            ctx = retriever.retrieve_with_context(
+                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars
+            )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    ctx_results = results[: req.context_n]
-    context_text = "\n\n".join(
-        f"[{r.get('label', '')}] {r.get('name', '')} ({r.get('file_path', '')})\n{r.get('text', '')}"
-        for r in ctx_results
-        if r.get("text")
-    )
-    prompt = _build_prompt(req.question, context_text or "(no code context retrieved)")
-    sources_payload = [c.model_dump() for c in _to_source_chunks(results, req.context_n)]
+    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)")
+    
+    sources_payload = [
+        {
+            "node_id": r.get("node_id", ""),
+            "name": r.get("name", ""),
+            "label": r.get("label", ""),
+            "file_path": r.get("file_path", ""),
+            "text": r.get("text", ""),
+            "source": r.get("source", ""),
+            "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
+        }
+        for r in ctx.chunks
+    ]
 
     async def _event_stream() -> AsyncIterator[str]:
         # First event: metadata

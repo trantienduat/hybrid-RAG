@@ -250,8 +250,10 @@ def status(
 @app.command()
 def query(
     question: str = typer.Argument(..., help="Natural language question about the codebase."),
-    top_k: int = typer.Option(10, help="Total candidates to retrieve before context assembly."),
-    context_n: int = typer.Option(5, help="Top results to include in the assembled context."),
+    top_k: int = typer.Option(20, help="Total candidates to retrieve before context assembly."),
+    context_n: int = typer.Option(5, help="Legacy top results limit fallback."),
+    max_tokens: int = typer.Option(None, help="Maximum tokens for dynamic context budget."),
+    max_chars: int = typer.Option(None, help="Maximum characters for dynamic context budget."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -288,14 +290,36 @@ def query(
                 embedder=embedder,
                 rrf_k=rrf_k,
             )
-            ctx = retriever.retrieve_with_context(question, top_k=top_k, context_n=context_n)
+            # Route dynamic vs legacy parameters
+            if max_tokens is None and max_chars is None:
+                ctx = retriever.retrieve_with_context(
+                    question, top_k=top_k, max_tokens=None, max_chars=None, context_n=context_n
+                )
+            else:
+                ctx = retriever.retrieve_with_context(
+                    question, top_k=top_k, max_tokens=max_tokens, max_chars=max_chars
+                )
 
+        if ctx.metadata.get("use_budget"):
+            console.print(
+                f"\n[bold green]✓[/] [bold]Retrieved {ctx.metadata['total_results']} candidates | "
+                f"Packed {ctx.metadata['shown']} chunks into prompt context[/]"
+            )
+            console.print(
+                f"  • Budget Utilized: [bold cyan]{ctx.metadata['total_tokens']}/{ctx.metadata['budget_limit']}[/] estimated tokens "
+                f"({ctx.metadata['total_chars']} characters)"
+            )
+            console.print(
+                f"  • Chunks: [green]{ctx.metadata['chunks_included_count']} included[/] | "
+                f"[yellow]{ctx.metadata['chunks_excluded_count']} excluded (due to budget limit)[/]"
+            )
+        else:
+            console.print(
+                f"\n[bold]Retrieved {ctx.metadata['total_results']} results "
+                f"(showing top {ctx.metadata['shown']})[/]"
+            )
         console.print(
-            f"\n[bold]Retrieved {ctx.metadata['total_results']} results "
-            f"(showing top {ctx.metadata['shown']})[/]"
-        )
-        console.print(
-            f"Sources: graph={ctx.metadata['has_graph']}, "
+            f"  • Sources: graph={ctx.metadata['has_graph']}, "
             f"vector={ctx.metadata['has_vector']}\n"
         )
         console.rule("[dim]Context[/]")

@@ -110,9 +110,22 @@ class HybridRetriever(BaseRetriever):
     def retrieve_with_context(
         self,
         query: str,
-        top_k: int = 10,
-        context_n: int = 5,
+        top_k: int = 20,
+        max_tokens: int | None = 2048,
+        max_chars: int | None = None,
+        context_n: int | None = None,
     ) -> RetrievalContext:
-        """Retrieve and assemble context in one call."""
+        """Retrieve and assemble context in one call with dynamic token/char budgeting."""
         results = self.retrieve(query, top_k=top_k)
-        return self._assembler.assemble(results, top_n=context_n, query=query)
+
+        # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
+        if max_tokens is None and max_chars is None and context_n is not None:
+            return self._assembler.assemble(results, top_n=context_n, query=query)
+
+        # Pack context dynamically under budget constraints
+        return self._assembler.assemble(
+            results,
+            max_tokens=max_tokens,
+            max_chars=max_chars,
+            query=query,
+        )

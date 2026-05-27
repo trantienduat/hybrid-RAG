@@ -31,23 +31,40 @@ class ContextAssembler:
         self,
         results: list[dict[str, Any]],
         top_n: int = 5,
+        max_tokens: int | None = None,
+        max_chars: int | None = None,
+        token_estimator: callable | None = None,
         query: str = "",
     ) -> RetrievalContext:
         """
-        Format the top *top_n* results into a context block.
+        Format retrieval results into a structured context block.
 
-        Prioritises results that have text; graph-only entries are included as
-        structural annotations so the LLM knows about relevant nodes even when
-        their source code was not indexed as a vector chunk.
+        If either max_tokens or max_chars is provided, dynamic budgeting is applied:
+        chunks are packed strictly in rank order until the budget limit is reached.
+        Otherwise, fallback to hardcoded top_n results.
         """
-        selected = results[:top_n]
-        lines: list[str] = []
+        # Set up token estimator
+        if token_estimator is None:
+            # Safe offline heuristic: ~1 token ≈ 4 characters of code/text.
+            token_estimator = lambda text: len(text) // 4
 
+        use_budget = (max_tokens is not None) or (max_chars is not None)
+
+        lines: list[str] = []
         if query:
             lines.append(f"Query: {query}\n")
 
+        query_overhead_len = len("\n".join(lines))
+        query_overhead_tokens = token_estimator("\n".join(lines)) if lines else 0
+
+        current_tokens = query_overhead_tokens
+        current_chars = query_overhead_len
+
+        chunks_included: list[dict[str, Any]] = []
+        chunks_excluded: list[dict[str, Any]] = []
         sources_seen: set[str] = set()
-        for i, item in enumerate(selected, start=1):
+
+        for i, item in enumerate(results, start=1):
             label = item.get("label", "")
             name = item.get("name", "") or item.get("node_id", "")
             file_path = item.get("file_path", "")
@@ -56,8 +73,7 @@ class ContextAssembler:
             source = item.get("source", "")
             score = item.get("rrf_score") or item.get("score") or 0.0
 
-            sources_seen.add(source)
-
+            # Pre-format this individual chunk block
             header_parts = [f"[{i}]"]
             if label and name:
                 header_parts.append(f"{label}: {name}")
@@ -69,24 +85,64 @@ class ContextAssembler:
                 header_parts.append(f"via {rel}")
             header_parts.append(f"[score={score:.4f}, src={source}]")
 
-            lines.append(" ".join(header_parts))
-
+            chunk_lines = [" ".join(header_parts)]
             if text:
-                lines.append(text.strip())
+                chunk_lines.append(text.strip())
             else:
-                lines.append("[Structural node — no text chunk indexed]")
+                chunk_lines.append("[Structural node — no text chunk indexed]")
+            chunk_lines.append("")  # blank separator
 
-            lines.append("")  # blank separator
+            chunk_block = "\n".join(chunk_lines)
+            chunk_tokens = token_estimator(chunk_block)
+            chunk_chars = len(chunk_block)
+
+            # Evaluate budget constraint
+            if use_budget:
+                violated = False
+                if max_tokens is not None and (current_tokens + chunk_tokens) > max_tokens:
+                    violated = True
+                if max_chars is not None and (current_chars + chunk_chars) > max_chars:
+                    violated = True
+
+                if violated:
+                    # Once a high-ranked chunk violates the budget, exclude it and all remaining
+                    # chunks to strictly preserve rank priority without packing holes or truncating.
+                    chunks_excluded.extend(results[i - 1 :])
+                    break
+
+            # Fallback legacy constraint
+            elif len(chunks_included) >= top_n:
+                chunks_excluded.extend(results[i - 1 :])
+                break
+
+            # Pack chunk
+            current_tokens += chunk_tokens
+            current_chars += chunk_chars
+            lines.extend(chunk_lines[:-1]) # add all lines except the trailing blank separator line
+            lines.append("") # explicit separator
+            chunks_included.append(item)
+            if source:
+                sources_seen.add(source)
 
         assembled_text = "\n".join(lines).rstrip()
+        actual_tokens = token_estimator(assembled_text)
+
+        budget_limit = max_tokens if max_tokens is not None else (max_chars if max_chars is not None else 0)
+
         return RetrievalContext(
             text=assembled_text,
-            chunks=selected,
+            chunks=chunks_included,
             metadata={
                 "total_results": len(results),
-                "shown": len(selected),
+                "shown": len(chunks_included),
                 "sources": sorted(s for s in sources_seen if s),
-                "has_graph": any(r.get("source") in ("graph", "hybrid") for r in selected),
-                "has_vector": any(r.get("source") in ("vector", "hybrid") for r in selected),
+                "has_graph": any(r.get("source") in ("graph", "hybrid") for r in chunks_included),
+                "has_vector": any(r.get("source") in ("vector", "hybrid") for r in chunks_included),
+                "use_budget": use_budget,
+                "total_tokens": actual_tokens,
+                "total_chars": len(assembled_text),
+                "budget_limit": budget_limit,
+                "chunks_included_count": len(chunks_included),
+                "chunks_excluded_count": len(chunks_excluded),
             },
         )

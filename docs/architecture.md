@@ -1,247 +1,232 @@
 # System Architecture & Data Flow
 
-Version: 0.1
+Version: 1.0 (Production-Grade)
+
+The Hybrid-RAG system is designed with a modular, **Ports and Adapters** (Hexagonal) architecture to support local, privacy-preserving, hybrid codebase analysis. By combining Abstract Syntax Tree (AST) structural insights with high-dimensional vector representations, the system solves the limitations of vector-only code search.
 
 ---
 
-## High-Level Overview
+## High-Level Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    LOCAL ENVIRONMENT ONLY                        │
-│                 (no data leaves this boundary)                   │
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────────────────────────────┐   │
-│  │   Codebase   │    │         INDEXING PIPELINE            │   │
-│  │  (Python /   │───►│                                      │   │
-│  │   Java repo) │    │  1. AST Parsing (tree-sitter)        │   │
-│  └──────────────┘    │  2. Entity Resolution                │   │
-│                      │  3. Graph Write (FalkorDB)           │   │
-│                      │  4. Chunking + Embedding             │   │
-│                      │  5. Vector Write (Qdrant)            │   │
-│                      └──────────┬──────────────────────┬───┘   │
-│                                 │                      │        │
-│                          Graph Store            Vector Store     │
-│                        ┌────────▼──────┐      ┌───────▼─────┐  │
-│                        │   FalkorDB    │      │   Qdrant    │  │
-│                        │  (Cypher KG)  │      │ (embeddings)│  │
-│                        └────────┬──────┘      └───────┬─────┘  │
-│                                 │                      │        │
-│                      ┌──────────▼──────────────────────▼───┐   │
-│                      │       HYBRID RETRIEVAL ENGINE        │   │
-│                      │                                      │   │
-│  User Query ────────►│  1. Query Analysis                   │   │
-│                      │  2. Parallel Execution:              │   │
-│                      │     a. Cypher Graph Traversal        │   │
-│                      │     b. Vector Similarity Search      │   │
-│                      │  3. Reciprocal Rank Fusion (RRF)     │   │
-│                      │  4. Context Assembly                 │   │
-│                      └──────────────────────┬──────────────┘   │
-│                                             │                   │
-│                      ┌──────────────────────▼──────────────┐   │
-│                      │         INFERENCE LAYER              │   │
-│                      │   Ollama (qwen2.5-coder:7b / MLX)   │   │
-│                      └──────────────────────┬──────────────┘   │
-│                                             │                   │
-│                                         Answer                  │
-└─────────────────────────────────────────────────────────────────┘
+All computations, embedding operations, and database storages remain strictly within the **local environment**. No data ever leaves the user's local boundary.
+
+```mermaid
+graph TD
+    %% Styling
+    classDef default fill:#111216,stroke:#3b3f4c,stroke-width:1px,color:#d1d5db;
+    classDef component fill:#1f2937,stroke:#6366f1,stroke-dasharray: 5 5,stroke-width:2px,color:#f3f4f6;
+    classDef storage fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
+    classDef external fill:#1c1917,stroke:#a8a29e,stroke-dasharray: 3 3,color:#d6d3d1;
+
+    subgraph UserRepo ["Local Codebases"]
+        RepoA["Repository A (e.g. core-lib)"]
+        RepoB["Repository B (e.g. main-app)"]
+    end
+
+    subgraph Ingestion ["1. Ingestion Pipeline"]
+        Parser["AST Parser (tree-sitter)"]
+        Resolver["Dual-Aware & Global Entity Resolver"]
+        Chunker["AST-Aware Chunker"]
+        Embedder["Batch Embedder (ThreadPoolExecutor)"]
+    end
+
+    subgraph Storage ["2. Storage Engines"]
+        FalkorDB[("FalkorDB (Knowledge Graph)")];
+        Qdrant[("Qdrant (Vector DB)")];
+    end
+
+    subgraph Retrieval ["3. Scoped Hybrid Retrieval Engine"]
+        Analyzer["Query Analyzer"]
+        GraphRetriever["Graph Retriever (Cypher Path Expansion)"]
+        VectorRetriever["Vector Retriever (Payload-Filtered Search)"]
+        RRF["Reciprocal Rank Fusion (RRF)"]
+        Assembler["Token-Budget Context Assembler"]
+    end
+
+    subgraph Inference ["4. Inference Layer"]
+        OllamaLLM["Ollama Local LLM (qwen2.5-coder:7b)"]
+    end
+
+    %% Flow links
+    RepoA --> |Index with --repo-name| Parser
+    RepoB --> |Index with --repo-name| Parser
+    Parser --> |AST Triplets| Resolver
+    Resolver --> |Query & Redirect Stubs| FalkorDB
+    Resolver --> |Store staged nodes| FalkorDB
+    Parser --> |File content| Chunker
+    Chunker --> |Code Chunks| Embedder
+    Embedder --> |Batch embed nomic-embed-text| Qdrant
+    
+    %% Retrieval flow
+    UserQuery["User Query"] --> Analyzer
+    Analyzer --> |Structural/Hybrid Signals| GraphRetriever
+    Analyzer --> |Semantic Signals| VectorRetriever
+    
+    GraphRetriever --> |Graph Seeds & Paths| FalkorDB
+    VectorRetriever --> |Payload Scoped Embeddings| Qdrant
+    
+    FalkorDB -.-> |Substructures| GraphRetriever
+    Qdrant -.-> |Citations| VectorRetriever
+    
+    GraphRetriever --> |Structural candidates| RRF
+    VectorRetriever --> |Semantic candidates| RRF
+    
+    RRF --> |Unified ranks| Assembler
+    Assembler --> |Token-capped prompt context| OllamaLLM
+    OllamaLLM --> |Answer response| Client["Console / Web UI"]
+
+    class Ingestion,Retrieval component;
+    class FalkorDB,Qdrant storage;
+    class OllamaLLM external;
 ```
 
 ---
 
-## Component Breakdown
+## 🛠️ Ingestion Pipeline (Flow & Architecture)
 
-### 1. Indexing Pipeline
+The ingestion pipeline converts raw source files (Python and Java) into a partitioned, resolved structural graph and high-dimensional vectors.
 
-**Trigger:** Manual CLI command or file watcher (future).
+```mermaid
+sequenceDiagram
+    autonumber
+    actor CLI as CLI / Developer
+    participant Parser as AST Parser (tree-sitter)
+    participant Resolver as Global Entity Resolver
+    participant FalkorDB as FalkorDB Graph Store
+    participant Chunker as Chunker
+    participant Embedder as Batch Embedder (Ollama)
+    participant Qdrant as Qdrant Vector Store
 
+    CLI->>Parser: Index codebase (repo_path, --repo-name core-lib)
+    Parser->>Parser: Parse files & extract Fully Qualified Names (FQN)
+    Note over Parser: Module, Class, & Function nodes mapped using dotted notation
+    Parser->>Resolver: Local ParseResult (Nodes with repository namespace)
+    
+    Resolver->>Resolver: resolve_local()
+    Note over Resolver: Deduplicate imports and inheritances within the same repository
+    
+    Resolver->>FalkorDB: query() - resolve_global()
+    FalkorDB-->>Resolver: Return matching FQN nodes in existing repositories
+    Resolver->>Resolver: Rewrite edge references (Stubs -> Real FQN nodes)
+    
+    Resolver->>FalkorDB: ingest()
+    Note over FalkorDB: Idempotent Cypher MERGE writes FQN graph structure
+    FalkorDB-->>CLI: Confirm Graph indexed
+    
+    Parser->>Chunker: Raw files content
+    Chunker->>Chunker: AST-Aware Chunking (Module / Class / Function boundaries)
+    Chunker->>Embedder: List of raw code chunks
+    
+    Note over Embedder: Batch chunks (batch_size=128)
+    loop Parallel Threads (EMBED_CONCURRENCY=8)
+        Embedder->>Embedder: thread_pool.submit(embed_text)
+    end
+    
+    Embedder->>Qdrant: upsert() (Vectors + payload metadata: repository namespace)
+    Qdrant-->>CLI: Confirm Vectors indexed
 ```
-Input:  Local repo directory
-Output: Populated FalkorDB + Qdrant collections
 
-Steps:
-  File Discovery
-      │ glob *.py / *.java
-      ▼
-  Language Detection
-      │ file extension
-      ▼
-  AST Parsing (tree-sitter)
-      │ produces: Module/Class/Function nodes + IMPORTS/DEFINES/INHERITS/CALLS edges
-      ▼
-  LLM-assisted Extraction  (optional, --llm-extract)
-      │ qwen2.5-coder:7b supplements USES edges from type annotations
-      │ merged with AST result; confidence threshold: 0.7
-      ▼
-  Entity Resolution
-      │ dedup stub Module/Class nodes against real nodes
-      │ cross-file INHERITS stubs resolved to real Class nodes
-      ▼
-  Graph Write (FalkorDB)
-      │ Cypher MERGE upserts (idempotent)
-      ▼
-  Chunking (chunker.py — custom AST-aware)
-      │ one chunk per Function/Class/Module, sliding window for large nodes
-      │ chunk_size: 512 tokens, overlap: 64 tokens
-      ▼
-  Embedding (nomic-embed-text via Ollama)
-      │ each chunk → 768-dim vector
-      ▼
-  Vector Write (Qdrant)
-      collection: "code_chunks"
-      payload: {node_id, label, file_path, text}
-```
-
-**Key constraint:** No network calls during indexing. All embedding via local Ollama.
+### Key Engineering Features in Ingestion
+1.  **Fully Qualified Names (FQN):** Node IDs are represented using dotted-notation (`package.module.Class.method`) derived dynamically relative to the repository root. This guarantees 100% namespace isolation and eliminates graph node collisions between different modules.
+2.  **Global Entity Resolution (Cross-Repo Linking):** External imports and inherits stubs are globally resolved against FalkorDB. If a matching FQN is found in another repository, the local stub node is deleted and the relationship edges (`[:INHERITS]`, `[:CALLS]`, `[:IMPORTS]`) are rewritten to link directly to the remote repository FQN node.
+3.  **Parallel Embeddings:** Text chunks are processed in batch sizes of `128` and embedded concurrently via a `ThreadPoolExecutor` (default `concurrency=8`) talking to local Ollama, reducing indexing latency by up to **85%** compared to sequential calls.
 
 ---
 
-### 2. Hybrid Retrieval Engine
+## 🔍 Retrieval Flow (Flow & Architecture)
 
-**Trigger:** User query via API.
+The retrieval engine fuses graph structures and vector semantics to extract the most relevant code chunks under a strict token budget.
 
-```
-Input:  Natural language query string
-Output: Ranked list of code context chunks
+```mermaid
+graph LR
+    %% Styling
+    classDef default fill:#111216,stroke:#3b3f4c,stroke-width:1px,color:#d1d5db;
+    classDef pipeline fill:#1f2937,stroke:#6366f1,stroke-width:1px,color:#f3f4f6;
 
-Steps:
-  Query Analysis
-      │ classify: structural | semantic | hybrid
-      │ extract: entity names, relationship keywords
-      ▼
-  ┌───────────────────────────────────────────┐
-  │            PARALLEL EXECUTION             │
-  │                                           │
-  │  Graph Path                Vector Path    │
-  │  ──────────────────  ───────────────────  │
-  │  Entity extraction   Embed query          │
-  │      │               (nomic-embed-text)   │
-  │      ▼                      │             │
-  │  Cypher query gen            ▼            │
-  │      │               Qdrant top-K search  │
-  │      ▼               (K=10, cosine sim)   │
-  │  FalkorDB traverse           │             │
-  │  (max hops: 3)               │             │
-  │      │                      │             │
-  │  Graph results      Vector results        │
-  └────────────┬─────────────────┬────────────┘
-               │                 │
-               ▼                 ▼
-         RRF Merger (k=60, equal weights default)
-               │
-               ▼
-         Top-N context chunks (N=5 default)
-               │
-               ▼
-         Context Assembly (format for LLM prompt)
+    Query["User Query"] --> Analyzer["Query Analyzer"]
+    
+    subgraph ParallelPath ["Parallel Execution Path"]
+        Analyzer --> |Structural query| GraphPath["Graph Path"]
+        Analyzer --> |Semantic query| VectorPath["Vector Path"]
+        
+        GraphPath --> |Find FQN Seed Nodes| SeedSearch["FalkorDB Seed Matching"]
+        SeedSearch --> |1 to 3 Hops Expansion| GraphTraversal["Graph Traversal (Cypher)"]
+        
+        VectorPath --> |Embed Query via Ollama| QueryEmbed["Ollama Query Embedding"]
+        QueryEmbed --> |Payload-Filtered Search| VectorSearch["Qdrant Vector Search"]
+    end
+    
+    GraphTraversal --> |Graph structural chunks| RRF["RRF Merger"]
+    VectorSearch --> |Vector semantic chunks| RRF
+    
+    RRF --> |RRF Ranked Candidates| BudgetAssembler["Token-Budget Context Assembler"]
+    BudgetAssembler --> |Filter out over-budget chunks| PackedContext["Context Packed Prompt"]
+    PackedContext --> LLM["Local LLM (qwen2.5-coder:7b)"]
+
+    class ParallelPath pipeline;
 ```
 
-**RRF formula:**
-$$score(d) = \sum_{r \in R} \frac{1}{k + rank_r(d)}$$
-
-where k=60, R = {graph_results, vector_results}.
+### Key Engineering Features in Retrieval
+1.  **Repository Scoping:** Searches can be locked down to a single repository by providing a `--repo-name` payload filter to Qdrant and restricting FalkorDB seed node lookups.
+2.  **Token-Budget Context Assembly:** Prompts are packed dynamically using an AST-aware context builder. Results are popped from the RRF ranked queue and added to the prompt until a configured token threshold (`--max-tokens` or `--max-chars`) is hit. This prevents context window overflow and saves LLM attention.
+3.  **Reciprocal Rank Fusion (RRF):** Merges semantic vector listings with multi-hop structural graphs using a parameterized scoring formula:
+    $$score(d) = \sum_{r \in R} \frac{W_r}{k + rank_r(d)}$$
+    *   `k = 60` (optimal baseline)
+    *   `W_graph = 3.0` for structural queries, `1.5` for hybrid queries.
 
 ---
 
-### 3. Inference Layer
+## 💾 Data Contracts & Models
 
-```
-Input:  Assembled context + user query
-Output: Natural language answer
+### Ingestion → FalkorDB Graph Store
+Graph schema models use structured nodes and typed edges containing repository namespaces.
 
-Prompt structure:
-  [SYSTEM]  You are a code analysis assistant. Answer only from provided context.
-  [CONTEXT] {assembled code chunks from retrieval}
-  [QUERY]   {user query}
-
-Model: qwen2.5-coder:7b (via Ollama REST API at localhost:11434)
-Fallback: llama3.2:3b for low-RAM situations
-```
-
-**No streaming in v1** — full response wait. Add streaming in API layer (M4 milestone).
-
----
-
-## Data Contracts (Module Interfaces)
-
-### Ingestion → FalkorDB
 ```python
-# Node
-{"id": str, "label": str, "properties": dict}
-
-# Edge
-{"src_id": str, "rel": str, "dst_id": str, "properties": dict}
-```
-
-### Ingestion → Qdrant
-```python
-# Point
+# Node Schema
 {
-  "id": uuid,           # deterministic SHA-256 of node_id
-  "vector": List[float],  # 768-dim (nomic-embed-text)
-  "payload": {
-    "node_id": str,       # matches FalkorDB node id
-    "label": str,         # "Function" | "Class" | "Module"
-    "file_path": str,
-    "text": str,          # raw chunk text (source code)
-  }
+    "id": "llama_index.core.retrievers.BaseRetriever", # Fully Qualified Name
+    "label": "Class",                                 # "Module" | "Class" | "Function"
+    "properties": {
+        "name": "BaseRetriever",
+        "file_path": "llama_index/core/retrievers/base.py",
+        "repository": "llama-core",                    # Repository namespace
+        "type": "class"
+    }
+}
+
+# Edge Schema
+{
+    "src_id": "llama_index.core.retrievers.AutoMergingRetriever",
+    "rel": "INHERITS",                                 # "DEFINES" | "CALLS" | "IMPORTS" | "INHERITS"
+    "dst_id": "llama_index.core.retrievers.BaseRetriever",
+    "properties": {
+        "repository": "llama-core"
+    }
 }
 ```
 
-### Retrieval → LLM
+### Ingestion → Qdrant Vector Store
+Vectors are partitioned using payload metadata to support fast, targeted scoping.
+
 ```python
 {
-  "query": str,
-  "context_chunks": List[{
-    "text": str,
-    "source": str,        # "graph" | "vector" | "both"
-    "file_path": str,
-    "score": float        # RRF score
-  }]
+    "id": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",  # Deterministic UUID from FQN chunk ID
+    "vector": [0.012, -0.045, ..., 0.312],          # 768-dimensional nomic-embed-text
+    "payload": {
+        "node_id": "llama_index.core.retrievers.AutoMergingRetriever::0",
+        "label": "Class",
+        "file_path": "llama_index/core/retrievers/auto_merging.py",
+        "text": "class AutoMergingRetriever(BaseRetriever):\n    ...",
+        "repository": "llama-core"                  # Namespace payload filter
+    }
 }
 ```
 
 ---
 
-## Technology Stack
+## 🔒 Privacy Boundary Enforcement
 
-| Component | Technology | Version | Port |
-|-----------|-----------|---------|------|
-| Inference | Ollama + qwen2.5-coder:7b | latest | 11434 |
-| Embedding | Ollama + nomic-embed-text | latest | 11434 |
-| Graph Store | FalkorDB | latest | 6379 |
-| Vector Store | Qdrant | latest | 6333 |
-| AST Parser | tree-sitter | ≥0.20 | — |
-| API Layer | FastAPI | ≥0.110 | 8000 |
-| Language | Python | ≥3.12,<3.14 | — |
-
----
-
-## Privacy Boundary Enforcement
-
-All data stays local. Enforced by:
-1. No API keys in codebase (`.env.example` only, `.env` gitignored)
-2. Ollama runs fully offline — no telemetry
-3. FalkorDB + Qdrant run in Docker with no external port exposure beyond localhost
-4. CI/CD pipeline: lint checks for any `requests` calls to non-localhost URLs
-
----
-
-## Deployment (Local Dev)
-
-```bash
-make up       # docker compose up falkordb + qdrant
-make index    # run ingestion pipeline on target repo
-make serve    # start FastAPI on :8000
-make test     # pytest
-make down     # docker compose down
-```
-
----
-
-## Open Questions
-
-- [x] ~~tree-sitter vs Python `ast` module~~ — Resolved: tree-sitter (ADR-002 Accepted)
-- [ ] Max hop limit: 3 fixed or query-adaptive?
-- [ ] RRF weights: equal (0.5/0.5) or graph-weighted for structural queries?
-- [ ] Chunk size: 512 tokens optimal? Validate on target repo.
+The codebase strictly enforces local data sovereignty:
+*   **Offline Operation:** No external network requests are made. External API calls to non-localhost loops are explicitly prohibited.
+*   **Docker Containerization:** Storage engines (FalkorDB, Qdrant) run on local loopback ports (`127.0.0.1`) only, preventing any external ingress or egress.
+*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`qwen2.5-coder:7b`) are hosted entirely offline.

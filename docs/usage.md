@@ -143,3 +143,35 @@ hybrid-rag bench --corpus
 hybrid-rag ragas
 ```
 *Computes RAGAS Faithfulness, Answer Relevancy, and Context Precision on the evaluation corpus.*
+
+---
+
+## 🐳 Containerized Stack Deployment (Private Machine)
+
+For private servers, we package the RAG API and Visualizer along with the database engines using a single Docker Compose bundle.
+
+### 1. Build and Start the Entire Stack
+Copy the codebase to the private machine, navigate to the folder, and run:
+```bash
+docker compose up --build -d
+```
+This single command:
+1. Compiles AST `tree-sitter` native bindings and builds the `hybrid-rag-api` image.
+2. Starts FalkorDB, Qdrant, and the Hybrid-RAG API.
+3. Automatically sets up connection paths.
+
+### 2. Connect to Private Ollama
+By default, the container routes to Ollama running natively on the physical host machine via:
+`OLLAMA_BASE_URL=http://host.docker.internal:11434`
+
+If you are running Ollama on a different server or IP address, simply edit `docker-compose.yml` to update the variable:
+```yaml
+environment:
+  - OLLAMA_BASE_URL=http://<OLLAMA_SERVER_IP>:11434
+```
+
+### 3. Verification & Access
+Once up and healthy, the services are accessible:
+* **Interactive UI & Visualizer:** `http://localhost:8000/`
+* **Swagger API Documentation:** `http://localhost:8000/docs`
+* **Qdrant Dashboard:** `http://localhost:6333/dashboard`

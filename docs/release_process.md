@@ -147,8 +147,8 @@ jobs:
             type=semver,pattern={{version}}
             # 2. Tag as 'latest' on pushes to stable main branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            # 3. Tag as 'develop-SNAPSHOT' on pushes to develop branch
-            type=raw,value=develop-SNAPSHOT,enable=${{ github.ref == 'refs/heads/develop' }}
+            # 3. Tag as 'develop' on pushes to develop branch (Industry-standard dev tag)
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
             # 4. Generate a unique short-sha tag for exact commit traceability
             type=sha,prefix=sha-
             

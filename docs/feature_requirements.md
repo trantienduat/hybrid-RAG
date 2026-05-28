@@ -62,3 +62,6 @@ This document defines the functional and non-functional requirements implemented
 ### 2. High-Performance Indexing and Querying
 *   **Req 2.4:** Sub-second retrieval latency: Retrieval fusion (vector + graph) must execute in **less than 1 second** on standard local CPU/GPU hardware.
 *   **Req 2.5:** Parallel indexing must speed up Nomics/Ollama embedding workflows by at least **5x** compared to sequential indexing.
+
+### 3. Containerized Deployment & Portability
+*   **Req 3.1:** The entire RAG stack (API, Web Visualizer, Graph DB, and Vector DB) must be deployable with a single command (`docker compose up --build -d`) to ensure fast, isolated, compiler-free installation on private/on-premise machines.

@@ -44,16 +44,22 @@ src/hybrid_rag/
 
 ---
 
-## 🐳 Database Service Management
+## 🐳 Containerized Stack & Service Management
 
-FalkorDB and Qdrant are run as Docker containers.
+The local deployment runs as a fully integrated 3-container stack:
+1.  **`falkordb`:** The Knowledge Graph database (FalkorDB), running on port `6379`.
+2.  **`qdrant`:** The Vector database (Qdrant), running on port `6333` (REST) and `6334` (gRPC).
+3.  **`hybrid-rag-api`:** The Hybrid-RAG REST API and D3.js Web Visualizer, running on port `8000`.
 
 ### Common Docker Operations
-*   **Start Services:** `make up`
-*   **Stop Services:** `make down`
-*   **Clear All Data (Hard Reset):**
+
+*   **Start/Build Entire Stack:** `docker compose up --build -d`
+*   **Stop Entire Stack:** `docker compose down`
+*   **Check Live Container Logs:** `docker compose logs -f`
+*   **Service Status & Health Check:** `docker compose ps`
+*   **Hard Reset & Clear All Data:**
     ```bash
-    # Stops containers and removes volumes to completely delete databases
+    # Stops all containers and deletes persistent database volumes
     docker compose down -v
     ```
 

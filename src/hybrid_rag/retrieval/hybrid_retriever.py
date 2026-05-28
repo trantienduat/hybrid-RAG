@@ -62,6 +62,7 @@ class HybridRetriever(BaseRetriever):
         query: str,
         top_k: int = 10,
         skip_graph: bool = False,
+        repository: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Run hybrid retrieval and return top_k fused results sorted by rrf_score.
@@ -73,16 +74,18 @@ class HybridRetriever(BaseRetriever):
         Args:
             skip_graph: When True, skip graph retrieval entirely (vector-only
                         baseline for evaluation / ablation studies).
+            repository: Custom repository namespace to filter results by.
         """
         analysis = analyze(query)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
         graph_results: list[dict[str, Any]] = []
         if not skip_graph and analysis.query_type in ("structural", "hybrid"):
-            graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2)
+            graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2, repository=repository)
             logger.debug("Graph results: %d nodes", len(graph_results))
 
-        vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2)
+        filter_payload = {"repository": repository} if repository else None
+        vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2, filter_payload=filter_payload)
         logger.debug("Vector results: %d chunks", len(vector_results))
 
         # Structural queries are relationship/structure lookups — graph evidence
@@ -110,9 +113,23 @@ class HybridRetriever(BaseRetriever):
     def retrieve_with_context(
         self,
         query: str,
-        top_k: int = 10,
-        context_n: int = 5,
+        top_k: int = 20,
+        max_tokens: int | None = 2048,
+        max_chars: int | None = None,
+        context_n: int | None = None,
+        repository: str | None = None,
     ) -> RetrievalContext:
-        """Retrieve and assemble context in one call."""
-        results = self.retrieve(query, top_k=top_k)
-        return self._assembler.assemble(results, top_n=context_n, query=query)
+        """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
+        results = self.retrieve(query, top_k=top_k, repository=repository)
+
+        # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
+        if max_tokens is None and max_chars is None and context_n is not None:
+            return self._assembler.assemble(results, top_n=context_n, query=query)
+
+        # Pack context dynamically under budget constraints
+        return self._assembler.assemble(
+            results,
+            max_tokens=max_tokens,
+            max_chars=max_chars,
+            query=query,
+        )

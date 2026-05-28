@@ -30,7 +30,11 @@ def _extract_names(results: list[dict[str, Any]]) -> list[str]:
         name = r.get("name", "") or r.get("node_id", "")
         # Strip chunk-index suffix (e.g. "::0") from node_id used as name
         if "::" in name and name.rsplit("::", 1)[-1].isdigit():
-            name = name.rsplit("::", 1)[0].rsplit("::", 1)[-1]
+            name = name.rsplit("::", 1)[0]
+        
+        # If FQN dot-notation is used, get the last part (simple name)
+        if "." in name:
+            name = name.rsplit(".", 1)[-1]
         elif "::" in name:
             name = name.rsplit("::", 1)[-1]
         if name:
@@ -180,6 +184,10 @@ class RepoQAEvalRunner:
                 or f"::{target_func.lower()}::" in node_id.lower()
                 or base_node_id.lower().endswith("::" + target_func.lower())
                 or f"::{target_func.lower()}::" in base_node_id.lower()
+                or node_id.lower().endswith("." + target_func.lower())
+                or f".{target_func.lower()}." in node_id.lower()
+                or base_node_id.lower().endswith("." + target_func.lower())
+                or f".{target_func.lower()}." in base_node_id.lower()
             )
 
             if file_match and name_match:

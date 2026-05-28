@@ -79,7 +79,7 @@ class TestParseFile:
 
     def test_defined_in_edges_point_to_module(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)
-        module_id = "math_utils.py"
+        module_id = "math_utils"
         defined_in = [e for e in result.edges if e.rel == "DEFINED_IN" and e.dst_id == module_id]
         assert len(defined_in) >= 2
 

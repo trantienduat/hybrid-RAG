@@ -28,6 +28,26 @@ services:
       timeout: 3s
       retries: 5
 
+  hybrid-rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hybrid-rag-api
+    ports:
+      - "8000:8000"
+    environment:
+      - FALKORDB_HOST=falkordb
+      - QDRANT_HOST=qdrant
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    depends_on:
+      falkordb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 volumes:
   falkordb_data:
   qdrant_data:

@@ -431,7 +431,7 @@ function renderResultsList(nodes) {
          data-name="${escHtml(n.name)}">
       <div class="name">
         <span class="label-badge label-${escHtml(n.label)}">${escHtml(n.label)}</span>
-        ${escHtml(n.name || n.id.split('::').pop())}
+        ${escHtml(n.name || n.id.split('::').pop().split('.').pop())}
       </div>
       <div class="meta">${escHtml(n.file_path)}</div>
     </div>
@@ -485,7 +485,7 @@ function renderGraph(anchorId, anchorLabel, anchorName, edges) {
     graphInstance = ForceGraph3D()(container)
       .backgroundColor('#0f1117')
       .nodeLabel(n => {
-        const nm  = escHtml(n.name || n.id.split('::').pop());
+        const nm  = escHtml(n.name || n.id.split('::').pop().split('.').pop());
         const lbl = escHtml(n.label);
         const fp  = n.file_path ? `<div class="g-tip-path">${escHtml(n.file_path)}</div>` : '';
         return `<div><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}</div>`;
@@ -552,7 +552,12 @@ function renderMessage(m) {
 
 function renderCitations(msgId, sources) {
   const items = sources.slice(0, 8).map(s => {
-    const shortName = (s.node_id || '').split('::').pop() || s.node_id;
+    let parts = (s.node_id || '').split('::');
+    if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+      parts.pop();
+    }
+    let canonical = parts.pop() || '';
+    const shortName = s.name || canonical.split('.').pop() || s.node_id;
     return `
       <div class="citation-item">
         <span class="label-badge label-${escHtml(s.label)}">${escHtml(s.label)}</span>

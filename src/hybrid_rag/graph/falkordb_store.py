@@ -95,6 +95,7 @@ class FalkorDBStore(GraphStore):
                 "label": labels[0] if labels else "Unknown",
                 "name": props.get("name", ""),
                 "file_path": props.get("file_path", ""),
+                "repository": props.get("repository", ""),
             })
         return results
 
@@ -140,6 +141,7 @@ class FalkorDBStore(GraphStore):
                     "dst_label": m_labels[0] if m_labels else "Unknown",
                     "dst_name": m_props.get("name", ""),
                     "dst_file_path": m_props.get("file_path", ""),
+                    "dst_repository": m_props.get("repository", ""),
                 })
             return results
 
@@ -172,6 +174,7 @@ class FalkorDBStore(GraphStore):
                 "dst_label": m_labels[0] if m_labels else "Unknown",
                 "dst_name": m_props.get("name", ""),
                 "dst_file_path": m_props.get("file_path", ""),
+                "dst_repository": m_props.get("repository", ""),
             })
         return results
 

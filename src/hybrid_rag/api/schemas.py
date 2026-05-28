@@ -16,6 +16,8 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000, description="Natural language question.")
     top_k: int = Field(20, ge=1, le=100, description="Retrieval candidates before context assembly.")
     context_n: int = Field(5, ge=1, le=20, description="Top results assembled for LLM context.")
+    max_tokens: int | None = Field(None, ge=1, le=16384, description="Maximum tokens for dynamic context budget.")
+    max_chars: int | None = Field(None, ge=1, le=65536, description="Maximum characters for dynamic context budget.")
     llm_model: str = Field("qwen2.5-coder:7b", description="Ollama model name for generation.")
     stream: bool = Field(False, description="Set True to use SSE streaming endpoint instead.")
 

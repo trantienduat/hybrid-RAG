@@ -31,6 +31,14 @@ class BaseEmbedder(ABC):
     def embed_query(self, query: str) -> list[float]:
         """Embed a free-text query string for similarity search."""
 
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """
+        Embed multiple text strings, potentially concurrently.
+
+        Returns a list of embeddings in the same order as the input texts.
+        """
+        return [self.embed_query(t) for t in texts]
+
     def close(self) -> None:
         """Release any underlying HTTP connections or resources."""
 

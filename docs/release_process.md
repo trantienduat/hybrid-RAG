@@ -84,8 +84,15 @@ name: Production Release Pipeline
 
 on:
   push:
+    branches:
+      - main
+      - develop
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
   test:
@@ -108,6 +115,8 @@ jobs:
   build-and-publish:
     name: Build & Publish Docker Image
     needs: test
+    # Only build and publish on push/merge/tag events, not on open pull requests
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -134,8 +143,14 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
+            # 1. Generate SemVer tags on release tags (e.g. v0.2.0 -> 0.2.0)
             type=semver,pattern={{version}}
-            type=raw,value=latest
+            # 2. Tag as 'latest' on pushes to stable main branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # 3. Tag as 'develop-SNAPSHOT' on pushes to develop branch
+            type=raw,value=develop-SNAPSHOT,enable=${{ github.ref == 'refs/heads/develop' }}
+            # 4. Generate a unique short-sha tag for exact commit traceability
+            type=sha,prefix=sha-
             
       - name: Build and Push Docker image
         uses: docker/build-push-action@v6
@@ -144,8 +159,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ id.meta.outputs.tags }}
-          labels: ${{ id.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 ```

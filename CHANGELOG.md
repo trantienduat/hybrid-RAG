@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-28
+
 ### Added
 - Added `embed_texts` method to `BaseEmbedder` interface to support batch text embedding with a default sequential fallback for backward compatibility.
 - Implemented concurrent `embed_texts` in `OllamaEmbedder` utilizing a `ThreadPoolExecutor` with a configurable concurrency limit (defaults to `EMBED_CONCURRENCY=8`) to prevent hardware resource exhaustion.

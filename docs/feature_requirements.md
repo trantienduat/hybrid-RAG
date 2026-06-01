@@ -48,7 +48,7 @@ This document defines the functional and non-functional requirements implemented
 *   **Req 7.3:** Detailed assembly statistics must be returned in query metadata (number of chunks included, number of chunks excluded, total tokens/characters utilized).
 
 ### 8. Web Visualization & API Streaming
-*   **Req 8.1:** The server must host a force-directed D3.js interactive Knowledge Graph explorer displaying modules, classes, and relationships.
+*   **Req 8.1:** The server must host a premium web-based Knowledge Graph explorer supporting dynamic repository selection, 3D Force-Graph visualization, a Cytoscape 2D hierarchical layout view switcher, search category tabs, and an interactive Floating Node Inspector panel.
 *   **Req 8.2:** The API must support Server-Sent Events (SSE) streaming (`/query/stream`) to stream LLM responses chunk-by-chunk for low-latency user interfaces.
 
 ---

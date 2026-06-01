@@ -69,22 +69,26 @@ class FalkorDBStore(GraphStore):
         self,
         name: str,
         label: str | None = None,
+        repository: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         """Find nodes whose name contains *name* (case-sensitive substring)."""
         if not name:
             return []
+        
+        where_clauses = ["n.name CONTAINS $name"]
+        params = {"name": name}
+        if repository:
+            where_clauses.append("n.repository = $repository")
+            params["repository"] = repository
+
+        where_str = " AND ".join(where_clauses)
         if label:
-            cypher = (
-                f"MATCH (n:{label}) WHERE n.name CONTAINS $name "
-                f"RETURN n LIMIT {limit}"
-            )
+            cypher = f"MATCH (n:{label}) WHERE {where_str} RETURN n LIMIT {limit}"
         else:
-            cypher = (
-                f"MATCH (n) WHERE n.name CONTAINS $name "
-                f"RETURN n LIMIT {limit}"
-            )
-        res = self._graph.query(cypher, {"name": name})
+            cypher = f"MATCH (n) WHERE {where_str} RETURN n LIMIT {limit}"
+
+        res = self._graph.query(cypher, params)
         results: list[dict[str, Any]] = []
         for row in (res.result_set or []):
             node = row[0]
@@ -98,6 +102,11 @@ class FalkorDBStore(GraphStore):
                 "repository": props.get("repository", ""),
             })
         return results
+
+    def list_repositories(self) -> list[str]:
+        """Return a list of all unique repository names in the graph."""
+        res = self._graph.query("MATCH (n) WHERE n.repository IS NOT NULL AND n.repository <> '' RETURN DISTINCT n.repository AS repo")
+        return [str(row[0]) for row in (res.result_set or []) if row[0]]
 
     def find_neighbors(
         self,

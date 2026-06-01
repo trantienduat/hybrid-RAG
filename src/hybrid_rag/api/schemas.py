@@ -19,6 +19,7 @@ class QueryRequest(BaseModel):
     max_chars: int | None = Field(None, ge=1, le=65536, description="Maximum characters for dynamic context budget.")
     llm_model: str = Field("qwen2.5-coder:7b", description="Ollama model name for generation.")
     stream: bool = Field(False, description="Set True to use SSE streaming endpoint instead.")
+    repository: str | None = Field(None, description="Optional repository name to filter search results and context by.")
 
 
 # ── Source chunk ───────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ class GraphNode(BaseModel):
     name: str
     label: str
     file_path: str
+    repository: str = ""
 
 
 class GraphEdge(BaseModel):
@@ -69,6 +71,8 @@ class GraphEdge(BaseModel):
     dst_id: str
     dst_name: str
     dst_label: str
+    dst_file_path: str = ""
+    dst_repository: str = ""
 
 
 class GraphNeighborsResponse(BaseModel):

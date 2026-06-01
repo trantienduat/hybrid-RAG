@@ -240,11 +240,11 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         # Route budget parameters
         if req.max_tokens is None and req.max_chars is None:
             ctx = retriever.retrieve_with_context(
-                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n
+                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n, repository=req.repository
             )
         else:
             ctx = retriever.retrieve_with_context(
-                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars
+                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars, repository=req.repository
             )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Retrieval failed")
@@ -301,11 +301,11 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         # Route budget parameters
         if req.max_tokens is None and req.max_chars is None:
             ctx = retriever.retrieve_with_context(
-                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n
+                req.question, top_k=req.top_k, max_tokens=None, max_chars=None, context_n=req.context_n, repository=req.repository
             )
         else:
             ctx = retriever.retrieve_with_context(
-                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars
+                req.question, top_k=req.top_k, max_tokens=req.max_tokens, max_chars=req.max_chars, repository=req.repository
             )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
@@ -349,6 +349,19 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     )
 
 
+# ── GET /graph/repositories ───────────────────────────────────────────────────
+
+@app.get("/graph/repositories")
+async def list_repositories() -> list[str]:
+    """Return all unique repository namespaces present in the graph database."""
+    store: FalkorDBStore = app.state.graph_store
+    try:
+        return store.list_repositories()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to list repositories: %s", exc)
+        return []
+
+
 # ── GET /graph/neighbors/{node_id} ─────────────────────────────────────────────
 
 @app.get("/graph/neighbors/{node_id:path}", response_model=GraphNeighborsResponse)
@@ -389,6 +402,8 @@ async def graph_neighbors(
                     "dst_id": nb.get("dst_id", ""),
                     "dst_name": nb.get("dst_name", ""),
                     "dst_label": nb.get("dst_label", ""),
+                    "dst_file_path": nb.get("dst_file_path", ""),
+                    "dst_repository": nb.get("dst_repository", ""),
                 })
 
     return GraphNeighborsResponse(
@@ -401,12 +416,13 @@ async def graph_neighbors(
 @app.get("/graph/search", response_model=GraphSearchResponse)
 async def graph_search(
     q: str = Query(..., min_length=1, max_length=200),
+    repository: str | None = Query(None, description="Scope query by repository name."),
     limit: int = Query(20, ge=1, le=50),
 ) -> GraphSearchResponse:
     """Find KG nodes whose name contains *q*."""
     store: FalkorDBStore = app.state.graph_store
     try:
-        raw = store.find_nodes(q, limit=limit)
+        raw = store.find_nodes(q, repository=repository, limit=limit)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -416,6 +432,7 @@ async def graph_search(
             name=n.get("name", ""),
             label=n.get("label", ""),
             file_path=n.get("file_path", ""),
+            repository=n.get("repository", ""),
         )
         for n in raw
     ]

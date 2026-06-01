@@ -3,290 +3,713 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>hybrid-rag — Graph Explorer</title>
+  <title>hybrid-rag — Codebase Architect Explorer</title>
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
     :root {
-      --bg:      #0f1117;
-      --surface: #1a1d27;
-      --border:  #2e3148;
-      --text:    #e2e8f0;
-      --muted:   #8892a4;
-      --accent:  #6366f1;
-      --accent2: #22d3ee;
-      --green:   #34d399;
-      --yellow:  #fbbf24;
-      --red:     #f87171;
+      --bg: #07090e;
+      --surface: rgba(15, 18, 25, 0.85);
+      --surface-solid: #0d1017;
+      --surface-card: rgba(22, 26, 38, 0.7);
+      --border: rgba(45, 52, 75, 0.4);
+      --border-hover: rgba(99, 102, 241, 0.6);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.2);
+      --accent2: #06b6d4;
+      --accent2-glow: rgba(6, 182, 212, 0.15);
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --pink: #ec4899;
+      --shadow: 0 10px 30px -10px rgba(0,0,0,0.7);
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'SF Mono', Consolas, monospace;
+      font-family: 'Inter', -apple-system, sans-serif;
       font-size: 13px;
       display: flex;
       flex-direction: column;
       height: 100vh;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* ── Header ── */
     header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
-      background: var(--surface);
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(10, 12, 18, 0.8);
+      backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      z-index: 10;
     }
-    header h1  { font-size: 14px; color: var(--accent); letter-spacing: 0.05em; }
-    header .sub { color: var(--muted); font-size: 11px; flex: 1; }
-    .badge-local {
+    header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.01em;
+    }
+    header .sub {
+      color: var(--text-muted);
+      font-size: 11px;
+      flex: 1;
+      font-weight: 500;
+    }
+    .badge-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 10px;
-      background: rgba(52,211,153,0.12);
+      background: rgba(16, 185, 129, 0.08);
       color: var(--green);
-      border: 1px solid rgba(52,211,153,0.3);
-      border-radius: 3px;
-      padding: 2px 8px;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 9999px;
+      padding: 3px 10px;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
     }
 
-    /* ── 3-panel layout ── */
+    /* ── Layout ── */
     .layout { display: flex; flex: 1; overflow: hidden; }
 
-    /* ── Left sidebar ── */
+    /* ── Left Sidebar ── */
     .sidebar {
-      width: 220px;
+      width: 260px;
       flex-shrink: 0;
-      background: var(--surface);
+      background: var(--surface-solid);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      z-index: 5;
     }
-    .sidebar-section { padding: 10px; border-bottom: 1px solid var(--border); }
-    .sidebar-section label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
-    input[type=text] {
+    .sidebar-section {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar-section label {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Repository Selector */
+    .custom-select {
+      position: relative;
+    }
+    select {
       width: 100%;
-      background: var(--bg);
+      background: rgba(22, 26, 38, 0.6);
       border: 1px solid var(--border);
-      border-radius: 4px;
+      border-radius: 6px;
       color: var(--text);
-      padding: 6px 8px;
+      padding: 8px 12px;
       font-family: inherit;
       font-size: 12px;
       outline: none;
+      appearance: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
-    input[type=text]:focus { border-color: var(--accent); }
-    button {
+    select:focus, select:hover {
+      border-color: var(--accent);
+      background: rgba(22, 26, 38, 0.9);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .custom-select::after {
+      content: '▼';
+      font-size: 8px;
+      color: var(--text-muted);
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    /* Search inputs */
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      gap: 6px;
+    }
+    input[type=text] {
+      flex: 1;
+      background: rgba(22, 26, 38, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    input[type=text]:focus {
+      border-color: var(--accent);
+      background: rgba(22, 26, 38, 0.9);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn-search {
       background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: 4px;
-      padding: 6px 12px;
+      border-radius: 6px;
+      padding: 8px 14px;
       cursor: pointer;
-      font-family: inherit;
+      font-weight: 600;
       font-size: 12px;
-      margin-top: 6px;
-      width: 100%;
+      transition: all 0.2s ease;
     }
-    button:hover:not(:disabled) { opacity: 0.85; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-search:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    }
 
-    /* ── Results list ── */
-    .results-list { flex: 1; overflow-y: auto; padding: 6px; }
-    .result-item {
-      padding: 6px 8px;
-      border-radius: 4px;
+    /* Label Filtering Tabs */
+    .label-tabs {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      padding: 10px 14px 6px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 12, 18, 0.3);
+    }
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 12px;
+      padding: 3px 8px;
+      font-size: 9px;
       cursor: pointer;
-      margin-bottom: 2px;
-      border: 1px solid transparent;
+      font-weight: 600;
+      transition: all 0.2s ease;
     }
-    .result-item:hover  { background: var(--border); }
-    .result-item.active { border-color: var(--accent); background: rgba(99,102,241,0.12); }
-    .result-item .name { color: var(--text); font-weight: 600; font-size: 11px; }
-    .result-item .meta { color: var(--muted); font-size: 10px; margin-top: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .tab-btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: var(--accent-glow);
+      border-color: var(--accent);
+      color: #fff;
+    }
 
-    /* ── Label badges ── */
-    .label-badge    { display: inline-block; padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-right: 3px; }
-    .label-Class    { background: rgba(99,102,241,0.25); color: var(--accent); }
-    .label-Function { background: rgba(34,211,238,0.20); color: var(--accent2); }
-    .label-Module   { background: rgba(52,211,153,0.20); color: var(--green); }
-    .label-Variable { background: rgba(251,191,36,0.20); color: var(--yellow); }
-    .label-Community { background: rgba(236,72,153,0.20); color: #ec4899; }
+    /* ── Results List ── */
+    .results-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .result-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      background: rgba(22, 26, 38, 0.2);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .result-item:hover {
+      border-color: var(--border-hover);
+      background: rgba(22, 26, 38, 0.5);
+    }
+    .result-item.active {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.08);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .result-item .name-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      justify-content: space-between;
+    }
+    .result-item .name {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .result-item .meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .result-item .path {
+      color: var(--text-muted);
+      font-size: 9px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .badge-repo {
+      font-size: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 4px;
+      color: var(--text-muted);
+      max-width: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-    /* ── Graph canvas ── */
+    /* ── Label Badges ── */
+    .label-badge {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .label-Class { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+    .label-Function { background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
+    .label-Module { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .label-Variable { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .label-Community { background: rgba(236,72,153,0.15); color: #f472b6; border: 1px solid rgba(236,72,153,0.4); }
+
+    /* ── Graph Canvas Area ── */
     .canvas-wrap {
       flex: 1;
-      min-width: 280px;
       position: relative;
       overflow: hidden;
       background: var(--bg);
     }
-    #graph-3d { width: 100%; height: 100%; }
-    /* 3d-force-graph tooltip override */
-    .graph-tooltip {
-      background: var(--surface) !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 6px !important;
-      padding: 6px 10px !important;
-      font-size: 11px !important;
-      font-family: 'SF Mono', Consolas, monospace !important;
-      color: var(--text) !important;
-    }
-    .g-tip-label { color: var(--muted); font-size: 10px; }
-    .g-tip-path  { color: var(--muted); font-size: 10px; margin-top: 2px; word-break: break-all; }
+    #graph-3d, #graph-2d { width: 100%; height: 100%; }
 
-    /* ── Graph overlays ── */
+    /* Floating View Switcher */
+    .btn-toggle-view {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 100;
+      background: rgba(15, 18, 25, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+    }
+    .btn-toggle-view:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Floating Legend */
+    .legend {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      z-index: 100;
+      background: rgba(15, 18, 25, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      box-shadow: var(--shadow);
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── Floating Node Inspector Card ── */
+    .node-inspector {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 100;
+      width: 280px;
+      background: rgba(15, 18, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      display: none;
+      animation: slideIn 0.2s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .inspector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .inspector-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      word-break: break-all;
+      color: #fff;
+    }
+    .inspector-row {
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .inspector-row label {
+      color: var(--text-muted);
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .inspector-row span {
+      color: var(--text);
+      font-size: 11px;
+    }
+    .inspector-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px !important;
+      word-break: break-all;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .inspector-actions {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .btn-inspector {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .btn-inspector:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-inspector.span-2 {
+      grid-column: span 2;
+      background: var(--accent-glow);
+      border-color: var(--accent);
+    }
+    .btn-inspector.span-2:hover {
+      background: var(--accent);
+    }
+    .btn-close-inspector {
+      cursor: pointer;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      font-size: 12px;
+    }
+    .btn-close-inspector:hover { color: var(--text); }
+
+    /* Canvas Overlays */
     .empty-state {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%,-50%);
-      text-align: center; color: var(--muted); pointer-events: none;
+      text-align: center; color: var(--text-muted); pointer-events: none;
+      z-index: 1;
     }
-    .empty-state p { margin-top: 6px; font-size: 12px; }
+    .empty-state p { margin-top: 8px; font-size: 12px; font-weight: 500; }
     .status-bar {
-      position: absolute; top: 8px; left: 8px;
-      background: rgba(26,29,39,0.92);
+      position: absolute; bottom: 14px; left: 14px;
+      background: rgba(15, 18, 25, 0.8);
+      backdrop-filter: blur(8px);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 11px; color: var(--muted);
+      padding: 5px 10px;
+      font-size: 10px; color: var(--text-muted);
+      z-index: 100;
+      font-weight: 500;
     }
-    .legend {
-      position: absolute; bottom: 12px; right: 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 10px; font-size: 10px;
-    }
-    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-    /* ── Chat panel ── */
+    /* ── Right Panel (Chat) ── */
     .chat-panel {
-      width: 420px;
+      width: 440px;
       flex-shrink: 0;
       border-left: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: var(--surface);
+      background: var(--surface-solid);
+      z-index: 5;
     }
     .chat-header {
-      padding: 8px 12px;
+      padding: 14px;
       border-bottom: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--muted);
-      flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      background: rgba(10, 12, 18, 0.2);
+    }
+    .chat-header span {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
     }
     .btn-clear {
       background: none;
       border: 1px solid var(--border);
-      color: var(--muted);
+      color: var(--text-muted);
       font-size: 10px;
-      padding: 2px 8px;
-      margin: 0;
-      width: auto;
+      font-weight: 600;
+      padding: 3px 10px;
       cursor: pointer;
-      border-radius: 3px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
     }
-    .btn-clear:hover { background: var(--border); }
+    .btn-clear:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
 
-    /* ── Messages ── */
+    /* Messages History */
     .chat-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
-    .chat-empty { color: var(--muted); font-size: 12px; text-align: center; margin: auto; }
-    .msg-user      { align-self: flex-end;   max-width: 88%; }
-    .msg-assistant { align-self: flex-start; max-width: 100%; }
-    .msg-role { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
-    .msg-user .msg-role { text-align: right; }
-    .msg-body {
-      padding: 8px 10px;
-      border-radius: 8px;
-      line-height: 1.55;
+    .chat-empty {
+      color: var(--text-muted);
       font-size: 12px;
+      text-align: center;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+    .chat-empty span { font-size: 28px; opacity: 0.3; }
+
+    /* Bubble Styles */
+    .msg { display: flex; flex-direction: column; gap: 4px; }
+    .msg-user { align-self: flex-end; max-width: 85%; }
+    .msg-assistant { align-self: flex-start; max-width: 100%; }
+    
+    .msg-role {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .msg-user .msg-role { text-align: right; }
+    
+    .msg-body {
+      padding: 10px 14px;
+      border-radius: 8px;
+      line-height: 1.6;
+      font-size: 12.5px;
       word-break: break-word;
     }
-    .msg-user      .msg-body { background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.25); }
-    .msg-assistant .msg-body { background: var(--bg); border: 1px solid var(--border); }
-    .msg-meta { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .msg-user .msg-body {
+      background: var(--accent-glow);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #fff;
+    }
+    .msg-assistant .msg-body {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+    }
+    .msg-meta {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 600;
+    }
     .msg-user .msg-meta { text-align: right; }
 
-    /* ── Citations ── */
-    .citations { margin-top: 6px; }
+    /* Citations / Sources */
+    .citations { margin-top: 8px; }
     .citations > summary {
-      font-size: 10px; color: var(--muted); cursor: pointer;
-      padding: 2px 0; list-style: none; user-select: none;
+      font-size: 10px; color: var(--accent2); cursor: pointer;
+      font-weight: 700; padding: 2px 0; list-style: none; user-select: none;
     }
-    .citations > summary::before { content: '▶  '; }
-    .citations[open] > summary::before { content: '▼  '; }
-    .citations-body { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
+    .citations > summary::before { content: '▶  '; font-size: 8px; }
+    .citations[open] > summary::before { content: '▼  '; font-size: 8px; }
+    
+    .citations-body {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
     .citation-item {
-      background: var(--bg);
+      background: rgba(0,0,0,0.2);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 5px 8px;
-      font-size: 10px;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10.5px;
     }
-    .citation-name  { color: var(--text); font-weight: 600; margin-right: 4px; }
-    .citation-score { color: var(--green); float: right; }
-    .citation-path  { color: var(--muted); margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .citation-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .citation-name { color: #fff; font-weight: 600; }
+    .citation-score { color: var(--green); font-weight: 700; font-size: 9px; }
+    .citation-path {
+      color: var(--text-muted);
+      font-family: 'Fira Code', monospace;
+      font-size: 9px;
+      word-break: break-all;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-    /* ── Code blocks (highlight.js) ── */
+    /* Code Blocks */
     .code-block {
       position: relative;
-      margin: 6px 0;
+      margin: 8px 0;
       border-radius: 6px;
       overflow: hidden;
       border: 1px solid var(--border);
     }
-    .code-lang { position: absolute; right: 6px; top: 4px; font-size: 9px; color: var(--muted); pointer-events: none; }
+    .code-lang {
+      position: absolute; right: 8px; top: 6px; font-size: 9px;
+      color: var(--text-muted); pointer-events: none; font-weight: 700;
+      text-transform: uppercase;
+    }
     .code-block pre { margin: 0; overflow-x: auto; }
-    .code-block code.hljs { font-size: 11px; padding: 10px 12px; border-radius: 0; }
-    code:not(.hljs) { background: rgba(255,255,255,0.07); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+    .code-block code.hljs {
+      font-family: 'Fira Code', monospace;
+      font-size: 11px; padding: 12px; border-radius: 0;
+    }
+    code:not(.hljs) {
+      font-family: 'Fira Code', monospace;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--accent2);
+    }
 
-    /* ── Chat input bar ── */
+    /* ── Chat Input Bar ── */
     .chat-input-bar {
       flex-shrink: 0;
-      padding: 10px;
+      padding: 14px;
       border-top: 1px solid var(--border);
       display: flex;
-      gap: 6px;
+      gap: 8px;
       align-items: flex-end;
+      background: rgba(10, 12, 18, 0.2);
     }
     .chat-input-bar textarea {
       flex: 1;
-      background: var(--bg);
+      background: rgba(22, 26, 38, 0.6);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
-      padding: 8px;
+      padding: 10px 12px;
       font-family: inherit;
-      font-size: 12px;
+      font-size: 12.5px;
       outline: none;
       resize: none;
-      min-height: 38px;
+      min-height: 40px;
       max-height: 140px;
       overflow-y: auto;
-      line-height: 1.4;
+      line-height: 1.45;
+      transition: all 0.2s ease;
     }
-    .chat-input-bar textarea:focus { border-color: var(--accent); }
-    .chat-input-bar button { width: auto; margin: 0; padding: 8px 16px; flex-shrink: 0; }
+    .chat-input-bar textarea:focus {
+      border-color: var(--accent);
+      background: rgba(22, 26, 38, 0.9);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn-ask {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      height: 40px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12.5px;
+      transition: all 0.2s ease;
+    }
+    .btn-ask:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    }
 
-    /* ── Streaming cursor ── */
     .cursor {
       display: inline-block;
       width: 2px; height: 12px;
@@ -296,6 +719,9 @@
       margin-left: 1px;
     }
     @keyframes blink { 50% { opacity: 0; } }
+
+    /* Highlight override */
+    .hljs { background: #0b0e14 !important; }
   </style>
 </head>
 <body>
@@ -303,98 +729,166 @@
 <header>
   <h1>hybrid-rag</h1>
   <span class="sub">Knowledge Graph Explorer + RAG Query</span>
-  <span class="badge-local">🔒 Local</span>
+  <span class="badge-status">
+    <span class="status-dot"></span>
+    Local Node
+  </span>
 </header>
 
 <div class="layout">
 
-  <!-- ── Left: search sidebar ── -->
+  <!-- ── Left Sidebar (Search and Filters) ── -->
   <div class="sidebar">
+    <!-- Repository Selector -->
     <div class="sidebar-section">
-      <label for="searchInput">Search KG Nodes</label>
-      <input type="text" id="searchInput" placeholder="e.g. BaseRetriever" />
-      <button id="searchBtn" type="button">Search</button>
+      <label for="repoSelect">Active Repository</label>
+      <div class="custom-select">
+        <select id="repoSelect">
+          <option value="">All Repositories</option>
+        </select>
+      </div>
     </div>
+
+    <!-- Graph Node Search -->
+    <div class="sidebar-section">
+      <label for="searchInput">Search Knowledge Graph</label>
+      <div class="search-wrapper">
+        <input type="text" id="searchInput" placeholder="e.g. Router, Calculator" />
+        <button id="searchBtn" class="btn-search" type="button">Search</button>
+      </div>
+    </div>
+
+    <!-- Node Category Filter Tabs -->
+    <div class="label-tabs" id="labelTabs">
+      <button class="tab-btn active" data-label="">All</button>
+      <button class="tab-btn" data-label="Class">Class</button>
+      <button class="tab-btn" data-label="Function">Func</button>
+      <button class="tab-btn" data-label="Module">Module</button>
+      <button class="tab-btn" data-label="Community">Community</button>
+    </div>
+
+    <!-- Search Results -->
     <div class="results-list" id="resultsList">
-      <div style="color:var(--muted);padding:8px;font-size:11px;">
-        Search for a node to explore the graph.
+      <div style="color:var(--text-muted);padding:8px;font-size:11px;text-align:center;font-weight:500;">
+        Search for a node to visualize its architectural relationships.
       </div>
     </div>
   </div>
 
-  <!-- ── Centre: 3-D knowledge graph ── -->
+  <!-- ── Centre Canvas (3D/2D Graph Visualizer) ── -->
   <div class="canvas-wrap" id="canvasWrap">
     <div id="graph-3d"></div>
     <div id="graph-2d" style="width: 100%; height: 100%; display: none;"></div>
 
-    <button id="viewToggleBtn" type="button" style="position: absolute; top: 8px; right: 8px; z-index: 100; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; color: var(--text); cursor: pointer; display: none;">
+    <!-- Floating View Switcher Slider -->
+    <button id="viewToggleBtn" class="btn-toggle-view" type="button" style="display: none;">
       Switch to 2D Hierarchical
     </button>
 
+    <!-- Floating Node Inspector Panel -->
+    <div class="node-inspector" id="nodeInspector">
+      <div class="inspector-header">
+        <span class="inspector-title" id="inspectorName">FQN.NodeName</span>
+        <button class="btn-close-inspector" id="closeInspectorBtn" type="button">✕</button>
+      </div>
+      
+      <div class="inspector-row">
+        <label>Node Type</label>
+        <div><span id="inspectorType" class="label-badge">Class</span></div>
+      </div>
+      
+      <div class="inspector-row">
+        <label>Repository Context</label>
+        <div><span id="inspectorRepo" class="badge-repo" style="margin-top:2px;">global</span></div>
+      </div>
+      
+      <div class="inspector-row">
+        <label>File Path</label>
+        <span class="inspector-path" id="inspectorPath">src/path.py</span>
+      </div>
+
+      <div class="inspector-row" id="inspectorSummary" style="display:none;"></div>
+
+      <div class="inspector-actions">
+        <button class="btn-inspector" id="btnFocusNode" type="button">Focus Node</button>
+        <button class="btn-inspector" id="btnExpandNode" type="button">Expand Neighbors</button>
+        <button class="btn-inspector span-2" id="btnAskNode" type="button">Ask AI About This</button>
+      </div>
+    </div>
+
+    <!-- Canvas overlays -->
     <div class="empty-state" id="emptyState">
-      <span style="font-size:32px;opacity:0.3">⬡</span>
-      <p>Select a node from the search results<br>to visualise its relationships.</p>
+      <span style="font-size:36px;opacity:0.2">⬡</span>
+      <p>Select a node from the search results to start path traversal.</p>
     </div>
 
     <div class="status-bar" id="statusBar" style="display:none" aria-live="polite"></div>
 
+    <!-- Custom Colored Legend -->
     <div class="legend">
-      <div class="legend-row"><div class="legend-dot" style="background:rgba(99,102,241,0.85)"></div>Class</div>
-      <div class="legend-row"><div class="legend-dot" style="background:rgba(34,211,238,0.85)"></div>Function</div>
-      <div class="legend-row"><div class="legend-dot" style="background:rgba(52,211,153,0.85)"></div>Module</div>
-      <div class="legend-row"><div class="legend-dot" style="background:rgba(251,191,36,0.85)"></div>Variable</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(99,102,241,0.95)"></div>Class</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(34,211,238,0.95)"></div>Function</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(52,211,153,0.95)"></div>Module</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(251,191,36,0.95)"></div>Variable</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(236,72,153,0.95)"></div>Community</div>
     </div>
   </div>
 
-  <!-- ── Right: chat panel ── -->
+  <!-- ── Right Panel (Sleek Chat Interface) ── -->
   <div class="chat-panel">
     <div class="chat-header">
       <span>Ask the Codebase</span>
       <button class="btn-clear" id="clearBtn" type="button">Clear</button>
     </div>
     <div class="chat-messages" id="chatMessages">
-      <div class="chat-empty">Ask anything about the indexed codebase…</div>
+      <div class="chat-empty">
+        <span>💬</span>
+        Ask any semantic or structural question about the indexed repositories.
+      </div>
     </div>
     <div class="chat-input-bar">
       <textarea id="questionInput"
-                placeholder="e.g. Which classes inherit from BaseRetriever? (Enter ↵ to send, Shift+Enter for newline)"
+                placeholder="e.g. Which classes inherit from Calculator? (Enter ↵ to send)"
                 rows="1"></textarea>
-      <button id="askBtn" type="button">Ask</button>
+      <button id="askBtn" class="btn-ask" type="button">Ask</button>
     </div>
   </div>
 
 </div>
 
 <script>
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants & Configuration ──────────────────────────────────────────────────
 
-const API = '';  // relative — FastAPI serves the static file
+const API = '';  // Relative FastAPI serving path
 
 const LABEL_COLORS = {
-  Class:    'rgba(99,102,241,0.9)',
-  Function: 'rgba(34,211,238,0.9)',
-  Module:   'rgba(52,211,153,0.9)',
-  Variable: 'rgba(251,191,36,0.9)',
+  Class:     'rgba(99,102,241,0.9)',
+  Function:  'rgba(34,211,238,0.9)',
+  Module:    'rgba(52,211,153,0.9)',
+  Variable:  'rgba(251,191,36,0.9)',
   Community: 'rgba(236,72,153,0.95)',
 };
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Application State ──────────────────────────────────────────────────────────
 
 let currentNodeId  = null;
-let graphInstance  = null;   // ForceGraph3D instance
-let cyInstance     = null;   // cytoscape instance
-let currentViewMode = '3d';  // '3d' | '2d'
-let currentGraphParams = null; // { anchorId, anchorLabel, anchorName, edges }
-let currentAsk     = null;   // AbortController for the in-flight stream
-let statusTimer    = null;   // auto-clear timer for status bar
-const messages     = [];     // { id, role, text, sources, latency, streaming }
+let graphInstance  = null;      // 3D Force Graph instance
+let cyInstance     = null;      // Cytoscape 2D Graph instance
+let currentViewMode = '3d';     // '3d' | '2d'
+let currentGraphParams = null;  // { anchorId, anchorLabel, anchorName, edges }
+let activeRepo     = '';        // Selected repository namespace
+let activeLabel    = '';        // Selected label/type filter
+let currentAsk     = null;      // AbortController for stream
+let statusTimer    = null;
+const messages     = [];
 let msgIdCounter   = 0;
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+// ── DOM References ─────────────────────────────────────────────────────────────
 
+const repoSelect    = document.getElementById('repoSelect');
 const searchInput   = document.getElementById('searchInput');
 const searchBtn     = document.getElementById('searchBtn');
+const labelTabs     = document.getElementById('labelTabs');
 const resultsList   = document.getElementById('resultsList');
 const questionInput = document.getElementById('questionInput');
 const askBtn        = document.getElementById('askBtn');
@@ -402,11 +896,30 @@ const clearBtn      = document.getElementById('clearBtn');
 const chatMessages  = document.getElementById('chatMessages');
 const emptyState    = document.getElementById('emptyState');
 const viewToggleBtn = document.getElementById('viewToggleBtn');
+const nodeInspector = document.getElementById('nodeInspector');
+const closeInspectorBtn = document.getElementById('closeInspectorBtn');
 const statusBar     = document.getElementById('statusBar');
 
-// ── Search ────────────────────────────────────────────────────────────────────
+// ── Page Initialization ────────────────────────────────────────────────────────
 
-// Event delegation — no inline onclick (XSS prevention)
+window.addEventListener('DOMContentLoaded', () => {
+  loadRepositories();
+});
+
+async function loadRepositories() {
+  try {
+    const r = await fetch(`${API}/graph/repositories`);
+    if (!r.ok) throw new Error("Failed to load repositories");
+    const repos = await r.json();
+    repoSelect.innerHTML = '<option value="">All Repositories</option>' +
+      repos.map(repo => `<option value="${escHtml(repo)}">${escHtml(repo)}</option>`).join('');
+  } catch (err) {
+    console.warn("Failed to fetch repository list:", err);
+  }
+}
+
+// ── Events & Event Listeners ───────────────────────────────────────────────────
+
 resultsList.addEventListener('click', e => {
   const item = e.target.closest('.result-item');
   if (!item) return;
@@ -415,6 +928,22 @@ resultsList.addEventListener('click', e => {
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+repoSelect.addEventListener('change', () => {
+  activeRepo = repoSelect.value;
+  doSearch();
+});
+
+// Category filtering tabs
+labelTabs.addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeLabel = btn.dataset.label;
+  doSearch();
+});
+
+// Toggle view between 2D Cytoscape and 3D Force-Graph
 viewToggleBtn.addEventListener('click', () => {
   currentViewMode = currentViewMode === '3d' ? '2d' : '3d';
   viewToggleBtn.textContent = currentViewMode === '3d' ? 'Switch to 2D Hierarchical' : 'Switch to 3D Force-Graph';
@@ -423,15 +952,32 @@ viewToggleBtn.addEventListener('click', () => {
   }
 });
 
+// Close floating inspector
+closeInspectorBtn.addEventListener('click', () => {
+  nodeInspector.style.display = 'none';
+});
+
+// ── Search implementation ──────────────────────────────────────────────────────
+
 async function doSearch() {
   const q = searchInput.value.trim();
   if (!q) return;
   searchBtn.textContent = '…';
   try {
-    const r = await fetch(`${API}/graph/search?q=${encodeURIComponent(q)}&limit=20`);
+    let url = `${API}/graph/search?q=${encodeURIComponent(q)}&limit=25`;
+    if (activeRepo) {
+      url += `&repository=${encodeURIComponent(activeRepo)}`;
+    }
+    const r = await fetch(url);
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
-    renderResultsList(data.nodes);
+
+    // Client-side filter by selected node category
+    let nodes = data.nodes;
+    if (activeLabel) {
+      nodes = nodes.filter(n => n.label === activeLabel);
+    }
+    renderResultsList(nodes);
   } catch (err) {
     resultsList.innerHTML = `<div role="alert" style="color:var(--red);padding:8px;font-size:11px;">Error: ${escHtml(err.message)}</div>`;
   } finally {
@@ -441,24 +987,29 @@ async function doSearch() {
 
 function renderResultsList(nodes) {
   if (!nodes.length) {
-    resultsList.innerHTML = '<div style="color:var(--muted);padding:8px;font-size:11px;">No nodes found.</div>';
+    resultsList.innerHTML = '<div style="color:var(--text-muted);padding:8px;font-size:11px;text-align:center;">No matching nodes found.</div>';
     return;
   }
-  resultsList.innerHTML = nodes.map(n => `
-    <div class="result-item"
-         data-id="${escHtml(n.id)}"
-         data-label="${escHtml(n.label)}"
-         data-name="${escHtml(n.name)}">
-      <div class="name">
-        <span class="label-badge label-${escHtml(n.label)}">${escHtml(n.label)}</span>
-        ${escHtml(n.name || n.id.split('::').pop().split('.').pop())}
-      </div>
-      <div class="meta">${escHtml(n.file_path)}</div>
-    </div>
-  `).join('');
+  resultsList.innerHTML = nodes.map(n => {
+    let shortName = n.name || n.id.split('::').pop().split('.').pop();
+    return `
+      <div class="result-item"
+           data-id="${escHtml(n.id)}"
+           data-label="${escHtml(n.label)}"
+           data-name="${escHtml(n.name)}">
+        <div class="name-row">
+          <span class="name">${escHtml(shortName)}</span>
+          <span class="label-badge label-${escHtml(n.label)}">${escHtml(n.label)}</span>
+        </div>
+        <div class="meta-row">
+          <span class="path">${escHtml(n.file_path || 'N/A')}</span>
+          ${n.repository ? `<span class="badge-repo" title="Repository">${escHtml(n.repository)}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
-// ── Node selection → 3-D graph ────────────────────────────────────────────────
+// ── Node selection & Neighborhood Expansion ───────────────────────────────────
 
 async function selectNode(nodeId, label, name) {
   if (nodeId === currentNodeId) return;
@@ -468,27 +1019,105 @@ async function selectNode(nodeId, label, name) {
   const el = document.querySelector(`.result-item[data-id="${CSS.escape(nodeId)}"]`);
   if (el) el.classList.add('active');
 
-  showStatus(`Loading neighbors of ${name}…`);
+  showStatus(`Loading relationships for ${name}…`);
   emptyState.style.display = 'none';
 
   try {
     const r = await fetch(`${API}/graph/neighbors/${encodeURIComponent(nodeId)}?direction=both&limit=40`);
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
+
+    // Discover repository name and file path from raw edges if available
+    let repoName = '';
+    let filePath = '';
+    const relation = data.neighbors.find(n => n.src_id === nodeId || n.dst_id === nodeId);
+    if (relation) {
+      filePath = relation.src_id === nodeId ? relation.dst_file_path : relation.dst_file_path;
+      repoName = relation.src_id === nodeId ? relation.dst_repository : relation.dst_repository;
+    }
+
+    // Default summaries for louvain communities
+    let summary = '';
+    if (label === 'Community') {
+      summary = `Architectural projection representing community group cluster derived from Louvain community detection.`;
+    }
+
+    // Open Floating Inspector Panel
+    showNodeInspector(nodeId, label, name, filePath, repoName, summary);
+
+    // Save and render
     renderGraph(nodeId, label, name, data.neighbors);
-    showStatus(`${data.neighbors.length} neighbors · click node to expand`);
+    showStatus(`Loaded ${data.neighbors.length} neighbors · Click node to inspect`);
   } catch (err) {
     showStatus(`Error: ${err.message}`);
   }
 }
 
-// ── 3-D Force Graph ───────────────────────────────────────────────────────────
+// ── Node Inspector Panel ───────────────────────────────────────────────────────
+
+function showNodeInspector(nodeId, label, name, filePath, repository, summaryText = '') {
+  const nameEl = document.getElementById('inspectorName');
+  const typeEl = document.getElementById('inspectorType');
+  const repoEl = document.getElementById('inspectorRepo');
+  const pathEl = document.getElementById('inspectorPath');
+  const summaryEl = document.getElementById('inspectorSummary');
+
+  nameEl.textContent = name || nodeId.split('.').pop();
+  typeEl.textContent = label;
+  typeEl.className = `label-badge label-${label}`;
+  
+  repoEl.textContent = repository || 'global';
+  pathEl.textContent = filePath || 'N/A';
+
+  if (label === 'Community') {
+    summaryEl.style.display = 'block';
+    summaryEl.innerHTML = `<label>Louvain Projection Info</label>
+      <div style="margin-top:4px;color:var(--text);font-size:11px;line-height:1.45;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px;border:1px solid rgba(255,255,255,0.05);">${summaryText}</div>`;
+  } else {
+    summaryEl.style.display = 'none';
+  }
+
+  nodeInspector.style.display = 'block';
+
+  // Quick Action Buttons
+  document.getElementById('btnFocusNode').onclick = () => focusNode(nodeId);
+  document.getElementById('btnExpandNode').onclick = () => selectNode(nodeId, label, name);
+  document.getElementById('btnAskNode').onclick = () => {
+    questionInput.value = `Explain how the ${label} \`${name}\` works and list its dependencies in the codebase.`;
+    questionInput.focus();
+    questionInput.style.height = 'auto';
+    questionInput.style.height = Math.min(questionInput.scrollHeight, 140) + 'px';
+  };
+}
+
+function focusNode(nodeId) {
+  if (currentViewMode === '3d' && graphInstance) {
+    const node = graphInstance.graphData().nodes.find(n => n.id === nodeId);
+    if (node) {
+      const distance = 40;
+      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+      graphInstance.cameraPosition(
+        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+        node,
+        2000
+      );
+    }
+  } else if (currentViewMode === '2d' && cyInstance) {
+    const el = cyInstance.getElementById(nodeId);
+    if (el && el.length) {
+      cyInstance.animate({
+        center: { eles: el },
+        zoom: 1.4,
+        duration: 1000
+      });
+    }
+  }
+}
+
+// ── Graph Rendering ───────────────────────────────────────────────────────────
 
 function renderGraph(anchorId, anchorLabel, anchorName, edges) {
-  // Show toggle button when a graph is loaded
-  viewToggleBtn.style.display = 'block';
-  
-  // Save current parameters for on-the-fly toggling
+  viewToggleBtn.style.display = 'flex';
   currentGraphParams = { anchorId, anchorLabel, anchorName, edges };
   drawGraph();
 }
@@ -498,12 +1127,16 @@ function drawGraph() {
   const { anchorId, anchorLabel, anchorName, edges } = currentGraphParams;
 
   const nodeMap = new Map();
-  const addNode = (id, lbl, nm, fp, isAnchor) => {
-    if (!nodeMap.has(id)) nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', isAnchor });
+  const addNode = (id, lbl, nm, fp, repo, isAnchor) => {
+    if (!nodeMap.has(id)) {
+      nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', repository: repo || '', isAnchor });
+    }
   };
 
-  addNode(anchorId, anchorLabel, anchorName, '', true);
-  edges.forEach(e => addNode(e.dst_id, e.dst_label, e.dst_name, e.dst_file_path, false));
+  addNode(anchorId, anchorLabel, anchorName, '', '', true);
+  edges.forEach(e => {
+    addNode(e.dst_id, e.dst_label, e.dst_name, e.dst_file_path, e.dst_repository, false);
+  });
 
   const gData = {
     nodes: [...nodeMap.values()],
@@ -527,7 +1160,9 @@ function drawGraph() {
           name: shortName,
           label: n.label,
           isAnchor: n.isAnchor ? 1 : 0,
-          color: LABEL_COLORS[n.label] || '#8892a4'
+          color: LABEL_COLORS[n.label] || '#8892a4',
+          file_path: n.file_path,
+          repository: n.repository
         }
       });
     });
@@ -550,16 +1185,16 @@ function drawGraph() {
           style: {
             'background-color': 'data(color)',
             'label': 'data(name)',
-            'color': '#e2e8f0',
-            'font-size': '10px',
-            'font-family': 'SF Mono, monospace',
+            'color': '#f1f5f9',
+            'font-size': '9.5px',
+            'font-family': 'Fira Code, monospace',
             'text-valign': 'center',
             'text-halign': 'right',
             'text-margin-x': 6,
-            'width': 'mapData(isAnchor, 0, 1, 14, 24)',
-            'height': 'mapData(isAnchor, 0, 1, 14, 24)',
+            'width': 'mapData(isAnchor, 0, 1, 16, 26)',
+            'height': 'mapData(isAnchor, 0, 1, 16, 26)',
             'border-width': 2,
-            'border-color': '#2e3148'
+            'border-color': '#1e293b'
           }
         },
         {
@@ -574,13 +1209,14 @@ function drawGraph() {
           selector: 'edge',
           style: {
             'width': 1.5,
-            'line-color': '#4b5280',
-            'target-arrow-color': '#4b5280',
+            'line-color': 'rgba(99, 102, 241, 0.4)',
+            'target-arrow-color': 'rgba(99, 102, 241, 0.4)',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'label': 'data(rel)',
             'font-size': '8px',
-            'color': '#8892a4',
+            'font-family': 'Fira Code, monospace',
+            'color': '#94a3b8',
             'text-rotation': 'autorotate',
             'text-margin-y': -8
           }
@@ -590,18 +1226,19 @@ function drawGraph() {
         name: 'cose',
         animate: true,
         randomize: false,
-        componentSpacing: 40,
-        nodeRepulsion: 4000,
-        idealEdgeLength: 50
+        componentSpacing: 50,
+        nodeRepulsion: 4500,
+        idealEdgeLength: 60
       }
     });
 
+    // Tap node in 2D view triggers Floating Inspector Update
     cyInstance.on('tap', 'node', function(evt){
       const node = evt.target;
       const nId = node.id();
       const nData = gData.nodes.find(n => n.id === nId);
-      if (nData && !nData.isAnchor) {
-        selectNode(nData.id, nData.label, nData.name);
+      if (nData) {
+        showNodeInspector(nData.id, nData.label, nData.name, nData.file_path, nData.repository);
       }
     });
   } else {
@@ -610,41 +1247,43 @@ function drawGraph() {
 
     if (!graphInstance) {
       graphInstance = ForceGraph3D()(container3d)
-        .backgroundColor('#0f1117')
+        .backgroundColor('#07090e')
         .nodeLabel(n => {
           const nm  = escHtml(n.name || n.id.split('::').pop().split('.').pop());
           const lbl = escHtml(n.label);
           const fp  = n.file_path ? `<div class="g-tip-path">${escHtml(n.file_path)}</div>` : '';
-          return `<div><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}</div>`;
+          const rp  = n.repository ? `<span class="badge-repo" style="margin-top:4px;display:inline-block;">${escHtml(n.repository)}</span>` : '';
+          return `<div class="graph-tooltip"><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}${rp}</div>`;
         })
         .nodeColor(n  => LABEL_COLORS[n.label] || '#8892a4')
-        .nodeVal(n    => n.isAnchor ? 6 : 2)
-        .nodeOpacity(0.9)
-        .linkColor(()  => '#4b5280')
+        .nodeVal(n    => n.isAnchor ? 7 : 2.5)
+        .nodeOpacity(0.95)
+        .linkColor(()  => 'rgba(99, 102, 241, 0.35)')
         .linkLabel(l   => l.rel)
-        .linkWidth(1)
+        .linkWidth(1.2)
         .linkDirectionalArrowLength(4)
         .linkDirectionalArrowRelPos(1)
         .linkDirectionalParticles(1)
-        .linkDirectionalParticleWidth(1)
+        .linkDirectionalParticleWidth(1.2)
         .width(wrap.clientWidth)
         .height(wrap.clientHeight)
-        .onNodeClick(n => { if (!n.isAnchor) selectNode(n.id, n.label, n.name); });
+        .onNodeClick(n => {
+          showNodeInspector(n.id, n.label, n.name, n.file_path, n.repository);
+        });
     }
 
     graphInstance.graphData(gData);
   }
 }
 
-// Resize 3-D canvas when container size changes
 new ResizeObserver(() => {
-  if (graphInstance) {
+  if (graphInstance && currentViewMode === '3d') {
     const wrap = document.getElementById('canvasWrap');
     graphInstance.width(wrap.clientWidth).height(wrap.clientHeight);
   }
 }).observe(document.getElementById('canvasWrap'));
 
-// ── Chat — message history ────────────────────────────────────────────────────
+// ── RAG Chat & SSE Streaming ─────────────────────────────────────────────────
 
 function pushMessage(role, text, sources = [], latency = null, streaming = false) {
   const id = ++msgIdCounter;
@@ -655,7 +1294,11 @@ function pushMessage(role, text, sources = [], latency = null, streaming = false
 
 function renderMessages() {
   if (!messages.length) {
-    chatMessages.innerHTML = '<div class="chat-empty">Ask anything about the indexed codebase…</div>';
+    chatMessages.innerHTML = `
+      <div class="chat-empty">
+        <span>💬</span>
+        Ask any semantic or structural question about the indexed repositories.
+      </div>`;
     return;
   }
   chatMessages.innerHTML = messages.map(renderMessage).join('');
@@ -669,7 +1312,7 @@ function renderMessage(m) {
     : (m.streaming ? escHtml(m.text) : renderMarkdown(m.text));
   const cursor  = m.streaming ? '<span class="cursor"></span>' : '';
   const sources = (!isUser && m.sources && m.sources.length) ? renderCitations(m.id, m.sources) : '';
-  const latency = m.latency ? `<div class="msg-meta">${m.latency}s</div>` : '';
+  const latency = m.latency ? `<div class="msg-meta">Latency: ${m.latency}s</div>` : '';
   return `
     <div class="msg msg-${m.role}" id="msg-${m.id}">
       <div class="msg-role">${isUser ? 'You' : 'Assistant'}</div>
@@ -688,21 +1331,25 @@ function renderCitations(msgId, sources) {
     const shortName = s.name || canonical.split('.').pop() || s.node_id;
     return `
       <div class="citation-item">
-        <span class="label-badge label-${escHtml(s.label)}">${escHtml(s.label)}</span>
-        <span class="citation-name">${escHtml(shortName)}</span>
-        <span class="citation-score">${s.score != null ? (s.score * 100).toFixed(0) + '%' : ''}</span>
-        <div class="citation-path">${escHtml(s.file_path || '')}</div>
+        <div class="citation-header">
+          <span class="citation-name">${escHtml(shortName)}</span>
+          <span class="label-badge label-${escHtml(s.label)}">${escHtml(s.label)}</span>
+        </div>
+        ${s.file_path ? `<div class="citation-path">${escHtml(s.file_path)}</div>` : ''}
+        ${s.repository ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <span class="badge-repo">${escHtml(s.repository)}</span>
+            <span class="citation-score">${s.rrf_score != null ? 'Score: ' + s.rrf_score.toFixed(4) : ''}</span>
+          </div>` : ''}
       </div>`;
   }).join('');
   return `
     <details class="citations" id="cite-${msgId}">
-      <summary>${sources.length} source${sources.length > 1 ? 's' : ''}</summary>
+      <summary>${sources.length} structural source${sources.length > 1 ? 's' : ''}</summary>
       <div class="citations-body">${items}</div>
     </details>`;
 }
 
-// ── Markdown → HTML (safe; LLM output only) ───────────────────────────────────
-
+// Simple safe Markdown parsing for assistant streaming response
 function renderMarkdown(raw) {
   if (!raw) return '';
   const parts = [];
@@ -733,20 +1380,16 @@ function renderMarkdown(raw) {
   }).join('');
 }
 
-// ── Ask / SSE streaming ───────────────────────────────────────────────────────
-
 askBtn.addEventListener('click', doAsk);
 questionInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAsk(); }
 });
 
-// Auto-grow textarea
 questionInput.addEventListener('input', () => {
   questionInput.style.height = 'auto';
   questionInput.style.height = Math.min(questionInput.scrollHeight, 140) + 'px';
 });
 
-// Clear chat history
 clearBtn.addEventListener('click', () => {
   messages.length = 0;
   renderMessages();
@@ -756,17 +1399,14 @@ async function doAsk() {
   const q = questionInput.value.trim();
   if (!q) return;
 
-  // Abort any in-flight request
   if (currentAsk) { currentAsk.abort(); }
   currentAsk = new AbortController();
   askBtn.disabled = true;
   questionInput.value = '';
   questionInput.style.height = 'auto';
 
-  // Add user message immediately
   pushMessage('user', q);
 
-  // Placeholder assistant message (streaming state)
   const assistantId = ++msgIdCounter;
   messages.push({ id: assistantId, role: 'assistant', text: '', sources: [], latency: null, streaming: true });
   renderMessages();
@@ -776,10 +1416,15 @@ async function doAsk() {
   let capturedSources = [];
 
   try {
+    const body = { question: q, top_k: 20, context_n: 5, stream: true };
+    if (activeRepo) {
+      body.repository = activeRepo;
+    }
+
     const resp = await fetch(`${API}/query/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, top_k: 20, context_n: 5, stream: true }),
+      body: JSON.stringify(body),
       signal: currentAsk.signal,
     });
     if (!resp.ok) throw new Error(await resp.text());
@@ -795,7 +1440,7 @@ async function doAsk() {
       lineBuf += decoder.decode(value, { stream: true });
 
       const lines = lineBuf.split('\n');
-      lineBuf = lines.pop();   // keep incomplete last line
+      lineBuf = lines.pop();
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
@@ -803,7 +1448,6 @@ async function doAsk() {
           const ev = JSON.parse(line.slice(6));
 
           if (firstEvent) {
-            // First event carries sources + query_type metadata
             firstEvent      = false;
             capturedSources = ev.sources || [];
             continue;
@@ -811,7 +1455,6 @@ async function doAsk() {
 
           if (ev.token) streamBuf += ev.token;
 
-          // Live update — only the streaming message body (no full re-render on each token)
           const bodyEl = document.getElementById(`msg-body-${assistantId}`);
           if (bodyEl) {
             bodyEl.innerHTML = escHtml(streamBuf) + '<span class="cursor"></span>';
@@ -826,7 +1469,7 @@ async function doAsk() {
                 text: streamBuf, sources: capturedSources, latency, streaming: false,
               });
             }
-            renderMessages();   // final render: markdown + citations
+            renderMessages();
           }
         } catch (_) {}
       }
@@ -843,13 +1486,13 @@ async function doAsk() {
   }
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── General Utilities ──────────────────────────────────────────────────────────
 
 function showStatus(msg) {
   statusBar.style.display = 'block';
   statusBar.textContent = msg;
   clearTimeout(statusTimer);
-  statusTimer = setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
+  statusTimer = setTimeout(() => { statusBar.style.display = 'none'; }, 6000);
 }
 
 function escHtml(s) {

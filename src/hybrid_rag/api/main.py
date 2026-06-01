@@ -55,14 +55,14 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 # ── Configuration from environment ────────────────────────────────────────────
 
-_FALKORDB_HOST       = os.environ.get("FALKORDB_HOST", "localhost")
-_FALKORDB_PORT       = int(os.environ.get("FALKORDB_PORT", 6379))
-_FALKORDB_GRAPH      = os.environ.get("FALKORDB_GRAPH", "codebase")
-_QDRANT_HOST         = os.environ.get("QDRANT_HOST", "localhost")
-_QDRANT_PORT         = int(os.environ.get("QDRANT_PORT", 6333))
-_QDRANT_COLLECTION   = os.environ.get("QDRANT_COLLECTION", "code_chunks")
-_OLLAMA_URL          = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-_EMBED_MODEL         = os.environ.get("EMBED_MODEL", "nomic-embed-text")
+_FALKORDB_HOST       = os.environ.get("FALKORDB_HOST") or "localhost"
+_FALKORDB_PORT       = int(os.environ.get("FALKORDB_PORT") or 6379)
+_FALKORDB_GRAPH      = os.environ.get("FALKORDB_GRAPH") or "codebase"
+_QDRANT_HOST         = os.environ.get("QDRANT_HOST") or "localhost"
+_QDRANT_PORT         = int(os.environ.get("QDRANT_PORT") or 6333)
+_QDRANT_COLLECTION   = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
+_OLLAMA_URL          = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
+_EMBED_MODEL         = os.environ.get("EMBED_MODEL") or "nomic-embed-text"
 _RRF_K               = int(os.environ.get("RRF_K", 60))
 _RRF_STRUCTURAL_W    = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
 _RRF_HYBRID_W        = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))

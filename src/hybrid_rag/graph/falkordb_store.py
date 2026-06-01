@@ -32,9 +32,9 @@ class FalkorDBStore(GraphStore):
         port: int | None = None,
         graph_name: str | None = None,
     ) -> None:
-        self._host = host or os.environ.get("FALKORDB_HOST", _DEFAULT_HOST)
-        self._port = int(port or os.environ.get("FALKORDB_PORT", _DEFAULT_PORT))
-        self._graph_name = graph_name or os.environ.get("FALKORDB_GRAPH", _DEFAULT_GRAPH)
+        self._host = host or os.environ.get("FALKORDB_HOST") or _DEFAULT_HOST
+        self._port = int(port or os.environ.get("FALKORDB_PORT") or _DEFAULT_PORT)
+        self._graph_name = graph_name or os.environ.get("FALKORDB_GRAPH") or _DEFAULT_GRAPH
         self._db = falkordb.FalkorDB(host=self._host, port=self._port)
         self._graph = self._db.select_graph(self._graph_name)
         logger.info("FalkorDBStore connected: %s:%d graph=%s", self._host, self._port, self._graph_name)

@@ -1,7 +1,7 @@
 """Quick smoke test for parser.py"""
-from pathlib import Path
-from collections import Counter
 import sys
+from collections import Counter
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

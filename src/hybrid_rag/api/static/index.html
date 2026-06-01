@@ -7,6 +7,7 @@
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
   <style>
     :root {
@@ -324,6 +325,11 @@
   <!-- ── Centre: 3-D knowledge graph ── -->
   <div class="canvas-wrap" id="canvasWrap">
     <div id="graph-3d"></div>
+    <div id="graph-2d" style="width: 100%; height: 100%; display: none;"></div>
+
+    <button id="viewToggleBtn" type="button" style="position: absolute; top: 8px; right: 8px; z-index: 100; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; color: var(--text); cursor: pointer; display: none;">
+      Switch to 2D Hierarchical
+    </button>
 
     <div class="empty-state" id="emptyState">
       <span style="font-size:32px;opacity:0.3">⬡</span>
@@ -337,6 +343,7 @@
       <div class="legend-row"><div class="legend-dot" style="background:rgba(34,211,238,0.85)"></div>Function</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(52,211,153,0.85)"></div>Module</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(251,191,36,0.85)"></div>Variable</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(236,72,153,0.95)"></div>Community</div>
     </div>
   </div>
 
@@ -376,6 +383,9 @@ const LABEL_COLORS = {
 
 let currentNodeId  = null;
 let graphInstance  = null;   // ForceGraph3D instance
+let cyInstance     = null;   // cytoscape instance
+let currentViewMode = '3d';  // '3d' | '2d'
+let currentGraphParams = null; // { anchorId, anchorLabel, anchorName, edges }
 let currentAsk     = null;   // AbortController for the in-flight stream
 let statusTimer    = null;   // auto-clear timer for status bar
 const messages     = [];     // { id, role, text, sources, latency, streaming }
@@ -391,6 +401,7 @@ const askBtn        = document.getElementById('askBtn');
 const clearBtn      = document.getElementById('clearBtn');
 const chatMessages  = document.getElementById('chatMessages');
 const emptyState    = document.getElementById('emptyState');
+const viewToggleBtn = document.getElementById('viewToggleBtn');
 const statusBar     = document.getElementById('statusBar');
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -404,6 +415,13 @@ resultsList.addEventListener('click', e => {
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+viewToggleBtn.addEventListener('click', () => {
+  currentViewMode = currentViewMode === '3d' ? '2d' : '3d';
+  viewToggleBtn.textContent = currentViewMode === '3d' ? 'Switch to 2D Hierarchical' : 'Switch to 3D Force-Graph';
+  if (currentGraphParams) {
+    drawGraph();
+  }
+});
 
 async function doSearch() {
   const q = searchInput.value.trim();
@@ -467,6 +485,18 @@ async function selectNode(nodeId, label, name) {
 // ── 3-D Force Graph ───────────────────────────────────────────────────────────
 
 function renderGraph(anchorId, anchorLabel, anchorName, edges) {
+  // Show toggle button when a graph is loaded
+  viewToggleBtn.style.display = 'block';
+  
+  // Save current parameters for on-the-fly toggling
+  currentGraphParams = { anchorId, anchorLabel, anchorName, edges };
+  drawGraph();
+}
+
+function drawGraph() {
+  if (!currentGraphParams) return;
+  const { anchorId, anchorLabel, anchorName, edges } = currentGraphParams;
+
   const nodeMap = new Map();
   const addNode = (id, lbl, nm, fp, isAnchor) => {
     if (!nodeMap.has(id)) nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', isAnchor });
@@ -480,34 +510,130 @@ function renderGraph(anchorId, anchorLabel, anchorName, edges) {
     links: edges.map(e => ({ source: e.src_id, target: e.dst_id, rel: e.rel })),
   };
 
-  const container = document.getElementById('graph-3d');
-  const wrap      = document.getElementById('canvasWrap');
+  const container3d = document.getElementById('graph-3d');
+  const container2d = document.getElementById('graph-2d');
+  const wrap = document.getElementById('canvasWrap');
 
-  if (!graphInstance) {
-    graphInstance = ForceGraph3D()(container)
-      .backgroundColor('#0f1117')
-      .nodeLabel(n => {
-        const nm  = escHtml(n.name || n.id.split('::').pop().split('.').pop());
-        const lbl = escHtml(n.label);
-        const fp  = n.file_path ? `<div class="g-tip-path">${escHtml(n.file_path)}</div>` : '';
-        return `<div><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}</div>`;
-      })
-      .nodeColor(n  => LABEL_COLORS[n.label] || '#8892a4')
-      .nodeVal(n    => n.isAnchor ? 6 : 2)
-      .nodeOpacity(0.9)
-      .linkColor(()  => '#4b5280')
-      .linkLabel(l   => l.rel)
-      .linkWidth(1)
-      .linkDirectionalArrowLength(4)
-      .linkDirectionalArrowRelPos(1)
-      .linkDirectionalParticles(1)
-      .linkDirectionalParticleWidth(1)
-      .width(wrap.clientWidth)
-      .height(wrap.clientHeight)
-      .onNodeClick(n => { if (!n.isAnchor) selectNode(n.id, n.label, n.name); });
+  if (currentViewMode === '2d') {
+    container3d.style.display = 'none';
+    container2d.style.display = 'block';
+
+    const cyElements = [];
+    gData.nodes.forEach(n => {
+      let shortName = n.name || n.id.split('::').pop().split('.').pop();
+      cyElements.push({
+        data: {
+          id: n.id,
+          name: shortName,
+          label: n.label,
+          isAnchor: n.isAnchor ? 1 : 0,
+          color: LABEL_COLORS[n.label] || '#8892a4'
+        }
+      });
+    });
+    gData.links.forEach(l => {
+      cyElements.push({
+        data: {
+          source: l.source,
+          target: l.target,
+          rel: l.rel
+        }
+      });
+    });
+
+    cyInstance = cytoscape({
+      container: container2d,
+      elements: cyElements,
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'background-color': 'data(color)',
+            'label': 'data(name)',
+            'color': '#e2e8f0',
+            'font-size': '10px',
+            'font-family': 'SF Mono, monospace',
+            'text-valign': 'center',
+            'text-halign': 'right',
+            'text-margin-x': 6,
+            'width': 'mapData(isAnchor, 0, 1, 14, 24)',
+            'height': 'mapData(isAnchor, 0, 1, 14, 24)',
+            'border-width': 2,
+            'border-color': '#2e3148'
+          }
+        },
+        {
+          selector: 'node[label="Community"]',
+          style: {
+            'shape': 'hexagon',
+            'border-color': '#ec4899',
+            'border-width': 3
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            'width': 1.5,
+            'line-color': '#4b5280',
+            'target-arrow-color': '#4b5280',
+            'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier',
+            'label': 'data(rel)',
+            'font-size': '8px',
+            'color': '#8892a4',
+            'text-rotation': 'autorotate',
+            'text-margin-y': -8
+          }
+        }
+      ],
+      layout: {
+        name: 'cose',
+        animate: true,
+        randomize: false,
+        componentSpacing: 40,
+        nodeRepulsion: 4000,
+        idealEdgeLength: 50
+      }
+    });
+
+    cyInstance.on('tap', 'node', function(evt){
+      const node = evt.target;
+      const nId = node.id();
+      const nData = gData.nodes.find(n => n.id === nId);
+      if (nData && !nData.isAnchor) {
+        selectNode(nData.id, nData.label, nData.name);
+      }
+    });
+  } else {
+    container2d.style.display = 'none';
+    container3d.style.display = 'block';
+
+    if (!graphInstance) {
+      graphInstance = ForceGraph3D()(container3d)
+        .backgroundColor('#0f1117')
+        .nodeLabel(n => {
+          const nm  = escHtml(n.name || n.id.split('::').pop().split('.').pop());
+          const lbl = escHtml(n.label);
+          const fp  = n.file_path ? `<div class="g-tip-path">${escHtml(n.file_path)}</div>` : '';
+          return `<div><strong>${nm}</strong><div class="g-tip-label">${lbl}</div>${fp}</div>`;
+        })
+        .nodeColor(n  => LABEL_COLORS[n.label] || '#8892a4')
+        .nodeVal(n    => n.isAnchor ? 6 : 2)
+        .nodeOpacity(0.9)
+        .linkColor(()  => '#4b5280')
+        .linkLabel(l   => l.rel)
+        .linkWidth(1)
+        .linkDirectionalArrowLength(4)
+        .linkDirectionalArrowRelPos(1)
+        .linkDirectionalParticles(1)
+        .linkDirectionalParticleWidth(1)
+        .width(wrap.clientWidth)
+        .height(wrap.clientHeight)
+        .onNodeClick(n => { if (!n.isAnchor) selectNode(n.id, n.label, n.name); });
+    }
+
+    graphInstance.graphData(gData);
   }
-
-  graphInstance.graphData(gData);
 }
 
 // Resize 3-D canvas when container size changes

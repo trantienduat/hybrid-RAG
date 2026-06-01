@@ -1,5 +1,9 @@
 """Spike 01: AST parser comparison — ast vs tree-sitter. Run from project root with venv active."""
 import ast
+
+# Use stdlib as corpus (always available, ~same complexity as real codebase)
+import os
+import sysconfig
 import time
 from pathlib import Path
 
@@ -7,8 +11,6 @@ import tree_sitter_java as tsjava
 import tree_sitter_python as tspython
 from tree_sitter import Language, Parser
 
-# Use stdlib as corpus (always available, ~same complexity as real codebase)
-import os, sysconfig
 corpus_root = Path(sysconfig.get_path("stdlib"))
 if not corpus_root or not corpus_root.exists():
     corpus_root = Path(os.__file__).parent
@@ -26,7 +28,7 @@ for f in py_files:
     try:
         ast.parse(src)
         times_ast.append(time.perf_counter() - t0)
-    except SyntaxError as e:
+    except SyntaxError:
         errors_ast.append(f.name)
 
 # ── Approach 2: tree-sitter ────────────────────────────────────────

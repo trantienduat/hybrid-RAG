@@ -4,6 +4,7 @@ string_helpers.py — fixture for integration tests.
 from __future__ import annotations
 
 import re
+
 from math_utils import add
 
 
@@ -33,7 +34,7 @@ class StringProcessor:
     def __init__(self) -> None:
         self._transforms: list = []
 
-    def add_transform(self, fn) -> "StringProcessor":
+    def add_transform(self, fn) -> StringProcessor:
         """Register a transform function."""
         self._transforms.append(fn)
         return self

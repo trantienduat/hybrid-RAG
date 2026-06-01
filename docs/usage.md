@@ -123,23 +123,28 @@ hybrid-rag query "Detail sparse retrieval logic" --max-tokens 1000
 
 ## 🌐 Web Visualization & Interactive API
 
-Hybrid-RAG includes a beautiful REST API and an interactive D3.js force-directed graph UI.
+Hybrid-RAG includes a state-of-the-art interactive REST API and a beautiful, high-fidelity developer-themed web explorer UI.
 
 ### Start the Server
 ```bash
 hybrid-rag serve [OPTIONS]
 ```
-*Starts the FastAPI server on `http://localhost:8000` (FastAPI docs available at `http://localhost:8000/docs`).*
+*Starts the FastAPI server on `http://localhost:8000` (FastAPI Swagger docs are available at `http://localhost:8000/docs`).*
 
 ### Explore the Visualizer
 Open your browser and navigate to:
 ```
 http://localhost:8000/
 ```
-The interface allows you to:
-1.  **Visualize:** Zoom, pan, and drag nodes in the live Knowledge Graph.
-2.  **Inspect:** Click on any node (Module, Class, Function) to inspect its Fully Qualified Name (FQN), properties, and structural links.
-3.  **Chat:** Run queries in the right panel and see live vector citations highlighted in green on the graph.
+The newly redesigned premium interface enables:
+1.  **Dynamic Repository Scoping:** Select an active repository namespace (e.g. `core-lib`, `main-app`, or global `All Repositories`) from the dropdown. Both searches and RAG queries are instantly scoped to the selected repo.
+2.  **Visual Hybrid Toggling (3D vs 2D):** Explore the codebase at macro level using **3D Force-Graph**, or seamlessly switch to a clean **2D Hierarchical/Cose Graph** (powered by Cytoscape.js) to trace call chains and Louvain community boundaries without hairball clutter.
+3.  **Category Filtering Tabs:** Lock search inputs specifically to `Class`, `Function`, `Module`, `Variable`, or `Community` nodes via click tabs in the left sidebar.
+4.  **Collapsible Floating Node Inspector:** Select a node in the graph to view its detailed FQN metadata, repository, and file paths. Perform quick actions directly:
+    *   *Focus Node:* Animate camera/zoom to focus on the selected node.
+    *   *Expand Neighbors:* Fetch and render the node's local relationships.
+    *   *Ask AI:* Pre-populate and submit an inquiry about the node directly in the RAG Chat pane.
+5.  **State-of-the-Art RAG Chat UX:** Submit structural/semantic RAG queries and get SSE streaming responses with latency counters and citation cards showing exact repository indicators.
 
 ---
 

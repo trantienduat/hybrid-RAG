@@ -10,8 +10,9 @@ Run: pytest tests/integration/test_ingestion_pipeline.py -v -s
 """
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 # ── Skip if services unavailable ──────────────────────────────────
 
@@ -176,8 +177,8 @@ class TestM2Pipeline:
         and any cross-file inheritance stubs get resolved.
         The entity resolver should reduce stub count after resolution.
         """
-        from hybrid_rag.ingestion.parser import parse_repo
         from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+        from hybrid_rag.ingestion.parser import parse_repo
 
         fixture_repo = Path("fixtures/small_repo")
         result = parse_repo(fixture_repo, languages=["python"])
@@ -194,9 +195,8 @@ class TestM2Pipeline:
 
     def test_merger_integrates_with_parse_result(self):
         """Merge supplemental edges into a real ParseResult and verify structure."""
-        from hybrid_rag.ingestion.parser import parse_file
         from hybrid_rag.ingestion.merger import merge_supplemental
-        from hybrid_rag.ingestion.parser import EdgeData
+        from hybrid_rag.ingestion.parser import EdgeData, parse_file
 
         fixture_repo = Path("fixtures/small_repo")
         result = parse_file(fixture_repo / "math_utils.py", fixture_repo)
@@ -221,9 +221,9 @@ class TestM2Pipeline:
         parse_repo → merge (empty extras) → entity_resolve → graph ingest → embed → vector.
         Verifies INHERITS edges are written to FalkorDB when present.
         """
-        from hybrid_rag.ingestion.parser import parse_repo
         from hybrid_rag.ingestion.entity_resolver import resolve
         from hybrid_rag.ingestion.merger import merge_supplemental
+        from hybrid_rag.ingestion.parser import parse_repo
 
         fixture_repo = Path("fixtures/small_repo")
         result = parse_repo(fixture_repo, languages=["python"])
@@ -245,8 +245,8 @@ class TestM2Pipeline:
         (possibly empty if LLM finds nothing, but never raise).
         Requires Ollama with a code-capable model.
         """
-        from hybrid_rag.ingestion.parser import parse_file
         from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
+        from hybrid_rag.ingestion.parser import parse_file
 
         fixture_repo = Path("fixtures/small_repo")
         fp = fixture_repo / "string_helpers.py"

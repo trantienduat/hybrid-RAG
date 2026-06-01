@@ -42,7 +42,7 @@ class BaseLLMExtractor(ABC):
     def close(self) -> None:
         """Release resources (HTTP connections, model handles, etc.)."""
 
-    def __enter__(self) -> "BaseLLMExtractor":
+    def __enter__(self) -> BaseLLMExtractor:
         return self
 
     def __exit__(self, *args: object) -> None:

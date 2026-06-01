@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
+from hybrid_rag.ingestion.parser import ParseResult
 
 # Label inference map — used to resolve stub nodes to a label
 _STUB_LABEL: dict[str, str] = {

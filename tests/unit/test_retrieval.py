@@ -7,15 +7,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from hybrid_rag.retrieval.context_assembler import ContextAssembler, RetrievalContext
 from hybrid_rag.retrieval.graph_retriever import GraphRetriever
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.retrieval.query_analyzer import QueryAnalysis, analyze
 from hybrid_rag.retrieval.rrf import reciprocal_rank_fusion
 from hybrid_rag.retrieval.vector_retriever import VectorRetriever, _base_node_id
-
 
 # ─── QueryAnalyzer ─────────────────────────────────────────────────────────────
 

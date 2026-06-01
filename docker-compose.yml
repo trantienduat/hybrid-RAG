@@ -39,6 +39,7 @@ services:
       - FALKORDB_HOST=falkordb
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - FALKORDB_GRAPH=$FALKORDB_GRAPH
     depends_on:
       falkordb:
         condition: service_healthy

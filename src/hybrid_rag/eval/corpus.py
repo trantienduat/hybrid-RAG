@@ -16,7 +16,7 @@ correct regardless of which repository is indexed.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -46,7 +46,7 @@ def load_repoqa_json(filepath: Path | str) -> list[RepoQACase]:
     if not path.exists():
         raise FileNotFoundError(f"RepoQA benchmark file not found: {path}")
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     cases = []

@@ -16,7 +16,16 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-QueryType = Literal["structural", "semantic", "hybrid"]
+QueryType = Literal["structural", "semantic", "hybrid", "global"]
+
+# Global signals: questions about repository-wide architecture, summaries, modules overview
+_GLOBAL_RE = re.compile(
+    r"\b(?:summarize\s+(?:the\s+)?codebase|codebase\s+summary|repository\s+summary|"
+    r"architecture|high-level\s+(?:design|overview)|modules?\s+overview|dependencies\s+flow|"
+    r"architectural\s+design|system\s+design|general\s+overview|how\s+is\s+the\s+project\s+structured|"
+    r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống)\b",
+    re.IGNORECASE,
+)
 
 # Structural signals: questions about code topology and relationships
 _STRUCTURAL_RE = re.compile(
@@ -80,17 +89,21 @@ class QueryAnalysis:
 
 def analyze(query: str) -> QueryAnalysis:
     """Classify a free-text query and extract code identifiers."""
-    structural = bool(_STRUCTURAL_RE.search(query))
-    semantic = bool(_SEMANTIC_RE.search(query))
-
-    if structural and semantic:
-        query_type: QueryType = "hybrid"
-    elif structural:
-        query_type = "structural"
-    elif semantic:
-        query_type = "semantic"
+    is_global = bool(_GLOBAL_RE.search(query))
+    if is_global:
+        query_type: QueryType = "global"
     else:
-        query_type = "hybrid"  # default: use both graph + vector
+        structural = bool(_STRUCTURAL_RE.search(query))
+        semantic = bool(_SEMANTIC_RE.search(query))
+
+        if structural and semantic:
+            query_type = "hybrid"
+        elif structural:
+            query_type = "structural"
+        elif semantic:
+            query_type = "semantic"
+        else:
+            query_type = "hybrid"  # default: use both graph + vector
 
     # ── entity extraction ──────────────────────────────────────────
     seen: set[str] = set()

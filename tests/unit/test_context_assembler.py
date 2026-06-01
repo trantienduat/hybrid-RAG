@@ -1,5 +1,7 @@
 import pytest
+
 from hybrid_rag.retrieval.context_assembler import ContextAssembler
+
 
 @pytest.fixture
 def sample_results():

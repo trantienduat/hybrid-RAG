@@ -67,6 +67,27 @@ hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
 
 ---
 
+## 🏛️ Graph Communities: Compiling Architecture summaries (Global Search)
+
+Once indexed, compile vĩ mô architecture community summaries (Microsoft GraphRAG Option A) using the `hybrid-rag community-build` command:
+
+```bash
+hybrid-rag community-build [OPTIONS]
+```
+
+### Key Options
+*   `--resolution <FLOAT>`: Modularity clustering resolution for Louvain (default: `1.0`). Higher values generate more smaller, finer-grained communities.
+*   `--llm-model <MODEL>`: Local LLM used to compile structural summaries (default: `qwen2.5-coder:14b`).
+*   `--graph-name <NAME>`: Targets a specific FalkorDB graph (default: `codebase`).
+
+### Example
+```bash
+hybrid-rag community-build --resolution 1.0 --llm-model qwen2.5-coder:14b
+```
+*This splits the knowledge graph into communities, calls Qwen 2.5 Coder 14B to summarize each community locally on the M4 GPU, and persists these reports back to FalkorDB as `Community` nodes linked to codebase member nodes.*
+
+---
+
 ## 🔍 Retrieval: Querying the Codebase
 
 Use the `hybrid-rag query` command to ask natural language questions about the indexed codebase.

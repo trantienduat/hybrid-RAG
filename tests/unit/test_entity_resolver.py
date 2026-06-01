@@ -7,7 +7,6 @@ from __future__ import annotations
 from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _module(node_id: str, name: str, file_path: str, mod_type: str = "source") -> NodeData:

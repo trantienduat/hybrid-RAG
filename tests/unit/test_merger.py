@@ -7,7 +7,6 @@ from __future__ import annotations
 from hybrid_rag.ingestion.merger import merge_supplemental
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _node(label: str, node_id: str) -> NodeData:

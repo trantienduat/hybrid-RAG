@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ── Request ────────────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
@@ -43,7 +42,7 @@ class QueryResponse(BaseModel):
 
     question: str
     answer: str
-    query_type: str       # structural | semantic | hybrid
+    query_type: str       # structural | semantic | hybrid | global
     sources: list[SourceChunk]
     latency_ms: float
 

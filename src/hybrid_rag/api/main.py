@@ -23,9 +23,10 @@ import json
 import logging
 import os
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -130,7 +131,17 @@ def _to_source_chunks(results: list[dict[str, Any]], n: int) -> list[SourceChunk
     return chunks
 
 
-def _build_prompt(question: str, context: str) -> str:
+def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
+    if is_global:
+        return (
+            "You are an expert principal software architect. Below is a set of hierarchical community summaries "
+            "describing the structural design, modules, and dependencies of the codebase.\n"
+            "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
+            "Highlight key components, database models, core flows, and cross-module relationships.\n\n"
+            f"Community Summaries Context:\n{context}\n\n"
+            f"User Request: {question}\n\n"
+            "Architectural Report:"
+        )
     return (
         "You are an expert code assistant. Use ONLY the context below to answer the question. "
         "If the context does not contain enough information, say so clearly.\n\n"
@@ -239,7 +250,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         logger.exception("Retrieval failed")
         raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)")
+    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)", is_global=(analysis.query_type == "global"))
 
     try:
         answer = await _ollama_generate(prompt, req.llm_model)
@@ -299,7 +310,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)")
+    prompt = _build_prompt(req.question, ctx.text or "(no code context retrieved)", is_global=(analysis.query_type == "global"))
     
     sources_payload = [
         {

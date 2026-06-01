@@ -32,7 +32,7 @@ class BaseRetriever(ABC):
     def close(self) -> None:
         """Release any underlying connections or resources."""
 
-    def __enter__(self) -> "BaseRetriever":
+    def __enter__(self) -> BaseRetriever:
         return self
 
     def __exit__(self, *_: Any) -> None:

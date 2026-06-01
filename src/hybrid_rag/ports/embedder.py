@@ -42,7 +42,7 @@ class BaseEmbedder(ABC):
     def close(self) -> None:
         """Release any underlying HTTP connections or resources."""
 
-    def __enter__(self) -> "BaseEmbedder":
+    def __enter__(self) -> BaseEmbedder:
         return self
 
     def __exit__(self, *_: Any) -> None:

@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import sys
 import time
 from pathlib import Path
 
@@ -65,14 +64,13 @@ def index(
     # Lazy imports so CLI is fast to load.
     # Composition root: business logic is typed against ports; concrete adapters
     # are wired here so the rest of the codebase stays vendor-neutral.
-    from hybrid_rag.ingestion.parser import parse_repo, parse_file
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
     from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
     from hybrid_rag.ingestion.merger import merge_supplemental
-    from hybrid_rag.ingestion.chunker import chunk_nodes
-    from hybrid_rag.ports import GraphStore, VectorStore, BaseEmbedder, BaseLLMExtractor
-    from hybrid_rag.graph.falkordb_store import FalkorDBStore
-    from hybrid_rag.vector.qdrant_store import QdrantStore
     from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+    from hybrid_rag.ingestion.parser import parse_file, parse_repo
+    from hybrid_rag.ports import BaseEmbedder, GraphStore, VectorStore
+    from hybrid_rag.vector.qdrant_store import QdrantStore
 
     # ── 1. Parse ───────────────────────────────────────────────────────────────
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
@@ -200,6 +198,47 @@ def index(
 
     except Exception as exc:  # noqa: BLE001
         err_console.print(f"[ERROR] Embedding/vector stage failed: {exc}")
+        raise typer.Exit(1) from exc
+
+    elapsed = time.perf_counter() - t0
+    console.rule(f"[bold green]Done in {elapsed:.1f}s[/]")
+
+
+# ── community-build command ───────────────────────────────────────────────────
+
+@app.command("community-build")
+def community_build(
+    resolution: float = typer.Option(1.0, help="Louvain clustering resolution (higher = more smaller communities)."),
+    graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
+    graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
+    graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
+    ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
+    llm_model: str = typer.Option("qwen2.5-coder:14b", envvar="LLM_MODEL"),
+) -> None:
+    """Run community clustering and compile architectural summaries using FalkorDB and Ollama."""
+    console.rule("[bold cyan]hybrid-rag community-build[/]")
+    t0 = time.perf_counter()
+
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
+    from hybrid_rag.graph.community_builder import CommunityBuilder
+
+    try:
+        graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+        
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                      console=console) as progress:
+            task = progress.add_task("Running community partitioning and summarization…", total=None)
+            builder = CommunityBuilder(
+                graph_store=graph_store,
+                ollama_url=ollama_url,
+                llm_model=llm_model,
+            )
+            count = builder.build_communities(resolution=resolution)
+            progress.update(task, description=f"Done — compiled {count} communities!")
+            
+        console.print(f"[green]✓[/] Communities: {count} architectural modules generated and persisted to FalkorDB.")
+    except Exception as exc:
+        err_console.print(f"[ERROR] Community build failed: {exc}")
         raise typer.Exit(1) from exc
 
     elapsed = time.perf_counter() - t0
@@ -379,6 +418,7 @@ def eval(
 ) -> None:
     """Run codebase evaluation (diagnostic structural/hybrid or RepoQA Searching Needle Function)."""
     import json as _json
+
     from rich.table import Table
 
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
@@ -664,7 +704,7 @@ def ragas(
 
     from rich.table import Table
 
-    from hybrid_rag.eval.corpus import EVAL_CORPUS, ONE_HOP, TWO_HOP, THREE_HOP
+    from hybrid_rag.eval.corpus import EVAL_CORPUS, ONE_HOP, THREE_HOP, TWO_HOP
     from hybrid_rag.eval.corpus import HYBRID as HYBRID_CASES
     from hybrid_rag.eval.ragas_runner import RagasRunner
     from hybrid_rag.graph.falkordb_store import FalkorDBStore

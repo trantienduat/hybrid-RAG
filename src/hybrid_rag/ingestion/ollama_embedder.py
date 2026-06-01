@@ -162,7 +162,7 @@ class OllamaEmbedder(BaseEmbedder):
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "OllamaEmbedder":
+    def __enter__(self) -> OllamaEmbedder:
         return self
 
     def __exit__(self, *_: Any) -> None:

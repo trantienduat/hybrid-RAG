@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from hybrid_rag.ingestion.parser import NodeData, ParseResult, parse_file
+from hybrid_rag.ingestion.parser import NodeData, parse_file
 
 # Rough chars-per-token estimate for nomic-embed-text (cl100k tokenizer ≈4 chars)
 _CHARS_PER_TOKEN: int = 4

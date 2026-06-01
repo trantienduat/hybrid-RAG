@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from hybrid_rag.eval.corpus import QueryCase, RepoQACase
-from hybrid_rag.eval.metrics import EvalReport, QueryResult, RepoQAQueryResult, RepoQAEvalReport
+from hybrid_rag.eval.metrics import EvalReport, QueryResult, RepoQAEvalReport, RepoQAQueryResult
 from hybrid_rag.ports.embedder import BaseEmbedder
 from hybrid_rag.ports.graph_store import GraphStore
 from hybrid_rag.ports.vector_store import VectorStore

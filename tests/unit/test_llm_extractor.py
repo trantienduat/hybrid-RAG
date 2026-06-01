@@ -7,11 +7,8 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 

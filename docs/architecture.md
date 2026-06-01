@@ -176,10 +176,33 @@ graph LR
 
 ---
 
+## 🏛️ Global GraphRAG & Community Detection
+
+To solve repository-wide architectural queries (Global Search), the system implements Microsoft's GraphRAG Option A:
+1. **Community detection:** Louvain clustering (`networkx`) partitions the codebase into functional modules.
+2. **Community summaries:** Ollama compiles structural summaries describing the responsibilities and boundaries of each partition.
+3. **Synthesis:** When a `"global"` query is detected, all community summaries are retrieved from FalkorDB and synthesized in a single LLM pass.
+
+---
+
 ## 💾 Data Contracts & Models
 
 ### Ingestion → FalkorDB Graph Store
-Graph schema models use structured nodes and typed edges containing repository namespaces.
+Graph schema models use structured nodes, community nodes, and typed edges containing repository namespaces.
+
+```python
+# Community Node Schema
+{
+    "id": "community_lvl_0_0",                         # Community index ID
+    "label": "Community",                              # Node label
+    "properties": {
+        "name": "Authentication Layer",
+        "summary": "This community manages login credentials and user sessions...",
+        "level": 0
+    }
+}
+
+# Code Node Schema
 
 ```python
 # Node Schema

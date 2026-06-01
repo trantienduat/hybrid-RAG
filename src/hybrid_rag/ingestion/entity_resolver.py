@@ -20,7 +20,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
+from hybrid_rag.ingestion.parser import ParseResult
 
 
 def resolve(result: ParseResult) -> ParseResult:

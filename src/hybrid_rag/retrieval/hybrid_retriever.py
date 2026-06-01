@@ -48,6 +48,7 @@ class HybridRetriever(BaseRetriever):
         rrf_structural_weight: float = 3.0,
         rrf_hybrid_weight: float = 1.5,
     ) -> None:
+        self._graph_store = graph_store
         self._graph_retriever = GraphRetriever(graph_store)
         self._vector_retriever = VectorRetriever(vector_store, embedder)
         self._assembler = ContextAssembler()
@@ -78,6 +79,31 @@ class HybridRetriever(BaseRetriever):
         """
         analysis = analyze(query)
         logger.debug("HybridRetriever query analysis: %s", analysis)
+
+        if not skip_graph and analysis.query_type == "global":
+            # Global query: fetch all communities and their summaries
+            try:
+                cypher = "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary"
+                res = self._graph_store.query(cypher)
+                global_results = []
+                for row in (res.result_set or []):
+                    comm_id, name, summary = row[0], row[1], row[2]
+                    global_results.append({
+                        "node_id": comm_id,
+                        "base_node_id": comm_id,
+                        "name": name,
+                        "label": "Community",
+                        "file_path": "",
+                        "rel": "",
+                        "text": f"### Community Component: {name}\n\n{summary}",
+                        "source": "graph",
+                        "rrf_score": 1.0,
+                    })
+                logger.debug("Retrieved %d communities for global query", len(global_results))
+                if global_results:
+                    return global_results
+            except Exception as exc:
+                logger.error("Failed to retrieve communities for global query: %s", exc)
 
         graph_results: list[dict[str, Any]] = []
         if not skip_graph and analysis.query_type in ("structural", "hybrid"):

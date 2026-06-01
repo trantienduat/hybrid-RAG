@@ -6,16 +6,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from hybrid_rag.ingestion.parser import (
-    EdgeData,
-    NodeData,
     ParseResult,
     parse_file,
     parse_repo,
 )
-from hybrid_rag.ingestion.triplet_extractor import Triple, extract_triples
+from hybrid_rag.ingestion.triplet_extractor import extract_triples
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 

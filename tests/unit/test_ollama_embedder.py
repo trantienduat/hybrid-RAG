@@ -5,7 +5,6 @@ All HTTP calls are mocked — no Ollama service required.
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-import pytest
 
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.ingestion.parser import NodeData

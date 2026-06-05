@@ -10,6 +10,7 @@ Usage:
   hybrid-rag index ./path/to/repo --languages python java
   hybrid-rag status
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,11 +29,14 @@ logger = logging.getLogger(__name__)
 
 # ── index command ──────────────────────────────────────────────────────────────
 
+
 @app.command()
 def index(
     repo: Path = typer.Argument(..., help="Path to repository root to index."),
     languages: list[str] = typer.Option(
-        ["python"], "--languages", "-l",
+        ["python"],
+        "--languages",
+        "-l",
         help="Source languages to parse (python, java).",
     ),
     repo_name: str = typer.Option(None, help="Custom namespace name for the repository."),
@@ -46,7 +50,8 @@ def index(
     embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
     llm_model: str = typer.Option("qwen2.5-coder:7b", envvar="LLM_MODEL"),
     llm_extract: bool = typer.Option(
-        False, "--llm-extract/--no-llm-extract",
+        False,
+        "--llm-extract/--no-llm-extract",
         help="Run LLM-assisted extraction to supplement AST edges (slower, more complete).",
     ),
     max_tokens: int = typer.Option(512, help="Max tokens per chunk."),
@@ -73,13 +78,17 @@ def index(
     from hybrid_rag.vector.qdrant_store import QdrantStore
 
     # ── 1. Parse ───────────────────────────────────────────────────────────────
-    with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
-                  console=console) as progress:
+    with Progress(
+        SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+    ) as progress:
         task = progress.add_task("Parsing source files…", total=None)
         result = parse_repo(repo, languages=languages, repo_name=repo_namespace)
-        progress.update(task, description=f"Parsed — {len(result.nodes)} nodes, "
-                                          f"{len(result.edges)} edges, "
-                                          f"{len(result.errors)} errors")
+        progress.update(
+            task,
+            description=f"Parsed — {len(result.nodes)} nodes, "
+            f"{len(result.edges)} edges, "
+            f"{len(result.errors)} errors",
+        )
 
     if result.errors:
         console.print(f"[yellow]Parse warnings:[/] {len(result.errors)}")
@@ -91,10 +100,12 @@ def index(
     # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
     if llm_extract:
         from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
+
         all_extra_edges: list = []
         py_files = sorted(repo.rglob("*.py"))
-        with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
-                      console=console) as progress:
+        with Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+        ) as progress:
             task = progress.add_task(f"LLM extraction (0/{len(py_files)} files)…", total=None)
             with OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model) as extractor:
                 for i, fp in enumerate(py_files, start=1):
@@ -105,9 +116,13 @@ def index(
                         all_extra_edges.extend(extra)
                     except Exception as exc:  # noqa: BLE001
                         logger.debug("LLM extraction skipped %s: %s", fp, exc)
-                    progress.update(task, description=f"LLM extraction ({i}/{len(py_files)} files)…")
+                    progress.update(
+                        task, description=f"LLM extraction ({i}/{len(py_files)} files)…"
+                    )
         result = merge_supplemental(result, all_extra_edges)
-        console.print(f"[green]✓[/] LLM extraction: {len(all_extra_edges)} supplemental edges added")
+        console.print(
+            f"[green]✓[/] LLM extraction: {len(all_extra_edges)} supplemental edges added"
+        )
 
     # ── 3. Entity resolution ───────────────────────────────────────────────────
     before_stubs = stub_count(result)
@@ -117,24 +132,28 @@ def index(
     console.print(f"Entity resolver: {resolved} stubs merged → {after_stubs} external stubs remain")
 
     # ── 3b. Global Cross-Repo Entity resolution ────────────────────────────────
-    graph_store: GraphStore = FalkorDBStore(
-        host=graph_host, port=graph_port, graph_name=graph_name
-    )
+    graph_store: GraphStore = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
     from hybrid_rag.ingestion.entity_resolver import resolve_global
+
     before_global_stubs = stub_count(result)
     result = resolve_global(result, graph_store)
     after_global_stubs = stub_count(result)
     global_resolved = before_global_stubs - after_global_stubs
     if global_resolved > 0:
-        console.print(f"Global Entity resolver: {global_resolved} stubs resolved against FalkorDB → {after_global_stubs} external stubs remain")
+        console.print(
+            f"Global Entity resolver: {global_resolved} stubs resolved against FalkorDB → {after_global_stubs} external stubs remain"
+        )
 
     # ── 4. Graph ingest ────────────────────────────────────────────────────────
-    with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
-                  console=console) as progress:
+    with Progress(
+        SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+    ) as progress:
         task = progress.add_task("Writing to FalkorDB…", total=None)
         counts = graph_store.ingest(result)
-        progress.update(task, description=f"FalkorDB — {counts['nodes']} nodes, "
-                                          f"{counts['edges']} edges upserted")
+        progress.update(
+            task,
+            description=f"FalkorDB — {counts['nodes']} nodes, {counts['edges']} edges upserted",
+        )
 
     console.print(f"[green]✓[/] Graph: {counts['nodes']} nodes, {counts['edges']} edges")
 
@@ -146,12 +165,15 @@ def index(
             if fp and fp not in source_lines:
                 abs_fp = repo / fp
                 try:
-                    source_lines[fp] = abs_fp.read_text(encoding="utf-8", errors="replace").splitlines()
+                    source_lines[fp] = abs_fp.read_text(
+                        encoding="utf-8", errors="replace"
+                    ).splitlines()
                 except OSError:
                     source_lines[fp] = []
 
         # chunk_nodes needs per-file lines; do it per-file instead
         from hybrid_rag.ingestion.chunker import chunk_file
+
         chunks_to_embed = []
         seen_files: set[str] = set()
         for node in result.nodes:
@@ -165,8 +187,9 @@ def index(
         total_chunks = len(chunks_to_embed)
         all_chunks: list[dict] = []
 
-        with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
-                      console=console) as progress:
+        with Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+        ) as progress:
             task = progress.add_task(f"Embedding chunks (0/{total_chunks})…", total=total_chunks)
             embedder: BaseEmbedder
             with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
@@ -176,18 +199,20 @@ def index(
                     batch_texts = [ch.text for ch in batch]
                     embeddings = embedder.embed_texts(batch_texts)
                     for ch, emb in zip(batch, embeddings):
-                        all_chunks.append({
-                            "node_id": f"{ch.node_id}::{ch.chunk_index}",
-                            "label": ch.label,
-                            "file_path": ch.file_path,
-                            "text": ch.text,
-                            "embedding": emb,
-                            "repository": repo_namespace,
-                        })
+                        all_chunks.append(
+                            {
+                                "node_id": f"{ch.node_id}::{ch.chunk_index}",
+                                "label": ch.label,
+                                "file_path": ch.file_path,
+                                "text": ch.text,
+                                "embedding": emb,
+                                "repository": repo_namespace,
+                            }
+                        )
                     progress.update(
                         task,
                         advance=len(batch),
-                        description=f"Embedding chunks ({min(i + len(batch), total_chunks)}/{total_chunks})…"
+                        description=f"Embedding chunks ({min(i + len(batch), total_chunks)}/{total_chunks})…",
                     )
 
         vector_store: VectorStore = QdrantStore(
@@ -206,9 +231,12 @@ def index(
 
 # ── community-build command ───────────────────────────────────────────────────
 
+
 @app.command("community-build")
 def community_build(
-    resolution: float = typer.Option(1.0, help="Louvain clustering resolution (higher = more smaller communities)."),
+    resolution: float = typer.Option(
+        1.0, help="Louvain clustering resolution (higher = more smaller communities)."
+    ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -219,15 +247,18 @@ def community_build(
     console.rule("[bold cyan]hybrid-rag community-build[/]")
     t0 = time.perf_counter()
 
-    from hybrid_rag.graph.falkordb_store import FalkorDBStore
     from hybrid_rag.graph.community_builder import CommunityBuilder
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
 
     try:
         graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
-        
-        with Progress(SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
-                      console=console) as progress:
-            task = progress.add_task("Running community partitioning and summarization…", total=None)
+
+        with Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+        ) as progress:
+            task = progress.add_task(
+                "Running community partitioning and summarization…", total=None
+            )
             builder = CommunityBuilder(
                 graph_store=graph_store,
                 ollama_url=ollama_url,
@@ -235,8 +266,10 @@ def community_build(
             )
             count = builder.build_communities(resolution=resolution)
             progress.update(task, description=f"Done — compiled {count} communities!")
-            
-        console.print(f"[green]✓[/] Communities: {count} architectural modules generated and persisted to FalkorDB.")
+
+        console.print(
+            f"[green]✓[/] Communities: {count} architectural modules generated and persisted to FalkorDB."
+        )
     except Exception as exc:
         err_console.print(f"[ERROR] Community build failed: {exc}")
         raise typer.Exit(1) from exc
@@ -246,6 +279,7 @@ def community_build(
 
 
 # ── status command ─────────────────────────────────────────────────────────────
+
 
 @app.command()
 def status(
@@ -265,6 +299,7 @@ def status(
     # FalkorDB
     try:
         from hybrid_rag.graph.falkordb_store import FalkorDBStore
+
         gc = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         n = gc.node_count()
         console.print(f"[green]✓[/] FalkorDB  {graph_host}:{graph_port}/{graph_name}  — {n} nodes")
@@ -275,9 +310,12 @@ def status(
     # Qdrant
     try:
         from hybrid_rag.vector.qdrant_store import QdrantStore
+
         vc = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
         n = vc.point_count()
-        console.print(f"[green]✓[/] Qdrant    {qdrant_host}:{qdrant_port}/{qdrant_collection}  — {n} points")
+        console.print(
+            f"[green]✓[/] Qdrant    {qdrant_host}:{qdrant_port}/{qdrant_collection}  — {n} points"
+        )
     except Exception as exc:  # noqa: BLE001
         console.print(f"[red]✗[/] Qdrant    — {exc}")
         ok = False
@@ -287,7 +325,9 @@ def status(
         resp = httpx.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=5.0)
         resp.raise_for_status()
         models = [m["name"] for m in resp.json().get("models", [])]
-        console.print(f"[green]✓[/] Ollama    {ollama_url}  — models: {', '.join(models) or 'none'}")
+        console.print(
+            f"[green]✓[/] Ollama    {ollama_url}  — models: {', '.join(models) or 'none'}"
+        )
     except Exception as exc:  # noqa: BLE001
         console.print(f"[red]✗[/] Ollama    — {exc}")
         ok = False
@@ -298,6 +338,7 @@ def status(
 
 # ── query command ──────────────────────────────────────────────────────────────
 
+
 @app.command()
 def query(
     question: str = typer.Argument(..., help="Natural language question about the codebase."),
@@ -305,7 +346,9 @@ def query(
     context_n: int = typer.Option(5, help="Legacy top results limit fallback."),
     max_tokens: int = typer.Option(None, help="Maximum tokens for dynamic context budget."),
     max_chars: int = typer.Option(None, help="Maximum characters for dynamic context budget."),
-    repo_name: str = typer.Option(None, help="Scope query search to a specific repository namespace."),
+    repo_name: str = typer.Option(
+        None, help="Scope query search to a specific repository namespace."
+    ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -345,11 +388,20 @@ def query(
             # Route dynamic vs legacy parameters with repository scoping
             if max_tokens is None and max_chars is None:
                 ctx = retriever.retrieve_with_context(
-                    question, top_k=top_k, max_tokens=None, max_chars=None, context_n=context_n, repository=repo_name
+                    question,
+                    top_k=top_k,
+                    max_tokens=None,
+                    max_chars=None,
+                    context_n=context_n,
+                    repository=repo_name,
                 )
             else:
                 ctx = retriever.retrieve_with_context(
-                    question, top_k=top_k, max_tokens=max_tokens, max_chars=max_chars, repository=repo_name
+                    question,
+                    top_k=top_k,
+                    max_tokens=max_tokens,
+                    max_chars=max_chars,
+                    repository=repo_name,
                 )
 
         if ctx.metadata.get("use_budget"):
@@ -371,8 +423,7 @@ def query(
                 f"(showing top {ctx.metadata['shown']})[/]"
             )
         console.print(
-            f"  • Sources: graph={ctx.metadata['has_graph']}, "
-            f"vector={ctx.metadata['has_vector']}\n"
+            f"  • Sources: graph={ctx.metadata['has_graph']}, vector={ctx.metadata['has_vector']}\n"
         )
         console.rule("[dim]Context[/]")
         console.print(ctx.text)
@@ -388,18 +439,23 @@ def query(
 
 # ── eval command ───────────────────────────────────────────────────────────────
 
+
 @app.command()
 def eval(
     queries: list[str] = typer.Option(
-        [], "--query", "-q",
+        [],
+        "--query",
+        "-q",
         help="Run only these query IDs (e.g. Q4 Q9). Defaults to full Q1-Q20 corpus (diagnostic mode only).",
     ),
     mode: str = typer.Option(
-        "diagnostic", "--mode",
+        "diagnostic",
+        "--mode",
         help="Evaluation mode: 'diagnostic' (default structural/hybrid Q1-Q20) or 'repoqa' (Searching Needle Function).",
     ),
     benchmark_path: Path = typer.Option(
-        None, "--benchmark-path",
+        None,
+        "--benchmark-path",
         help="Path to the custom RepoQA benchmark JSON file (required for repoqa mode).",
     ),
     top_k: int = typer.Option(10, help="Candidates to retrieve per query."),
@@ -447,7 +503,9 @@ def eval(
 
         try:
             graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
-            vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+            vector_store = QdrantStore(
+                host=qdrant_host, port=qdrant_port, collection=qdrant_collection
+            )
 
             with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
                 runner = RepoQAEvalRunner(
@@ -459,7 +517,9 @@ def eval(
                     rrf_hybrid_weight=rrf_hybrid_weight,
                 )
                 with Progress(
-                    SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                    SpinnerColumn(),
+                    TextColumn("{task.description}"),
+                    TimeElapsedColumn(),
                     console=console,
                 ) as progress:
                     task = progress.add_task(f"Running {len(corpus)} RepoQA queries…", total=None)
@@ -473,19 +533,21 @@ def eval(
         if json_out:
             rows = []
             for r in report.results:
-                rows.append({
-                    "id": r.query_id,
-                    "target_function": r.target_function,
-                    "file_path": r.file_path,
-                    "rank_hybrid": r.rank_hybrid,
-                    "rank_vector": r.rank_vector,
-                    "hit1_hybrid": r.hit_at1_hybrid,
-                    "hit1_vector": r.hit_at1_vector,
-                    "hit5_hybrid": r.hit_at5_hybrid,
-                    "hit5_vector": r.hit_at5_vector,
-                    "mrr_hybrid": r.mrr_hybrid,
-                    "mrr_vector": r.mrr_vector,
-                })
+                rows.append(
+                    {
+                        "id": r.query_id,
+                        "target_function": r.target_function,
+                        "file_path": r.file_path,
+                        "rank_hybrid": r.rank_hybrid,
+                        "rank_vector": r.rank_vector,
+                        "hit1_hybrid": r.hit_at1_hybrid,
+                        "hit1_vector": r.hit_at1_vector,
+                        "hit5_hybrid": r.hit_at5_hybrid,
+                        "hit5_vector": r.hit_at5_vector,
+                        "mrr_hybrid": r.mrr_hybrid,
+                        "mrr_vector": r.mrr_vector,
+                    }
+                )
             console.print(_json.dumps(rows, indent=2))
             return
 
@@ -501,12 +563,24 @@ def eval(
         tbl.add_column("MRR Vector", justify="center", width=11)
 
         for r in report.results:
-            rank_h_str = f"[green]{r.rank_hybrid}[/]" if 0 < r.rank_hybrid <= 5 else (f"[red]{r.rank_hybrid}[/]" if r.rank_hybrid > 5 else "[dim]Not Found[/]")
-            rank_v_str = f"[green]{r.rank_vector}[/]" if 0 < r.rank_vector <= 5 else (f"[red]{r.rank_vector}[/]" if r.rank_vector > 5 else "[dim]Not Found[/]")
+            rank_h_str = (
+                f"[green]{r.rank_hybrid}[/]"
+                if 0 < r.rank_hybrid <= 5
+                else (f"[red]{r.rank_hybrid}[/]" if r.rank_hybrid > 5 else "[dim]Not Found[/]")
+            )
+            rank_v_str = (
+                f"[green]{r.rank_vector}[/]"
+                if 0 < r.rank_vector <= 5
+                else (f"[red]{r.rank_vector}[/]" if r.rank_vector > 5 else "[dim]Not Found[/]")
+            )
             tbl.add_row(
-                r.query_id, r.target_function, r.file_path,
-                rank_h_str, rank_v_str,
-                f"{r.mrr_hybrid:.2f}", f"{r.mrr_vector:.2f}",
+                r.query_id,
+                r.target_function,
+                r.file_path,
+                rank_h_str,
+                rank_v_str,
+                f"{r.mrr_hybrid:.2f}",
+                f"{r.mrr_vector:.2f}",
             )
         console.print(tbl)
 
@@ -520,7 +594,11 @@ def eval(
 
         def _row(label: str, h: float, v: float) -> None:
             d = h - v
-            d_str = f"[bold green]+{d:.3f}[/]" if d > 0 else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+            d_str = (
+                f"[bold green]+{d:.3f}[/]"
+                if d > 0
+                else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+            )
             summary.add_row(label, f"{h:.3f}", f"{v:.3f}", d_str)
 
         _row("Hit@1", report.hit1_hybrid, report.hit1_vector)
@@ -563,7 +641,9 @@ def eval(
                 rrf_hybrid_weight=rrf_hybrid_weight,
             )
             with Progress(
-                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                SpinnerColumn(),
+                TextColumn("{task.description}"),
+                TimeElapsedColumn(),
                 console=console,
             ) as progress:
                 task = progress.add_task(f"Running {len(corpus)} queries…", total=None)
@@ -577,41 +657,62 @@ def eval(
     if json_out:
         rows = []
         for r in report.results:
-            rows.append({
-                "id": r.query_id, "hops": r.hops, "query_type": r.query_type,
-                "gt_count": len(r.ground_truth),
-                "hit5_hybrid": r.hit_at5_hybrid, "hit5_vector": r.hit_at5_vector,
-                "mrr_hybrid": r.mrr_hybrid, "mrr_vector": r.mrr_vector,
-                "delta_hit": r.delta_hit,
-            })
+            rows.append(
+                {
+                    "id": r.query_id,
+                    "hops": r.hops,
+                    "query_type": r.query_type,
+                    "gt_count": len(r.ground_truth),
+                    "hit5_hybrid": r.hit_at5_hybrid,
+                    "hit5_vector": r.hit_at5_vector,
+                    "mrr_hybrid": r.mrr_hybrid,
+                    "mrr_vector": r.mrr_vector,
+                    "delta_hit": r.delta_hit,
+                }
+            )
         console.print(_json.dumps(rows, indent=2))
         return
 
     # ── Rich results table ────────────────────────────────────────────────────
     console.print()
     tbl = Table(title="Q1-Q20 Evaluation Results", show_lines=True)
-    tbl.add_column("ID",    style="bold", width=4)
-    tbl.add_column("Hops",  justify="center", width=5)
-    tbl.add_column("Type",  width=11)
-    tbl.add_column("GT",    justify="right", width=4)
+    tbl.add_column("ID", style="bold", width=4)
+    tbl.add_column("Hops", justify="center", width=5)
+    tbl.add_column("Type", width=11)
+    tbl.add_column("GT", justify="right", width=4)
     tbl.add_column("Hit@5 Hybrid", justify="center", width=13)
     tbl.add_column("Hit@5 Vector", justify="center", width=13)
-    tbl.add_column("Δ",     justify="center", width=6)
+    tbl.add_column("Δ", justify="center", width=6)
     tbl.add_column("MRR Hybrid", justify="center", width=11)
     tbl.add_column("MRR Vector", justify="center", width=11)
 
     for r in report.results:
         gt_str = str(len(r.ground_truth)) if r.ground_truth else "[dim]0[/]"
-        h_hit  = f"[green]{r.hit_at5_hybrid:.1f}[/]" if r.hit_at5_hybrid >= 0.5 else f"[red]{r.hit_at5_hybrid:.1f}[/]"
-        v_hit  = f"[green]{r.hit_at5_vector:.1f}[/]" if r.hit_at5_vector >= 0.5 else f"[red]{r.hit_at5_vector:.1f}[/]"
-        delta  = (
-            f"[bold green]+{r.delta_hit:.1f}[/]" if r.delta_hit > 0
+        h_hit = (
+            f"[green]{r.hit_at5_hybrid:.1f}[/]"
+            if r.hit_at5_hybrid >= 0.5
+            else f"[red]{r.hit_at5_hybrid:.1f}[/]"
+        )
+        v_hit = (
+            f"[green]{r.hit_at5_vector:.1f}[/]"
+            if r.hit_at5_vector >= 0.5
+            else f"[red]{r.hit_at5_vector:.1f}[/]"
+        )
+        delta = (
+            f"[bold green]+{r.delta_hit:.1f}[/]"
+            if r.delta_hit > 0
             else (f"[red]{r.delta_hit:.1f}[/]" if r.delta_hit < 0 else f"[dim]{r.delta_hit:.1f}[/]")
         )
         tbl.add_row(
-            r.query_id, str(r.hops), r.query_type, gt_str,
-            h_hit, v_hit, delta,
-            f"{r.mrr_hybrid:.2f}", f"{r.mrr_vector:.2f}",
+            r.query_id,
+            str(r.hops),
+            r.query_type,
+            gt_str,
+            h_hit,
+            v_hit,
+            delta,
+            f"{r.mrr_hybrid:.2f}",
+            f"{r.mrr_vector:.2f}",
         )
 
     console.print(tbl)
@@ -626,16 +727,19 @@ def eval(
 
     def _row(label: str, h: float, v: float) -> None:
         d = h - v
-        d_str = f"[bold green]+{d:.3f}[/]" if d > 0 else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+        d_str = (
+            f"[bold green]+{d:.3f}[/]" if d > 0 else (f"[red]{d:.3f}[/]" if d < 0 else f"{d:.3f}")
+        )
         summary.add_row(label, f"{h:.3f}", f"{v:.3f}", d_str)
 
-    _row("Hit@5 (all)",          report.hit5_hybrid_all,  report.hit5_vector_all)
-    _row("Hit@5 (1-hop)",        report.hit5_hybrid_by_hops[1], report.hit5_vector_by_hops[1])
-    _row("Hit@5 (2-hop)",        report.hit5_hybrid_by_hops[2], report.hit5_vector_by_hops[2])
-    _row("Hit@5 (3-hop)",        report.hit5_hybrid_by_hops[3], report.hit5_vector_by_hops[3])
-    _row("MRR  (all)",           report.mrr_hybrid_all,   report.mrr_vector_all)
-    _row("ΔHitRate 2-3hop",      report.delta_hit_2_3hop + report.hit5_vector_all,
-         report.hit5_vector_all)  # formatted separately below
+    _row("Hit@5 (all)", report.hit5_hybrid_all, report.hit5_vector_all)
+    _row("Hit@5 (1-hop)", report.hit5_hybrid_by_hops[1], report.hit5_vector_by_hops[1])
+    _row("Hit@5 (2-hop)", report.hit5_hybrid_by_hops[2], report.hit5_vector_by_hops[2])
+    _row("Hit@5 (3-hop)", report.hit5_hybrid_by_hops[3], report.hit5_vector_by_hops[3])
+    _row("MRR  (all)", report.mrr_hybrid_all, report.mrr_vector_all)
+    _row(
+        "ΔHitRate 2-3hop", report.delta_hit_2_3hop + report.hit5_vector_all, report.hit5_vector_all
+    )  # formatted separately below
 
     console.print(summary)
     console.print()
@@ -649,6 +753,7 @@ def eval(
 
 
 # ── serve command ──────────────────────────────────────────────────────────────
+
 
 @app.command()
 def serve(
@@ -683,6 +788,7 @@ def serve(
 
 # ── ragas command ──────────────────────────────────────────────────────────────
 
+
 @app.command()
 def ragas(
     top_k: int = typer.Option(20, help="Retrieval candidates per query."),
@@ -713,8 +819,11 @@ def ragas(
     from hybrid_rag.vector.qdrant_store import QdrantStore
 
     subsets = {
-        "all": EVAL_CORPUS, "1hop": ONE_HOP, "2hop": TWO_HOP,
-        "3hop": THREE_HOP, "hybrid": HYBRID_CASES,
+        "all": EVAL_CORPUS,
+        "1hop": ONE_HOP,
+        "2hop": TWO_HOP,
+        "3hop": THREE_HOP,
+        "hybrid": HYBRID_CASES,
     }
     corpus = subsets.get(subset, EVAL_CORPUS)
 
@@ -732,11 +841,15 @@ def ragas(
                 embedder=embedder,
             )
             with Progress(
-                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                SpinnerColumn(),
+                TextColumn("{task.description}"),
+                TimeElapsedColumn(),
                 console=console,
             ) as progress:
                 task = progress.add_task(f"Generating + scoring {len(corpus)} queries…", total=None)
-                runner = RagasRunner(retriever=retriever, ollama_url=ollama_url, llm_model=llm_model)
+                runner = RagasRunner(
+                    retriever=retriever, ollama_url=ollama_url, llm_model=llm_model
+                )
                 report = runner.run(corpus, top_k=top_k, context_n=context_n)
                 progress.update(task, description="Done")
 
@@ -759,12 +872,18 @@ def ragas(
     tbl.add_column("Latency (ms)", justify="right", width=13)
 
     for s in report.samples:
+
         def _fmt(v: float) -> str:
             colour = "green" if v >= 0.7 else ("yellow" if v >= 0.4 else "red")
             return f"[{colour}]{v:.3f}[/]"
+
         tbl.add_row(
-            s.query_id, str(s.hops), s.query_type,
-            _fmt(s.faithfulness), _fmt(s.answer_relevancy), _fmt(s.context_precision),
+            s.query_id,
+            str(s.hops),
+            s.query_type,
+            _fmt(s.faithfulness),
+            _fmt(s.answer_relevancy),
+            _fmt(s.context_precision),
             f"{s.latency_ms:.0f}",
         )
 
@@ -783,11 +902,14 @@ def ragas(
 
 # ── bench command ──────────────────────────────────────────────────────────────
 
+
 @app.command()
 def bench(
     n_runs: int = typer.Option(5, help="Timed runs per query."),
     top_k: int = typer.Option(20, help="Retrieval candidates (match production config)."),
-    corpus: bool = typer.Option(False, "--corpus", help="Use Q1-Q20 corpus instead of default queries."),
+    corpus: bool = typer.Option(
+        False, "--corpus", help="Use Q1-Q20 corpus instead of default queries."
+    ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -824,7 +946,9 @@ def bench(
             )
             runner = BenchmarkRunner(retriever)
             with Progress(
-                SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(),
+                SpinnerColumn(),
+                TextColumn("{task.description}"),
+                TimeElapsedColumn(),
                 console=console,
             ) as progress:
                 task = progress.add_task("Running benchmark…", total=None)
@@ -853,17 +977,51 @@ def bench(
     tbl.add_column("max (ms)", justify="right", width=9)
 
     for s in report.stats:
+
         def _c(v: float) -> str:
             colour = "green" if v < 500 else ("yellow" if v < 1500 else "red")
             return f"[{colour}]{v:.1f}[/]"
+
         tbl.add_row(
-            s.query_type, str(s.n_runs),
-            _c(s.p50), _c(s.p95), _c(s.p99),
-            _c(s.mean), f"{s.min:.1f}", f"{s.max:.1f}",
+            s.query_type,
+            str(s.n_runs),
+            _c(s.p50),
+            _c(s.p95),
+            _c(s.p99),
+            _c(s.mean),
+            f"{s.min:.1f}",
+            f"{s.max:.1f}",
         )
 
     console.print(tbl)
     console.rule()
+
+
+@app.command()
+def mcp(
+    transport: str = typer.Option("stdio", help="Transport mode: stdio or sse."),
+    host: str = typer.Option("localhost", help="Bind host for SSE transport."),
+    port: int = typer.Option(8001, help="Bind port for SSE transport."),
+) -> None:
+    """Start the Model Context Protocol (MCP) server for local AI agents."""
+    from hybrid_rag.mcp.server import mcp as mcp_server
+
+    if transport == "sse":
+        console.rule("[bold cyan]hybrid-rag mcp[/]")
+        console.print(f"  Transport: {transport}")
+        console.print(f"  SSE URL:   http://{host}:{port}/sse")
+        console.print(f"  Messages:  http://{host}:{port}/messages")
+        console.rule()
+    else:
+        logger.info("Starting Hybrid-RAG MCP server in stdio mode...")
+
+    if transport == "stdio":
+        mcp_server.run(transport="stdio")
+    elif transport == "sse":
+        mcp_server.run(transport="sse", host=host, port=port)
+    else:
+        err_console.print(f"[ERROR] Invalid transport: {transport}. Must be 'stdio' or 'sse'.")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

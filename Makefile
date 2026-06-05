@@ -13,7 +13,7 @@ restart: down up
 # ── Dev setup ──────────────────────────────────────────────────────
 install:
 	python3.12 -m venv .venv
-	. .venv/bin/activate && pip install -e ".[dev,api,eval]"
+	. .venv/bin/activate && pip install -e ".[dev,api,eval,mcp]"
 
 # ── Indexing ───────────────────────────────────────────────────────
 # Usage: make index REPO=/path/to/target/repo

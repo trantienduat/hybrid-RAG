@@ -42,6 +42,9 @@ api = [
 eval = [
     "ragas>=0.1.0",
 ]
+mcp = [
+    "mcp>=0.1.0",
+]
 
 [project.scripts]
 hybrid-rag = "hybrid_rag.cli:app"

@@ -100,6 +100,14 @@ Use this if you want to connect a web client or running client remotely:
 hybrid-rag mcp --transport sse --host localhost --port 8001
 ```
 
+#### Running via Docker Compose (SSE Mode)
+You can launch the entire stack (FalkorDB, Qdrant, and the MCP SSE server) with a single command:
+
+```bash
+docker compose up -d --build
+```
+This builds the application image (including the `mcp` libraries) and maps the MCP SSE endpoint to `http://localhost:8001/sse`.
+
 ---
 
 ## 🔍 Verification & Testing

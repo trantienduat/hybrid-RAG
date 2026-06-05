@@ -15,7 +15,7 @@ COPY pyproject.toml .
 COPY src/ ./src/
 
 # Install the application and its API dependencies natively inside the container
-RUN pip install --no-cache-dir .[api]
+RUN pip install --no-cache-dir .[api,mcp]
 
 # Expose the FastAPI server default port
 EXPOSE 8000

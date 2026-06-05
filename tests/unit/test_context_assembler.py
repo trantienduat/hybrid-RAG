@@ -86,7 +86,8 @@ def test_context_assembler_custom_token_estimator(sample_results):
     assembler = ContextAssembler()
     
     # Use a custom estimator that counts words in the text instead of char // 4
-    word_count_estimator = lambda text: len(text.split())
+    def word_count_estimator(text):
+        return len(text.split())
     
     # Let's set a token budget using this custom estimator
     ctx = assembler.assemble(

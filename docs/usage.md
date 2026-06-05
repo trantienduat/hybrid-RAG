@@ -1,198 +1,101 @@
-# System Usage & Operations Guide
+# Hybrid-RAG Operations & Quick Start Guide
 
-This guide provides instructions on how to set up, operate, and query the Hybrid-RAG system.
+This guide describes how to quickly deploy, index, and run the Hybrid-RAG system using Docker. By following this 5-minute Quick Start, you will have the database engines, the visualizer Web UI, and the Model Context Protocol (MCP) server running and connected directly to your IDE.
 
 ---
 
-## ⚙️ Prerequisites & Service Setup
+## 🚀 1. Quick Start: Setup, Ingestion & IDE Integration
 
-Hybrid-RAG runs entirely locally and requires Docker and Ollama.
-
-### 1. Start Local Databases (Docker)
-Ensure Docker is running, then spin up the backend databases (FalkorDB and Qdrant):
+### Step A: Pull Local Models
+Ensure Ollama is running locally on your host machine, and download the default embedding and coding models:
 ```bash
-make up
-```
-*This starts FalkorDB on port `6379` and Qdrant on port `6333` on `localhost`.*
-
-### 2. Set Up Local Models (Ollama)
-Ensure Ollama is running locally, then pull the necessary models:
-```bash
-# Pull the high-performance embedding model
+# Pull the high-performance local embedding model
 ollama pull nomic-embed-text
 
 # Pull the default coding LLM
 ollama pull qwen2.5-coder:7b
-
-# (Optional) Pull low-RAM fallback LLM
-ollama pull llama3.2:3b
 ```
 
-### 3. Setup Python Virtual Environment
-Install system dependencies and packages:
+### Step B: Start the Service Stack (Docker)
+From the project root directory, spin up the entire service stack:
 ```bash
-python3 -m venv .venv
+docker compose up -d --build
+```
+*This spins up FalkorDB (graph DB), Qdrant (vector DB), the Visualizer Web UI (port `8000`), and the MCP Server (port `8001`).*
+
+### Step C: Ingest & Index Your Codebases
+Since the codebase folders reside on the host filesystem, install the CLI locally on your host machine and run the indexing commands:
+```bash
+# 1. Quickly setup local environment and active virtual environment
+make install
 source .venv/bin/activate
-pip install -e .
-```
 
----
+# 2. Index this Hybrid-RAG repository itself
+hybrid-rag index . --repo-name hybrid-rag
 
-## 📦 Ingestion: Indexing Repositories
-
-Use the `hybrid-rag index` command to parse and ingest repositories into FalkorDB and Qdrant.
-
-```bash
-hybrid-rag index <PATH_TO_REPO> [OPTIONS]
-```
-
-### Key Options
-*   `--repo-name <NAME>`: Custom namespace for the repository. Defaults to the folder name. **(Highly recommended for Multi-Repo RAG)**.
-*   `--languages <LANG>`: Source languages to extract (default: `python`). Supports `python` and `java`.
-*   `--max-tokens <INT>`: Maximum tokens per chunk (default: `512`).
-*   `--llm-extract / --no-llm-extract`: Enable/disable LLM-assisted structural edge extraction (default: `--no-llm-extract`).
-
-### Examples
-
-**Index a single library:**
-```bash
-hybrid-rag index ./fixtures/small_repo --repo-name core-lib
-```
-
-**Index a dependent application and trigger cross-repo entity resolution:**
-```bash
+# 3. Index all test fixtures (in dependency order for cross-repo entity resolution)
+hybrid-rag index ./fixtures/small_repo --repo-name small-app
 hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
+hybrid-rag index ./fixtures/llama_index_core --repo-name llama-core
+
+# 4. Build modular communities for global architectural search
+hybrid-rag community-build
 ```
-*The resolver will query FalkorDB to find the real implementation of imported modules or inherited classes in existing namespaces (e.g. `core-lib`) and rewrite stubs to link across repos.*
+
+### Step D: Connect to Antigravity IDE (MCP Integration)
+To enable the IDE agent to use the hybrid RAG index, copy and paste the configuration block below into your Gemini Code Assist / Antigravity IDE configuration file:
+*   **Path (macOS / Linux):** `~/.gemini/config/mcp_config.json`
+*   **Path (Windows):** `C:\Users\[YourUsername]\.gemini\config\mcp_config.json`
+
+```json
+{
+  "mcpServers": {
+    "hybrid-rag": {
+      "command": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/.venv/bin/hybrid-rag",
+      "args": ["mcp", "--transport", "stdio"],
+      "env": {
+        "FALKORDB_HOST": "localhost",
+        "FALKORDB_PORT": "6379",
+        "QDRANT_HOST": "localhost",
+        "QDRANT_PORT": "6333",
+        "OLLAMA_BASE_URL": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+*Once saved, reload the IDE window (e.g. `Developer: Reload Window` in VS Code) to activate the 5 new codebase tools in your chat agent.*
 
 ---
 
-## 🏛️ Graph Communities: Compiling Architecture summaries (Global Search)
+## 🌐 2. Accessing the Services & Verification
 
-Once indexed, compile vĩ mô architecture community summaries (Microsoft GraphRAG Option A) using the `hybrid-rag community-build` command:
+Once setup and indexing are completed, the following services are fully operational:
 
-```bash
-hybrid-rag community-build [OPTIONS]
-```
-
-### Key Options
-*   `--resolution <FLOAT>`: Modularity clustering resolution for Louvain (default: `1.0`). Higher values generate more smaller, finer-grained communities.
-*   `--llm-model <MODEL>`: Local LLM used to compile structural summaries (default: `qwen2.5-coder:14b`).
-*   `--graph-name <NAME>`: Targets a specific FalkorDB graph (default: `codebase`).
-
-### Example
-```bash
-hybrid-rag community-build --resolution 1.0 --llm-model qwen2.5-coder:14b
-```
-*This splits the knowledge graph into communities, calls Qwen 2.5 Coder 14B to summarize each community locally on the M4 GPU, and persists these reports back to FalkorDB as `Community` nodes linked to codebase member nodes.*
+*   **Interactive Web UI & 3D/2D Visualizer:** Open `http://localhost:8000/` in your browser. Scope queries by repository, view dependency graphs (with Louvain community borders), and chat in real-time.
+*   **Model Context Protocol (MCP) Server:** Access the SSE network endpoint at `http://localhost:8001/sse` (For detailed setup and Mermaid architecture diagram, refer to the [MCP Setup Guide](mcp.md)).
+*   **REST API Documentation:** Open `http://localhost:8000/docs` to view the FastAPI Swagger UI.
+*   **Qdrant Admin Dashboard:** Visit `http://localhost:6333/dashboard` to inspect vector collections.
 
 ---
 
-## 🔍 Retrieval: Querying the Codebase
+## 🛠️ 3. Additional Operational CLI Commands
 
-Use the `hybrid-rag query` command to ask natural language questions about the indexed codebase.
+When developing or running diagnostic evaluations locally, you can use the active python environment to execute the following commands:
 
-```bash
-hybrid-rag query "<YOUR_QUESTION>" [OPTIONS]
-```
-
-### Key Options
-*   `--repo-name <NAME>`: Scope the search. Only returns files and structural paths that belong to this repository namespace.
-*   `--max-tokens <INT>`: Strict token budget for prompt context assembly.
-*   `--max-chars <INT>`: Strict character budget for prompt context assembly.
-*   `--top-k <INT>`: Number of candidates to retrieve initially from databases (default: `20`).
-
-### Examples
-
-**Global Cross-Repository Query:**
-```bash
-hybrid-rag query "Explain how SuperCalculator inherits Calculator"
-```
-
-**Scoped Repository Query (locks search to `core-lib`):**
-```bash
-hybrid-rag query "Explain how SuperCalculator inherits Calculator" --repo-name core-lib
-```
-
-**Token-Budget Context Assembly Query (limits prompt context to 1000 tokens):**
-```bash
-hybrid-rag query "Detail sparse retrieval logic" --max-tokens 1000
-```
-
----
-
-## 🌐 Web Visualization & Interactive API
-
-Hybrid-RAG includes a beautiful REST API and an interactive D3.js force-directed graph UI.
-
-### Start the Server
-```bash
-hybrid-rag serve [OPTIONS]
-```
-*Starts the FastAPI server on `http://localhost:8000` (FastAPI docs available at `http://localhost:8000/docs`).*
-
-### Explore the Visualizer
-Open your browser and navigate to:
-```
-http://localhost:8000/
-```
-The interface allows you to:
-1.  **Visualize:** Zoom, pan, and drag nodes in the live Knowledge Graph.
-2.  **Inspect:** Click on any node (Module, Class, Function) to inspect its Fully Qualified Name (FQN), properties, and structural links.
-3.  **Chat:** Run queries in the right panel and see live vector citations highlighted in green on the graph.
-
----
-
-## 📊 Evaluation & Diagnostics
-
-Run milestones, latency benchmarks, and RAGAS evaluations.
-
-### 1. Check Service Status
-```bash
-hybrid-rag status
-```
-*Verifies connection health and prints database node/point counts.*
-
-### 2. Latency Benchmarks
-```bash
-hybrid-rag bench --corpus
-```
-*Measures p50/p95/p99 retrieval latency per query type.*
-
-### 3. RAGAS Quality Evaluation
-```bash
-hybrid-rag ragas
-```
-*Computes RAGAS Faithfulness, Answer Relevancy, and Context Precision on the evaluation corpus.*
-
----
-
-## 🐳 Containerized Stack Deployment (Private Machine)
-
-For private servers, we package the RAG API and Visualizer along with the database engines using a single Docker Compose bundle.
-
-### 1. Build and Start the Entire Stack
-Copy the codebase to the private machine, navigate to the folder, and run:
-```bash
-docker compose up --build -d
-```
-This single command:
-1. Compiles AST `tree-sitter` native bindings and builds the `hybrid-rag-api` image.
-2. Starts FalkorDB, Qdrant, and the Hybrid-RAG API.
-3. Automatically sets up connection paths.
-
-### 2. Connect to Private Ollama
-By default, the container routes to Ollama running natively on the physical host machine via:
-`OLLAMA_BASE_URL=http://host.docker.internal:11434`
-
-If you are running Ollama on a different server or IP address, simply edit `docker-compose.yml` to update the variable:
-```yaml
-environment:
-  - OLLAMA_BASE_URL=http://<OLLAMA_SERVER_IP>:11434
-```
-
-### 3. Verification & Access
-Once up and healthy, the services are accessible:
-* **Interactive UI & Visualizer:** `http://localhost:8000/`
-* **Swagger API Documentation:** `http://localhost:8000/docs`
-* **Qdrant Dashboard:** `http://localhost:6333/dashboard`
+*   **Query the codebase via terminal:**
+    ```bash
+    hybrid-rag query "Explain how SuperCalculator inherits Calculator"
+    ```
+*   **Check database status and stats:**
+    ```bash
+    hybrid-rag status
+    ```
+*   **Run latency benchmarks (p50/p95/p99):**
+    ```bash
+    hybrid-rag bench --corpus
+    ```
+*   **Run RAGAS generation-quality evaluation:**
+    ```bash
+    hybrid-rag ragas
+    ```

@@ -49,6 +49,28 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  hybrid-rag-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hybrid-rag-mcp
+    command: ["hybrid-rag", "mcp", "--transport", "sse", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    environment:
+      - FALKORDB_HOST=falkordb
+      - QDRANT_HOST=qdrant
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - FALKORDB_GRAPH=$FALKORDB_GRAPH
+    depends_on:
+      falkordb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 volumes:
   falkordb_data:
   qdrant_data:

@@ -46,7 +46,8 @@ class ContextAssembler:
         # Set up token estimator
         if token_estimator is None:
             # Safe offline heuristic: ~1 token ≈ 4 characters of code/text.
-            token_estimator = lambda text: len(text) // 4
+            def token_estimator(text):
+                return len(text) // 4
 
         use_budget = (max_tokens is not None) or (max_chars is not None)
 

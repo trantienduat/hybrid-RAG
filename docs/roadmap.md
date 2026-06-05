@@ -91,7 +91,7 @@ Reflects thesis milestones. Updated as work progresses.
 | `api/main.py` — FastAPI app with `/query` endpoint | #27 | ✅ |
 | `api/schemas.py` — request/response Pydantic models | #28 | ✅ |
 | Streaming response support (`/query/stream` SSE) | #29 | ✅ |
-| Web visualization: D3.js force-directed graph explorer | #30 | ✅ |
+| Web visualization: Premium Cyber-Dark UI with 3D & 2D (Cytoscape.js) hybrid toggling explorer | #30 | ✅ |
 | RAGAS evaluation pipeline on Q1–Q20 | #31 | ✅ |
 | Latency benchmarks (p50/p95/p99 per query type) | #32 | ✅ |
 | Scale test: Transformers (HuggingFace) repo | #33 | ⬜ |
@@ -101,7 +101,7 @@ Reflects thesis milestones. Updated as work progresses.
 
 **M4 Achieved (commit `feat/m4`):**
 - FastAPI REST API with `/query`, `/query/stream` (SSE), `/graph/neighbors/{id}`, `/graph/search`, `/health`
-- D3.js force-directed graph explorer + streaming query panel served at `GET /`
+- Premium Cyber-Dark visual explorer with dynamic repository dropdown, search category tabs, 3D & 2D hybrid toggler, and Floating Node Inspector served at `GET /`
 - `hybrid-rag serve` CLI command (wraps uvicorn)
 - `hybrid-rag ragas` CLI command — RAGAS faithfulness/answer_relevancy/context_precision on Q1–Q20
 - `hybrid-rag bench` CLI command — p50/p95/p99 latency per query type (structural/hybrid/semantic)

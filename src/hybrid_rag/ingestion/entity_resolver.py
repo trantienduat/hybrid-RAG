@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
+from typing import Any
 
 from hybrid_rag.ingestion.parser import ParseResult
 

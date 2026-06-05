@@ -32,7 +32,7 @@ src/hybrid_rag/
 │   ├── vector_retriever.py# Vector lookup
 │   ├── rrf.py             # Reciprocal Rank Fusion
 │   └── context_assembler.py# Token-budget context assembly
-├── api/                   # FastAPI Web & D3 Visualizer
+├── api/                   # FastAPI Web & Premium Visual Explorer
 │   ├── main.py
 │   └── static/
 └── cli.py                 # Typer Command Line Interface
@@ -49,7 +49,7 @@ src/hybrid_rag/
 The local deployment runs as a fully integrated 3-container stack:
 1.  **`falkordb`:** The Knowledge Graph database (FalkorDB), running on port `6379`.
 2.  **`qdrant`:** The Vector database (Qdrant), running on port `6333` (REST) and `6334` (gRPC).
-3.  **`hybrid-rag-api`:** The Hybrid-RAG REST API and D3.js Web Visualizer, running on port `8000`.
+3.  **`hybrid-rag-api`:** The Hybrid-RAG REST API and premium Cyber-Dark Web Explorer, running on port `8000`.
 
 ### Common Docker Operations
 

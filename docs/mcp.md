@@ -193,3 +193,31 @@ Add the following configuration:
 }
 ```
 *(Note: It is recommended to use the absolute path to the virtual environment binary as the `command` value so it executes with all library dependencies loaded).*
+
+---
+
+### 🐳 Alternative: Running the MCP Server inside Docker (Stdio Bridge)
+If you prefer not to install the virtual environment on the host machine and want to run the MCP server strictly inside the Docker container, you can configure the client to communicate via a **docker stdio bridge**. 
+
+To do this, specify `docker` as the command and use `exec -i` to forward stdio:
+
+```json
+{
+  "mcpServers": {
+    "hybrid-rag": {
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "hybrid-rag-mcp",
+        "hybrid-rag",
+        "mcp",
+        "--transport",
+        "stdio"
+      ]
+    }
+  }
+}
+```
+*(Note: In this mode, environmental configurations like database hosts are read directly from the container's environment variables defined in your `docker-compose.yml` file, so no host-level `env` overrides are necessary).*
+

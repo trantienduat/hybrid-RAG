@@ -19,17 +19,20 @@ Start with:
 """
 from __future__ import annotations
 
+import asyncio
+import datetime
 import json
 import logging
 import os
 import time
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +42,9 @@ from hybrid_rag.api.schemas import (
     GraphNode,
     GraphSearchResponse,
     HealthResponse,
+    IndexRequest,
+    IndexTaskDetailResponse,
+    IndexTaskResponse,
     QueryRequest,
     QueryResponse,
     SourceChunk,
@@ -88,6 +94,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         rrf_structural_weight=_RRF_STRUCTURAL_W,
         rrf_hybrid_weight=_RRF_HYBRID_W,
     )
+    app.state.indexing_tasks = {}
+    app.state.indexing_lock = asyncio.Lock()
     logger.info("hybrid-rag API ready")
     yield
     app.state.embedder.close()
@@ -437,3 +445,120 @@ async def graph_search(
         for n in raw
     ]
     return GraphSearchResponse(query=q, nodes=nodes)
+
+
+# ── Background Indexing Worker & Endpoints ────────────────────────────────────
+
+async def process_indexing_task(
+    task_id: str,
+    req: IndexRequest,
+    app_state: Any,
+) -> None:
+    task = app_state.indexing_tasks[task_id]
+
+    def add_log(msg: str) -> None:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        task["logs"].append(f"[{timestamp}] {msg}")
+        logger.info(f"Task {task_id}: {msg}")
+
+    add_log("Waiting to acquire indexing lock...")
+
+    async with app_state.indexing_lock:
+        task["status"] = "running"
+        add_log("Lock acquired. Starting indexing pipeline...")
+
+        from hybrid_rag.ingestion.pipeline import IndexingListener, run_indexing_pipeline
+
+        class ApiIndexingListener(IndexingListener):
+            def on_step(self, step_name: str, message: str, progress: float | None = None) -> None:
+                add_log(f"[{step_name}] {message}")
+
+        try:
+            # run_indexing_pipeline is synchronous; run in a thread pool to avoid blocking the main event loop
+            result = await asyncio.to_thread(
+                run_indexing_pipeline,
+                repo_path=Path(req.repo_path),
+                languages=req.languages,
+                repo_name=task["repository"],
+                graph_store=app_state.graph_store,
+                vector_store=app_state.vector_store,
+                ollama_url=_OLLAMA_URL,
+                embed_model=_EMBED_MODEL,
+                llm_model=os.environ.get("LLM_MODEL") or "qwen2.5-coder:7b",
+                llm_extract=req.llm_extract,
+                max_tokens=req.max_tokens,
+                listener=ApiIndexingListener(),
+            )
+
+            task["status"] = "completed"
+            task["completed_at"] = datetime.datetime.now().isoformat()
+            add_log(
+                f"Indexing completed successfully. Elapsed: {result['elapsed_seconds']:.2f}s. "
+                f"Nodes: {result['nodes_upserted']}, Edges: {result['edges_upserted']}, "
+                f"Vectors: {result['vectors_upserted']}."
+            )
+
+        except Exception as exc:
+            task["status"] = "failed"
+            task["error"] = str(exc)
+            task["completed_at"] = datetime.datetime.now().isoformat()
+            add_log(f"Indexing failed with error: {exc}")
+            logger.exception(f"Indexing task {task_id} failed")
+
+
+@app.post("/graph/index", response_model=IndexTaskResponse)
+async def trigger_index(
+    req: IndexRequest,
+    background_tasks: BackgroundTasks,
+) -> IndexTaskResponse:
+    """Queue a repository to be indexed in the background (serialized FIFO)."""
+    # Verify path
+    path = Path(req.repo_path)
+    if not path.is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Provided repo_path does not exist or is not a directory: {req.repo_path}",
+        )
+
+    task_id = str(uuid.uuid4())
+    repo_name = req.repo_name or path.name
+
+    task = {
+        "task_id": task_id,
+        "repository": repo_name,
+        "status": "pending",
+        "created_at": datetime.datetime.now().isoformat(),
+        "completed_at": None,
+        "logs": [f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Task initialized and queued."],
+        "error": None,
+    }
+    app.state.indexing_tasks[task_id] = task
+
+    # Queue background task
+    background_tasks.add_task(process_indexing_task, task_id, req, app.state)
+
+    return IndexTaskResponse(
+        task_id=task_id,
+        status="pending",
+        repository=repo_name,
+    )
+
+
+@app.get("/graph/index/tasks", response_model=list[IndexTaskDetailResponse])
+async def list_indexing_tasks() -> list[IndexTaskDetailResponse]:
+    """List all indexing tasks queued or run in the background."""
+    tasks = []
+    for t in app.state.indexing_tasks.values():
+        tasks.append(IndexTaskDetailResponse(**t))
+    # Sort by created_at descending
+    tasks.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks
+
+
+@app.get("/graph/index/tasks/{task_id}", response_model=IndexTaskDetailResponse)
+async def get_indexing_task(task_id: str) -> IndexTaskDetailResponse:
+    """Retrieve detailed status and real-time logs for a specific indexing task."""
+    if task_id not in app.state.indexing_tasks:
+        raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
+    return IndexTaskDetailResponse(**app.state.indexing_tasks[task_id])
+

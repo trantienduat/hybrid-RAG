@@ -67,162 +67,57 @@ def index(
     t0 = time.perf_counter()
 
     # Lazy imports so CLI is fast to load.
-    # Composition root: business logic is typed against ports; concrete adapters
-    # are wired here so the rest of the codebase stays vendor-neutral.
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
-    from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
-    from hybrid_rag.ingestion.merger import merge_supplemental
-    from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
-    from hybrid_rag.ingestion.parser import parse_file, parse_repo
-    from hybrid_rag.ports import BaseEmbedder, GraphStore, VectorStore
+    from hybrid_rag.ingestion.pipeline import IndexingListener, run_indexing_pipeline
     from hybrid_rag.vector.qdrant_store import QdrantStore
 
-    # ── 1. Parse ───────────────────────────────────────────────────────────────
-    with Progress(
-        SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
-    ) as progress:
-        task = progress.add_task("Parsing source files…", total=None)
-        result = parse_repo(repo, languages=languages, repo_name=repo_namespace)
-        progress.update(
-            task,
-            description=f"Parsed — {len(result.nodes)} nodes, "
-            f"{len(result.edges)} edges, "
-            f"{len(result.errors)} errors",
-        )
-
-    if result.errors:
-        console.print(f"[yellow]Parse warnings:[/] {len(result.errors)}")
-        for err in result.errors[:5]:
-            console.print(f"  • {err}")
-        if len(result.errors) > 5:
-            console.print(f"  … and {len(result.errors) - 5} more")
-
-    # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
-    if llm_extract:
-        from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
-
-        all_extra_edges: list = []
-        py_files = sorted(repo.rglob("*.py"))
-        with Progress(
-            SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
-        ) as progress:
-            task = progress.add_task(f"LLM extraction (0/{len(py_files)} files)…", total=None)
-            with OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model) as extractor:
-                for i, fp in enumerate(py_files, start=1):
-                    try:
-                        file_text = fp.read_text(encoding="utf-8", errors="replace")
-                        file_result = parse_file(fp, repo, repo_name=repo_namespace)
-                        extra = extractor.extract(file_text, file_result)
-                        all_extra_edges.extend(extra)
-                    except Exception as exc:  # noqa: BLE001
-                        logger.debug("LLM extraction skipped %s: %s", fp, exc)
-                    progress.update(
-                        task, description=f"LLM extraction ({i}/{len(py_files)} files)…"
-                    )
-        result = merge_supplemental(result, all_extra_edges)
-        console.print(
-            f"[green]✓[/] LLM extraction: {len(all_extra_edges)} supplemental edges added"
-        )
-
-    # ── 3. Entity resolution ───────────────────────────────────────────────────
-    before_stubs = stub_count(result)
-    result = resolve(result)
-    after_stubs = stub_count(result)
-    resolved = before_stubs - after_stubs
-    console.print(f"Entity resolver: {resolved} stubs merged → {after_stubs} external stubs remain")
-
-    # ── 3b. Global Cross-Repo Entity resolution ────────────────────────────────
-    graph_store: GraphStore = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
-    from hybrid_rag.ingestion.entity_resolver import resolve_global
-
-    before_global_stubs = stub_count(result)
-    result = resolve_global(result, graph_store)
-    after_global_stubs = stub_count(result)
-    global_resolved = before_global_stubs - after_global_stubs
-    if global_resolved > 0:
-        console.print(
-            f"Global Entity resolver: {global_resolved} stubs resolved against FalkorDB → {after_global_stubs} external stubs remain"
-        )
-
-    # ── 4. Graph ingest ────────────────────────────────────────────────────────
-    with Progress(
-        SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
-    ) as progress:
-        task = progress.add_task("Writing to FalkorDB…", total=None)
-        counts = graph_store.ingest(result)
-        progress.update(
-            task,
-            description=f"FalkorDB — {counts['nodes']} nodes, {counts['edges']} edges upserted",
-        )
-
-    console.print(f"[green]✓[/] Graph: {counts['nodes']} nodes, {counts['edges']} edges")
-
-    # ── 5. Chunk + embed + vector upsert ───────────────────────────────────────
     try:
-        source_lines: dict[str, list[str]] = {}
-        for node in result.nodes:
-            fp = node.properties.get("file_path", "")
-            if fp and fp not in source_lines:
-                abs_fp = repo / fp
-                try:
-                    source_lines[fp] = abs_fp.read_text(
-                        encoding="utf-8", errors="replace"
-                    ).splitlines()
-                except OSError:
-                    source_lines[fp] = []
-
-        # chunk_nodes needs per-file lines; do it per-file instead
-        from hybrid_rag.ingestion.chunker import chunk_file
-
-        chunks_to_embed = []
-        seen_files: set[str] = set()
-        for node in result.nodes:
-            fp = node.properties.get("file_path", "")
-            if fp and fp not in seen_files:
-                seen_files.add(fp)
-                abs_fp = repo / fp
-                file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens)
-                chunks_to_embed.extend(file_chunks)
-
-        total_chunks = len(chunks_to_embed)
-        all_chunks: list[dict] = []
-
         with Progress(
-            SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn(), console=console
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
         ) as progress:
-            task = progress.add_task(f"Embedding chunks (0/{total_chunks})…", total=total_chunks)
-            embedder: BaseEmbedder
-            with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
-                batch_size = 128
-                for i in range(0, total_chunks, batch_size):
-                    batch = chunks_to_embed[i : i + batch_size]
-                    batch_texts = [ch.text for ch in batch]
-                    embeddings = embedder.embed_texts(batch_texts)
-                    for ch, emb in zip(batch, embeddings):
-                        all_chunks.append(
-                            {
-                                "node_id": f"{ch.node_id}::{ch.chunk_index}",
-                                "label": ch.label,
-                                "file_path": ch.file_path,
-                                "text": ch.text,
-                                "embedding": emb,
-                                "repository": repo_namespace,
-                            }
-                        )
-                    progress.update(
-                        task,
-                        advance=len(batch),
-                        description=f"Embedding chunks ({min(i + len(batch), total_chunks)}/{total_chunks})…",
-                    )
+            class CliIndexingListener(IndexingListener):
+                def __init__(self) -> None:
+                    self.current_task = None
+                    self.last_step = None
 
-        vector_store: VectorStore = QdrantStore(
-            host=qdrant_host, port=qdrant_port, collection=qdrant_collection
-        )
-        upserted = vector_store.upsert(all_chunks)
-        console.print(f"[green]✓[/] Vectors: {upserted} chunks upserted to Qdrant")
+                def on_step(self, step_name: str, message: str, progress_val: float | None = None) -> None:
+                    if self.last_step != step_name:
+                        if self.current_task is not None:
+                            progress.update(self.current_task, completed=100)
+                        self.current_task = progress.add_task(message, total=100 if progress_val is not None else None)
+                        self.last_step = step_name
+                    else:
+                        if progress_val is not None:
+                            progress.update(self.current_task, description=message, completed=int(progress_val * 100))
+                        else:
+                            progress.update(self.current_task, description=message)
+
+                    if progress_val == 1.0:
+                        progress.update(self.current_task, description=f"[green]✓[/] {message}", completed=100)
+
+            listener = CliIndexingListener()
+            graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
+            vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+
+            run_indexing_pipeline(
+                repo_path=repo,
+                languages=languages,
+                repo_name=repo_namespace,
+                graph_store=graph_store,
+                vector_store=vector_store,
+                ollama_url=ollama_url,
+                embed_model=embed_model,
+                llm_model=llm_model,
+                llm_extract=llm_extract,
+                max_tokens=max_tokens,
+                listener=listener,
+            )
 
     except Exception as exc:  # noqa: BLE001
-        err_console.print(f"[ERROR] Embedding/vector stage failed: {exc}")
+        err_console.print(f"[ERROR] Indexing pipeline failed: {exc}")
         raise typer.Exit(1) from exc
 
     elapsed = time.perf_counter() - t0

@@ -100,3 +100,36 @@ class HealthResponse(BaseModel):
     falkordb: str
     qdrant: str
     ollama: str
+
+
+# ── Indexing ───────────────────────────────────────────────────────────────────
+
+class IndexRequest(BaseModel):
+    """POST /graph/index body."""
+
+    repo_path: str = Field(..., description="Absolute path to repository root on filesystem.")
+    languages: list[str] = Field(["python"], description="Source languages to parse (python, java).")
+    repo_name: str | None = Field(None, description="Custom namespace name for the repository. Defaults to directory name.")
+    llm_extract: bool = Field(False, description="Run LLM-assisted extraction to supplement AST edges.")
+    max_tokens: int = Field(512, ge=1, le=4096, description="Max tokens per chunk.")
+
+
+class IndexTaskResponse(BaseModel):
+    """POST /graph/index response."""
+
+    task_id: str
+    status: str
+    repository: str
+
+
+class IndexTaskDetailResponse(BaseModel):
+    """GET /graph/index/tasks/{task_id} response."""
+
+    task_id: str
+    repository: str
+    status: str           # pending | running | completed | failed
+    created_at: str
+    completed_at: str | None = None
+    logs: list[str]
+    error: str | None = None
+

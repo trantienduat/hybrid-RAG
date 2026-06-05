@@ -200,4 +200,25 @@ environment:
 Once up and healthy, the services are accessible:
 * **Interactive UI & Visualizer:** `http://localhost:8000/`
 * **Swagger API Documentation:** `http://localhost:8000/docs`
+* **MCP SSE Server:** `http://localhost:8001/sse`
 * **Qdrant Dashboard:** `http://localhost:6333/dashboard`
+
+### 4. Ingest / Index Repositories in Containerized Mode
+Since the target codebase folders reside on your host filesystem (and are not mounted inside the Docker containers), you must run the indexing commands from your **host machine** (ensure your local virtual environment is active). The indexer will read the local files and write directly to the containerized database ports (`6379` and `6333` mapped on `localhost`):
+
+```bash
+# Ensure local virtual environment is active
+source .venv/bin/activate
+
+# 1. Index the Hybrid-RAG repo itself
+hybrid-rag index . --repo-name hybrid-rag
+
+# 2. Index all test fixtures (in correct order of dependencies for resolution)
+hybrid-rag index ./fixtures/small_repo --repo-name small-app
+hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
+hybrid-rag index ./fixtures/llama_index_core --repo-name llama-core
+
+# 3. Build architectural communities for all indexed codebases
+hybrid-rag community-build
+```
+Once indexed, the containerized REST API (`http://localhost:8000/`) and the containerized MCP server (`http://localhost:8001/sse`) will instantly have access to these codebases.

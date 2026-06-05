@@ -11,6 +11,8 @@ import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
@@ -21,6 +23,13 @@ logger = logging.getLogger("hybrid_rag.mcp")
 
 # Initialize FastMCP Server
 mcp = FastMCP("hybrid-rag")
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> Response:
+    """Check health of the MCP server."""
+    return JSONResponse({"status": "ok"})
+
 
 # ── Configuration from environment (aligned with REST API) ────────────────────
 

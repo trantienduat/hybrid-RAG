@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from hybrid_rag.mcp.server import (
     get_ast_neighbors,
     get_community_report,
+    health_check,
     list_repositories,
     query_codebase,
     search_ast_nodes,
@@ -123,3 +124,20 @@ class TestMCPServer:
         assert communities[0]["name"] == "Auth System"
         assert communities[0]["level"] == 0
         mock_graph_store.query.assert_called_once()
+
+    async def test_health_check(self):
+        from starlette.requests import Request
+        from starlette.datastructures import Headers
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/health",
+            "headers": Headers().raw,
+        }
+        mock_request = Request(scope)
+
+        resp = await health_check(mock_request)
+        assert resp.status_code == 200
+        assert b'"status":"ok"' in resp.body
+

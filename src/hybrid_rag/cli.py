@@ -1018,7 +1018,9 @@ def mcp(
     if transport == "stdio":
         mcp_server.run(transport="stdio")
     elif transport == "sse":
-        mcp_server.run(transport="sse", host=host, port=port)
+        mcp_server.settings.host = host
+        mcp_server.settings.port = port
+        mcp_server.run(transport="sse")
     else:
         err_console.print(f"[ERROR] Invalid transport: {transport}. Must be 'stdio' or 'sse'.")
         raise typer.Exit(1)

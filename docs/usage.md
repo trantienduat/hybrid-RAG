@@ -69,7 +69,7 @@ hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
 
 ## 🏛️ Graph Communities: Compiling Architecture summaries (Global Search)
 
-Once indexed, compile vĩ mô architecture community summaries (Microsoft GraphRAG Option A) using the `hybrid-rag community-build` command:
+Once indexed, compile macro architecture community summaries (Microsoft GraphRAG Option A) using the `hybrid-rag community-build` command:
 
 ```bash
 hybrid-rag community-build [OPTIONS]

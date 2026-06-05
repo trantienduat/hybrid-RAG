@@ -1,12 +1,14 @@
-import pytest
 from unittest.mock import MagicMock
 
-from hybrid_rag.graph.falkordb_store import FalkorDBStore
+import pytest
+
 from hybrid_rag.graph.community_builder import CommunityBuilder
+from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
+from hybrid_rag.ports.embedder import BaseEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.vector.qdrant_store import QdrantStore
-from hybrid_rag.ports.embedder import BaseEmbedder
+
 
 @pytest.fixture
 def active_graph_store():

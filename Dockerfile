@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+# Copy uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
 
 # Install system dependencies required for compiling tree-sitter binary bindings
@@ -14,8 +17,8 @@ COPY pyproject.toml .
 # Copy core source files
 COPY src/ ./src/
 
-# Install the application and its API dependencies natively inside the container
-RUN pip install --no-cache-dir .[api,mcp]
+# Install the application and its API dependencies natively inside the container using uv
+RUN uv pip install --system --no-cache-dir .[api,mcp]
 
 # Expose the FastAPI server default port
 EXPOSE 8000

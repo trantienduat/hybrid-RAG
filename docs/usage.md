@@ -148,6 +148,25 @@ The newly redesigned premium interface enables:
 
 ---
 
+## 🔌 Model Context Protocol (MCP) Integration
+
+Hybrid-RAG includes a local **Model Context Protocol (MCP) server** that exposes its optimized vector-graph retrieval engine to MCP-compatible IDE agents and clients (e.g. Antigravity IDE, Claude Desktop, Cline, Cursor, Windsurf).
+
+### Quick Start
+You can run the MCP server over standard input/output (stdio) directly via the CLI:
+```bash
+hybrid-rag mcp --transport stdio
+```
+
+Alternatively, you can run the MCP server over Server-Sent Events (SSE) network transport:
+```bash
+hybrid-rag mcp --transport sse --host localhost --port 8001
+```
+
+For detailed setup instructions, Mermaid architecture diagrams, and client integration configurations (including Antigravity, Claude Desktop, and VS Code), refer to the dedicated [MCP Integration Guide](mcp.md).
+
+---
+
 ## 📊 Evaluation & Diagnostics
 
 Run milestones, latency benchmarks, and RAGAS evaluations.

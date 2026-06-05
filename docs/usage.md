@@ -64,6 +64,20 @@ To enable the IDE agent to use the hybrid RAG index, copy and paste the configur
   }
 }
 ```
+> [!TIP]
+> **Running strictly containerized?**
+> If you prefer not to use the host-level virtual environment, you can configure the IDE to communicate with the running Docker container using a stdio bridge:
+> ```json
+> {
+>   "mcpServers": {
+>     "hybrid-rag": {
+>       "command": "docker",
+>       "args": ["exec", "-i", "hybrid-rag-mcp", "hybrid-rag", "mcp", "--transport", "stdio"]
+>     }
+>   }
+> }
+> ```
+
 *Once saved, reload the IDE window (e.g. `Developer: Reload Window` in VS Code) to activate the 5 new codebase tools in your chat agent.*
 
 ---

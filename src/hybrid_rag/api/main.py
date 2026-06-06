@@ -484,7 +484,7 @@ async def process_indexing_task(
                 vector_store=app_state.vector_store,
                 ollama_url=_OLLAMA_URL,
                 embed_model=_EMBED_MODEL,
-                llm_model=os.environ.get("LLM_MODEL") or "qwen2.5-coder:7b",
+                llm_model=os.environ.get("LLM_MODEL") or "gemma4:12b",
                 llm_extract=req.llm_extract,
                 max_tokens=req.max_tokens,
                 listener=ApiIndexingListener(),

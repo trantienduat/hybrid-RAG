@@ -4,6 +4,10 @@ services:
     container_name: falkordb
     ports:
       - "6379:6379"
+      - "8008:3000" # FalkorDB Browser UI
+    environment:
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - NEXTAUTH_SECRET=super_secret_nextauth_string_12345
     volumes:
       - falkordb_data:/var/lib/falkordb/data
     restart: unless-stopped

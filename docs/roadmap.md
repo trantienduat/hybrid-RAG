@@ -135,3 +135,9 @@ PR checklist:
 | 002 | AST parser: tree-sitter | Accepted |
 | 003 | Embedding model: nomic-embed-text | Accepted |
 | 004 | LLM: gemma4:12b | Accepted |
+
+---
+
+## Future Enhancements & Backlog
+
+- `[ ]` Leverage the advanced reasoning, multimodal, and structured output capabilities of the new Google Gemma 4 12B local model to optimize codebase relations extraction, agentic tool-use loops, and visual architecture diagram understanding.

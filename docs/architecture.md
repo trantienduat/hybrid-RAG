@@ -170,7 +170,7 @@ graph LR
 1.  **Repository Scoping:** Searches can be locked down to a single repository by providing a `--repo-name` payload filter to Qdrant and restricting FalkorDB seed node lookups.
 2.  **Token-Budget Context Assembly:** Prompts are packed dynamically using an AST-aware context builder. Results are popped from the RRF ranked queue and added to the prompt until a configured token threshold (`--max-tokens` or `--max-chars`) is hit. This prevents context window overflow and saves LLM attention.
 3.  **Reciprocal Rank Fusion (RRF):** Merges semantic vector listings with multi-hop structural graphs using a parameterized scoring formula:
-    $$score(d) = \sum_{r \in R} \frac{W_r}{k + rank_r(d)}$$
+    $$score(d) = \sum_\{r \in R\} \frac\{W_r\}\{k + rank_r(d)\}$$
     *   `k = 60` (optimal baseline)
     *   `W_graph = 3.0` for structural queries, `1.5` for hybrid queries.
 

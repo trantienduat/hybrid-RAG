@@ -55,6 +55,12 @@ def index(
         help="Run LLM-assisted extraction to supplement AST edges (slower, more complete).",
     ),
     max_tokens: int = typer.Option(512, help="Max tokens per chunk."),
+    exclude: list[str] = typer.Option(
+        None,
+        "--exclude",
+        "-e",
+        help="Folder or file name patterns to exclude from parsing (multi-value allowed).",
+    ),
 ) -> None:
     """Parse REPO and ingest code graph + embeddings into FalkorDB and Qdrant."""
     repo = repo.resolve()
@@ -114,6 +120,7 @@ def index(
                 llm_extract=llm_extract,
                 max_tokens=max_tokens,
                 listener=listener,
+                excludes=exclude,
             )
 
     except Exception as exc:  # noqa: BLE001

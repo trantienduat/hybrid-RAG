@@ -43,6 +43,7 @@ def run_indexing_pipeline(
     llm_extract: bool,
     max_tokens: int,
     listener: IndexingListener | None = None,
+    excludes: list[str] | None = None,
 ) -> dict[str, Any]:
     """Parse a code repository and ingest its code graph and embeddings.
 
@@ -70,7 +71,7 @@ def run_indexing_pipeline(
 
     # ── 1. Parse AST ───────────────────────────────────────────────────────────
     listener.on_step("parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None)
-    result = parse_repo(repo, languages=languages, repo_name=repo_name)
+    result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
     listener.on_step(
         "parse",
         f"AST parsing complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges, {len(result.errors)} errors.",

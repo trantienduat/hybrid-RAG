@@ -100,14 +100,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install .[dev,api]
+          uv pip install --system .[dev,api,mcp]
       - name: Run Pytest
         run: |
           pytest tests/ -v -m "not integration"

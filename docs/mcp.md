@@ -83,7 +83,7 @@ First, ensure that the `mcp` optional dependencies are installed in your Python 
 make install
 
 # Or manually:
-pip install -e ".[mcp]"
+uv pip install -e ".[mcp]"
 ```
 
 ### 1. Running over stdio (Standard Input/Output)

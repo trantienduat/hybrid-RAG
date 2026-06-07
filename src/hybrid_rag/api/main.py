@@ -54,11 +54,22 @@ from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.retrieval.query_analyzer import analyze
+from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
 logger = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).parent / "static"
+
+
+def _is_gemini_provider(model: str, provider_env_var: str | None = None) -> bool:
+    """Check if the given model or environment override indicates Gemini provider."""
+    if model.startswith("gemini") or model == "text-embedding-004":
+        return True
+    if provider_env_var and os.environ.get(provider_env_var) == "gemini":
+        return True
+    return False
+
 
 # ── Configuration from environment ────────────────────────────────────────────
 
@@ -81,13 +92,25 @@ _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("hybrid-rag API starting — initialising stores")
+    # Initialize OpenTelemetry Tracing for LLM Observability
+    initialize_tracing()
+
     app.state.graph_store = FalkorDBStore(
         host=_FALKORDB_HOST, port=_FALKORDB_PORT, graph_name=_FALKORDB_GRAPH
     )
     app.state.vector_store = QdrantStore(
         host=_QDRANT_HOST, port=_QDRANT_PORT, collection=_QDRANT_COLLECTION
     )
-    app.state.embedder = OllamaEmbedder(ollama_url=_OLLAMA_URL, model=_EMBED_MODEL)
+
+    if _is_gemini_provider(_EMBED_MODEL, "EMBED_PROVIDER"):
+        from hybrid_rag.ingestion.gemini_embedder import GeminiEmbedder
+
+        app.state.embedder = GeminiEmbedder(model=_EMBED_MODEL)
+        logger.info("Initialized GeminiEmbedder with model %s", _EMBED_MODEL)
+    else:
+        app.state.embedder = OllamaEmbedder(ollama_url=_OLLAMA_URL, model=_EMBED_MODEL)
+        logger.info("Initialized OllamaEmbedder with model %s", _EMBED_MODEL)
+
     app.state.retriever = HybridRetriever(
         graph_store=app.state.graph_store,
         vector_store=app.state.vector_store,
@@ -164,33 +187,114 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
     )
 
 
-async def _ollama_generate(prompt: str, model: str) -> str:
-    """Call Ollama /api/generate (non-streaming)."""
-    payload = {"model": model, "prompt": prompt, "stream": False}
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
-        resp.raise_for_status()
-        return resp.json().get("response", "")
+async def _llm_generate(prompt: str, model: str) -> str:
+    """Unified LLM generate helper supporting Ollama and Gemini with full tracing."""
+    is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
+
+    with start_span(
+        "llm_generate", {"model": model, "provider": "gemini" if is_gemini else "ollama"}
+    ):
+        if is_gemini:
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "GEMINI_API_KEY environment variable is not set. Please set GEMINI_API_KEY to use Gemini models, or switch to an Ollama model."
+                )
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.0},
+            }
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+                res_json = resp.json()
+
+                usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
+                if usage:
+                    prompt_tokens = (
+                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                    )
+                    candidates_tokens = (
+                        usage.get("candidatesTokenCount")
+                        or usage.get("candidates_token_count")
+                        or 0
+                    )
+                    total_tokens = (
+                        usage.get("totalTokenCount") or usage.get("total_token_count") or 0
+                    )
+                    logger.info(
+                        "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
+                        prompt_tokens,
+                        candidates_tokens,
+                        total_tokens,
+                    )
+
+                candidates = res_json.get("candidates", [])
+                if candidates:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts:
+                        return parts[0].get("text", "")
+                return ""
+        else:
+            payload = {"model": model, "prompt": prompt, "stream": False}
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
+                resp.raise_for_status()
+                return resp.json().get("response", "")
 
 
-async def _ollama_stream(prompt: str, model: str) -> AsyncIterator[str]:
-    """Yield SSE-formatted chunks from Ollama /api/generate (streaming)."""
-    payload = {"model": model, "prompt": prompt, "stream": True}
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                token = data.get("response", "")
-                done = bool(data.get("done", False))
-                yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
-                if done:
-                    break
+async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
+    """Unified LLM streaming helper supporting Ollama and Gemini (yielding event-stream format)."""
+    is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
+
+    if is_gemini:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "GEMINI_API_KEY environment variable is not set. Please set GEMINI_API_KEY to use Gemini models, or switch to an Ollama model."
+            )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.0},
+        }
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", url, json=payload) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    try:
+                        data = json.loads(line[6:])
+                    except json.JSONDecodeError:
+                        continue
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        content = candidates[0].get("content", {})
+                        parts = content.get("parts", [])
+                        if parts:
+                            token = parts[0].get("text", "")
+                            yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
+                yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
+    else:
+        payload = {"model": model, "prompt": prompt, "stream": True}
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    token = data.get("response", "")
+                    done = bool(data.get("done", False))
+                    yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
+                    if done:
+                        break
 
 
 # ── GET / ──────────────────────────────────────────────────────────────────────
@@ -252,64 +356,70 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     analysis = analyze(req.question)
     retriever: HybridRetriever = app.state.retriever
 
-    try:
-        # Route budget parameters
-        if req.max_tokens is None and req.max_chars is None:
-            ctx = retriever.retrieve_with_context(
-                req.question,
-                top_k=req.top_k,
-                max_tokens=None,
-                max_chars=None,
-                context_n=req.context_n,
-                repository=req.repository,
-            )
-        else:
-            ctx = retriever.retrieve_with_context(
-                req.question,
-                top_k=req.top_k,
-                max_tokens=req.max_tokens,
-                max_chars=req.max_chars,
-                repository=req.repository,
-            )
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Retrieval failed")
-        raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    with start_span(
+        "api_query_endpoint", {"question": req.question, "repository": req.repository or "all"}
+    ):
+        try:
+            # Route budget parameters
+            with start_span(
+                "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
+            ):
+                if req.max_tokens is None and req.max_chars is None:
+                    ctx = retriever.retrieve_with_context(
+                        req.question,
+                        top_k=req.top_k,
+                        max_tokens=None,
+                        max_chars=None,
+                        context_n=req.context_n,
+                        repository=req.repository,
+                    )
+                else:
+                    ctx = retriever.retrieve_with_context(
+                        req.question,
+                        top_k=req.top_k,
+                        max_tokens=req.max_tokens,
+                        max_chars=req.max_chars,
+                        repository=req.repository,
+                    )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Retrieval failed")
+            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    prompt = _build_prompt(
-        req.question,
-        ctx.text or "(no code context retrieved)",
-        is_global=(analysis.query_type == "global"),
-    )
-
-    try:
-        answer = await _ollama_generate(prompt, req.llm_model)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("LLM generation failed")
-        raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
-
-    latency_ms = (time.perf_counter() - t0) * 1000
-
-    # Build response sources from actually packed context chunks
-    sources = [
-        SourceChunk(
-            node_id=r.get("node_id", ""),
-            name=r.get("name", ""),
-            label=r.get("label", ""),
-            file_path=r.get("file_path", ""),
-            text=r.get("text", ""),
-            source=r.get("source", ""),
-            rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+        prompt = _build_prompt(
+            req.question,
+            ctx.text or "(no code context retrieved)",
+            is_global=(analysis.query_type == "global"),
         )
-        for r in ctx.chunks
-    ]
 
-    return QueryResponse(
-        question=req.question,
-        answer=answer,
-        query_type=analysis.query_type,
-        sources=sources,
-        latency_ms=round(latency_ms, 2),
-    )
+        try:
+            answer = await _llm_generate(prompt, req.llm_model)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("LLM generation failed")
+            raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
+
+        latency_ms = (time.perf_counter() - t0) * 1000
+
+        # Build response sources from actually packed context chunks
+        sources = [
+            SourceChunk(
+                node_id=r.get("node_id", ""),
+                name=r.get("name", ""),
+                label=r.get("label", ""),
+                file_path=r.get("file_path", ""),
+                text=r.get("text", ""),
+                source=r.get("source", ""),
+                rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+            )
+            for r in ctx.chunks
+        ]
+
+        return QueryResponse(
+            question=req.question,
+            answer=answer,
+            query_type=analysis.query_type,
+            sources=sources,
+            latency_ms=round(latency_ms, 2),
+        )
 
 
 # ── POST /query/stream ─────────────────────────────────────────────────────────
@@ -327,71 +437,77 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     analysis = analyze(req.question)
     retriever: HybridRetriever = app.state.retriever
 
-    try:
-        # Route budget parameters
-        if req.max_tokens is None and req.max_chars is None:
-            ctx = retriever.retrieve_with_context(
-                req.question,
-                top_k=req.top_k,
-                max_tokens=None,
-                max_chars=None,
-                context_n=req.context_n,
-                repository=req.repository,
-            )
-        else:
-            ctx = retriever.retrieve_with_context(
-                req.question,
-                top_k=req.top_k,
-                max_tokens=req.max_tokens,
-                max_chars=req.max_chars,
-                repository=req.repository,
-            )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    with start_span(
+        "api_query_stream", {"question": req.question, "repository": req.repository or "all"}
+    ):
+        try:
+            # Route budget parameters
+            with start_span(
+                "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
+            ):
+                if req.max_tokens is None and req.max_chars is None:
+                    ctx = retriever.retrieve_with_context(
+                        req.question,
+                        top_k=req.top_k,
+                        max_tokens=None,
+                        max_chars=None,
+                        context_n=req.context_n,
+                        repository=req.repository,
+                    )
+                else:
+                    ctx = retriever.retrieve_with_context(
+                        req.question,
+                        top_k=req.top_k,
+                        max_tokens=req.max_tokens,
+                        max_chars=req.max_chars,
+                        repository=req.repository,
+                    )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-    prompt = _build_prompt(
-        req.question,
-        ctx.text or "(no code context retrieved)",
-        is_global=(analysis.query_type == "global"),
-    )
-
-    sources_payload = [
-        {
-            "node_id": r.get("node_id", ""),
-            "name": r.get("name", ""),
-            "label": r.get("label", ""),
-            "file_path": r.get("file_path", ""),
-            "text": r.get("text", ""),
-            "source": r.get("source", ""),
-            "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
-        }
-        for r in ctx.chunks
-    ]
-
-    async def _event_stream() -> AsyncIterator[str]:
-        # First event: metadata
-        meta = json.dumps(
-            {
-                "token": "",
-                "done": False,
-                "sources": sources_payload,
-                "query_type": analysis.query_type,
-            }
+        prompt = _build_prompt(
+            req.question,
+            ctx.text or "(no code context retrieved)",
+            is_global=(analysis.query_type == "global"),
         )
-        yield f"data: {meta}\n\n"
 
-        # Stream LLM tokens
-        async for chunk in _ollama_stream(prompt, req.llm_model):
-            yield chunk
+        sources_payload = [
+            {
+                "node_id": r.get("node_id", ""),
+                "name": r.get("name", ""),
+                "label": r.get("label", ""),
+                "file_path": r.get("file_path", ""),
+                "text": r.get("text", ""),
+                "source": r.get("source", ""),
+                "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
+            }
+            for r in ctx.chunks
+        ]
 
-    return StreamingResponse(
-        _event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
+        async def _event_stream() -> AsyncIterator[str]:
+            # First event: metadata
+            meta = json.dumps(
+                {
+                    "token": "",
+                    "done": False,
+                    "sources": sources_payload,
+                    "query_type": analysis.query_type,
+                }
+            )
+            yield f"data: {meta}\n\n"
+
+            # Stream LLM tokens
+            async for chunk in _llm_stream(prompt, req.llm_model):
+                yield chunk
+
+        return StreamingResponse(
+            _event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
 
 # ── GET /graph/repositories ───────────────────────────────────────────────────

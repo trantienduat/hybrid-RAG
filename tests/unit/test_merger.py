@@ -2,12 +2,14 @@
 Unit tests for ingestion/merger.py.
 No external services required.
 """
+
 from __future__ import annotations
 
 from hybrid_rag.ingestion.merger import merge_supplemental
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
 
 def _node(label: str, node_id: str) -> NodeData:
     return NodeData(label=label, id=node_id, properties={"name": node_id})
@@ -28,6 +30,7 @@ def _base() -> ParseResult:
 
 
 # ── basic merge behaviour ─────────────────────────────────────────────────────
+
 
 class TestMergeSupplemental:
     def test_empty_extras_returns_base_unchanged(self):

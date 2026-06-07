@@ -6,6 +6,7 @@ or hybrid queries) expands to their direct neighbors to capture relationship con
 
 Depends only on the GraphStore port — fully vendor-neutral.
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,8 +18,8 @@ from hybrid_rag.retrieval.query_analyzer import QueryAnalysis
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TOP_K = 20
-_NEIGHBOR_SEEDS = 10   # expand neighbors from top N matched nodes
-_NEIGHBOR_LIMIT = 30   # neighbors per seed per direction (in + out queried separately)
+_NEIGHBOR_SEEDS = 10  # expand neighbors from top N matched nodes
+_NEIGHBOR_LIMIT = 30  # neighbors per seed per direction (in + out queried separately)
 
 
 class GraphRetriever:
@@ -82,18 +83,25 @@ class GraphRetriever:
                         nid = nb.get("dst_id", "")
                         if nid and nid not in seen_ids:
                             seen_ids.add(nid)
-                            results.append({
-                                "node_id": nid,
-                                "base_node_id": nid,
-                                "name": nb.get("dst_name", ""),
-                                "label": nb.get("dst_label", ""),
-                                "file_path": nb.get("dst_file_path", ""),
-                                "rel": nb.get("rel", ""),
-                                "text": "",
-                                "source": "graph",
-                            })
+                            results.append(
+                                {
+                                    "node_id": nid,
+                                    "base_node_id": nid,
+                                    "name": nb.get("dst_name", ""),
+                                    "label": nb.get("dst_label", ""),
+                                    "file_path": nb.get("dst_file_path", ""),
+                                    "rel": nb.get("rel", ""),
+                                    "text": "",
+                                    "source": "graph",
+                                }
+                            )
 
-        logger.debug("GraphRetriever: %d results for %r (scoped to repo=%s)", len(results), analysis, repository)
+        logger.debug(
+            "GraphRetriever: %d results for %r (scoped to repo=%s)",
+            len(results),
+            analysis,
+            repository,
+        )
         return results[:top_k]
 
 

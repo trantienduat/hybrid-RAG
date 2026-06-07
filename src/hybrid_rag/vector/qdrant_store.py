@@ -6,6 +6,7 @@ Swap this file for a different adapter (e.g. weaviate_store.py) to change backen
 
 Note: requires qdrant-client >= 1.12 (uses query_points, not deprecated .search).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -52,7 +53,10 @@ class QdrantStore(VectorStore):
         self._ensure_collection()
         logger.info(
             "QdrantStore connected: %s:%d collection=%s dim=%d",
-            self._host, self._port, self._collection, self._vector_size,
+            self._host,
+            self._port,
+            self._collection,
+            self._vector_size,
         )
 
     # ── VectorStore interface ─────────────────────────────────────
@@ -100,8 +104,7 @@ class QdrantStore(VectorStore):
         query_filter = None
         if filter_payload:
             conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filter_payload.items()
+                FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filter_payload.items()
             ]
             query_filter = Filter(must=conditions)
 
@@ -112,10 +115,7 @@ class QdrantStore(VectorStore):
             query_filter=query_filter,
             with_payload=True,
         ).points
-        return [
-            {**hit.payload, "score": hit.score, "point_id": str(hit.id)}
-            for hit in results
-        ]
+        return [{**hit.payload, "score": hit.score, "point_id": str(hit.id)} for hit in results]
 
     def point_count(self) -> int:
         info = self._client.get_collection(self._collection)

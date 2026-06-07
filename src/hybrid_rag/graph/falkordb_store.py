@@ -4,6 +4,7 @@ FalkorDB adapter — implements GraphStore port.
 Vendor: FalkorDB (Redis-protocol graph database).
 Swap this file for a different adapter (e.g. neo4j_store.py) to change backends.
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,7 +38,9 @@ class FalkorDBStore(GraphStore):
         self._graph_name = graph_name or os.environ.get("FALKORDB_GRAPH") or _DEFAULT_GRAPH
         self._db = falkordb.FalkorDB(host=self._host, port=self._port)
         self._graph = self._db.select_graph(self._graph_name)
-        logger.info("FalkorDBStore connected: %s:%d graph=%s", self._host, self._port, self._graph_name)
+        logger.info(
+            "FalkorDBStore connected: %s:%d graph=%s", self._host, self._port, self._graph_name
+        )
 
     # ── GraphStore interface ──────────────────────────────────────
 
@@ -75,7 +78,7 @@ class FalkorDBStore(GraphStore):
         """Find nodes whose name contains *name* (case-sensitive substring)."""
         if not name:
             return []
-        
+
         where_clauses = ["n.name CONTAINS $name"]
         params = {"name": name}
         if repository:
@@ -90,22 +93,26 @@ class FalkorDBStore(GraphStore):
 
         res = self._graph.query(cypher, params)
         results: list[dict[str, Any]] = []
-        for row in (res.result_set or []):
+        for row in res.result_set or []:
             node = row[0]
             props = getattr(node, "properties", {})
             labels = getattr(node, "labels", [])
-            results.append({
-                "node_id": props.get("id", ""),
-                "label": labels[0] if labels else "Unknown",
-                "name": props.get("name", ""),
-                "file_path": props.get("file_path", ""),
-                "repository": props.get("repository", ""),
-            })
+            results.append(
+                {
+                    "node_id": props.get("id", ""),
+                    "label": labels[0] if labels else "Unknown",
+                    "name": props.get("name", ""),
+                    "file_path": props.get("file_path", ""),
+                    "repository": props.get("repository", ""),
+                }
+            )
         return results
 
     def list_repositories(self) -> list[str]:
         """Return a list of all unique repository names in the graph."""
-        res = self._graph.query("MATCH (n) WHERE n.repository IS NOT NULL AND n.repository <> '' RETURN DISTINCT n.repository AS repo")
+        res = self._graph.query(
+            "MATCH (n) WHERE n.repository IS NOT NULL AND n.repository <> '' RETURN DISTINCT n.repository AS repo"
+        )
         return [str(row[0]) for row in (res.result_set or []) if row[0]]
 
     def find_neighbors(
@@ -123,35 +130,28 @@ class FalkorDBStore(GraphStore):
             # Variable-length path: return reachable endpoint nodes only
             hops = f"*1..{max_hops}"
             if direction == "out":
-                cypher = (
-                    f"MATCH (n {{id: $id}})-[{hops}]->(m) "
-                    f"RETURN m LIMIT {limit}"
-                )
+                cypher = f"MATCH (n {{id: $id}})-[{hops}]->(m) RETURN m LIMIT {limit}"
             elif direction == "in":
-                cypher = (
-                    f"MATCH (m)-[{hops}]->(n {{id: $id}}) "
-                    f"RETURN m LIMIT {limit}"
-                )
+                cypher = f"MATCH (m)-[{hops}]->(n {{id: $id}}) RETURN m LIMIT {limit}"
             else:
-                cypher = (
-                    f"MATCH (n {{id: $id}})-[{hops}]-(m) "
-                    f"RETURN m LIMIT {limit}"
-                )
+                cypher = f"MATCH (n {{id: $id}})-[{hops}]-(m) RETURN m LIMIT {limit}"
             res = self._graph.query(cypher, {"id": node_id})
             results: list[dict[str, Any]] = []
-            for row in (res.result_set or []):
+            for row in res.result_set or []:
                 m_node = row[0]
                 m_props = getattr(m_node, "properties", {})
                 m_labels = getattr(m_node, "labels", [])
-                results.append({
-                    "src_id": node_id,
-                    "rel": "REACHABLE",
-                    "dst_id": m_props.get("id", ""),
-                    "dst_label": m_labels[0] if m_labels else "Unknown",
-                    "dst_name": m_props.get("name", ""),
-                    "dst_file_path": m_props.get("file_path", ""),
-                    "dst_repository": m_props.get("repository", ""),
-                })
+                results.append(
+                    {
+                        "src_id": node_id,
+                        "rel": "REACHABLE",
+                        "dst_id": m_props.get("id", ""),
+                        "dst_label": m_labels[0] if m_labels else "Unknown",
+                        "dst_name": m_props.get("name", ""),
+                        "dst_file_path": m_props.get("file_path", ""),
+                        "dst_repository": m_props.get("repository", ""),
+                    }
+                )
             return results
 
         # Single-hop: include relationship type
@@ -172,19 +172,21 @@ class FalkorDBStore(GraphStore):
             )
         res = self._graph.query(cypher, {"id": node_id})
         results = []
-        for row in (res.result_set or []):
+        for row in res.result_set or []:
             rel_str, m_node = row[0], row[1]
             m_props = getattr(m_node, "properties", {})
             m_labels = getattr(m_node, "labels", [])
-            results.append({
-                "src_id": node_id,
-                "rel": rel_str,
-                "dst_id": m_props.get("id", ""),
-                "dst_label": m_labels[0] if m_labels else "Unknown",
-                "dst_name": m_props.get("name", ""),
-                "dst_file_path": m_props.get("file_path", ""),
-                "dst_repository": m_props.get("repository", ""),
-            })
+            results.append(
+                {
+                    "src_id": node_id,
+                    "rel": rel_str,
+                    "dst_id": m_props.get("id", ""),
+                    "dst_label": m_labels[0] if m_labels else "Unknown",
+                    "dst_name": m_props.get("name", ""),
+                    "dst_file_path": m_props.get("file_path", ""),
+                    "dst_repository": m_props.get("repository", ""),
+                }
+            )
         return results
 
     # ── Internal ──────────────────────────────────────────────────
@@ -194,10 +196,7 @@ class FalkorDBStore(GraphStore):
         for node in nodes:
             props = _sanitize(node.properties)
             props["id"] = node.id
-            cypher = (
-                f"MERGE (n:{node.label} {{id: $id}}) "
-                f"SET n += $props"
-            )
+            cypher = f"MERGE (n:{node.label} {{id: $id}}) SET n += $props"
             self._graph.query(cypher, {"id": node.id, "props": props})
             count += 1
         return count

@@ -11,6 +11,7 @@ that results have the correct shape and sources.
 
 Run: pytest tests/integration/test_retrieval_pipeline.py -v -m integration
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,9 +20,11 @@ import pytest
 
 # ── Service availability helpers ──────────────────────────────────
 
+
 def _falkordb_ok() -> bool:
     try:
         import falkordb
+
         db = falkordb.FalkorDB(host="localhost", port=6379)
         db.connection.ping()
         return True
@@ -32,6 +35,7 @@ def _falkordb_ok() -> bool:
 def _qdrant_ok() -> bool:
     try:
         from qdrant_client import QdrantClient
+
         c = QdrantClient(host="localhost", port=6333)
         c.get_collections()
         return True
@@ -42,6 +46,7 @@ def _qdrant_ok() -> bool:
 def _ollama_ok() -> bool:
     try:
         import httpx
+
         r = httpx.get("http://localhost:11434/api/tags", timeout=3)
         return r.status_code == 200
     except Exception:
@@ -61,6 +66,7 @@ _COLLECTION = "test_retrieval_m3"
 
 
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def indexed_retriever():
@@ -94,13 +100,15 @@ def indexed_retriever():
             seen_files.add(fp)
             for ch in chunk_file(_FIXTURE_REPO / fp, _FIXTURE_REPO):
                 emb = embedder.embed_query(ch.text)
-                all_chunks.append({
-                    "node_id": f"{ch.node_id}::{ch.chunk_index}",
-                    "label": ch.label,
-                    "file_path": ch.file_path,
-                    "text": ch.text,
-                    "embedding": emb,
-                })
+                all_chunks.append(
+                    {
+                        "node_id": f"{ch.node_id}::{ch.chunk_index}",
+                        "label": ch.label,
+                        "file_path": ch.file_path,
+                        "text": ch.text,
+                        "embedding": emb,
+                    }
+                )
     vector_store.upsert(all_chunks)
 
     retriever = HybridRetriever(
@@ -118,6 +126,7 @@ def indexed_retriever():
 
 # ── Tests ─────────────────────────────────────────────────────────
 
+
 @requires_services
 class TestHybridRetrieverIntegration:
     def test_retrieve_returns_results(self, indexed_retriever):
@@ -132,16 +141,12 @@ class TestHybridRetrieverIntegration:
             assert "source" in r
 
     def test_retrieve_with_context_has_text(self, indexed_retriever):
-        ctx = indexed_retriever.retrieve_with_context(
-            "explain the math utilities", top_k=5
-        )
+        ctx = indexed_retriever.retrieve_with_context("explain the math utilities", top_k=5)
         assert ctx.text
         assert ctx.metadata["total_results"] >= 0
 
     def test_structural_query_uses_graph(self, indexed_retriever):
-        results = indexed_retriever.retrieve(
-            "which functions are defined in math_utils?", top_k=10
-        )
+        results = indexed_retriever.retrieve("which functions are defined in math_utils?", top_k=10)
         sources = {r.get("source") for r in results}
         assert sources & {"graph", "hybrid"}
 

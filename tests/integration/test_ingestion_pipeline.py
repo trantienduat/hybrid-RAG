@@ -8,6 +8,7 @@ Requires live services:
 
 Run: pytest tests/integration/test_ingestion_pipeline.py -v -s
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,9 +17,11 @@ import pytest
 
 # ── Skip if services unavailable ──────────────────────────────────
 
+
 def _falkordb_ok() -> bool:
     try:
         import falkordb
+
         db = falkordb.FalkorDB(host="localhost", port=6379)
         db.connection.ping()
         return True
@@ -29,6 +32,7 @@ def _falkordb_ok() -> bool:
 def _qdrant_ok() -> bool:
     try:
         from qdrant_client import QdrantClient
+
         c = QdrantClient(host="localhost", port=6333)
         c.get_collections()
         return True
@@ -39,6 +43,7 @@ def _qdrant_ok() -> bool:
 def _ollama_ok() -> bool:
     try:
         import httpx
+
         r = httpx.get("http://localhost:11434/api/tags", timeout=3)
         return r.status_code == 200
     except Exception:
@@ -55,9 +60,11 @@ requires_services = pytest.mark.skipif(
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def graph_client():
     from hybrid_rag.graph.client import GraphClient
+
     client = GraphClient(graph_name="test_codebase")
     client.clear()
     yield client
@@ -67,6 +74,7 @@ def graph_client():
 @pytest.fixture(scope="module")
 def vector_client():
     from hybrid_rag.vector.client import VectorClient
+
     client = VectorClient(collection="test_code_chunks")
     client.clear()
     yield client
@@ -76,11 +84,13 @@ def vector_client():
 @pytest.fixture(scope="module")
 def embedder():
     from hybrid_rag.ingestion.embedder import Embedder
+
     with Embedder() as emb:
         yield emb
 
 
 # ── Helpers ───────────────────────────────────────────────────────
+
 
 def _fixture_file() -> Path:
     """Return path to parser.py as a small real-world fixture."""
@@ -89,11 +99,12 @@ def _fixture_file() -> Path:
 
 # ── Tests ─────────────────────────────────────────────────────────
 
+
 @requires_services
 class TestIngestionPipeline:
-
     def test_parse_produces_nodes_and_edges(self):
         from hybrid_rag.ingestion.parser import parse_file
+
         result = parse_file(_fixture_file(), Path("."))
         assert len(result.nodes) > 5, "Expected multiple nodes"
         assert len(result.edges) > 5, "Expected multiple edges"
@@ -102,6 +113,7 @@ class TestIngestionPipeline:
     def test_triplet_extraction(self):
         from hybrid_rag.ingestion.parser import parse_file
         from hybrid_rag.ingestion.triplet_extractor import extract_triples
+
         result = parse_file(_fixture_file(), Path("."))
         triples = extract_triples(result)
         assert len(triples) > 0
@@ -111,6 +123,7 @@ class TestIngestionPipeline:
 
     def test_graph_ingest(self, graph_client):
         from hybrid_rag.ingestion.parser import parse_file
+
         result = parse_file(_fixture_file(), Path("."))
         counts = graph_client.ingest(result)
         assert counts["nodes"] > 0
@@ -118,6 +131,7 @@ class TestIngestionPipeline:
 
     def test_embed_nodes(self, embedder):
         from hybrid_rag.ingestion.parser import parse_file
+
         result = parse_file(_fixture_file(), Path("."))
         chunks = embedder.embed_nodes(result.nodes)
         assert len(chunks) > 0
@@ -131,6 +145,7 @@ class TestIngestionPipeline:
 
     def test_vector_upsert(self, vector_client, embedder):
         from hybrid_rag.ingestion.parser import parse_file
+
         result = parse_file(_fixture_file(), Path("."))
         chunks = embedder.embed_nodes(result.nodes)
         count = vector_client.upsert(chunks)
@@ -149,6 +164,7 @@ class TestIngestionPipeline:
     def test_full_pipeline_single_file(self, graph_client, vector_client, embedder):
         """End-to-end: parse → graph → embed → vector."""
         from hybrid_rag.ingestion.parser import parse_file
+
         result = parse_file(_fixture_file(), Path("."))
 
         g_counts = graph_client.ingest(result)
@@ -168,9 +184,9 @@ class TestIngestionPipeline:
 
 # ── M2 Integration Tests ─────────────────────────────────────────
 
+
 @requires_services
 class TestM2Pipeline:
-
     def test_entity_resolver_cross_file_linking(self):
         """
         Parse both fixture files together so StringProcessor (string_helpers.py)
@@ -202,8 +218,14 @@ class TestM2Pipeline:
         result = parse_file(fixture_repo / "math_utils.py", fixture_repo)
 
         fn_id = next(n.id for n in result.nodes if n.label == "Function")
-        extra = [EdgeData(src_id=fn_id, rel="USES", dst_id="SomeClass",
-                          properties={"source": "llm", "confidence": 0.85})]
+        extra = [
+            EdgeData(
+                src_id=fn_id,
+                rel="USES",
+                dst_id="SomeClass",
+                properties={"source": "llm", "confidence": 0.85},
+            )
+        ]
 
         merged = merge_supplemental(result, extra)
 
@@ -227,7 +249,7 @@ class TestM2Pipeline:
 
         fixture_repo = Path("fixtures/small_repo")
         result = parse_repo(fixture_repo, languages=["python"])
-        result = merge_supplemental(result, [])   # no-op merge
+        result = merge_supplemental(result, [])  # no-op merge
         result = resolve(result)
 
         counts = graph_client.ingest(result)

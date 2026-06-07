@@ -3,47 +3,61 @@ API schemas — Pydantic request/response models for the hybrid-rag FastAPI serv
 
 M4 #28.
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
 # ── Request ────────────────────────────────────────────────────────────────────
 
+
 class QueryRequest(BaseModel):
     """POST /query body."""
 
-    question: str = Field(..., min_length=1, max_length=2000, description="Natural language question.")
-    top_k: int = Field(20, ge=1, le=100, description="Retrieval candidates before context assembly.")
+    question: str = Field(
+        ..., min_length=1, max_length=2000, description="Natural language question."
+    )
+    top_k: int = Field(
+        20, ge=1, le=100, description="Retrieval candidates before context assembly."
+    )
     context_n: int = Field(5, ge=1, le=20, description="Top results assembled for LLM context.")
-    max_tokens: int | None = Field(None, ge=1, le=16384, description="Maximum tokens for dynamic context budget.")
-    max_chars: int | None = Field(None, ge=1, le=65536, description="Maximum characters for dynamic context budget.")
+    max_tokens: int | None = Field(
+        None, ge=1, le=16384, description="Maximum tokens for dynamic context budget."
+    )
+    max_chars: int | None = Field(
+        None, ge=1, le=65536, description="Maximum characters for dynamic context budget."
+    )
     llm_model: str = Field("gemma4:12b", description="Ollama model name for generation.")
     stream: bool = Field(False, description="Set True to use SSE streaming endpoint instead.")
-    repository: str | None = Field(None, description="Optional repository name to filter search results and context by.")
+    repository: str | None = Field(
+        None, description="Optional repository name to filter search results and context by."
+    )
 
 
 # ── Source chunk ───────────────────────────────────────────────────────────────
+
 
 class SourceChunk(BaseModel):
     """One retrieved code chunk or graph node included in the context."""
 
     node_id: str
     name: str
-    label: str            # Module | Class | Function | Variable
+    label: str  # Module | Class | Function | Variable
     file_path: str
-    text: str             # code snippet text (empty for graph-only nodes)
-    source: str           # "graph" | "vector" | "hybrid"
+    text: str  # code snippet text (empty for graph-only nodes)
+    source: str  # "graph" | "vector" | "hybrid"
     rrf_score: float
 
 
 # ── Response ───────────────────────────────────────────────────────────────────
+
 
 class QueryResponse(BaseModel):
     """POST /query response."""
 
     question: str
     answer: str
-    query_type: str       # structural | semantic | hybrid | global
+    query_type: str  # structural | semantic | hybrid | global
     sources: list[SourceChunk]
     latency_ms: float
 
@@ -56,6 +70,7 @@ class StreamToken(BaseModel):
 
 
 # ── Graph exploration ──────────────────────────────────────────────────────────
+
 
 class GraphNode(BaseModel):
     id: str
@@ -93,10 +108,11 @@ class GraphSearchResponse(BaseModel):
 
 # ── Health ─────────────────────────────────────────────────────────────────────
 
+
 class HealthResponse(BaseModel):
     """GET /health response."""
 
-    status: str           # "ok" | "degraded"
+    status: str  # "ok" | "degraded"
     falkordb: str
     qdrant: str
     ollama: str
@@ -104,13 +120,20 @@ class HealthResponse(BaseModel):
 
 # ── Indexing ───────────────────────────────────────────────────────────────────
 
+
 class IndexRequest(BaseModel):
     """POST /graph/index body."""
 
     repo_path: str = Field(..., description="Absolute path to repository root on filesystem.")
-    languages: list[str] = Field(["python"], description="Source languages to parse (python, java).")
-    repo_name: str | None = Field(None, description="Custom namespace name for the repository. Defaults to directory name.")
-    llm_extract: bool = Field(False, description="Run LLM-assisted extraction to supplement AST edges.")
+    languages: list[str] = Field(
+        ["python"], description="Source languages to parse (python, java)."
+    )
+    repo_name: str | None = Field(
+        None, description="Custom namespace name for the repository. Defaults to directory name."
+    )
+    llm_extract: bool = Field(
+        False, description="Run LLM-assisted extraction to supplement AST edges."
+    )
     max_tokens: int = Field(512, ge=1, le=4096, description="Max tokens per chunk.")
 
 
@@ -127,9 +150,8 @@ class IndexTaskDetailResponse(BaseModel):
 
     task_id: str
     repository: str
-    status: str           # pending | running | completed | failed
+    status: str  # pending | running | completed | failed
     created_at: str
     completed_at: str | None = None
     logs: list[str]
     error: str | None = None
-

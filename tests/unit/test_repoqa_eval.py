@@ -1,6 +1,7 @@
 """
 Unit tests for the RepoQA evaluation pipeline.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,14 +23,14 @@ def test_load_repoqa_json(tmp_path: Path):
             "question": "A helper function to sum two values.",
             "target_function": "add",
             "file_path": "math_utils.py",
-            "notes": "notes context"
+            "notes": "notes context",
         },
         {
             "id": "repoqa-2",
             "question": "A helper function to subtract.",
             "target_function": "sub",
-            "file_path": "math_utils.py"
-        }
+            "file_path": "math_utils.py",
+        },
     ]
     json_file = tmp_path / "repoqa.json"
     with open(json_file, "w", encoding="utf-8") as f:
@@ -137,7 +138,7 @@ def test_find_target_rank():
     results = [
         {"name": "sub", "file_path": "math_utils.py"},
         {"name": "add_numbers", "file_path": "other.py"},
-        {"name": "add_numbers", "file_path": "src/math_utils.py"}, # Should match rank=3
+        {"name": "add_numbers", "file_path": "src/math_utils.py"},  # Should match rank=3
     ]
     rank = runner._find_target_rank(results, case)
     assert rank == 3
@@ -145,14 +146,17 @@ def test_find_target_rank():
     # 2. Match by node_id ending
     results_node_id = [
         {"node_id": "math_utils.py::sub", "file_path": "math_utils.py"},
-        {"node_id": "math_utils.py::add_numbers", "file_path": "math_utils.py"}, # Matches rank=2
+        {"node_id": "math_utils.py::add_numbers", "file_path": "math_utils.py"},  # Matches rank=2
     ]
     rank_node = runner._find_target_rank(results_node_id, case)
     assert rank_node == 2
 
     # 3. Match by base_node_id double colon pattern
     results_base = [
-        {"base_node_id": "src/math_utils.py::add_numbers::0", "file_path": "src/math_utils.py"}, # Matches rank=1
+        {
+            "base_node_id": "src/math_utils.py::add_numbers::0",
+            "file_path": "src/math_utils.py",
+        },  # Matches rank=1
     ]
     rank_base = runner._find_target_rank(results_base, case)
     assert rank_base == 1
@@ -172,9 +176,12 @@ def test_repoqa_runner_run(mock_retriever_class):
     # Hybrid returns math_utils.py::add_numbers
     # Vector returns other_file.py::other
     mock_retriever.retrieve.side_effect = lambda q, top_k, skip_graph=False: (
-        [{"name": "other_func", "file_path": "math_utils.py"}, {"name": "add_numbers", "file_path": "math_utils.py"}]
-        if not skip_graph else
-        [{"name": "other_func", "file_path": "math_utils.py"}]
+        [
+            {"name": "other_func", "file_path": "math_utils.py"},
+            {"name": "add_numbers", "file_path": "math_utils.py"},
+        ]
+        if not skip_graph
+        else [{"name": "other_func", "file_path": "math_utils.py"}]
     )
 
     graph_store = MagicMock()

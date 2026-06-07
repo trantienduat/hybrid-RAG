@@ -5,6 +5,7 @@ Embeds the query with the configured embedder, then runs cosine-similarity
 search on the vector store.  Thin wrapper over the VectorStore + BaseEmbedder
 ports — fully vendor-neutral.
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,10 +58,12 @@ class VectorRetriever:
         results: list[dict[str, Any]] = []
         for hit in hits:
             nid = hit.get("node_id", "")
-            results.append({
-                **hit,
-                "base_node_id": _base_node_id(nid),
-                "source": "vector",
-            })
+            results.append(
+                {
+                    **hit,
+                    "base_node_id": _base_node_id(nid),
+                    "source": "vector",
+                }
+            )
         logger.debug("VectorRetriever: %d hits for %r", len(results), query[:60])
         return results

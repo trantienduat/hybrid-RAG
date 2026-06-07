@@ -2,6 +2,7 @@
 Unit tests for ingestion/entity_resolver.py — including M2 cross-file class linking.
 No external services required.
 """
+
 from __future__ import annotations
 
 from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
@@ -9,19 +10,23 @@ from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _module(node_id: str, name: str, file_path: str, mod_type: str = "source") -> NodeData:
-    return NodeData(label="Module", id=node_id,
-                    properties={"name": name, "file_path": file_path, "type": mod_type})
+    return NodeData(
+        label="Module",
+        id=node_id,
+        properties={"name": name, "file_path": file_path, "type": mod_type},
+    )
 
 
 def _stub(name: str) -> NodeData:
-    return NodeData(label="Module", id=name,
-                    properties={"name": name, "file_path": "", "type": "external"})
+    return NodeData(
+        label="Module", id=name, properties={"name": name, "file_path": "", "type": "external"}
+    )
 
 
 def _class(node_id: str, name: str, file_path: str) -> NodeData:
-    return NodeData(label="Class", id=node_id,
-                    properties={"name": name, "file_path": file_path})
+    return NodeData(label="Class", id=node_id, properties={"name": name, "file_path": file_path})
 
 
 def _edge(src: str, rel: str, dst: str) -> EdgeData:
@@ -29,6 +34,7 @@ def _edge(src: str, rel: str, dst: str) -> EdgeData:
 
 
 # ── Module stub resolution (M1 behaviour preserved) ──────────────────────────
+
 
 class TestModuleStubResolution:
     def test_stub_replaced_by_real_module(self):
@@ -75,6 +81,7 @@ class TestModuleStubResolution:
 
 
 # ── Cross-file class linking (M2) ─────────────────────────────────────────────
+
 
 class TestCrossFileClassLinking:
     def test_inherits_stub_resolved_to_real_class(self):
@@ -152,6 +159,7 @@ class TestCrossFileClassLinking:
 
 
 # ── stub_count helper ─────────────────────────────────────────────────────────
+
 
 class TestStubCount:
     def test_counts_external_module_stubs(self):

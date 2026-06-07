@@ -4,6 +4,7 @@ Community Builder — partitions the codebase graph and compiles community summa
 Uses networkx Louvain clustering for community detection, Ollama local model for
 architectural summarization, and writes the resulting communities back to FalkorDB.
 """
+
 from __future__ import annotations
 
 import logging
@@ -92,7 +93,9 @@ class CommunityBuilder:
         # Filter out existing Community nodes to avoid recursive partitioning
         code_nodes = [n for n in nodes if n["label"] != "Community"]
         code_node_ids = {n["id"] for n in code_nodes}
-        code_edges = [e for e in edges if e["src_id"] in code_node_ids and e["dst_id"] in code_node_ids]
+        code_edges = [
+            e for e in edges if e["src_id"] in code_node_ids and e["dst_id"] in code_node_ids
+        ]
 
         logger.info("Fetched %d code nodes and %d code edges", len(code_nodes), len(code_edges))
 
@@ -112,7 +115,9 @@ class CommunityBuilder:
         try:
             communities_list = nx.algorithms.community.louvain_communities(G, resolution=resolution)
         except Exception as exc:
-            logger.error("Louvain community detection failed: %s. Falling back to single partition.", exc)
+            logger.error(
+                "Louvain community detection failed: %s. Falling back to single partition.", exc
+            )
             communities_list = [set(G.nodes)]
 
         logger.info("Detected %d communities", len(communities_list))
@@ -128,8 +133,13 @@ class CommunityBuilder:
 
         for comm_idx, comm_nodes in enumerate(communities_list):
             comm_id = f"community_lvl_0_{comm_idx}"
-            logger.info("Summarizing community %d/%d (%s) with %d nodes…",
-                        comm_idx + 1, len(communities_list), comm_id, len(comm_nodes))
+            logger.info(
+                "Summarizing community %d/%d (%s) with %d nodes…",
+                comm_idx + 1,
+                len(communities_list),
+                comm_id,
+                len(comm_nodes),
+            )
 
             # Filter entities in this community
             comm_entities = [G.nodes[nid] for nid in comm_nodes]
@@ -153,15 +163,20 @@ class CommunityBuilder:
                     else:
                         boundary_edges.append((src_id, rel, dst_id, node_to_comm.get(dst_id, -1)))
 
-            relation_list_str = "\n".join(
-                f"  • {src} -[:{rel}]-> {dst}"
-                for src, rel, dst in internal_edges
-            ) if internal_edges else "  • No internal relationships."
+            relation_list_str = (
+                "\n".join(f"  • {src} -[:{rel}]-> {dst}" for src, rel, dst in internal_edges)
+                if internal_edges
+                else "  • No internal relationships."
+            )
 
-            boundary_list_str = "\n".join(
-                f"  • {src} -[:{rel}]-> {dst} (Community #{target_idx})"
-                for src, rel, dst, target_idx in boundary_edges
-            ) if boundary_edges else "  • No external boundaries."
+            boundary_list_str = (
+                "\n".join(
+                    f"  • {src} -[:{rel}]-> {dst} (Community #{target_idx})"
+                    for src, rel, dst, target_idx in boundary_edges
+                )
+                if boundary_edges
+                else "  • No external boundaries."
+            )
 
             # Send to Ollama
             prompt = _USER_TEMPLATE.format(
@@ -174,12 +189,14 @@ class CommunityBuilder:
 
             title, summary = self._generate_community_report(comm_id, prompt)
 
-            compiled_communities.append({
-                "id": comm_id,
-                "name": title,
-                "summary": summary,
-                "nodes": list(comm_nodes),
-            })
+            compiled_communities.append(
+                {
+                    "id": comm_id,
+                    "name": title,
+                    "summary": summary,
+                    "nodes": list(comm_nodes),
+                }
+            )
 
         # ── 4. Write back to FalkorDB ─────────────────────────────────────────
         self._write_communities_to_db(compiled_communities, node_to_comm, code_edges)
@@ -201,14 +218,16 @@ class CommunityBuilder:
         try:
             res = self._store.query(cypher)
             results = []
-            for row in (res.result_set or []):
-                results.append({
-                    "id": row[0],
-                    "name": row[1],
-                    "label": row[2],
-                    "file_path": row[3],
-                    "repository": row[4],
-                })
+            for row in res.result_set or []:
+                results.append(
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "label": row[2],
+                        "file_path": row[3],
+                        "repository": row[4],
+                    }
+                )
             return results
         except Exception as exc:
             logger.error("Failed to fetch all nodes from FalkorDB: %s", exc)
@@ -220,12 +239,14 @@ class CommunityBuilder:
         try:
             res = self._store.query(cypher)
             results = []
-            for row in (res.result_set or []):
-                results.append({
-                    "src_id": row[0],
-                    "rel": row[1],
-                    "dst_id": row[2],
-                })
+            for row in res.result_set or []:
+                results.append(
+                    {
+                        "src_id": row[0],
+                        "rel": row[1],
+                        "dst_id": row[2],
+                    }
+                )
             return results
         except Exception as exc:
             logger.error("Failed to fetch all edges from FalkorDB: %s", exc)
@@ -271,9 +292,14 @@ class CommunityBuilder:
 
         except Exception as exc:
             logger.warning("Ollama generation failed for %s: %s. Using fallback.", comm_id, exc)
-            return f"Community {comm_id} (Summary Generation Failed)", f"System was unable to contact Ollama model {self._llm_model} to generate report: {exc}"
+            return (
+                f"Community {comm_id} (Summary Generation Failed)",
+                f"System was unable to contact Ollama model {self._llm_model} to generate report: {exc}",
+            )
 
-    def _write_trivial_community(self, nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> None:
+    def _write_trivial_community(
+        self, nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
+    ) -> None:
         """Fallback for trivial or empty codebases."""
         comm_id = "community_lvl_0_0"
         node_ids = [n["id"] for n in nodes]
@@ -283,12 +309,12 @@ class CommunityBuilder:
         self._store.query("MATCH (c:Community) DETACH DELETE c")
         self._store.query(
             "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
-            {"id": comm_id, "name": "Codebase Core Core", "summary": summary}
+            {"id": comm_id, "name": "Codebase Core Core", "summary": summary},
         )
         for nid in node_ids:
             self._store.query(
                 "MATCH (n) WHERE n.id = $node_id MATCH (c:Community) WHERE c.id = $comm_id MERGE (n)-[:IN_COMMUNITY]->(c)",
-                {"node_id": nid, "comm_id": comm_id}
+                {"node_id": nid, "comm_id": comm_id},
             )
 
     def _write_communities_to_db(
@@ -305,14 +331,14 @@ class CommunityBuilder:
         for comm in communities:
             self._store.query(
                 "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
-                {"id": comm["id"], "name": comm["name"], "summary": comm["summary"]}
+                {"id": comm["id"], "name": comm["name"], "summary": comm["summary"]},
             )
 
             # 3. Create IN_COMMUNITY relationships for all member nodes
             for node_id in comm["nodes"]:
                 self._store.query(
                     "MATCH (n) WHERE n.id = $node_id MATCH (c:Community) WHERE c.id = $comm_id MERGE (n)-[:IN_COMMUNITY]->(c)",
-                    {"node_id": node_id, "comm_id": comm["id"]}
+                    {"node_id": node_id, "comm_id": comm["id"]},
                 )
 
         # 4. Write inter-community dependencies (COMMUNITY_DEPENDS)
@@ -331,5 +357,5 @@ class CommunityBuilder:
             self._store.query(
                 "MATCH (a:Community {id: $src}) MATCH (b:Community {id: $dst}) "
                 "MERGE (a)-[r:COMMUNITY_DEPENDS]->(b) SET r.weight = $weight",
-                {"src": src_comm_id, "dst": dst_comm_id, "weight": weight}
+                {"src": src_comm_id, "dst": dst_comm_id, "weight": weight},
             )

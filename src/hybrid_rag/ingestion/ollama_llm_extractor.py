@@ -11,6 +11,7 @@ Extracts USES relationships from type annotations that AST cannot capture:
 The LLM is prompted to output structured JSON; confidence-filtered results
 are converted to EdgeData and returned. All errors are swallowed (returns []).
 """
+
 from __future__ import annotations
 
 import json
@@ -31,27 +32,96 @@ _HTTP_TIMEOUT = 60.0
 _MIN_CONFIDENCE = 0.7
 
 # Python builtins and typing primitives the LLM should NOT emit as dst_name
-_BUILTIN_TYPES: frozenset[str] = frozenset({
-    "str", "int", "float", "bool", "bytes", "bytearray", "memoryview",
-    "list", "dict", "set", "frozenset", "tuple", "range", "slice",
-    "type", "object", "None", "NoneType", "Ellipsis",
-    "Optional", "Union", "Any", "List", "Dict", "Set", "Tuple",
-    "Callable", "Type", "ClassVar", "Final", "Literal", "TypeVar",
-    "Sequence", "Iterable", "Iterator", "Generator", "AsyncGenerator",
-    "Awaitable", "Coroutine", "AsyncIterator", "AsyncIterable",
-    "IO", "TextIO", "BinaryIO", "Pattern", "Match",
-    "Path", "PurePath", "PosixPath", "WindowsPath",
-    "datetime", "date", "time", "timedelta",
-    "UUID", "Decimal", "Enum", "IntEnum", "Flag",
-    "T", "K", "V",  # common TypeVar names
-    "Self", "Never", "NoReturn", "LiteralString",
-    "override", "dataclass", "abstractmethod", "property",
-    "staticmethod", "classmethod",
-    "Exception", "BaseException", "ValueError", "TypeError",
-    "RuntimeError", "NotImplementedError", "AttributeError",
-    "KeyError", "IndexError", "StopIteration", "OSError",
-    "IOError", "FileNotFoundError", "PermissionError",
-})
+_BUILTIN_TYPES: frozenset[str] = frozenset(
+    {
+        "str",
+        "int",
+        "float",
+        "bool",
+        "bytes",
+        "bytearray",
+        "memoryview",
+        "list",
+        "dict",
+        "set",
+        "frozenset",
+        "tuple",
+        "range",
+        "slice",
+        "type",
+        "object",
+        "None",
+        "NoneType",
+        "Ellipsis",
+        "Optional",
+        "Union",
+        "Any",
+        "List",
+        "Dict",
+        "Set",
+        "Tuple",
+        "Callable",
+        "Type",
+        "ClassVar",
+        "Final",
+        "Literal",
+        "TypeVar",
+        "Sequence",
+        "Iterable",
+        "Iterator",
+        "Generator",
+        "AsyncGenerator",
+        "Awaitable",
+        "Coroutine",
+        "AsyncIterator",
+        "AsyncIterable",
+        "IO",
+        "TextIO",
+        "BinaryIO",
+        "Pattern",
+        "Match",
+        "Path",
+        "PurePath",
+        "PosixPath",
+        "WindowsPath",
+        "datetime",
+        "date",
+        "time",
+        "timedelta",
+        "UUID",
+        "Decimal",
+        "Enum",
+        "IntEnum",
+        "Flag",
+        "T",
+        "K",
+        "V",  # common TypeVar names
+        "Self",
+        "Never",
+        "NoReturn",
+        "LiteralString",
+        "override",
+        "dataclass",
+        "abstractmethod",
+        "property",
+        "staticmethod",
+        "classmethod",
+        "Exception",
+        "BaseException",
+        "ValueError",
+        "TypeError",
+        "RuntimeError",
+        "NotImplementedError",
+        "AttributeError",
+        "KeyError",
+        "IndexError",
+        "StopIteration",
+        "OSError",
+        "IOError",
+        "FileNotFoundError",
+        "PermissionError",
+    }
+)
 
 _SYSTEM_PROMPT = (
     "You are a code analysis assistant that extracts semantic relationships "
@@ -92,7 +162,9 @@ class OllamaLLMExtractor(BaseLLMExtractor):
         model: str | None = None,
         timeout: float = _HTTP_TIMEOUT,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip("/")
+        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
+            "/"
+        )
         self._model = model or os.environ.get("LLM_MODEL", _DEFAULT_MODEL)
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
@@ -108,7 +180,8 @@ class OllamaLLMExtractor(BaseLLMExtractor):
         """
         # Only process nodes with real file paths (skip external stubs)
         local_nodes = [
-            n for n in result.nodes
+            n
+            for n in result.nodes
             if n.properties.get("file_path") and n.properties.get("type") != "external"
         ]
         if not local_nodes:
@@ -128,8 +201,7 @@ class OllamaLLMExtractor(BaseLLMExtractor):
 
     def _build_prompt(self, source_text: str, nodes: list[NodeData]) -> str:
         node_list = "\n".join(
-            f"  {n.id}  ({n.label}: {n.properties.get('name', '')})"
-            for n in nodes
+            f"  {n.id}  ({n.label}: {n.properties.get('name', '')})" for n in nodes
         )
         # Truncate very long source to avoid exceeding context window (keep ~6000 chars)
         code = source_text[:6000]
@@ -216,12 +288,14 @@ class OllamaLLMExtractor(BaseLLMExtractor):
             if key in existing_edges:
                 continue
 
-            results.append(EdgeData(
-                src_id=src_id,
-                rel=rel,
-                dst_id=dst_id,
-                properties={"source": "llm", "confidence": confidence, "dst_name": dst_name},
-            ))
+            results.append(
+                EdgeData(
+                    src_id=src_id,
+                    rel=rel,
+                    dst_id=dst_id,
+                    properties={"source": "llm", "confidence": confidence, "dst_name": dst_name},
+                )
+            )
             existing_edges.add(key)
 
         logger.debug("LLM extractor: %d new edges extracted", len(results))

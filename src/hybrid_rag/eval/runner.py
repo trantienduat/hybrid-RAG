@@ -7,6 +7,7 @@ Usage::
     runner = EvalRunner(graph_store, vector_store, embedder)
     report = runner.run(EVAL_CORPUS, top_k=10)
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,7 +32,7 @@ def _extract_names(results: list[dict[str, Any]]) -> list[str]:
         # Strip chunk-index suffix (e.g. "::0") from node_id used as name
         if "::" in name and name.rsplit("::", 1)[-1].isdigit():
             name = name.rsplit("::", 1)[0]
-        
+
         # If FQN dot-notation is used, get the last part (simple name)
         if "." in name:
             name = name.rsplit(".", 1)[-1]
@@ -75,7 +76,7 @@ class EvalRunner:
         try:
             res = self._graph_store.query(case.ground_truth_cypher)
             names: set[str] = set()
-            for row in (res.result_set or []):
+            for row in res.result_set or []:
                 val = row[case.gt_col_index] if row else None
                 if val and isinstance(val, str) and val.strip():
                     names.add(val.strip())
@@ -246,4 +247,3 @@ class RepoQAEvalRunner:
             )
 
         return report
-

@@ -18,6 +18,7 @@ Usage::
     report = runner.run(EVAL_CORPUS[:5], top_k=20)
     print(report.summary())
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,13 +43,10 @@ _SYSTEM_PROMPT = (
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
+
 def _generate(ollama_url: str, model: str, question: str, context: str) -> tuple[str, float]:
     """Call Ollama /api/generate and return (answer, latency_ms)."""
-    prompt = (
-        f"{_SYSTEM_PROMPT}\n\n"
-        f"Context:\n{context}\n\n"
-        f"Question: {question}\n\nAnswer:"
-    )
+    prompt = f"{_SYSTEM_PROMPT}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
     t0 = time.perf_counter()
     with httpx.Client(timeout=120.0) as client:
         resp = client.post(
@@ -62,6 +60,7 @@ def _generate(ollama_url: str, model: str, question: str, context: str) -> tuple
 
 # ── Result dataclasses ────────────────────────────────────────────────────────
 
+
 @dataclass
 class RagasSample:
     """Inputs and outputs for one evaluation sample."""
@@ -70,7 +69,7 @@ class RagasSample:
     question: str
     hops: int
     query_type: str
-    context: str               # concatenated chunk texts
+    context: str  # concatenated chunk texts
     answer: str
     latency_ms: float
     faithfulness: float = 0.0
@@ -86,7 +85,7 @@ class RagasReport:
         if not self.samples:
             return "No samples evaluated."
         n = len(self.samples)
-        avg_f  = sum(s.faithfulness for s in self.samples) / n
+        avg_f = sum(s.faithfulness for s in self.samples) / n
         avg_ar = sum(s.answer_relevancy for s in self.samples) / n
         avg_cp = sum(s.context_precision for s in self.samples) / n
         avg_ms = sum(s.latency_ms for s in self.samples) / n
@@ -128,6 +127,7 @@ class RagasReport:
 
 
 # ── Runner ────────────────────────────────────────────────────────────────────
+
 
 class RagasRunner:
     """
@@ -173,7 +173,10 @@ class RagasRunner:
             samples.append(sample)
             logger.info(
                 "%s  faithfulness=%.2f  answer_relevancy=%.2f  latency=%.0fms",
-                case.id, sample.faithfulness, sample.answer_relevancy, sample.latency_ms,
+                case.id,
+                sample.faithfulness,
+                sample.answer_relevancy,
+                sample.latency_ms,
             )
 
         report = RagasReport(samples=samples)
@@ -187,14 +190,16 @@ class RagasRunner:
         results = self._retriever.retrieve(case.question, top_k=top_k)
         ctx_chunks = [r for r in results[:context_n] if r.get("text")]
         context = "\n\n".join(
-            f"[{r.get('label','')}] {r.get('name','')} ({r.get('file_path','')})\n{r['text']}"
+            f"[{r.get('label', '')}] {r.get('name', '')} ({r.get('file_path', '')})\n{r['text']}"
             for r in ctx_chunks
         )
         if not context:
             context = "(no code context retrieved)"
 
         try:
-            answer, latency_ms = _generate(self._ollama_url, self._llm_model, case.question, context)
+            answer, latency_ms = _generate(
+                self._ollama_url, self._llm_model, case.question, context
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM generation failed for %s: %s", case.id, exc)
             answer = ""
@@ -240,11 +245,13 @@ class RagasRunner:
         if not scored:
             return
 
-        dataset = Dataset.from_dict({
-            "question":  [s.question for s in scored],
-            "answer":    [s.answer for s in scored],
-            "contexts":  [[s.context] for s in scored],
-        })
+        dataset = Dataset.from_dict(
+            {
+                "question": [s.question for s in scored],
+                "answer": [s.answer for s in scored],
+                "contexts": [[s.context] for s in scored],
+            }
+        )
 
         try:
             result = evaluate(
@@ -253,9 +260,9 @@ class RagasRunner:
             )
             df = result.to_pandas()
             for i, s in enumerate(scored):
-                s.faithfulness       = float(df.iloc[i].get("faithfulness", 0.5))
-                s.answer_relevancy   = float(df.iloc[i].get("answer_relevancy", 0.5))
-                s.context_precision  = float(df.iloc[i].get("context_precision", 0.5))
+                s.faithfulness = float(df.iloc[i].get("faithfulness", 0.5))
+                s.answer_relevancy = float(df.iloc[i].get("answer_relevancy", 0.5))
+                s.context_precision = float(df.iloc[i].get("context_precision", 0.5))
         except Exception as exc:  # noqa: BLE001
             logger.warning("RAGAS scoring failed: %s — using neutral 0.5", exc)
             for s in scored:

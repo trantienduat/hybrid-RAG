@@ -7,6 +7,7 @@ Concrete adapters:
 Any future embedding backend (OpenAI, HuggingFace, Cohere…) must implement
 this interface. Business logic depends only on BaseEmbedder, never on a vendor.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

@@ -7,6 +7,7 @@ Public API:
       - Deduplicates edges by (src_id, rel, dst_id)
       - Adds minimal stub nodes for any endpoint not already in base
 """
+
 from __future__ import annotations
 
 import copy
@@ -32,9 +33,7 @@ def merge_supplemental(base: ParseResult, extra_edges: list[EdgeData]) -> ParseR
     )
 
     existing_node_ids: set[str] = {n.id for n in merged.nodes}
-    existing_edges: set[tuple[str, str, str]] = {
-        (e.src_id, e.rel, e.dst_id) for e in merged.edges
-    }
+    existing_edges: set[tuple[str, str, str]] = {(e.src_id, e.rel, e.dst_id) for e in merged.edges}
 
     for edge in extra_edges:
         key = (edge.src_id, edge.rel, edge.dst_id)
@@ -63,7 +62,7 @@ def _make_stub(node_id: str) -> NodeData:
     """
     if node_id.startswith("__call__"):
         label = "Function"
-        name = node_id[len("__call__"):]
+        name = node_id[len("__call__") :]
     else:
         label = "Module"
         name = node_id

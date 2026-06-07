@@ -2,6 +2,7 @@
 Unit tests for ingestion/parser.py + ingestion/triplet_extractor.py (roadmap #11).
 No external services required.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,6 +22,7 @@ _STRING_HELPERS = _FIXTURE_REPO / "string_helpers.py"
 
 
 # ── parse_file tests ──────────────────────────────────────────────────────────
+
 
 class TestParseFile:
     def test_returns_parse_result(self):
@@ -88,8 +90,11 @@ class TestParseFile:
 
     def test_parse_repo_collects_all_files(self):
         result = parse_repo(_FIXTURE_REPO, languages=["python"])
-        module_names = {n.properties["name"] for n in result.nodes if n.label == "Module"
-                        and n.properties.get("type") != "external"}
+        module_names = {
+            n.properties["name"]
+            for n in result.nodes
+            if n.label == "Module" and n.properties.get("type") != "external"
+        }
         assert "math_utils" in module_names
         assert "string_helpers" in module_names
 
@@ -107,6 +112,7 @@ class TestParseFile:
 
 
 # ── triplet extractor tests ───────────────────────────────────────────────────
+
 
 class TestTripletExtractor:
     def test_returns_triples(self):

@@ -8,6 +8,7 @@ with overlapping sliding windows so nothing exceeds the embedding token budget.
 chunk_file()  — main API: parse file → list[Chunk]
 chunk_nodes() — lower-level: NodeData list + source lines → list[Chunk]
 """
+
 from __future__ import annotations
 
 import textwrap
@@ -30,17 +31,19 @@ _CHUNK_LABELS: frozenset[str] = frozenset({"Function", "Class", "Module"})
 @dataclass
 class Chunk:
     """A text chunk ready for embedding and vector upsert."""
+
     node_id: str
-    chunk_index: int          # 0-based; >0 means this node was split
-    text: str                 # actual source text (possibly with header prefix)
-    label: str                # Module | Class | Function
+    chunk_index: int  # 0-based; >0 means this node was split
+    text: str  # actual source text (possibly with header prefix)
+    label: str  # Module | Class | Function
     file_path: str
-    start_line: int           # 1-based, line in original file
+    start_line: int  # 1-based, line in original file
     end_line: int
     properties: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
+
 
 def chunk_file(
     file_path: Path,
@@ -58,7 +61,9 @@ def chunk_file(
     except OSError:
         return []
 
-    return chunk_nodes(result.nodes, source_lines, max_tokens=max_tokens, overlap_tokens=overlap_tokens)
+    return chunk_nodes(
+        result.nodes, source_lines, max_tokens=max_tokens, overlap_tokens=overlap_tokens
+    )
 
 
 def chunk_nodes(
@@ -95,36 +100,41 @@ def chunk_nodes(
         header = _make_header(node)
 
         if len(node_text) <= max_chars:
-            chunks.append(Chunk(
-                node_id=node.id,
-                chunk_index=0,
-                text=f"{header}\n{node_text}" if header else node_text,
-                label=node.label,
-                file_path=node.properties.get("file_path", ""),
-                start_line=line_start,
-                end_line=line_end,
-                properties={"total_chunks": 1},
-            ))
+            chunks.append(
+                Chunk(
+                    node_id=node.id,
+                    chunk_index=0,
+                    text=f"{header}\n{node_text}" if header else node_text,
+                    label=node.label,
+                    file_path=node.properties.get("file_path", ""),
+                    start_line=line_start,
+                    end_line=line_end,
+                    properties={"total_chunks": 1},
+                )
+            )
         else:
             # Sliding window split
             sub_chunks = _split_text(node_text, max_chars, overlap_chars)
             total = len(sub_chunks)
             for idx, (sub_text, sl, el) in enumerate(sub_chunks):
-                chunks.append(Chunk(
-                    node_id=node.id,
-                    chunk_index=idx,
-                    text=f"{header}\n{sub_text}" if header else sub_text,
-                    label=node.label,
-                    file_path=node.properties.get("file_path", ""),
-                    start_line=line_start + sl,
-                    end_line=line_start + el,
-                    properties={"total_chunks": total},
-                ))
+                chunks.append(
+                    Chunk(
+                        node_id=node.id,
+                        chunk_index=idx,
+                        text=f"{header}\n{sub_text}" if header else sub_text,
+                        label=node.label,
+                        file_path=node.properties.get("file_path", ""),
+                        start_line=line_start + sl,
+                        end_line=line_start + el,
+                        properties={"total_chunks": total},
+                    )
+                )
 
     return chunks
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _make_header(node: NodeData) -> str:
     """One-line context prefix, e.g. '# [Function] MyClass.do_thing (file.py:42)'"""

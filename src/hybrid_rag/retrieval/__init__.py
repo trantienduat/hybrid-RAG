@@ -1,4 +1,5 @@
 """Hybrid retrieval pipeline — M3."""
+
 from hybrid_rag.retrieval.context_assembler import ContextAssembler, RetrievalContext
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.retrieval.query_analyzer import QueryAnalysis, QueryType, analyze

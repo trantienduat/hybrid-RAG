@@ -39,9 +39,7 @@ class TestIndexingPipeline:
             NodeData(id="mod1", label="Module", properties={"file_path": "a.py"}),
             NodeData(id="func1", label="Function", properties={"name": "foo", "file_path": "a.py"}),
         ]
-        mock_edges = [
-            EdgeData(src_id="mod1", rel="CONTAINS", dst_id="func1")
-        ]
+        mock_edges = [EdgeData(src_id="mod1", rel="CONTAINS", dst_id="func1")]
         mock_parse_repo.return_value = ParseResult(nodes=mock_nodes, edges=mock_edges, errors=[])
 
         # 2. Mock entity resolution
@@ -114,7 +112,7 @@ class TestIndexingPipeline:
     def test_run_indexing_pipeline_invalid_dir(self):
         mock_graph_store = MagicMock()
         mock_vector_store = MagicMock()
-        
+
         # Test directory checking
         invalid_path = Path("/does/not/exist/path/123")
         try:

@@ -70,7 +70,9 @@ def run_indexing_pipeline(
     from hybrid_rag.ingestion.parser import parse_file, parse_repo
 
     # ── 1. Parse AST ───────────────────────────────────────────────────────────
-    listener.on_step("parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None)
+    listener.on_step(
+        "parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None
+    )
     result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
     listener.on_step(
         "parse",
@@ -86,8 +88,12 @@ def run_indexing_pipeline(
         py_files = sorted(repo.rglob("*.py"))
         total_files = len(py_files)
 
-        listener.on_step("llm_extract", f"Starting LLM-assisted extraction for {total_files} Python files...", 0.0)
-        
+        listener.on_step(
+            "llm_extract",
+            f"Starting LLM-assisted extraction for {total_files} Python files...",
+            0.0,
+        )
+
         if total_files > 0:
             with OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model) as extractor:
                 for i, fp in enumerate(py_files, start=1):
@@ -98,17 +104,21 @@ def run_indexing_pipeline(
                         all_extra_edges.extend(extra)
                     except Exception as exc:  # noqa: BLE001
                         logger.debug("LLM extraction skipped %s: %s", fp, exc)
-                    
+
                     progress_val = float(i) / total_files
                     listener.on_step(
                         "llm_extract",
                         f"LLM extraction progress: processed {i}/{total_files} files ({len(all_extra_edges)} extra edges added).",
                         progress_val,
                     )
-            
+
             result = merge_supplemental(result, all_extra_edges)
-        
-        listener.on_step("llm_extract", f"LLM extraction complete. Total supplemental edges added: {len(all_extra_edges)}.", 1.0)
+
+        listener.on_step(
+            "llm_extract",
+            f"LLM extraction complete. Total supplemental edges added: {len(all_extra_edges)}.",
+            1.0,
+        )
     else:
         listener.on_step("llm_extract", "LLM-assisted extraction skipped.", 1.0)
 
@@ -148,16 +158,14 @@ def run_indexing_pipeline(
 
     # ── 5. Chunk + Embed + Vector Ingest ───────────────────────────────────────
     listener.on_step("embed_chunks", "Chunking source files for vector indexing...", 0.0)
-    
+
     source_lines: dict[str, list[str]] = {}
     for node in result.nodes:
         fp = node.properties.get("file_path", "")
         if fp and fp not in source_lines:
             abs_fp = repo / fp
             try:
-                source_lines[fp] = abs_fp.read_text(
-                    encoding="utf-8", errors="replace"
-                ).splitlines()
+                source_lines[fp] = abs_fp.read_text(encoding="utf-8", errors="replace").splitlines()
             except OSError:
                 source_lines[fp] = []
 
@@ -176,7 +184,11 @@ def run_indexing_pipeline(
     total_chunks = len(chunks_to_embed)
     all_chunks: list[dict] = []
 
-    listener.on_step("embed_chunks", f"Found {total_chunks} chunks to embed. Generating embeddings via Ollama...", 0.0)
+    listener.on_step(
+        "embed_chunks",
+        f"Found {total_chunks} chunks to embed. Generating embeddings via Ollama...",
+        0.0,
+    )
 
     if total_chunks > 0:
         with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
@@ -196,7 +208,7 @@ def run_indexing_pipeline(
                             "repository": repo_name,
                         }
                     )
-                
+
                 progress_val = float(min(i + len(batch), total_chunks)) / total_chunks
                 listener.on_step(
                     "embed_chunks",
@@ -206,10 +218,14 @@ def run_indexing_pipeline(
 
     listener.on_step("vector_write", f"Upserting {len(all_chunks)} chunks to Qdrant...", 0.0)
     upserted = vector_store.upsert(all_chunks)
-    listener.on_step("vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0)
+    listener.on_step(
+        "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
+    )
 
     elapsed = time.perf_counter() - t_start
-    listener.on_step("complete", f"Indexing pipeline completed successfully in {elapsed:.2f}s.", 1.0)
+    listener.on_step(
+        "complete", f"Indexing pipeline completed successfully in {elapsed:.2f}s.", 1.0
+    )
 
     return {
         "elapsed_seconds": elapsed,

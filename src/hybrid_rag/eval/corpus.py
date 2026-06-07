@@ -13,6 +13,7 @@ Each QueryCase defines:
 Ground truth is computed *dynamically* from the live graph, so the corpus stays
 correct regardless of which repository is indexed.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,18 +26,18 @@ class QueryCase:
     id: str
     question: str
     hops: int
-    query_type: str          # "structural" | "hybrid" | "semantic"
+    query_type: str  # "structural" | "hybrid" | "semantic"
     ground_truth_cypher: str
-    gt_col_index: int = 0    # column index in Cypher result for expected name
+    gt_col_index: int = 0  # column index in Cypher result for expected name
     notes: str = ""
 
 
 @dataclass(frozen=True)
 class RepoQACase:
     id: str
-    question: str          # Natural language function behavior description
-    target_function: str   # Name of function (e.g. "add")
-    file_path: str         # File containing the function (e.g. "math_utils.py")
+    question: str  # Natural language function behavior description
+    target_function: str  # Name of function (e.g. "add")
+    file_path: str  # File containing the function (e.g. "math_utils.py")
     notes: str = ""
 
 
@@ -63,7 +64,6 @@ def load_repoqa_json(filepath: Path | str) -> list[RepoQACase]:
     return cases
 
 
-
 # ── Q1-Q5: 1-hop ──────────────────────────────────────────────────────────────
 
 Q1 = QueryCase(
@@ -72,8 +72,7 @@ Q1 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'BaseRetriever'})-[:DEFINES]->(f:Function) "
-        "RETURN f.name"
+        "MATCH (c:Class {name:'BaseRetriever'})-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="1-hop DEFINES; large class with many methods",
 )
@@ -110,8 +109,7 @@ Q4 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class)-[:INHERITS]->(b:Class {name:'BaseSynthesizer'}) "
-        "RETURN c.name"
+        "MATCH (c:Class)-[:INHERITS]->(b:Class {name:'BaseSynthesizer'}) RETURN c.name"
     ),
     notes="1-hop INHERITS; expected 7 subclasses",
 )
@@ -122,8 +120,7 @@ Q5 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'VectorIndexRetriever'})-[:DEFINES]->(f:Function) "
-        "RETURN f.name"
+        "MATCH (c:Class {name:'VectorIndexRetriever'})-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="1-hop DEFINES; all methods of VectorIndexRetriever are relevant",
 )
@@ -148,8 +145,7 @@ Q7 = QueryCase(
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (f:Function)-[:CALLS]->(t:Function {name:'get_text_embedding'}) "
-        "RETURN f.name"
+        "MATCH (f:Function)-[:CALLS]->(t:Function {name:'get_text_embedding'}) RETURN f.name"
     ),
     notes="2-hop CALLS; callers of the embedding function",
 )
@@ -214,8 +210,7 @@ Q12 = QueryCase(
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'RetrieverQueryEngine'})-[:INHERITS*1..5]->(b:Class) "
-        "RETURN b.name"
+        "MATCH (c:Class {name:'RetrieverQueryEngine'})-[:INHERITS*1..5]->(b:Class) RETURN b.name"
     ),
     notes="3+-hop INHERITS chain; full ancestor hierarchy",
 )
@@ -239,10 +234,7 @@ Q14 = QueryCase(
     question="Trace all code paths from user calling index.as_query_engine() to when embeddings are generated.",
     hops=3,
     query_type="structural",
-    ground_truth_cypher=(
-        "MATCH (f:Function {name:'as_query_engine'}) "
-        "RETURN f.name"
-    ),
+    ground_truth_cypher=("MATCH (f:Function {name:'as_query_engine'}) RETURN f.name"),
     notes="Entry-point anchor for call-chain tracing",
 )
 
@@ -252,8 +244,7 @@ Q15 = QueryCase(
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'NodeWithScore'})-[:DEFINES]->(f:Function) "
-        "RETURN f.name"
+        "MATCH (c:Class {name:'NodeWithScore'})-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="NodeWithScore methods as blast radius anchor",
 )
@@ -335,13 +326,29 @@ Q20 = QueryCase(
 # ── Corpus registry ───────────────────────────────────────────────────────────
 
 EVAL_CORPUS: list[QueryCase] = [
-    Q1, Q2, Q3, Q4, Q5,
-    Q6, Q7, Q8, Q9, Q10,
-    Q11, Q12, Q13, Q14, Q15,
-    Q16, Q17, Q18, Q19, Q20,
+    Q1,
+    Q2,
+    Q3,
+    Q4,
+    Q5,
+    Q6,
+    Q7,
+    Q8,
+    Q9,
+    Q10,
+    Q11,
+    Q12,
+    Q13,
+    Q14,
+    Q15,
+    Q16,
+    Q17,
+    Q18,
+    Q19,
+    Q20,
 ]
 
-ONE_HOP   = [Q1, Q2, Q3, Q4, Q5]
-TWO_HOP   = [Q6, Q7, Q8, Q9, Q10]
+ONE_HOP = [Q1, Q2, Q3, Q4, Q5]
+TWO_HOP = [Q6, Q7, Q8, Q9, Q10]
 THREE_HOP = [Q11, Q12, Q13, Q14, Q15]
-HYBRID    = [Q16, Q17, Q18, Q19, Q20]
+HYBRID = [Q16, Q17, Q18, Q19, Q20]

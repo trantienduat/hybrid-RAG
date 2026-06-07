@@ -2,6 +2,7 @@
 Unit tests for ingestion/ollama_embedder.py.
 All HTTP calls are mocked — no Ollama service required.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -26,7 +27,9 @@ class TestOllamaEmbedder:
     def test_embed_query_success(self):
         embedder = _embedder()
         expected = [0.1] * 768
-        with patch.object(embedder._client, "post", return_value=_mock_response(expected)) as mock_post:
+        with patch.object(
+            embedder._client, "post", return_value=_mock_response(expected)
+        ) as mock_post:
             res = embedder.embed_query("hello world")
             assert res == expected
             mock_post.assert_called_once()
@@ -36,14 +39,14 @@ class TestOllamaEmbedder:
     def test_embed_texts_concurrent_success(self):
         embedder = _embedder()
         expected = [[0.1] * 768, [0.2] * 768, [0.3] * 768]
-        
+
         # We need mock responses for each call to post
         mock_posts = [
             _mock_response([0.1] * 768),
             _mock_response([0.2] * 768),
             _mock_response([0.3] * 768),
         ]
-        
+
         def side_effect(*args, **kwargs):
             return mock_posts.pop(0)
 
@@ -57,12 +60,12 @@ class TestOllamaEmbedder:
         monkeypatch.setenv("EMBED_CONCURRENCY", "1")
         embedder = _embedder()
         expected = [[0.1] * 768, [0.2] * 768]
-        
+
         mock_posts = [
             _mock_response([0.1] * 768),
             _mock_response([0.2] * 768),
         ]
-        
+
         def side_effect(*args, **kwargs):
             return mock_posts.pop(0)
 
@@ -73,12 +76,14 @@ class TestOllamaEmbedder:
 
     def test_embed_failsafe_permanent_failure(self):
         embedder = _embedder()
-        
+
         # Mock connection failure on every attempt
-        with patch.object(embedder._client, "post", side_effect=Exception("Connection refused")) as mock_post:
+        with patch.object(
+            embedder._client, "post", side_effect=Exception("Connection refused")
+        ) as mock_post:
             with patch("time.sleep") as mock_sleep:  # Mock sleep so tests are fast
                 res = embedder.embed_query("hello")
-                
+
                 # Should return zero-vector of length 768
                 assert res == [0.0] * 768
                 # 3 regular attempts + 1 fallback attempt = 4 total attempts
@@ -90,14 +95,16 @@ class TestOllamaEmbedder:
         embedder = _embedder()
         nodes = [
             NodeData(id="mod1", label="Module", properties={"file_path": "a.py", "type": "local"}),
-            NodeData(id="mod2", label="Module", properties={"file_path": "", "type": "external"}),  # External stub
+            NodeData(
+                id="mod2", label="Module", properties={"file_path": "", "type": "external"}
+            ),  # External stub
             NodeData(id="func1", label="Function", properties={"name": "foo", "file_path": "a.py"}),
         ]
-        
+
         expected = [0.1] * 768
         with patch.object(embedder._client, "post", return_value=_mock_response(expected)):
             chunks = embedder.embed_nodes(nodes)
-            
+
             # The external stub module is skipped, so only 2 chunks remain
             assert len(chunks) == 2
             assert chunks[0]["node_id"] == "mod1"

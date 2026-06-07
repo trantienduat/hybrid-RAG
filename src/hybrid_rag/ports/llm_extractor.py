@@ -7,6 +7,7 @@ Concrete adapters:
 Any future LLM backend (OpenAI, Anthropic, vLLM…) must implement this
 interface. Business logic depends only on BaseLLMExtractor.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

@@ -15,6 +15,7 @@ Public API:
   resolve(result: ParseResult) -> ParseResult
       Returns a NEW ParseResult with stubs merged and edges rewritten.
 """
+
 from __future__ import annotations
 
 import copy
@@ -36,8 +37,8 @@ def resolve(result: ParseResult) -> ParseResult:
     5. Drop stub nodes that were fully resolved
     """
     # Separate real vs stub nodes
-    real_modules: dict[str, str] = {}   # stem → real node id
-    real_classes: dict[str, str] = {}   # simple name → real node id
+    real_modules: dict[str, str] = {}  # stem → real node id
+    real_classes: dict[str, str] = {}  # simple name → real node id
     stub_ids: set[str] = set()
 
     for node in result.nodes:
@@ -88,7 +89,8 @@ def resolve(result: ParseResult) -> ParseResult:
 
     # Drop resolved stubs from node list
     resolved.nodes = [
-        n for n in resolved.nodes
+        n
+        for n in resolved.nodes
         if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
     ]
 
@@ -105,8 +107,7 @@ def resolve(result: ParseResult) -> ParseResult:
 def stub_count(result: ParseResult) -> int:
     """Return number of unresolved external stub Module nodes."""
     return sum(
-        1 for n in result.nodes
-        if n.label == "Module" and n.properties.get("type") == "external"
+        1 for n in result.nodes if n.label == "Module" and n.properties.get("type") == "external"
     )
 
 
@@ -118,7 +119,8 @@ def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
     """
     # 1. Gather unresolved external module stubs in the current parse results
     external_stubs = [
-        node.id for node in result.nodes
+        node.id
+        for node in result.nodes
         if node.label == "Module" and node.properties.get("type") == "external"
     ]
     if not external_stubs:
@@ -156,7 +158,8 @@ def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
 
     # 4. Remove resolved stubs from the node list
     resolved.nodes = [
-        n for n in resolved.nodes
+        n
+        for n in resolved.nodes
         if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
     ]
 

@@ -4,7 +4,7 @@ Unit tests for the indexing REST API endpoints.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -46,7 +46,7 @@ class TestApiIndexing:
 
             # Check it queued background task
             mock_process_task.assert_called_once()
-            
+
             # Check the task was registered in app state
             task_id = data["task_id"]
             assert task_id in app.state.indexing_tasks

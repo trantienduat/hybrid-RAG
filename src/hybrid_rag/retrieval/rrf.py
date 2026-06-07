@@ -12,6 +12,7 @@ Results are sorted by rrf_score descending; ties broken by first-seen order.
 Reference: Cormack, Clarke & Buettcher — "Reciprocal Rank Fusion outperforms
 Condorcet and individual rank learning methods", SIGIR 2009.
 """
+
 from __future__ import annotations
 
 from typing import Any

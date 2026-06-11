@@ -44,6 +44,7 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
+      - LLM_MODEL=gemma4:12b
     depends_on:
       falkordb:
         condition: service_healthy
@@ -72,6 +73,7 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
+      - LLM_MODEL=gemma4:12b
     depends_on:
       falkordb:
         condition: service_healthy

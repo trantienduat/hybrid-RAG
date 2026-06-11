@@ -73,12 +73,8 @@ def run_indexing_pipeline(
     listener.on_step(
         "parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None
     )
-<<<<<<< HEAD
-    result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
-=======
     with start_span("pipeline_parse_ast", {"repo": str(repo)}):
-        result = parse_repo(repo, languages=languages, repo_name=repo_name)
->>>>>>> ac87b82 (Complete implementation of LLM Observability & Tracing with Arize Phoenix & Gemini Cloud API integration)
+        result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
     listener.on_step(
         "parse",
         f"AST parsing complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges, {len(result.errors)} errors.",

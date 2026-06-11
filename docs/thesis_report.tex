@@ -9,6 +9,7 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{color}
+\usepackage{setspace}
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
@@ -18,7 +19,7 @@
     pdftitle={Thesis Report - Hybrid RAG},
 }
 
-% Định nghĩa màu sắc cho code block
+% Definition of colors for code blocks
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
@@ -61,6 +62,7 @@
             \textbf{\Large NGHIÊN CỨU VÀ XÂY DỰNG HỆ THỐNG TRUY VẤN MÃ NGUỒN DỰA TRÊN KIẾN TRÚC HYBRID-RAG KẾT HỢP ĐỒ THỊ TRI THỨC VÀ TÌM KIẾM NGỮ NGHĨA}
         \end{singlespace}
         \vfill
+        \vspace{1.5cm}
         \begin{tabular}{rll}
             Học viên: & Trần Tiến Đoạt \\
             Chuyên ngành: & Khoa học Máy tính \\
@@ -81,7 +83,7 @@
 \addcontentsline{toc}{chapter}{Tóm tắt Luận văn}
 Truy vấn mã nguồn là một bài toán phức tạp do mã nguồn chứa cả thông tin cú pháp (cấu trúc gọi hàm, kế thừa lớp, định nghĩa module) và thông tin ngữ nghĩa (chức năng của đoạn code). Các hệ thống RAG truyền thống dựa trên vector (Vector-only RAG) thường bỏ qua cấu trúc cú pháp của mã nguồn, dẫn đến hiệu năng kém khi xử lý các câu hỏi liên kết nhiều bước (multi-hop queries). 
 
-Luận văn này nghiên cứu và đề xuất kiến trúc **Hybrid-RAG** kết hợp Đồ thị tri thức (Knowledge Graph - sử dụng FalkorDB) và Cơ sở dữ liệu Vector (Vector Database - sử dụng Qdrant) để tối ưu hóa hiệu năng truy vấn mã nguồn. Hệ thống sử dụng thư viện Tree-Sitter để phân tích cú pháp AST, kết hợp thuật toán Reciprocal Rank Fusion (RRF) để trộn kết quả tìm kiếm cấu trúc và tìm kiếm ngữ nghĩa dưới một giới hạn token (Token-budget) chặt chẽ. Kết quả thực nghiệm trên kho mã nguồn LlamaIndex cho thấy kiến trúc Hybrid-RAG cải thiện đáng kể chỉ số Hit Rate @5 từ 0.308 (của Vector RAG) lên **0.615** (+0.308) tổng thể và lên **0.800** (+0.400) cho các câu hỏi 3 bước (3-hop). Đồng thời, hệ thống đảm bảo tính riêng tư dữ liệu tuyệt đối thông qua việc vận hành hoàn toàn offline trên phần cứng nội bộ.
+Luận văn này nghiên cứu và đề xuất kiến trúc \textbf{Hybrid-RAG} kết hợp Đồ thị tri thức (Knowledge Graph - sử dụng FalkorDB) và Cơ sở dữ liệu Vector (Vector Database - sử dụng Qdrant) để tối ưu hóa hiệu năng truy vấn mã nguồn. Hệ thống sử dụng thư viện Tree-Sitter để phân tích cú pháp AST, kết hợp thuật toán Reciprocal Rank Fusion (RRF) để trộn kết quả tìm kiếm cấu trúc và tìm kiếm ngữ nghĩa dưới một giới hạn token (Token-budget) chặt chẽ. Kết quả thực nghiệm trên kho mã nguồn LlamaIndex cho thấy kiến trúc Hybrid-RAG cải thiện đáng kể chỉ số Hit Rate @5 từ 0.308 (của Vector RAG) lên \textbf{0.615} (+0.308) tổng thể và lên \textbf{0.800} (+0.400) cho các câu hỏi 3 bước (3-hop). Đồng thời, hệ thống đảm bảo tính riêng tư dữ liệu tuyệt đối thông qua việc vận hành hoàn toàn offline trên phần cứng nội bộ.
 
 \newpage
 
@@ -104,12 +106,14 @@ Phương pháp Retrieval-Augmented Generation (RAG) ra đời để giải quy�
 
 \section{Bố cục luận văn}
 Luận văn gồm 6 chương:
-* **Chương 1:** Mở đầu.
-* **Chương 2:** Tổng quan nghiên cứu và Cơ sở lý thuyết.
-* **Chương 3:** Kiến trúc hệ thống Hybrid-RAG đề xuất.
-* **Chương 4:** Hiện thực hóa hệ thống.
-* **Chương 5:** Kết quả thực nghiệm và Thảo luận.
-* **Chương 6:** Kết luận và Hướng phát triển tương lai.
+\begin{itemize}
+    \item \textbf{Chương 1:} Mở đầu.
+    \item \textbf{Chương 2:} Tổng quan nghiên cứu và Cơ sở lý thuyết.
+    \item \textbf{Chương 3:} Kiến trúc hệ thống Hybrid-RAG đề xuất.
+    \item \textbf{Chương 4:} Hiện thực hóa hệ thống.
+    \item \textbf{Chương 5:} Kết quả thực nghiệm và Thảo luận.
+    \item \textbf{Chương 6:} Kết luận và Hướng phát triển tương lai.
+\end{itemize}
 
 \newpage
 
@@ -119,9 +123,11 @@ Luận văn gồm 6 chương:
 \chapter{Cơ sở lý thuyết}
 \section{Kiến trúc Retrieval-Augmented Generation (RAG)}
 RAG là một kỹ thuật tối ưu hóa đầu ra của LLM bằng cách tham chiếu đến nguồn tri thức bên ngoài trước khi sinh câu trả lời. Tiến trình RAG gồm 3 bước chính:
-1. **Indexing:** Chia nhỏ tài liệu (Chunking), sinh embeddings và lưu vào Vector Database.
-2. **Retrieval:** Nhận câu hỏi, tìm kiếm các chunk có độ tương đồng cosine cao nhất.
-3. **Generation:** Đưa câu hỏi và các chunk truy xuất được vào prompt làm ngữ cảnh cho LLM sinh câu trả lời.
+\begin{enumerate}
+    \item \textbf{Indexing:} Chia nhỏ tài liệu (Chunking), sinh embeddings và lưu vào Vector Database.
+    \item \textbf{Retrieval:} Nhận câu hỏi, tìm kiếm các chunk có độ tương đồng cosine cao nhất.
+    \item \textbf{Generation:} Đưa câu hỏi và các chunk truy xuất được vào prompt làm ngữ cảnh cho LLM sinh câu trả lời.
+\end{enumerate}
 
 \section{Đồ thị tri thức và GraphRAG}
 Đồ thị tri thức (Knowledge Graph) biểu diễn thông tin dưới dạng các thực thể (Nodes) và mối quan hệ (Edges). GraphRAG là sự cải tiến của RAG bằng cách thay thế hoặc bổ sung cơ sở dữ liệu Vector bằng Đồ thị tri thức. Đối với mã nguồn, đồ thị tri thức giúp biểu diễn các liên kết cú pháp tĩnh như:
@@ -139,23 +145,29 @@ Trong đó $M$ là tập các bộ truy xuất (Graph và Vector), $r_m(d)$ là 
 % CHƯƠNG 3: KIẾN TRÚC HỆ THỐNG ĐỀ XUẤT
 % ──────────────────────────────────────────────────────────────────────────────
 \chapter{Kiến trúc hệ thống Hybrid-RAG đề xuất}
-Hệ thống được thiết kế theo kiến trúc **Ports and Adapters** (Kiến trúc lục giác) nhằm đảm bảo tính độc lập và khả năng mở rộng cao. Sơ đồ dữ liệu đi qua 2 tiến trình chính: Ingestion và Retrieval.
+Hệ thống được thiết kế theo kiến trúc \textbf{Ports and Adapters} (Kiến trúc lục giác) nhằm đảm bảo tính độc lập và khả năng mở rộng cao. Sơ đồ dữ liệu đi qua 2 tiến trình chính: Ingestion và Retrieval.
 
 \section{Tiến trình Ingestion Pipeline}
 Tiến trình Indexing mã nguồn được thực hiện tuần tự như sau:
-1. **AST Parsing:** Dùng Tree-Sitter để phân tích mã nguồn thành các node `Module`, `Class`, `Function`, `Variable` cùng các mối quan hệ `DEFINES`, `INHERITS`, `CALLS`.
-2. **Global Entity Resolution:** Giải quyết các import ngoại vi và tham chiếu class chéo module để chuẩn hóa các liên kết trên toàn dự án (Cross-Repo Linking).
-3. **AST-Aware Chunking:** Phân mảnh mã nguồn dọc theo ranh giới của hàm hoặc class thu được từ AST thay vì phân chia theo số lượng ký tự tùy ý.
-4. **Ingestion Influx:** Đồng thời đẩy đồ thị thực thể vào FalkorDB và đẩy vector embeddings của các chunk (sử dụng model `nomic-embed-text`) vào Qdrant.
+\begin{enumerate}
+    \item \textbf{AST Parsing:} Dùng Tree-Sitter để phân tích mã nguồn thành các node \texttt{Module}, \texttt{Class}, \texttt{Function}, \texttt{Variable} cùng các mối quan hệ \texttt{DEFINES}, \texttt{INHERITS}, \texttt{CALLS}.
+    \item \textbf{Global Entity Resolution:} Giải quyết các import ngoại vi và tham chiếu class chéo module để chuẩn hóa các liên kết trên toàn dự án (Cross-Repo Linking).
+    \item \textbf{AST-Aware Chunking:} Phân mảnh mã nguồn dọc theo ranh giới của hàm hoặc class thu được từ AST thay vì phân chia theo số lượng ký tự tùy ý.
+    \item \textbf{Ingestion Influx:} Đồng thời đẩy đồ thị thực thể vào FalkorDB và đẩy vector embeddings của các chunk (sử dụng model \texttt{nomic-embed-text}) vào Qdrant.
+\end{enumerate}
 
 \section{Tiến trình Scoped Hybrid Retrieval}
 Khi người dùng đặt câu hỏi:
-1. **Query Analyzer:** Phân tích câu hỏi thuộc loại `structural` (cú pháp), `semantic` (ngữ nghĩa) hay `hybrid` (hỗn hợp) để trích xuất các từ khóa.
-2. **Parallel Retrieval:** Gửi truy vấn song song đến:
-   * **Graph Retriever:** Dịch các từ khóa thành câu lệnh Cypher tìm kiếm các node hạt giống và mở rộng từ 1 đến 2 bước (hops).
-   * **Vector Retriever:** Truy vấn tìm kiếm độ tương đồng vector trên Qdrant (áp dụng bộ lọc repository namespace).
-3. **RRF Merger:** Hợp nhất hai danh sách kết quả dựa trên trọng số $w_{graph} = 3.0$ và $w_{vector} = 1.5$.
-4. **Token-Budget Assembler:** Lắp ráp các code chunk vào prompt cho đến khi đạt giới hạn tối đa của cửa sổ ngữ cảnh LLM (`gemma4:12b`).
+\begin{enumerate}
+    \item \textbf{Query Analyzer:} Phân tích câu hỏi thuộc loại \texttt{structural} (cú pháp), \texttt{semantic} (ngữ nghĩa) hay \texttt{hybrid} (hỗn hợp) để trích xuất các từ khóa.
+    \item \textbf{Parallel Retrieval:} Gửi truy vấn song song đến:
+    \begin{itemize}
+        \item \textbf{Graph Retriever:} Dịch các từ khóa thành câu lệnh Cypher tìm kiếm các node hạt giống và mở rộng từ 1 đến 2 bước (hops).
+        \item \textbf{Vector Retriever:} Truy vấn tìm kiếm độ tương đồng vector trên Qdrant (áp dụng bộ lọc repository namespace).
+    \end{itemize}
+    \item \textbf{RRF Merger:} Hợp nhất hai danh sách kết quả dựa trên trọng số $w_{graph} = 3.0$ và $w_{vector} = 1.5$.
+    \item \textbf{Token-Budget Assembler:} Lắp ráp các code chunk vào prompt cho đến khi đạt giới hạn tối đa của cửa sổ ngữ cảnh LLM (\texttt{gemma4:12b}).
+\end{enumerate}
 
 \newpage
 
@@ -199,7 +211,7 @@ def initialize_tracing():
 \chapter{Kết quả thực nghiệm và Thảo luận}
 
 \section{Thiết lập thực nghiệm}
-Hệ thống được thử nghiệm trên kho mã nguồn thư viện **LlamaIndex** (Python) chạy cục bộ. Thiết bị thử nghiệm: Apple Mac Studio (M2 Max, 64GB Unified Memory), hệ điều hành macOS, chạy offline hoàn toàn. Mô hình cục bộ được sử dụng: `gemma4:12b` (GPU-accelerated qua Ollama Cask) và `nomic-embed-text` (cho embeddings).
+Hệ thống được thử nghiệm trên kho mã nguồn thư viện \textbf{LlamaIndex} (Python) chạy cục bộ. Thiết bị thử nghiệm: Apple Mac Studio (M2 Max, 64GB Unified Memory), hệ điều hành macOS, chạy offline hoàn toàn. Mô hình cục bộ được sử dụng: \texttt{gemma4:12b} (GPU-accelerated qua Ollama Cask) và \texttt{nomic-embed-text} (cho embeddings).
 
 \section{Kết quả so sánh hiệu năng truy xuất}
 Hệ thống được kiểm thử bằng bộ 20 câu hỏi multi-hop phân cấp từ 1 đến 3 bước. Kết quả so sánh Hit Rate tại K=5 giữa Vector-only RAG truyền thống và kiến trúc Hybrid-RAG được thể hiện trong Bảng \ref{tab:comparison}:
@@ -222,9 +234,11 @@ Hệ thống được kiểm thử bằng bộ 20 câu hỏi multi-hop phân c�
 
 \section{Đánh giá chất lượng bằng Ragas}
 Khi đánh giá câu trả lời của LLM thông qua Ragas:
-*   Chỉ số **Faithfulness** (độ trung thực của câu trả lời so với ngữ cảnh): Đạt **0.86** (vượt chỉ tiêu $\ge 0.80$).
-*   Chỉ số **Answer Relevancy** (độ liên quan của câu trả lời so với câu hỏi): Đạt **0.78** (vượt chỉ tiêu $\ge 0.75$).
-*   **Độ trễ (Latency)**: Đối với các truy vấn cấu trúc mảng graph, độ trễ trung bình p95 đạt **0.85 giây** (thỏa mãn yêu cầu $< 1$ giây).
+\begin{itemize}
+    \item Chỉ số \textbf{Faithfulness} (độ trung thực của câu trả lời so với ngữ cảnh): Đạt \textbf{0.86} (vượt chỉ tiêu $\ge 0.80$).
+    \item Chỉ số \textbf{Answer Relevancy} (độ liên quan của câu trả lời so với câu hỏi): Đạt \textbf{0.78} (vượt chỉ tiêu $\ge 0.75$).
+    \item \textbf{Độ trễ (Latency)}: Đối với các truy vấn cấu trúc mảng graph, độ trễ trung bình p95 đạt \textbf{0.85 giây} (thỏa mãn yêu cầu $< 1$ giây).
+\end{itemize}
 
 \newpage
 
@@ -235,14 +249,18 @@ Khi đánh giá câu trả lời của LLM thông qua Ragas:
 
 \section{Kết luận}
 Luận văn đã hoàn thành đầy đủ các mục tiêu đề ra:
-1. Hiện thực hóa thành công kiến trúc Hybrid-RAG chạy hoàn toàn cục bộ, bảo vệ quyền riêng tư dữ liệu.
-2. Xây dựng bộ công cụ phân tích cú pháp tĩnh Tree-Sitter và nạp dữ liệu đồ thị, vector tối ưu.
-3. Chứng minh thực nghiệm hiệu quả vượt trội của Hybrid-RAG so với Vector RAG truyền thống đối với các câu hỏi cấu trúc mã nguồn liên kết nhiều bước.
-4. Triển khai giao diện visual trực quan hỗ trợ lập trình viên khám phá đồ thị tri thức mã nguồn.
+\begin{enumerate}
+    \item Hiện thực hóa thành công kiến trúc Hybrid-RAG chạy hoàn toàn cục bộ, bảo vệ quyền riêng tư dữ liệu.
+    \item Xây dựng bộ công cụ phân tích cú pháp tĩnh Tree-Sitter và nạp dữ liệu đồ thị, vector tối ưu.
+    \item Chứng minh thực nghiệm hiệu quả vượt trội của Hybrid-RAG so với Vector RAG truyền thống đối với các câu hỏi cấu trúc mã nguồn liên kết nhiều bước.
+    \item Triển khai giao diện visual trực quan hỗ trợ lập trình viên khám phá đồ thị tri thức mã nguồn.
+\end{enumerate}
 
 \section{Hướng phát triển tương lai}
-*   **Hỗ trợ đa ngôn ngữ:** Mở rộng bộ phân tích cú pháp AST cho các ngôn ngữ khác như Java, Go, và TypeScript.
-*   **Index lũy tiến (Incremental Indexing):** Chỉ chạy index lại các file mã nguồn có thay đổi nội dung (quét SHA-256) để tăng tốc độ nạp dự án lớn.
-*   **Gom cụm phân cấp (Hierarchical GraphRAG):** Triển khai tóm tắt cộng đồng Louvain đa cấp đệ quy để giải quyết các câu hỏi cấu trúc quy mô lớn tốt hơn.
+\begin{itemize}
+    \item \textbf{Hỗ trợ đa ngôn ngữ:} Mở rộng bộ phân tích cú pháp AST cho các ngôn ngữ khác như Java, Go, và TypeScript.
+    \item \textbf{Index lũy tiến (Incremental Indexing):} Chỉ chạy index lại các file mã nguồn có thay đổi nội dung (quét SHA-256) để tăng tốc độ nạp dự án lớn.
+    \item \textbf{Gom cụm phân cấp (Hierarchical GraphRAG):} Triển khai tóm tắt cộng đồng Louvain đa cấp đệ quy để giải quyết các câu hỏi cấu trúc quy mô lớn tốt hơn.
+\end{itemize}
 
 \end{document}

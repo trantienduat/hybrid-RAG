@@ -78,7 +78,9 @@ class GeminiEmbedder(BaseEmbedder):
     ) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
         if not self._api_key:
-            logger.warning("GEMINI_API_KEY is not set. Gemini requests will fail.")
+            raise ValueError(
+                "GEMINI_API_KEY is not set. Please set the environment variable or pass the api_key parameter."
+            )
         self._model = model or os.environ.get("EMBED_MODEL", _DEFAULT_GEMINI_MODEL)
         self._client = httpx.Client(timeout=_HTTP_TIMEOUT)
 
@@ -118,10 +120,6 @@ class GeminiEmbedder(BaseEmbedder):
         if not texts:
             return []
 
-        # If API key is missing, return list of zero-vectors
-        if not self._api_key:
-            return [[0.0] * 768 for _ in texts]
-
         # Gemini supports batch embedding via batchEmbedContents
         results: list[list[float]] = []
         batch_size = 100  # Gemini limits batch size
@@ -142,9 +140,6 @@ class GeminiEmbedder(BaseEmbedder):
                 "Embedding text truncated from %d to %d chars", len(text), _MAX_TEXT_LENGTH
             )
             text = text[:_MAX_TEXT_LENGTH]
-
-        if not self._api_key:
-            return [0.0] * 768
 
         retries = 3
         backoff = 1.5
@@ -174,29 +169,43 @@ class GeminiEmbedder(BaseEmbedder):
 
                     return embedding_values
 
-                except Exception as exc:
+                except httpx.HTTPStatusError as exc:
+                    span.record_exception(exc)
+                    status_code = exc.response.status_code
+                    # Don't retry on client errors (4xx) except for rate limits (429)
+                    if status_code != 429 and status_code < 500:
+                        logger.error(
+                            "Permanent Gemini embedding API error (HTTP %d): %s", status_code, exc
+                        )
+                        raise
+
                     logger.warning(
-                        "Gemini embedding attempt %d/%d failed for text (len=%d): %s",
+                        "Gemini embedding HTTP status error (HTTP %d, attempt %d/%d): %s",
+                        status_code,
                         attempt,
                         retries,
-                        len(text),
                         exc,
                     )
-                    span.record_exception(exc)
                     if attempt == retries:
-                        logger.error(
-                            "All embedding attempts failed: %s. Returning zero-vector.", exc
-                        )
-                        return [0.0] * 768
+                        raise
                     time.sleep(backoff**attempt)
 
-        return [0.0] * 768
+                except httpx.RequestError as exc:
+                    span.record_exception(exc)
+                    logger.warning(
+                        "Gemini embedding network error (attempt %d/%d): %s",
+                        attempt,
+                        retries,
+                        exc,
+                    )
+                    if attempt == retries:
+                        raise
+                    time.sleep(backoff**attempt)
+
+        raise RuntimeError("All embedding attempts failed due to rate limits or transient errors.")
 
     def _embed_batch(self, batch_texts: list[str]) -> list[list[float]]:
         """Call Gemini batchEmbedContents REST API endpoint directly."""
-        if not self._api_key:
-            return [[0.0] * 768 for _ in batch_texts]
-
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:batchEmbedContents?key={self._api_key}"
 
         requests = []
@@ -237,9 +246,9 @@ class GeminiEmbedder(BaseEmbedder):
                 return embeddings
 
             except Exception as exc:
-                logger.error("Gemini batch embedding failed: %s. Returning zero-vectors.", exc)
+                logger.error("Gemini batch embedding failed: %s", exc)
                 span.record_exception(exc)
-                return [[0.0] * 768 for _ in batch_texts]
+                raise
 
     def close(self) -> None:
         self._client.close()

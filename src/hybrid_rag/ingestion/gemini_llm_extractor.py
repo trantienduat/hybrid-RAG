@@ -161,7 +161,9 @@ class GeminiLLMExtractor(BaseLLMExtractor):
     ) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
         if not self._api_key:
-            logger.warning("GEMINI_API_KEY is not set. Gemini requests will fail.")
+            raise ValueError(
+                "GEMINI_API_KEY is not set. Please set the environment variable or pass the api_key parameter."
+            )
         self._model = model or os.environ.get("LLM_MODEL", _DEFAULT_GEMINI_MODEL)
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
@@ -173,7 +175,6 @@ class GeminiLLMExtractor(BaseLLMExtractor):
         Extract USES edges from type annotations in source_text.
 
         Uses the node IDs in result as candidate src_ids.
-        Returns [] on any error (never raises).
         """
         # Only process nodes with real file paths (skip external stubs)
         local_nodes = [
@@ -186,9 +187,6 @@ class GeminiLLMExtractor(BaseLLMExtractor):
 
         prompt = self._build_prompt(source_text, local_nodes)
         raw_response = self._call_gemini(prompt)
-        if raw_response is None:
-            return []
-
         return self._parse_response(raw_response, result)
 
     def close(self) -> None:
@@ -206,11 +204,8 @@ class GeminiLLMExtractor(BaseLLMExtractor):
             code += "\n# ... (truncated)"
         return _USER_TEMPLATE.format(node_list=node_list, source_code=code)
 
-    def _call_gemini(self, prompt: str) -> str | None:
-        """POST to Gemini generateContent. Returns response text or None on failure."""
-        if not self._api_key:
-            return None
-
+    def _call_gemini(self, prompt: str) -> str:
+        """POST to Gemini generateContent. Returns response text or raises on failure."""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent?key={self._api_key}"
         payload: dict[str, Any] = {
             "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
@@ -260,12 +255,12 @@ class GeminiLLMExtractor(BaseLLMExtractor):
                     if parts:
                         return parts[0].get("text", "")
 
-                return None
+                raise RuntimeError("Empty response received from Gemini generateContent API.")
 
             except Exception as exc:
-                logger.warning("Gemini extractor error: %s", exc)
+                logger.error("Gemini extractor API error: %s", exc)
                 span.record_exception(exc)
-                return None
+                raise
 
     def _parse_response(self, raw: str, result: ParseResult) -> list[EdgeData]:
         """Parse JSON response and convert to EdgeData list."""

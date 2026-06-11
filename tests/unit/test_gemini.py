@@ -53,12 +53,12 @@ class TestGeminiEmbedder:
             assert res == expected_values
             mock_post.assert_called_once()
 
-    def test_embed_fallback_no_api_key(self):
+    def test_initialize_no_api_key_raises_error(self):
         # Explicitly pass api_key as None and ensure env is cleared
+        import pytest
         with patch.dict("os.environ", {}, clear=True):
-            embedder = GeminiEmbedder(api_key=None)
-            res = embedder.embed_query("hello")
-            assert res == [0.0] * 768
+            with pytest.raises(ValueError, match="GEMINI_API_KEY is not set"):
+                GeminiEmbedder(api_key=None)
 
 
 class TestGeminiLLMExtractor:

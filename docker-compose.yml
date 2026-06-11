@@ -103,9 +103,12 @@ services:
     ports:
       - "6006:6006"   # Web UI / HTTP OTLP collector
       - "4317:4317"   # gRPC OTLP collector
+    volumes:
+      - phoenix_data:/root/.phoenix
     restart: unless-stopped
 
 
 volumes:
   falkordb_data:
   qdrant_data:
+  phoenix_data:

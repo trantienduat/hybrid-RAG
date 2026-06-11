@@ -48,13 +48,19 @@ def index(
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
-    llm_model: str = typer.Option("qwen2.5-coder:7b", envvar="LLM_MODEL"),
+    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
     llm_extract: bool = typer.Option(
         False,
         "--llm-extract/--no-llm-extract",
         help="Run LLM-assisted extraction to supplement AST edges (slower, more complete).",
     ),
     max_tokens: int = typer.Option(512, help="Max tokens per chunk."),
+    exclude: list[str] = typer.Option(
+        None,
+        "--exclude",
+        "-e",
+        help="Folder or file name patterns to exclude from parsing (multi-value allowed).",
+    ),
 ) -> None:
     """Parse REPO and ingest code graph + embeddings into FalkorDB and Qdrant."""
     repo = repo.resolve()
@@ -114,6 +120,7 @@ def index(
                 llm_extract=llm_extract,
                 max_tokens=max_tokens,
                 listener=listener,
+                excludes=exclude,
             )
 
     except Exception as exc:  # noqa: BLE001
@@ -136,7 +143,7 @@ def community_build(
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    llm_model: str = typer.Option("qwen2.5-coder:14b", envvar="LLM_MODEL"),
+    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
 ) -> None:
     """Run community clustering and compile architectural summaries using FalkorDB and Ollama."""
     console.rule("[bold cyan]hybrid-rag community-build[/]")
@@ -688,7 +695,7 @@ def serve(
 def ragas(
     top_k: int = typer.Option(20, help="Retrieval candidates per query."),
     context_n: int = typer.Option(5, help="Context chunks assembled for LLM."),
-    llm_model: str = typer.Option("qwen2.5-coder:7b", envvar="LLM_MODEL"),
+    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),

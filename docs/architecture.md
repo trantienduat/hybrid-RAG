@@ -44,7 +44,7 @@ graph TD
     end
 
     subgraph Inference ["4. Inference Layer"]
-        OllamaLLM["Ollama Local LLM (qwen2.5-coder:7b)"]
+        OllamaLLM["Ollama Local LLM (gemma4:12b)"]
     end
 
     %% Flow links
@@ -161,7 +161,7 @@ graph LR
     
     RRF --> |RRF Ranked Candidates| BudgetAssembler["Token-Budget Context Assembler"]
     BudgetAssembler --> |Filter out over-budget chunks| PackedContext["Context Packed Prompt"]
-    PackedContext --> LLM["Local LLM (qwen2.5-coder:7b)"]
+    PackedContext --> LLM["Local LLM (gemma4:12b)"]
 
     class ParallelPath pipeline;
 ```
@@ -170,7 +170,7 @@ graph LR
 1.  **Repository Scoping:** Searches can be locked down to a single repository by providing a `--repo-name` payload filter to Qdrant and restricting FalkorDB seed node lookups.
 2.  **Token-Budget Context Assembly:** Prompts are packed dynamically using an AST-aware context builder. Results are popped from the RRF ranked queue and added to the prompt until a configured token threshold (`--max-tokens` or `--max-chars`) is hit. This prevents context window overflow and saves LLM attention.
 3.  **Reciprocal Rank Fusion (RRF):** Merges semantic vector listings with multi-hop structural graphs using a parameterized scoring formula:
-    $$score(d) = \sum_{r \in R} \frac{W_r}{k + rank_r(d)}$$
+    $$score(d) = \sum_\{r \in R\} \frac\{W_r\}\{k + rank_r(d)\}$$
     *   `k = 60` (optimal baseline)
     *   `W_graph = 3.0` for structural queries, `1.5` for hybrid queries.
 
@@ -252,4 +252,4 @@ Vectors are partitioned using payload metadata to support fast, targeted scoping
 The codebase strictly enforces local data sovereignty:
 *   **Offline Operation:** No external network requests are made. External API calls to non-localhost loops are explicitly prohibited.
 *   **Docker Containerization:** Storage engines (FalkorDB, Qdrant) run on local loopback ports (`127.0.0.1`) only, preventing any external ingress or egress.
-*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`qwen2.5-coder:7b`) are hosted entirely offline.
+*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`gemma4:12b`) are hosted entirely offline.

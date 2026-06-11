@@ -148,7 +148,12 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
     return ParseResult(errors=[f"Java extraction not yet implemented: {rel_path}"])
 
 
-def parse_repo(repo_root: Path, languages: list[str] | None = None, repo_name: str = "") -> ParseResult:
+def parse_repo(
+    repo_root: Path,
+    languages: list[str] | None = None,
+    repo_name: str = "",
+    excludes: list[str] | None = None,
+) -> ParseResult:
     """
     Recursively parse all supported source files under the given repository root.
     
@@ -156,16 +161,30 @@ def parse_repo(repo_root: Path, languages: list[str] | None = None, repo_name: s
         repo_root: The root directory of the repository to scan.
         languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
         repo_name: The custom namespace name for the repository.
+        excludes: List of folder/file name patterns to exclude from parsing.
         
     Returns:
         A combined ParseResult containing graph data from all parsed files.
     """
     languages = languages or ["python"]
     exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
+    
+    exclude_set = set(excludes) if excludes is not None else {
+        ".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"
+    }
 
     combined = ParseResult()
     for ext in exts:
         for fpath in sorted(repo_root.rglob(f"*{ext}")):
+            # Check if file path parts match any exclude patterns
+            try:
+                rel_parts = fpath.relative_to(repo_root).parts
+            except ValueError:
+                rel_parts = fpath.parts
+            
+            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
+                continue
+
             result = parse_file(fpath, repo_root, repo_name=repo_name)
             combined.nodes.extend(result.nodes)
             combined.edges.extend(result.edges)

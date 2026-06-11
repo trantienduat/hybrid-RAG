@@ -8,14 +8,21 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-# Patch dependencies during app import so the lifespan doesn't start real DB clients
-with (
-    patch("hybrid_rag.api.main.FalkorDBStore"),
-    patch("hybrid_rag.api.main.QdrantStore"),
-    patch("hybrid_rag.api.main.OllamaEmbedder"),
-    patch("hybrid_rag.api.main.HybridRetriever"),
-):
-    from hybrid_rag.api.main import app
+import pytest
+
+from hybrid_rag.api.main import app
+
+
+@pytest.fixture(autouse=True)
+def mock_db_components():
+    """Mock database connections and components during test lifecycle."""
+    with (
+        patch("hybrid_rag.api.main.FalkorDBStore") as mock_falkor,
+        patch("hybrid_rag.api.main.QdrantStore") as mock_qdrant,
+        patch("hybrid_rag.api.main.OllamaEmbedder") as mock_ollama,
+        patch("hybrid_rag.api.main.HybridRetriever") as mock_retriever,
+    ):
+        yield mock_falkor, mock_qdrant, mock_ollama, mock_retriever
 
 
 class TestApiIndexing:

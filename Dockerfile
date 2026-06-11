@@ -18,7 +18,7 @@ COPY pyproject.toml .
 COPY src/ ./src/
 
 # Install the application and its API dependencies natively inside the container using uv
-RUN uv pip install --system --no-cache-dir .[api,mcp]
+RUN uv pip install --system --no-cache-dir .[api,mcp,observability]
 
 # Expose the FastAPI server default port
 EXPOSE 8000

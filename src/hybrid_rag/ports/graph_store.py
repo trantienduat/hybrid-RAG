@@ -7,6 +7,7 @@ Concrete adapters:
 Any future graph backend (Neo4j, Memgraph, Amazon Neptune…) must implement
 this interface. Business logic depends only on GraphStore, never on a vendor.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

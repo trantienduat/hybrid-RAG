@@ -4,6 +4,7 @@ Ollama embedder adapter — implements BaseEmbedder port.
 Vendor: Ollama local inference server (nomic-embed-text, 768-dim).
 Swap this file for a different adapter (e.g. openai_embedder.py) to change backends.
 """
+
 from __future__ import annotations
 
 import logging
@@ -71,7 +72,9 @@ class OllamaEmbedder(BaseEmbedder):
         ollama_url: str | None = None,
         model: str | None = None,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip("/")
+        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
+            "/"
+        )
         self._model = model or os.environ.get("EMBED_MODEL", _DEFAULT_MODEL)
         self._client = httpx.Client(timeout=_HTTP_TIMEOUT)
 
@@ -89,13 +92,15 @@ class OllamaEmbedder(BaseEmbedder):
                 continue
             text = _node_to_text(node)
             embedding = self._embed(text)
-            chunks.append({
-                "node_id": node.id,
-                "label": node.label,
-                "file_path": node.properties.get("file_path", ""),
-                "text": text,
-                "embedding": embedding,
-            })
+            chunks.append(
+                {
+                    "node_id": node.id,
+                    "label": node.label,
+                    "file_path": node.properties.get("file_path", ""),
+                    "text": text,
+                    "embedding": embedding,
+                }
+            )
         return chunks
 
     def embed_query(self, query: str) -> list[float]:
@@ -126,6 +131,7 @@ class OllamaEmbedder(BaseEmbedder):
             text = text[:max_safe_len]
 
         import time
+
         retries = 3
         backoff = 1.5
 
@@ -140,7 +146,10 @@ class OllamaEmbedder(BaseEmbedder):
             except Exception as exc:
                 logger.warning(
                     "Ollama embedding attempt %d/%d failed for text (len=%d): %s",
-                    attempt, retries, len(text), exc
+                    attempt,
+                    retries,
+                    len(text),
+                    exc,
                 )
                 if attempt == retries:
                     # Final attempt fallback: try heavily truncated text
@@ -153,10 +162,13 @@ class OllamaEmbedder(BaseEmbedder):
                         resp.raise_for_status()
                         return resp.json()["embedding"]
                     except Exception as fallback_exc:
-                        logger.error("All embedding attempts failed: %s. Returning zero-vector.", fallback_exc)
+                        logger.error(
+                            "All embedding attempts failed: %s. Returning zero-vector.",
+                            fallback_exc,
+                        )
                         return [0.0] * 768
-                time.sleep(backoff ** attempt)
-        
+                time.sleep(backoff**attempt)
+
         return [0.0] * 768
 
     def close(self) -> None:

@@ -8,6 +8,7 @@ Any future retrieval strategy (BM25+KG, dense+sparse, …) must implement
 this interface. The CLI and API depend only on BaseRetriever, never on a
 specific retrieval strategy.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

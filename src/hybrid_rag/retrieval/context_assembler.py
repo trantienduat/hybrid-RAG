@@ -4,6 +4,7 @@ Context Assembler — format top-N retrieval results into structured LLM context
 Converts a ranked list of retrieval result dicts into a human-readable (and
 LLM-readable) context block, with metadata for downstream consumers.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -119,8 +120,8 @@ class ContextAssembler:
             # Pack chunk
             current_tokens += chunk_tokens
             current_chars += chunk_chars
-            lines.extend(chunk_lines[:-1]) # add all lines except the trailing blank separator line
-            lines.append("") # explicit separator
+            lines.extend(chunk_lines[:-1])  # add all lines except the trailing blank separator line
+            lines.append("")  # explicit separator
             chunks_included.append(item)
             if source:
                 sources_seen.add(source)
@@ -128,7 +129,9 @@ class ContextAssembler:
         assembled_text = "\n".join(lines).rstrip()
         actual_tokens = token_estimator(assembled_text)
 
-        budget_limit = max_tokens if max_tokens is not None else (max_chars if max_chars is not None else 0)
+        budget_limit = (
+            max_tokens if max_tokens is not None else (max_chars if max_chars is not None else 0)
+        )
 
         return RetrievalContext(
             text=assembled_text,

@@ -9,6 +9,7 @@ Usage::
     report = runner.run(n_runs=5, top_k=20)
     print(report.summary())
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +43,7 @@ _BENCH_QUERIES: dict[str, list[str]] = {
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class LatencyStats:
@@ -86,6 +88,7 @@ class BenchmarkReport:
 
 
 # ── Runner ────────────────────────────────────────────────────────────────────
+
 
 class BenchmarkRunner:
     """Measure retrieval latency across structural / hybrid / semantic queries."""
@@ -134,21 +137,26 @@ class BenchmarkRunner:
             if all_ms:
                 all_ms_sorted = sorted(all_ms)
                 n = len(all_ms_sorted)
-                stats.append(LatencyStats(
-                    query_type=qtype,
-                    n_runs=n,
-                    p50=_percentile(all_ms_sorted, 50),
-                    p95=_percentile(all_ms_sorted, 95),
-                    p99=_percentile(all_ms_sorted, 99),
-                    mean=statistics.mean(all_ms),
-                    min=all_ms_sorted[0],
-                    max=all_ms_sorted[-1],
-                    all_ms=all_ms,
-                ))
+                stats.append(
+                    LatencyStats(
+                        query_type=qtype,
+                        n_runs=n,
+                        p50=_percentile(all_ms_sorted, 50),
+                        p95=_percentile(all_ms_sorted, 95),
+                        p99=_percentile(all_ms_sorted, 99),
+                        mean=statistics.mean(all_ms),
+                        min=all_ms_sorted[0],
+                        max=all_ms_sorted[-1],
+                        all_ms=all_ms,
+                    )
+                )
                 logger.info(
                     "Benchmark %s: n=%d p50=%.1fms p95=%.1fms p99=%.1fms",
-                    qtype, n,
-                    stats[-1].p50, stats[-1].p95, stats[-1].p99,
+                    qtype,
+                    n,
+                    stats[-1].p50,
+                    stats[-1].p95,
+                    stats[-1].p99,
                 )
 
         return BenchmarkReport(stats=stats)
@@ -168,6 +176,7 @@ class BenchmarkRunner:
 
 
 # ── Utility ───────────────────────────────────────────────────────────────────
+
 
 def _percentile(sorted_data: list[float], pct: float) -> float:
     """Compute a percentile from a pre-sorted list."""

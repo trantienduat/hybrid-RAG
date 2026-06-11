@@ -3,6 +3,7 @@ Evaluation metrics — Hit Rate @K and Mean Reciprocal Rank (MRR).
 
 All functions are pure (no I/O), operate on pre-computed string lists.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -42,30 +43,32 @@ def mrr_score(retrieved_names: list[str], relevant: set[str]) -> float:
 @dataclass
 class QueryResult:
     """Per-query evaluation outcome for one retrieval mode."""
+
     query_id: str
     question: str
     hops: int
     query_type: str
-    ground_truth: set[str]     # node names from Cypher
+    ground_truth: set[str]  # node names from Cypher
     retrieved_hybrid: list[str]
     retrieved_vector: list[str]
     hit_at5_hybrid: float = 0.0
     hit_at5_vector: float = 0.0
     mrr_hybrid: float = 0.0
     mrr_vector: float = 0.0
-    delta_hit: float = 0.0     # hybrid - vector
+    delta_hit: float = 0.0  # hybrid - vector
 
     def __post_init__(self) -> None:
         self.hit_at5_hybrid = hit_rate_at_k(self.retrieved_hybrid, self.ground_truth, k=5)
         self.hit_at5_vector = hit_rate_at_k(self.retrieved_vector, self.ground_truth, k=5)
-        self.mrr_hybrid     = mrr_score(self.retrieved_hybrid, self.ground_truth)
-        self.mrr_vector     = mrr_score(self.retrieved_vector, self.ground_truth)
-        self.delta_hit      = self.hit_at5_hybrid - self.hit_at5_vector
+        self.mrr_hybrid = mrr_score(self.retrieved_hybrid, self.ground_truth)
+        self.mrr_vector = mrr_score(self.retrieved_vector, self.ground_truth)
+        self.delta_hit = self.hit_at5_hybrid - self.hit_at5_vector
 
 
 @dataclass
 class EvalReport:
     """Aggregated evaluation report across all queries."""
+
     results: list[QueryResult] = field(default_factory=list)
 
     # ── aggregate helpers ─────────────────────────────────────────────────────
@@ -123,6 +126,7 @@ class EvalReport:
 @dataclass
 class RepoQAQueryResult:
     """Per-query evaluation outcome for RepoQA retrieval."""
+
     query_id: str
     question: str
     target_function: str
@@ -144,13 +148,14 @@ class RepoQAQueryResult:
         self.hit_at1_vector = 1.0 if 0 < self.rank_vector <= 1 else 0.0
         self.hit_at5_hybrid = 1.0 if 0 < self.rank_hybrid <= 5 else 0.0
         self.hit_at5_vector = 1.0 if 0 < self.rank_vector <= 5 else 0.0
-        self.mrr_hybrid     = 1.0 / self.rank_hybrid if self.rank_hybrid > 0 else 0.0
-        self.mrr_vector     = 1.0 / self.rank_vector if self.rank_vector > 0 else 0.0
+        self.mrr_hybrid = 1.0 / self.rank_hybrid if self.rank_hybrid > 0 else 0.0
+        self.mrr_vector = 1.0 / self.rank_vector if self.rank_vector > 0 else 0.0
 
 
 @dataclass
 class RepoQAEvalReport:
     """Aggregated RepoQA evaluation report across all queries."""
+
     results: list[RepoQAQueryResult] = field(default_factory=list)
 
     def _avg(self, attr: str) -> float:
@@ -180,4 +185,3 @@ class RepoQAEvalReport:
     @property
     def mrr_vector(self) -> float:
         return self._avg("mrr_vector")
-

@@ -5,6 +5,7 @@ Extracts raw node data (modules, classes, functions, variables) from Python
 and Java files. Output is NodeData and EdgeData dataclasses that match
 the KG schema in docs/schema/kg-schema.md.
 """
+
 from __future__ import annotations
 
 import re
@@ -34,18 +35,20 @@ LANGUAGE_BY_EXT: dict[str, str] = {
 
 # ── Data models ───────────────────────────────────────────────────
 
+
 @dataclass
 class NodeData:
     """
     Represents a Knowledge Graph (KG) node to be written to FalkorDB.
-    
+
     Attributes:
         label: The type of node (e.g., Module, Class, Function, Variable).
         id: Unique identifier for the node, following the schema defined in docs/schema/kg-schema.md.
         properties: A dictionary of key-value pairs representing node attributes.
     """
-    label: str          # Module | Class | Function | Variable
-    id: str             # Unique key (see schema)
+
+    label: str  # Module | Class | Function | Variable
+    id: str  # Unique key (see schema)
     properties: dict[str, Any] = field(default_factory=dict)
 
 
@@ -53,15 +56,16 @@ class NodeData:
 class EdgeData:
     """
     Represents a Knowledge Graph (KG) edge/relationship to be written to FalkorDB.
-    
+
     Attributes:
         src_id: The ID of the source node.
         rel: The relationship type (e.g., IMPORTS, DEFINES, CALLS).
         dst_id: The ID of the destination node.
         properties: A dictionary of key-value pairs representing edge attributes (e.g., line numbers).
     """
+
     src_id: str
-    rel: str            # IMPORTS | DEFINES | INHERITS | CALLS | USES | DEFINED_IN
+    rel: str  # IMPORTS | DEFINES | INHERITS | CALLS | USES | DEFINED_IN
     dst_id: str
     properties: dict[str, Any] = field(default_factory=dict)
 
@@ -70,12 +74,13 @@ class EdgeData:
 class ParseResult:
     """
     Container for the results of a parsing operation.
-    
+
     Attributes:
         nodes: List of discovered NodeData objects.
         edges: List of discovered EdgeData objects linking the nodes.
         errors: List of error messages encountered during parsing.
     """
+
     nodes: list[NodeData] = field(default_factory=list)
     edges: list[EdgeData] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -112,15 +117,16 @@ def rel_path_to_fqn(rel_path: str) -> str:
 
 # ── Public API ────────────────────────────────────────────────────
 
+
 def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseResult:
     """
     Parse a single source file and return its graph representation (nodes + edges).
-    
+
     Args:
         file_path: The absolute path to the file to be parsed.
         repo_root: The root directory of the repository, used to calculate relative paths for node IDs.
         repo_name: The custom namespace name for the repository.
-        
+
     Returns:
         A ParseResult containing the extracted nodes, edges, and any errors.
     """
@@ -156,13 +162,12 @@ def parse_repo(
 ) -> ParseResult:
     """
     Recursively parse all supported source files under the given repository root.
-    
+
     Args:
         repo_root: The root directory of the repository to scan.
         languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
         repo_name: The custom namespace name for the repository.
         excludes: List of folder/file name patterns to exclude from parsing.
-        
     Returns:
         A combined ParseResult containing graph data from all parsed files.
     """
@@ -194,9 +199,10 @@ def parse_repo(
 
 # ── Python extraction ─────────────────────────────────────────────
 
+
 def _text(node: Node, src: bytes) -> str:
     """Helper to extract and decode text from a tree-sitter node."""
-    return src[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return src[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _child_text(node: Node, field_name: str, src: bytes) -> str | None:
@@ -218,14 +224,14 @@ def _docstring(node: Node, src: bytes) -> str | None:
                         if s.type == "string":
                             raw = _text(s, src)
                             # Strip quotes (triple or single)
-                            return re.sub(r'^["\' ]{1,3}|["\' ]{1,3}$', '', raw).strip()
+                            return re.sub(r'^["\' ]{1,3}|["\' ]{1,3}$', "", raw).strip()
                 break  # only check first statement
     return None
 
 
 def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
     """
-    Internal driver for Python file extraction. 
+    Internal driver for Python file extraction.
     Walks the AST top-level and delegates to specific handlers.
     """
     result = ParseResult()
@@ -275,12 +281,14 @@ def _handle_import(node: Node, src: bytes, module_id: str, result: ParseResult) 
             name = _text(name_node, src).split(".")[0]
             dst_id = name  # external stub id reference
             _ensure_stub(name, result)
-            result.edges.append(EdgeData(
-                src_id=module_id,
-                rel="IMPORTS",
-                dst_id=dst_id,
-                properties={"is_from": False},
-            ))
+            result.edges.append(
+                EdgeData(
+                    src_id=module_id,
+                    rel="IMPORTS",
+                    dst_id=dst_id,
+                    properties={"is_from": False},
+                )
+            )
 
 
 def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseResult) -> None:
@@ -299,12 +307,14 @@ def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseRes
         base = module_part.lstrip(".").split(".")[0]
         if base:
             _ensure_stub(base, result)
-            result.edges.append(EdgeData(
-                src_id=module_id,
-                rel="IMPORTS",
-                dst_id=base,
-                properties={"is_from": True},
-            ))
+            result.edges.append(
+                EdgeData(
+                    src_id=module_id,
+                    rel="IMPORTS",
+                    dst_id=base,
+                    properties={"is_from": True},
+                )
+            )
 
 
 def _handle_class(
@@ -353,12 +363,14 @@ def _handle_class(
     for order, base in enumerate(bases, start=1):
         base_stub_id = base.split(".")[-1]  # use simple name as stub
         _ensure_stub(base_stub_id, result)
-        result.edges.append(EdgeData(
-            src_id=class_id,
-            rel="INHERITS",
-            dst_id=base_stub_id,
-            properties={"order": order},
-        ))
+        result.edges.append(
+            EdgeData(
+                src_id=class_id,
+                rel="INHERITS",
+                dst_id=base_stub_id,
+                properties={"order": order},
+            )
+        )
 
     # Extract methods from class body
     body = node.child_by_field_name("body")
@@ -384,15 +396,9 @@ def _handle_function(
     # Metadata extraction
     is_async = any(c.type == "async" for c in node.children)
     is_abstract = any(
-        "abstractmethod" in _text(d, src)
-        for d in node.children
-        if d.type == "decorator"
+        "abstractmethod" in _text(d, src) for d in node.children if d.type == "decorator"
     )
-    is_property = any(
-        "property" in _text(d, src)
-        for d in node.children
-        if d.type == "decorator"
-    )
+    is_property = any("property" in _text(d, src) for d in node.children if d.type == "decorator")
 
     params_node = node.child_by_field_name("parameters")
     signature = f"def {name}{_text(params_node, src) if params_node else '()'}"
@@ -441,31 +447,35 @@ def _walk_calls(node: Node, src: bytes, caller_id: str, result: ParseResult) -> 
             # Simple name: `foo()` or `self.foo()` → use last segment as a stub ID
             callee_name = callee_text.split(".")[-1]
             stub_id = f"__call__{callee_name}"
-            result.edges.append(EdgeData(
-                src_id=caller_id,
-                rel="CALLS",
-                dst_id=stub_id,
-                properties={"line": node.start_point[0] + 1, "callee_expr": callee_text},
-            ))
+            result.edges.append(
+                EdgeData(
+                    src_id=caller_id,
+                    rel="CALLS",
+                    dst_id=stub_id,
+                    properties={"line": node.start_point[0] + 1, "callee_expr": callee_text},
+                )
+            )
     for child in node.children:
         _walk_calls(child, src, caller_id, result)
 
 
 def _ensure_stub(name: str, result: ParseResult) -> None:
     """
-    Ensure an external stub node exists in the result. 
+    Ensure an external stub node exists in the result.
     Stubs are placeholders for entities defined outside the current file.
     """
     stub_id = name
     if not any(n.id == stub_id for n in result.nodes):
-        result.nodes.append(NodeData(
-            label="Module",
-            id=stub_id,
-            properties={
-                "name": name,
-                "file_path": "",
-                "language": "python",
-                "type": "external",
-                "line_count": 0,
-            },
-        ))
+        result.nodes.append(
+            NodeData(
+                label="Module",
+                id=stub_id,
+                properties={
+                    "name": name,
+                    "file_path": "",
+                    "language": "python",
+                    "type": "external",
+                    "line_count": 0,
+                },
+            )
+        )

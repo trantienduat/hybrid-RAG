@@ -12,6 +12,7 @@ Depends only on ports (GraphStore, VectorStore, BaseEmbedder) — fully
 vendor-neutral. Inject FalkorDBStore / QdrantStore / OllamaEmbedder at the
 composition root (cli.py).
 """
+
 from __future__ import annotations
 
 import logging
@@ -83,22 +84,26 @@ class HybridRetriever(BaseRetriever):
         if not skip_graph and analysis.query_type == "global":
             # Global query: fetch all communities and their summaries
             try:
-                cypher = "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary"
+                cypher = (
+                    "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary"
+                )
                 res = self._graph_store.query(cypher)
                 global_results = []
-                for row in (res.result_set or []):
+                for row in res.result_set or []:
                     comm_id, name, summary = row[0], row[1], row[2]
-                    global_results.append({
-                        "node_id": comm_id,
-                        "base_node_id": comm_id,
-                        "name": name,
-                        "label": "Community",
-                        "file_path": "",
-                        "rel": "",
-                        "text": f"### Community Component: {name}\n\n{summary}",
-                        "source": "graph",
-                        "rrf_score": 1.0,
-                    })
+                    global_results.append(
+                        {
+                            "node_id": comm_id,
+                            "base_node_id": comm_id,
+                            "name": name,
+                            "label": "Community",
+                            "file_path": "",
+                            "rel": "",
+                            "text": f"### Community Component: {name}\n\n{summary}",
+                            "source": "graph",
+                            "rrf_score": 1.0,
+                        }
+                    )
                 logger.debug("Retrieved %d communities for global query", len(global_results))
                 if global_results:
                     return global_results
@@ -107,11 +112,15 @@ class HybridRetriever(BaseRetriever):
 
         graph_results: list[dict[str, Any]] = []
         if not skip_graph and analysis.query_type in ("structural", "hybrid"):
-            graph_results = self._graph_retriever.retrieve(analysis, top_k=top_k * 2, repository=repository)
+            graph_results = self._graph_retriever.retrieve(
+                analysis, top_k=top_k * 2, repository=repository
+            )
             logger.debug("Graph results: %d nodes", len(graph_results))
 
         filter_payload = {"repository": repository} if repository else None
-        vector_results = self._vector_retriever.retrieve(query, top_k=top_k * 2, filter_payload=filter_payload)
+        vector_results = self._vector_retriever.retrieve(
+            query, top_k=top_k * 2, filter_payload=filter_payload
+        )
         logger.debug("Vector results: %d chunks", len(vector_results))
 
         # Structural queries are relationship/structure lookups — graph evidence

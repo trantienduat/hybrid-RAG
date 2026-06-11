@@ -1,15 +1,10 @@
 """
-Ollama LLM extractor adapter — implements BaseLLMExtractor port.
+Gemini LLM extractor adapter — implements BaseLLMExtractor port.
 
-Vendor: Ollama local inference server (gemma4:12b or any code-capable model).
+Vendor: Google Gemini Cloud API (gemini-1.5-flash or as configured).
 
-Extracts USES relationships from type annotations that AST cannot capture:
-  - Typed function parameters: def foo(self, x: SomeClass)
-  - Return type annotations:   def foo(self) -> SomeClass
-  - Instance variable annotations: self.engine: QueryEngine = ...
-
-The LLM is prompted to output structured JSON; confidence-filtered results
-are converted to EdgeData and returned. All errors are swallowed (returns []).
+Extracts USES relationships from type annotations that AST cannot capture.
+Logs detailed network latency, model latency, and token count metadata for LLM Observability.
 """
 
 from __future__ import annotations
@@ -17,19 +12,21 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from typing import Any
 
 import httpx
 
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ports.llm_extractor import BaseLLMExtractor
+from hybrid_rag.utils.tracing import start_span
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_OLLAMA_URL = "http://localhost:11434"
-_DEFAULT_MODEL = "gemma4:12b"
+_DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
 _HTTP_TIMEOUT = 60.0
 _MIN_CONFIDENCE = 0.7
+_MAX_SOURCE_TEXT_LENGTH = 12000  # Max characters of source code to send to Gemini to avoid context window issues or large payload failures
 
 # Python builtins and typing primitives the LLM should NOT emit as dst_name
 _BUILTIN_TYPES: frozenset[str] = frozenset(
@@ -153,19 +150,21 @@ Return JSON object only:
 """
 
 
-class OllamaLLMExtractor(BaseLLMExtractor):
-    """BaseLLMExtractor adapter using Ollama's HTTP generation API."""
+class GeminiLLMExtractor(BaseLLMExtractor):
+    """BaseLLMExtractor adapter using Google Gemini's HTTP generation API."""
 
     def __init__(
         self,
-        ollama_url: str | None = None,
+        api_key: str | None = None,
         model: str | None = None,
         timeout: float = _HTTP_TIMEOUT,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
-            "/"
-        )
-        self._model = model or os.environ.get("LLM_MODEL", _DEFAULT_MODEL)
+        self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not self._api_key:
+            raise ValueError(
+                "GEMINI_API_KEY is not set. Please set the environment variable or pass the api_key parameter."
+            )
+        self._model = model or os.environ.get("LLM_MODEL", _DEFAULT_GEMINI_MODEL)
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
 
@@ -176,7 +175,6 @@ class OllamaLLMExtractor(BaseLLMExtractor):
         Extract USES edges from type annotations in source_text.
 
         Uses the node IDs in result as candidate src_ids.
-        Returns [] on any error (never raises).
         """
         # Only process nodes with real file paths (skip external stubs)
         local_nodes = [
@@ -188,10 +186,7 @@ class OllamaLLMExtractor(BaseLLMExtractor):
             return []
 
         prompt = self._build_prompt(source_text, local_nodes)
-        raw_response = self._call_ollama(prompt)
-        if raw_response is None:
-            return []
-
+        raw_response = self._call_gemini(prompt)
         return self._parse_response(raw_response, result)
 
     def close(self) -> None:
@@ -203,51 +198,81 @@ class OllamaLLMExtractor(BaseLLMExtractor):
         node_list = "\n".join(
             f"  {n.id}  ({n.label}: {n.properties.get('name', '')})" for n in nodes
         )
-        # Truncate very long source to avoid exceeding context window (keep ~6000 chars)
-        code = source_text[:6000]
-        if len(source_text) > 6000:
+        # Truncate very long source to avoid exceeding context window
+        code = source_text[:_MAX_SOURCE_TEXT_LENGTH]
+        if len(source_text) > _MAX_SOURCE_TEXT_LENGTH:
             code += "\n# ... (truncated)"
         return _USER_TEMPLATE.format(node_list=node_list, source_code=code)
 
-    def _call_ollama(self, prompt: str) -> str | None:
-        """POST to Ollama /api/generate. Returns response text or None on failure."""
+    def _call_gemini(self, prompt: str) -> str:
+        """POST to Gemini generateContent. Returns response text or raises on failure."""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent?key={self._api_key}"
         payload: dict[str, Any] = {
-            "model": self._model,
-            "prompt": f"{_SYSTEM_PROMPT}\n\n{prompt}",
-            "format": "json",
-            "stream": False,
-            "options": {
-                "temperature": 0.0,
-                "num_predict": 1024,
-                "top_p": 1.0,
-            },
+            "systemInstruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.0, "responseMimeType": "application/json"},
         }
-        try:
-            resp = self._client.post(
-                f"{self._url}/api/generate",
-                json=payload,
-                timeout=self._timeout,
-            )
-            resp.raise_for_status()
-            return resp.json().get("response", "")
-        except httpx.HTTPError as exc:
-            logger.warning("LLM extractor HTTP error: %s", exc)
-            return None
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("LLM extractor unexpected error: %s", exc)
-            return None
+
+        t_start = time.perf_counter()
+        with start_span("gemini_generate", {"model": self._model}) as span:
+            try:
+                resp = self._client.post(url, json=payload, timeout=self._timeout)
+                latency_ms = (time.perf_counter() - t_start) * 1000
+                span.set_attribute("network_latency_ms", latency_ms)
+
+                resp.raise_for_status()
+                res_json = resp.json()
+
+                # Observability: Extract usage metadata and record it
+                usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
+                if usage:
+                    prompt_tokens = (
+                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                    )
+                    candidates_tokens = (
+                        usage.get("candidatesTokenCount")
+                        or usage.get("candidates_token_count")
+                        or 0
+                    )
+                    total_tokens = (
+                        usage.get("totalTokenCount") or usage.get("total_token_count") or 0
+                    )
+
+                    span.set_attribute("prompt_tokens", prompt_tokens)
+                    span.set_attribute("candidates_tokens", candidates_tokens)
+                    span.set_attribute("total_tokens", total_tokens)
+                    logger.info(
+                        "Gemini API tokens: prompt=%d, candidates=%d, total=%d",
+                        prompt_tokens,
+                        candidates_tokens,
+                        total_tokens,
+                    )
+
+                candidates = res_json.get("candidates", [])
+                if candidates:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts:
+                        return parts[0].get("text", "")
+
+                raise RuntimeError("Empty response received from Gemini generateContent API.")
+
+            except Exception as exc:
+                logger.error("Gemini extractor API error: %s", exc)
+                span.record_exception(exc)
+                raise
 
     def _parse_response(self, raw: str, result: ParseResult) -> list[EdgeData]:
         """Parse JSON response and convert to EdgeData list."""
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
-            logger.warning("LLM extractor JSON parse failed: %s — raw: %.200s", exc, raw)
+            logger.warning("Gemini extractor JSON parse failed: %s — raw: %.200s", exc, raw)
             return []
 
         edges_data = data if isinstance(data, list) else data.get("edges", [])
         if not isinstance(edges_data, list):
-            logger.warning("LLM extractor unexpected JSON shape: %s", type(data))
+            logger.warning("Gemini extractor unexpected JSON shape: %s", type(data))
             return []
 
         # Build lookup sets for validation
@@ -268,7 +293,7 @@ class OllamaLLMExtractor(BaseLLMExtractor):
             if not src_id or not dst_name:
                 continue
             if src_id not in valid_src_ids:
-                logger.debug("LLM extractor: unknown src_id %r — skipping", src_id)
+                logger.debug("Gemini extractor: unknown src_id %r — skipping", src_id)
                 continue
             if confidence < _MIN_CONFIDENCE:
                 continue
@@ -293,20 +318,19 @@ class OllamaLLMExtractor(BaseLLMExtractor):
                     src_id=src_id,
                     rel=rel,
                     dst_id=dst_id,
-                    properties={"source": "llm", "confidence": confidence, "dst_name": dst_name},
+                    properties={"source": "gemini", "confidence": confidence, "dst_name": dst_name},
                 )
             )
             existing_edges.add(key)
 
-        logger.debug("LLM extractor: %d new edges extracted", len(results))
+        logger.debug("Gemini extractor: %d new edges extracted", len(results))
         return results
 
     def _resolve_dst(self, dst_name: str, result: ParseResult) -> str:
         """
         Resolve a simple class name to a known node ID, or return the name as a stub ID.
 
-        Prefers Class nodes, then Function nodes. If not found, returns dst_name directly
-        so the entity resolver can handle cross-file resolution later.
+        Prefers Class nodes, then Function nodes. If not found, returns dst_name directly.
         """
         # Exact match first
         for node in result.nodes:
@@ -323,5 +347,5 @@ class OllamaLLMExtractor(BaseLLMExtractor):
             if node.label == "Function" and node.properties.get("name") == dst_name:
                 return node.id
 
-        # Not found locally — return as-is; entity_resolver will handle cross-file
+        # Not found locally
         return dst_name

@@ -3,6 +3,7 @@ Unit tests for the M3 hybrid retrieval pipeline.
 
 No external services required — all stores and embedders are mocked.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -15,6 +16,7 @@ from hybrid_rag.retrieval.rrf import reciprocal_rank_fusion
 from hybrid_rag.retrieval.vector_retriever import VectorRetriever, _base_node_id
 
 # ─── QueryAnalyzer ─────────────────────────────────────────────────────────────
+
 
 class TestQueryAnalyzer:
     def test_structural_query(self):
@@ -90,6 +92,7 @@ class TestQueryAnalyzer:
 
 # ─── RRF ──────────────────────────────────────────────────────────────────────
 
+
 class TestRRF:
     def _item(self, node_id: str, text: str = "", source: str = "test") -> dict:
         return {"base_node_id": node_id, "node_id": node_id, "text": text, "source": source}
@@ -159,6 +162,7 @@ class TestRRF:
 
 
 # ─── ContextAssembler ─────────────────────────────────────────────────────────
+
 
 class TestContextAssembler:
     def _result(
@@ -235,6 +239,7 @@ class TestContextAssembler:
 
 # ─── GraphRetriever ────────────────────────────────────────────────────────────
 
+
 class TestGraphRetriever:
     def _store(self, nodes=None, neighbors=None):
         store = MagicMock()
@@ -271,11 +276,16 @@ class TestGraphRetriever:
     def test_expands_neighbors_for_structural(self):
         store = self._store(
             nodes=[self._node("n1", "Base")],
-            neighbors=[{
-                "src_id": "n1", "rel": "INHERITS",
-                "dst_id": "n2", "dst_name": "Child",
-                "dst_label": "Class", "dst_file_path": "g.py",
-            }],
+            neighbors=[
+                {
+                    "src_id": "n1",
+                    "rel": "INHERITS",
+                    "dst_id": "n2",
+                    "dst_name": "Child",
+                    "dst_label": "Class",
+                    "dst_file_path": "g.py",
+                }
+            ],
         )
         results = GraphRetriever(store).retrieve(self._analysis(entities=["Base"]))
         ids = {r["node_id"] for r in results}
@@ -315,6 +325,7 @@ class TestGraphRetriever:
 
 # ─── VectorRetriever ──────────────────────────────────────────────────────────
 
+
 class TestVectorRetriever:
     def _store(self, hits=None):
         store = MagicMock()
@@ -327,7 +338,13 @@ class TestVectorRetriever:
         return emb
 
     def _hit(self, nid: str, text: str = "code", score: float = 0.9) -> dict:
-        return {"node_id": nid, "label": "Function", "file_path": "f.py", "text": text, "score": score}
+        return {
+            "node_id": nid,
+            "label": "Function",
+            "file_path": "f.py",
+            "text": text,
+            "score": score,
+        }
 
     def test_embeds_query_and_searches(self):
         store = self._store([self._hit("n1::0")])
@@ -382,6 +399,7 @@ class TestVectorRetriever:
 
 # ─── HybridRetriever ─────────────────────────────────────────────────────────
 
+
 class TestHybridRetriever:
     def _retriever(self, graph_nodes=None, graph_neighbors=None, vector_hits=None):
         graph_store = MagicMock()
@@ -430,7 +448,9 @@ class TestHybridRetriever:
         vector_store.search.return_value = []
         embedder = MagicMock()
         embedder.embed_query.return_value = [0.0] * 768
-        retriever = HybridRetriever(graph_store=graph_store, vector_store=vector_store, embedder=embedder)
+        retriever = HybridRetriever(
+            graph_store=graph_store, vector_store=vector_store, embedder=embedder
+        )
         retriever.retrieve("which classes inherit from BaseEmbedder?")
         graph_store.find_nodes.assert_called()
 
@@ -442,7 +462,9 @@ class TestHybridRetriever:
         vector_store.search.return_value = [self._hit("n1::0")]
         embedder = MagicMock()
         embedder.embed_query.return_value = [0.0] * 768
-        retriever = HybridRetriever(graph_store=graph_store, vector_store=vector_store, embedder=embedder)
+        retriever = HybridRetriever(
+            graph_store=graph_store, vector_store=vector_store, embedder=embedder
+        )
         # "explain" + "how works" are semantic-only signals without entity triggers
         retriever.retrieve("explain how the algorithm works")
         # For pure semantic, graph store should NOT be called (query_type == "semantic")
@@ -456,7 +478,9 @@ class TestHybridRetriever:
         vector_store.search.return_value = []
         embedder = MagicMock()
         embedder.embed_query.return_value = [0.0] * 768
-        retriever = HybridRetriever(graph_store=graph_store, vector_store=vector_store, embedder=embedder)
+        retriever = HybridRetriever(
+            graph_store=graph_store, vector_store=vector_store, embedder=embedder
+        )
         retriever.close()
         embedder.close.assert_called_once()
 

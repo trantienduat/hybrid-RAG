@@ -8,6 +8,7 @@ Each triple is a dict with:
   - dst_id, dst_label: target node key + label
   - properties: dict of edge properties
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,7 +24,7 @@ _STUB_LABEL: dict[str, str] = {
 # Default labels for stub node types we know about
 _REL_DST_LABEL: dict[str, str] = {
     "IMPORTS": "Module",
-    "DEFINES": None,   # resolved per-edge from node registry
+    "DEFINES": None,  # resolved per-edge from node registry
     "INHERITS": "Class",
     "CALLS": "Function",
     "USES": "Variable",
@@ -51,14 +52,16 @@ def extract_triples(result: ParseResult) -> list[Triple]:
         src_label = id_to_label.get(edge.src_id, _infer_label(edge.src_id, edge.rel, src=True))
         dst_label = id_to_label.get(edge.dst_id, _infer_label(edge.dst_id, edge.rel, src=False))
 
-        triples.append(Triple(
-            src_id=edge.src_id,
-            src_label=src_label,
-            rel=edge.rel,
-            dst_id=edge.dst_id,
-            dst_label=dst_label,
-            properties=edge.properties,
-        ))
+        triples.append(
+            Triple(
+                src_id=edge.src_id,
+                src_label=src_label,
+                rel=edge.rel,
+                dst_id=edge.dst_id,
+                dst_label=dst_label,
+                properties=edge.properties,
+            )
+        )
     return triples
 
 

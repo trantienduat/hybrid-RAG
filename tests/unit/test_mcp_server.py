@@ -126,8 +126,8 @@ class TestMCPServer:
         mock_graph_store.query.assert_called_once()
 
     async def test_health_check(self):
-        from starlette.requests import Request
         from starlette.datastructures import Headers
+        from starlette.requests import Request
 
         scope = {
             "type": "http",
@@ -140,4 +140,3 @@ class TestMCPServer:
         resp = await health_check(mock_request)
         assert resp.status_code == 200
         assert b'"status":"ok"' in resp.body
-

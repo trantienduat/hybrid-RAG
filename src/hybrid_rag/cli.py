@@ -84,29 +84,42 @@ def index(
             TimeElapsedColumn(),
             console=console,
         ) as progress:
+
             class CliIndexingListener(IndexingListener):
                 def __init__(self) -> None:
                     self.current_task = None
                     self.last_step = None
 
-                def on_step(self, step_name: str, message: str, progress_val: float | None = None) -> None:
+                def on_step(
+                    self, step_name: str, message: str, progress_val: float | None = None
+                ) -> None:
                     if self.last_step != step_name:
                         if self.current_task is not None:
                             progress.update(self.current_task, completed=100)
-                        self.current_task = progress.add_task(message, total=100 if progress_val is not None else None)
+                        self.current_task = progress.add_task(
+                            message, total=100 if progress_val is not None else None
+                        )
                         self.last_step = step_name
                     else:
                         if progress_val is not None:
-                            progress.update(self.current_task, description=message, completed=int(progress_val * 100))
+                            progress.update(
+                                self.current_task,
+                                description=message,
+                                completed=int(progress_val * 100),
+                            )
                         else:
                             progress.update(self.current_task, description=message)
 
                     if progress_val == 1.0:
-                        progress.update(self.current_task, description=f"[green]✓[/] {message}", completed=100)
+                        progress.update(
+                            self.current_task, description=f"[green]✓[/] {message}", completed=100
+                        )
 
             listener = CliIndexingListener()
             graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
-            vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+            vector_store = QdrantStore(
+                host=qdrant_host, port=qdrant_port, collection=qdrant_collection
+            )
 
             run_indexing_pipeline(
                 repo_path=repo,

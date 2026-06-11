@@ -7,6 +7,7 @@ Concrete adapters:
 Any future vector backend (Weaviate, Pinecone, pgvector…) must implement
 this interface. Business logic depends only on VectorStore, never on a vendor.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

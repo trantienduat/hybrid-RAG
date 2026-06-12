@@ -174,7 +174,12 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "describing the structural design, modules, and dependencies of the codebase.\n"
             "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
             "Highlight key components, database models, core flows, and cross-module relationships.\n\n"
-            "Before writing your report, output your step-by-step thinking process and structural analysis inside <think> and </think> tags.\n\n"
+            "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
+            "and then write your final report outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your detailed code analysis, module reviews, and thinking steps]\n"
+            "</think>\n\n"
+            "[Your final architectural report]\n\n"
             f"Community Summaries Context:\n{context}\n\n"
             f"User Request: {question}\n\n"
             "Architectural Report:"
@@ -182,7 +187,12 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
     return (
         "You are an expert code assistant. Use ONLY the context below to answer the question. "
         "If the context does not contain enough information, say so clearly.\n\n"
-        "Before answering, output your step-by-step thinking process, code analysis, and reasoning inside <think> and </think> tags.\n\n"
+        "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
+        "and then write your final answer outside the tags. You must strictly follow this format:\n"
+        "<think>\n"
+        "[Your step-by-step reasoning and search chunk analysis]\n"
+        "</think>\n\n"
+        "[Your final detailed answer]\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {question}\n\n"
         "Answer:"
@@ -408,8 +418,13 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
             q_type = analysis.query_type
     else:
         prompt = (
-            "You are an expert AI software developer and codebase assistant. Before answering, output your "
-            "thinking process and reasoning inside <think> and </think> tags.\n\n"
+            "You are an expert AI software developer and codebase assistant. "
+            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+            "and then write your final answer outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your thinking process]\n"
+            "</think>\n\n"
+            "[Your final answer]\n\n"
             f"Question: {req.question}\n\n"
             "Answer:"
         )
@@ -498,8 +513,13 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             q_type = analysis.query_type
     else:
         prompt = (
-            "You are an expert AI software developer and codebase assistant. Before answering, output your "
-            "thinking process and reasoning inside <think> and </think> tags.\n\n"
+            "You are an expert AI software developer and codebase assistant. "
+            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+            "and then write your final answer outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your thinking process]\n"
+            "</think>\n\n"
+            "[Your final answer]\n\n"
             f"Question: {req.question}\n\n"
             "Answer:"
         )

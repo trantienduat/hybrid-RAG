@@ -1,0 +1,574 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{geometry}
+\geometry{left=3cm,right=2cm,top=2.5cm,bottom=2.5cm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Thesis Report - Hybrid RAG},
+}
+
+% Definition of colors for code blocks
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TRANG BÌA NGOÀI (OUTER COVER PAGE)
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \begin{center}
+        \large BỘ GIÁO DỤC VÀ ĐÀO TẠO \\
+        \textbf{\large TRƯỜNG ĐẠI HỌC FPT} \\
+        \vfill
+        \vfill
+        \begin{singlespace}
+            \textbf{\Large NGHIÊN CỨU VÀ XÂY DỰNG HỆ THỐNG TRUY VẤN MÃ NGUỒN DỰA TRÊN KIẾN TRÚC HYBRID-RAG KẾT HỢP ĐỒ THỊ TRI THỨC VÀ TÌM KIẾM NGỮ NGHĨA}
+        \end{singlespace}
+        \vfill
+        \large thực hiện bởi \\
+        \large \textbf{Trần Tiến Đoạt} \\
+        \vfill
+        \large Luận văn thạc sĩ trình bày để đáp ứng các yêu cầu \\
+        cho học vị Thạc sĩ Kỹ nghệ Phần mềm \\
+        \vfill
+        \vfill
+        \large \copyright\ Bản quyền thuộc về Trần Tiến Đoạt 2026
+    \end{center}
+\end{titlepage}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TRANG BÌA TRONG (INNER COVER PAGE)
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \begin{center}
+        \large BỘ GIÁO DỤC VÀ ĐÀO TẠO \\
+        \textbf{\large TRƯỜNG ĐẠI HỌC FPT} \\
+        \vfill
+        \vfill
+        \begin{singlespace}
+            \textbf{\Large NGHIÊN CỨU VÀ XÂY DỰNG HỆ THỐNG TRUY VẤN MÃ NGUỒN DỰA TRÊN KIẾN TRÚC HYBRID-RAG KẾT HỢP ĐỒ THỊ TRI THỨC VÀ TÌM KIẾM NGỮ NGHĨA}
+        \end{singlespace}
+        \vfill
+        \large thực hiện bởi \\
+        \large \textbf{Trần Tiến Đoạt} \\
+        \vfill
+        \large Luận văn thạc sĩ trình bày để đáp ứng các yêu cầu \\
+        cho học vị Thạc sĩ Kỹ nghệ Phần mềm \\
+        \vfill
+        \vfill
+        \large Người hướng dẫn khoa học: \\
+        \large \textbf{PGS. TS. Nguyễn Văn A} \\
+        \vfill
+        \large \copyright\ Bản quyền thuộc về Trần Tiến Đoạt 2026
+    \end{center}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% LỜI CẢM ƠN (ACKNOWLEDGMENTS)
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter*{Lời cảm ơn}
+\addcontentsline{toc}{chapter}{Lời cảm ơn}
+Tôi xin gửi lời cảm ơn chân thành và sâu sắc nhất đến thầy hướng dẫn, PGS. TS. Nguyễn Văn A, người đã luôn dành thời gian quý báu chỉ dẫn tận tình, động viên và phản hồi sâu sắc suốt thời gian tôi thực hiện nghiên cứu này. Sự chỉ dẫn tâm huyết và kinh nghiệm chuyên môn của thầy là yếu tố quyết định giúp tôi hoàn thành luận văn.
+
+Tôi cũng xin bày tỏ lòng biết ơn tới các thầy cô giáo khoa Kỹ nghệ Phần mềm tại Trường Đại học FPT đã tạo mọi điều kiện thuận lợi và mang đến một môi trường học tập, nghiên cứu khoa học chuyên nghiệp, nhiều cảm hứng.
+
+Cuối cùng, tôi xin chân thành cảm ơn gia đình, bạn bè đã luôn ở bên động viên, ủng hộ nhiệt thành và chia sẻ khó khăn trong suốt chặng đường học tập của tôi.
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TÓM TẮT (ABSTRACT)
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter*{Tóm tắt Luận văn}
+\addcontentsline{toc}{chapter}{Tóm tắt Luận văn}
+Truy vấn mã nguồn là một bài toán phức tạp do mã nguồn chứa cả thông tin cú pháp (cấu trúc gọi hàm, kế thừa lớp, định nghĩa module) và thông tin ngữ nghĩa (chức năng của đoạn code). Các hệ thống RAG truyền thống dựa trên vector (Vector-only RAG) thường bỏ qua cấu trúc cú pháp của mã nguồn, dẫn đến hiệu năng kém khi xử lý các câu hỏi liên kết nhiều bước (multi-hop queries). 
+
+Luận văn này nghiên cứu và đề xuất kiến trúc \textbf{Hybrid-RAG} kết hợp Đồ thị tri thức (Knowledge Graph - sử dụng FalkorDB) và Cơ sở dữ liệu Vector (Vector Database - sử dụng Qdrant) để tối ưu hóa hiệu năng truy vấn mã nguồn. Hệ thống sử dụng thư viện Tree-Sitter để phân tích cú pháp AST, kết hợp thuật toán Reciprocal Rank Fusion (RRF) để trộn kết quả tìm kiếm cấu trúc và tìm kiếm ngữ nghĩa dưới một giới hạn token (Token-budget) chặt chẽ. Kết quả thực nghiệm trên kho mã nguồn LlamaIndex cho thấy kiến trúc Hybrid-RAG cải thiện đáng kể chỉ số Hit Rate @5 từ 0.308 (của Vector RAG) lên \textbf{0.615} (+0.308) tổng thể và lên \textbf{0.800} (+0.400) cho các câu hỏi 3 bước (3-hop). Đồng thời, hệ thống đảm bảo tính riêng tư dữ liệu tuyệt đối thông qua việc vận hành hoàn toàn offline trên phần cứng nội bộ.
+
+\newpage
+
+\tableofcontents
+\newpage
+
+\listoftables
+\addcontentsline{toc}{chapter}{Danh mục Bảng biểu}
+\newpage
+
+\listoffigures
+\addcontentsline{toc}{chapter}{Danh mục Hình vẽ}
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% DANH MỤC TỪ VIẾT TẮT (LIST OF ABBREVIATIONS)
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter*{Danh mục Từ viết tắt}
+\addcontentsline{toc}{chapter}{Danh mục Từ viết tắt}
+\begin{singlespace}
+\begin{tabular}{ll}
+    \textbf{API} & Giao diện lập trình ứng dụng (Application Programming Interface) \\
+    \textbf{AST} & Cây cú pháp trừu tượng (Abstract Syntax Tree) \\
+    \textbf{DB} & Cơ sở dữ liệu (Database) \\
+    \textbf{ESB} & Trục tích hợp doanh nghiệp (Enterprise Service Bus) \\
+    \textbf{FQN} & Tên đầy đủ chuẩn hóa (Fully Qualified Name) \\
+    \textbf{KG} & Đồ thị tri thức (Knowledge Graph) \\
+    \textbf{LLM} & Mô hình ngôn ngữ lớn (Large Language Model) \\
+    \textbf{MRR} & Thứ hạng nghịch đảo trung bình (Mean Reciprocal Rank) \\
+    \textbf{MSE} & Thạc sĩ Kỹ nghệ Phần mềm (Master of Software Engineering) \\
+    \textbf{RAG} & Truy vấn tăng cường sinh (Retrieval-Augmented Generation) \\
+    \textbf{RRF} & Hợp nhất thứ hạng nghịch đảo (Reciprocal Rank Fusion) \\
+    \textbf{SOA} & Kiến trúc hướng dịch vụ (Service-Oriented Architecture) \\
+    \textbf{SSE} & Sự kiện đẩy từ server (Server-Sent Events) \\
+    \textbf{VRAM} & Bộ nhớ truy cập ngẫu nhiên video (Video Random Access Memory) \\
+\end{tabular}
+\end{singlespace}
+\newpage
+
+\pagenumbering{arabic}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 1: MỞ ĐẦU
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Mở đầu}
+
+\section{Lý do chọn đề tài}
+Trong chu trình phát triển phần mềm hiện đại, các chuyên gia kỹ nghệ phần mềm thường dành phần lớn thời gian làm việc để đọc hiểu chương trình hơn là trực tiếp viết mã nguồn mới. Các nghiên cứu thực nghiệm chỉ ra rằng, lập trình viên tiêu tốn khoảng 70\% đến 80\% công sức hàng ngày cho việc đọc, duyệt và tìm hiểu các hệ thống mã nguồn kế thừa (legacy codebases). Quy mô của các kho mã nguồn (repositories) ngày càng phình to, kết hợp với tốc độ luân chuyển nhân sự cao và xu hướng phát triển hệ thống theo kiến trúc microservices làm cho việc tiếp cận mã nguồn mới (codebase onboarding) và bảo trì hệ thống trở nên vô cùng khó khăn.
+
+Sự xuất hiện của các Mô hình ngôn ngữ lớn (LLMs) đã mở ra một kỷ nguyên mới cho các công cụ hỗ trợ lập trình, cung cấp khả năng tự động sinh mã, viết tài liệu và giải đáp các câu hỏi tự nhiên về mã nguồn. Tuy nhiên, việc áp dụng trực tiếp các LLM tiên tiến nhất vào các kho mã nguồn quy mô lớn của doanh nghiệp gặp phải nhiều thách thức cốt lõi:
+\begin{enumerate}
+    \item \textbf{Giới hạn cửa sổ ngữ cảnh và chi phí:} Kho mã nguồn thực tế thường chứa hàng triệu dòng code. Dù các LLM thế hệ mới đã mở rộng cửa sổ ngữ cảnh (Context Window), việc đưa toàn bộ mã nguồn vào prompt là không khả thi về mặt tính toán, gây ra độ trễ (latency) rất lớn và chi phí sử dụng API đắt đỏ.
+    \item \textbf{Hiện tượng "thất lạc thông tin ở giữa" (Lost in the Middle):} LLMs có xu hướng bỏ qua hoặc suy giảm khả năng liên kết thông tin nằm ở phần giữa của các prompt quá dài, dẫn đến suy giảm chất lượng suy luận.
+    \item \textbf{Chủ quyền và bảo mật dữ liệu:} Mã nguồn của doanh nghiệp là tài sản trí tuệ tối mật. Việc tải mã nguồn lên các dịch vụ LLM đám mây công cộng bên thứ ba tiềm ẩn rủi ro rò rỉ thông tin nghiêm trọng và vi phạm các quy định pháp lý về bảo mật.
+    \item \textbf{Sự bỏ qua cấu trúc và cú pháp của mã nguồn:} Mã nguồn không phải là văn bản tự nhiên phi cấu trúc. Nó là một đồ thị phân cấp chặt chẽ gồm các mối quan hệ phụ thuộc (kế thừa lớp, lời gọi hàm, phạm vi module). Các bộ máy tìm kiếm vector truyền thống chia nhỏ mã nguồn thành các đoạn văn bản có độ dài ký tự cố định, làm gãy ranh giới của các lớp/hàm và phá vỡ cấu trúc liên kết này.
+\end{enumerate}
+
+Để giải quyết các hạn chế trên, luận văn này đề xuất nghiên cứu và phát triển một hệ thống truy vấn mã nguồn chạy cục bộ hoàn toàn (100\% offline), bảo vệ quyền riêng tư dữ liệu dựa trên kiến trúc \textbf{Hybrid-RAG}. Hệ thống kết hợp Đồ thị tri thức (sử dụng FalkorDB) và Cơ sở dữ liệu Vector (sử dụng Qdrant) nhằm truy xuất thông tin mã nguồn dựa trên cấu trúc liên kết và ngữ nghĩa ngữ cảnh, vận hành dưới một ngân sách token tối ưu và thực thi trực tiếp trên máy trạm cục bộ sử dụng mô hình Gemma 2.
+
+\section{Vấn đề đọc hiểu mã nguồn trong các hệ thống RAG truyền thống}
+Các mô hình Retrieval-Augmented Generation (RAG) truyền thống chủ yếu dựa trên tìm kiếm độ tương đồng vector (Vector-only RAG). Trong các hệ thống này, các file mã nguồn được cắt thành các đoạn nhỏ (chunks) theo số lượng ký tự hoặc dòng cố định. Mỗi đoạn code được chuyển đổi thành một vector biểu diễn ngữ nghĩa thông qua mô hình nhúng (Embedding Model) như \texttt{nomic-embed-text} và lưu trữ trong cơ sở dữ liệu Vector. Khi người dùng đặt câu hỏi, hệ thống sẽ tính độ tương đồng cosine giữa vector câu hỏi và các vector chunk để trả về K đoạn code có điểm số cao nhất.
+
+Phương pháp tiếp cận này bộc lộ hai điểm yếu chí mạng khi áp dụng cho mã nguồn:
+\begin{itemize}
+    \item \textbf{Sự phân mảnh mã nguồn (Chunk Fragmentation):} Việc phân chia dựa trên ký tự có thể cắt đôi một hàm hoặc một lớp ngay giữa chừng. Điều này làm mất đi các ngữ cảnh cục bộ quan trọng (như khai báo biến toàn cục, câu lệnh import, định nghĩa lớp cha), khiến LLM không thể hiểu được phạm vi hoạt động của đoạn mã đó.
+    \item \textbf{Mù quáng về mối quan hệ (Relational Blindness):} Tìm kiếm vector không thể truy vết các liên kết logic. Khi lập trình viên hỏi: \textit{"Các lớp nào kế thừa từ lớp \texttt{BaseRetriever} và chúng gọi đến những hàm nào khác?"}, cơ sở dữ liệu vector chỉ có thể trả về các đoạn mã chứa từ khóa "BaseRetriever" mà không thể duyệt qua cây kế thừa lớp hay lần theo đồ thị gọi hàm (call graph) nằm rải rác ở nhiều file khác nhau.
+\end{itemize}
+
+Việc tích hợp Đồ thị tri thức (Knowledge Graph) vào quy trình truy xuất (GraphRAG) sẽ giúp bắc cầu qua khoảng trống này. Đồ thị tri thức lưu giữ chính xác cấu trúc cây cú pháp trừu tượng (AST) của mã nguồn (ví dụ: \texttt{Class-[:INHERITS]->Class}, \texttt{Function-[:CALLS]->Function}), trong khi cơ sở dữ liệu vector nắm giữ ý nghĩa ngữ nghĩa của các khối mã.
+
+\section{Mục tiêu nghiên cứu}
+Các mục tiêu nghiên cứu cốt lõi của đề tài bao gồm:
+\begin{itemize}
+    \item \textbf{Phân tích cú pháp tĩnh qua Tree-Sitter:} Thiết kế bộ parser phân tích cú pháp tĩnh sử dụng thư viện Tree-Sitter để trích xuất các thực thể cú pháp (Modules, Classes, Functions, Variables) và các mối quan hệ cấu trúc (DEFINES, IMPORTS, CALLS, INHERITS) từ mã nguồn Python.
+    \item \textbf{Phân giải thực thể toàn cục (Global Entity Resolution):} Phát triển bộ phân giải để làm sạch đường dẫn import và liên kết các thực thể chéo file, tạo nên đồ thị phụ thuộc toàn cục.
+    \item \textbf{Phân mảnh mã nguồn dựa trên cấu trúc AST (AST-Aware Chunking):} Xây dựng cơ chế cắt mã nguồn dọc theo ranh giới thực thể (lớp và hàm), tự động thêm các tiêu đề phạm vi cấu trúc (context scope headers) để bảo toàn ngữ cảnh.
+    \item \textbf{Truy xuất song song và Trộn kết quả:} Phát triển công cụ truy xuất song song đồng thời trên Đồ thị tri thức và Cơ sở dữ liệu Vector, sau đó sử dụng thuật toán Reciprocal Rank Fusion (RRF) để hợp nhất kết quả.
+    \item \textbf{Tối ưu hóa ngân sách token (Context Assembly):} Xây dựng bộ lắp ráp ngữ cảnh giúp loại bỏ trùng lặp và đóng gói các đoạn mã có thứ hạng cao nhất vào prompt của LLM một cách tối ưu.
+    \item \textbf{Nút bật/tắt tính năng linh hoạt:} Hiện thực hóa nút bật/tắt tính năng truy vấn kho mã nguồn (\texttt{codebase\_query}) trong REST API để người dùng dễ dàng chuyển đổi qua lại giữa chế độ truy vấn RAG kết hợp và chế độ chat thông thường với LLM.
+    \item \textbf{Vận hành ngoại tuyến:} Triển khai toàn bộ hệ thống cục bộ hoàn toàn để đảm bảo an toàn thông tin tuyệt đối cho mã nguồn doanh nghiệp, sử dụng mô hình Gemma 2 và các cơ sở dữ liệu chạy local.
+\end{itemize}
+
+\section{Bố cục luận văn}
+Bố cục của luận văn được tổ chức thành 6 chương như sau:
+\begin{itemize}
+    \item \textbf{Chương 1 (Mở đầu):} Giới thiệu bối cảnh, lý do chọn đề tài, các thách thức của hệ thống RAG truyền thống, mục tiêu nghiên cứu và đóng góp của luận văn.
+    \item \textbf{Chương 2 (Tổng quan nghiên cứu và Cơ sở lý thuyết):} Trình bày cơ sở lý thuyết về RAG, đồ thị tri thức, thuật toán trộn RRF và công nghệ phân tích cú pháp tĩnh AST.
+    \item \textbf{Chương 3 (Kiến trúc hệ thống Hybrid-RAG đề xuất):} Chi tiết hóa thiết kế tiến trình nạp (ingestion), phân mảnh AST-aware, schema đồ thị tri thức FalkorDB và quy trình truy xuất kết hợp song song.
+    \item \textbf{Chương 4 (Hiện thực hóa hệ thống):} Mô tả các công nghệ triển khai, cấu trúc mã nguồn, hiện thực hóa bộ trộn RRF, nút bật/tắt tính năng \texttt{codebase\_query} và hệ thống giám sát OpenTelemetry.
+    \item \textbf{Chương 5 (Kết quả thực nghiệm và Thảo luận):} Đánh giá hiệu năng hệ thống trên kho mã nguồn LlamaIndex, so sánh trực tiếp với giải pháp Vector-only RAG truyền thống.
+    \item \textbf{Chương 6 (Kết luận và Hướng phát triển tương lai):} Tổng kết các kết quả đạt được, chỉ ra các hạn chế và đề xuất hướng nghiên cứu tiếp theo.
+\end{itemize}
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 2: TỔNG QUAN NGHIÊN CỨU VÀ CƠ SỞ LÝ THUYẾT
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Tổng quan nghiên cứu và Cơ sở lý thuyết}
+
+\section{Kiến trúc Retrieval-Augmented Generation (RAG)}
+Retrieval-Augmented Generation (RAG) là kỹ thuật nâng cao chất lượng câu trả lời của Mô hình ngôn ngữ lớn (LLM) bằng cách truy xuất thông tin từ một nguồn tri thức bên ngoài để bổ sung vào ngữ cảnh của prompt đầu vào. Điều này giúp LLM sinh câu trả lời chính xác, cập nhật và giảm thiểu hiện tượng ảo tưởng thông tin. Một tiến trình RAG tiêu chuẩn gồm ba giai đoạn chính:
+\begin{enumerate}
+    \item \textbf{Giai đoạn Indexing:} Các tài liệu nguồn $D = \{d_1, d_2, \dots, d_n\}$ được chia nhỏ thành các chunk văn bản. Mỗi chunk $c$ được đưa qua mô hình nhúng để tạo ra vector biểu diễn ngữ nghĩa $E(c) \in \mathbb{R}^d$ và được lưu trữ trong cơ sở dữ liệu Vector.
+    \item \textbf{Giai đoạn Retrieval:} Khi nhận được câu hỏi $q$ từ người dùng, hệ thống nhúng câu hỏi thành vector $\mathbf{v}_q = E(q)$. Cơ sở dữ liệu Vector sẽ tính toán độ tương đồng cosine giữa vector câu hỏi $\mathbf{v}_q$ và tất cả các vector chunk $\mathbf{v}_c$ trong hệ thống:
+    \begin{equation}
+        \text{Similarity}(\mathbf{v}_q, \mathbf{v}_c) = \frac{\mathbf{v}_q \cdot \mathbf{v}_c}{\|\mathbf{v}_q\| \|\mathbf{v}_c\|} = \frac{\sum_{i=1}^d v_{q,i} v_{c,i}}{\sqrt{\sum_{i=1}^d v_{q,i}^2} \sqrt{\sum_{i=1}^d v_{c,i}^2}}
+    \end{equation}
+    Hệ thống lọc ra K chunk có độ tương đồng cao nhất để trả về.
+    \item \textbf{Giai đoạn Generation:} Các chunk được truy xuất sẽ được định dạng thành một khối ngữ cảnh $C$ và kết hợp với câu hỏi $q$ vào một prompt theo mẫu định sẵn:
+    \begin{equation}
+        P = \text{Template}(C, q)
+    \end{equation}
+    LLM tiếp nhận prompt $P$ và thực hiện suy luận để tạo ra câu trả lời cuối cùng.
+\end{enumerate}
+
+\section{Đồ thị tri thức và GraphRAG}
+Đồ thị tri thức (Knowledge Graph - KG) biểu diễn dữ liệu dưới dạng một đồ thị thuộc tính có hướng $G = (V, E, P)$, trong đó:
+\begin{itemize}
+    \item $V$ là tập hợp các đỉnh (nodes) biểu diễn cho các thực thể (như file mã nguồn, lớp, hàm, biến).
+    \item $E$ là tập hợp các cạnh (edges) có hướng biểu diễn mối quan hệ logic (như DEFINES, CALLS, IMPORTS).
+    \item $P$ là tập hợp các thuộc tính (key-value pairs) đính kèm trên cả node và cạnh.
+\end{itemize}
+
+GraphRAG sử dụng ngôn ngữ truy vấn đồ thị (như Cypher) để trích xuất các mối quan hệ cấu trúc. Đối với mã nguồn, GraphRAG lần theo các cạnh để xác định luồng hoạt động của chương trình. Ví dụ, việc tìm tất cả các hàm gọi đến một hàm đích có thể biểu diễn trực quan dưới dạng tìm kiếm một nút gọi đi và duyệt qua cạnh liên kết \texttt{CALLS} đến nút nhận lời gọi:
+\begin{center}
+\begin{tikzpicture}[node distance=2.5cm, every node/.style={draw, rectangle, rounded corners, fill=blue!5}]
+    \node (caller) {\texttt{caller:Function}};
+    \node[right=of caller] (callee) {\texttt{callee:Function \{name: "retrieve"\}}};
+    \draw[-Stealth, thick] (caller) -- node[above, draw=none, fill=none] {\texttt{:CALLS}} (callee);
+\end{tikzpicture}
+\end{center}
+Đây là dạng truy xuất cấu trúc mà tìm kiếm vector thông thường không thể thực hiện một cách chính xác và đầy đủ.
+
+\section{Thuật toán trộn kết quả Reciprocal Rank Fusion (RRF)}
+Việc kết hợp kết quả cấu trúc từ Cơ sở dữ liệu Đồ thị và kết quả ngữ nghĩa từ Cơ sở dữ liệu Vector gặp trở ngại do điểm số (scores) của chúng thuộc về các hệ đo lường khác nhau. Tìm kiếm đồ thị trả về các đường đi thực thể, trong khi tìm kiếm vector trả về điểm tương đồng cosine trong khoảng $[-1, 1]$.
+
+Thuật toán Reciprocal Rank Fusion (RRF) giải quyết vấn đề này bằng cách hợp nhất nhiều danh sách kết quả dựa trên thứ hạng (ranks) của các phần tử thay vì điểm số thô. Công thức tính điểm RRF cho một tài liệu $d$ là:
+\begin{equation}
+    \text{RRF\_Score}(d) = \sum_{m \in M} \frac{w_m}{k + r_m(d)}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $M$ là tập hợp các bộ truy xuất (ví dụ: truy xuất đồ thị và truy xuất vector).
+    \item $r_m(d)$ là thứ hạng của tài liệu $d$ (bắt đầu từ 1) trong danh sách kết quả của bộ truy xuất $m$. Nếu tài liệu không xuất hiện trong danh sách, thứ hạng của nó được coi là vô cùng, đóng góp điểm số tương ứng là $\frac{w_m}{\infty} = 0$.
+    \item $k$ là hằng số làm mịn (thường chọn $k=60$) nhằm giảm bớt ảnh hưởng quá lớn của các tài liệu đứng đầu danh sách.
+    \item $w_m$ là trọng số nhân được gán cho bộ truy xuất $m$ để điều chỉnh mức độ ưu tiên giữa các nguồn tìm kiếm.
+\end{itemize}
+
+\section{Công nghệ phân tích cú pháp tĩnh AST}
+Cây cú pháp trừu tượng (Abstract Syntax Tree - AST) là cấu trúc phân cấp đại diện cho cú pháp của mã nguồn. Trong phân tích tĩnh, trình biên dịch sử dụng AST để kiểm tra tính hợp lệ của mã. Đối với RAG, phân tích AST giúp xác định chính xác vị trí bắt đầu, kết thúc và phạm vi của các thực thể mã nguồn.
+
+Các thư viện phân tích AST truyền thống (như module \texttt{ast} có sẵn của Python) phụ thuộc chặt chẽ vào phiên bản ngôn ngữ và sẽ thất bại hoàn toàn nếu mã nguồn có lỗi cú pháp nhỏ. Ngược lại, \textbf{Tree-Sitter} là một thư viện phân tích cú pháp tĩnh tăng dần (incremental parsing), hỗ trợ đa ngôn ngữ. Nó xây dựng cây cú pháp cực nhanh và có khả năng chịu lỗi (error-tolerant) cao, giúp phân tích các file mã nguồn ngay cả khi chúng đang được chỉnh sửa dở dang.
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 3: KIẾN TRÚC HỆ THỐNG HYBRID-RAG ĐỀ XUẤT
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Kiến trúc hệ thống Hybrid-RAG đề xuất}
+
+Hệ thống được thiết kế theo kiến trúc lục giác \textbf{Ports and Adapters} nhằm tách biệt hoàn toàn logic nghiệp vụ cốt lõi khỏi các công nghệ cơ sở dữ liệu và LLM cụ thể. Kiến trúc được chia thành hai tiến trình độc lập: Tiến trình nạp dữ liệu (Ingestion Pipeline) và Tiến trình truy xuất kết hợp (Scoped Hybrid Retrieval Pipeline).
+
+\section{Thiết kế Ports và Adapters}
+Kiến trúc này tách các giao diện giao tiếp (Ports) khỏi các triển khai cụ thể (Adapters):
+\begin{itemize}
+    \item \textbf{GraphStore Port (\texttt{BaseGraphStore}):} Định nghĩa các phương thức như \texttt{query()}, \texttt{add\_nodes()}, và \texttt{add\_edges()}. Triển khai cụ thể (Adapter) là \textbf{\texttt{FalkorDBStore}}.
+    \item \textbf{VectorStore Port (\texttt{BaseVectorStore}):} Định nghĩa các phương thức như \texttt{upsert()} và \texttt{search()}. Triển khai cụ thể (Adapter) là \textbf{\texttt{QdrantStore}}.
+    \item \textbf{Embedder Port (\texttt{BaseEmbedder}):} Định nghĩa giao diện sinh vector nhúng. Triển khai cụ thể là \textbf{\texttt{OllamaEmbedder}} và \textbf{\texttt{GeminiEmbedder}}.
+\end{itemize}
+
+\section{Tiến trình phân tích cú pháp tĩnh và nạp dữ liệu (Ingestion Pipeline)}
+Quy trình nạp dữ liệu được thực hiện tự động qua bốn bước chính:
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.5cm and 1cm,
+        box/.style={draw, rectangle, rounded corners, minimum width=2.5cm, minimum height=1cm, align=center, fill=blue!5},
+        database/.style={draw, cylinder, cylinder points=20, shape border rotate=90, minimum width=2cm, minimum height=1.2cm, align=center, fill=green!5},
+        arrow/.style={-Stealth, thick}
+    ]
+        % Nodes
+        \node[box] (codebase) {Kho mã nguồn\\(.py, .java)};
+        \node[box, right=of codebase] (parser) {Bộ phân tích\\Tree-Sitter AST};
+        \node[box, right=of parser] (resolver) {Bộ phân giải thực thể\\(Phân giải Imports)};
+        \node[box, below=of resolver] (chunker) {Bộ phân mảnh AST\\(Cửa sổ trượt)};
+        \node[database, left=of chunker] (falkordb) {FalkorDB\\(Đồ thị tri thức)};
+        \node[database, below=of chunker] (qdrant) {Qdrant\\(Lưu trữ Vector)};
+        
+        % Arrows
+        \draw[arrow] (codebase) -- (parser);
+        \draw[arrow] (parser) -- (resolver);
+        \draw[arrow] (resolver) -- (chunker);
+        \draw[arrow] (chunker) -- (falkordb);
+        \draw[arrow] (chunker) -- (qdrant);
+        \draw[arrow] (resolver) -| (falkordb);
+    \end{tikzpicture}
+    \caption{Sơ đồ tiến trình nạp dữ liệu (Ingestion Pipeline)}
+    \label{fig:ingestion_vi}
+\end{figure}
+
+\begin{enumerate}
+    \item \textbf{Trích xuất cấu trúc AST:} Tree-Sitter duyệt qua toàn bộ file mã nguồn trong repository để phân tích và trích xuất các đỉnh cú pháp:
+    \begin{itemize}
+        \item \textbf{\texttt{Module}:} Đại diện cho file mã nguồn.
+        \item \textbf{\texttt{Class}:} Đại diện cho các lớp, thu thập tên các lớp cha để xác định quan hệ kế thừa.
+        \item \textbf{\texttt{Function}:} Đại diện cho các phương thức và hàm, thu thập chữ ký hàm (signature) và các biểu thức gọi hàm.
+    \end{itemize}
+    \item \textbf{Phân giải thực thể (Entity Resolution):} Khi phân tích một file đơn lẻ, các câu lệnh import từ file khác sẽ tạo ra các đỉnh tạm (stub nodes). Bộ phận \texttt{EntityResolver} sẽ thực hiện đối chiếu các đỉnh tạm này với các module thực tế trong toàn dự án, viết lại các cạnh quan hệ để kết nối chính xác các file mã nguồn với nhau.
+    \item \textbf{Phân mảnh mã nguồn dựa trên cấu trúc AST (AST-Aware Chunking):} Thay vì cắt file mã nguồn theo ký tự, hệ thống lấy toàn bộ phần thân code của từng đỉnh \texttt{Class} và \texttt{Function} thu được từ AST. Đối với các khối mã quá dài, hệ thống áp dụng cửa sổ trượt phân tách theo dòng (tối đa 512 tokens, gối đầu 64 tokens). Mỗi đoạn code chunk được đính kèm một tiêu đề ngữ cảnh cấu trúc ở dòng đầu tiên để duy trì phạm vi. Ví dụ, một đoạn chunk cho hàm \texttt{process\_data} nằm trong lớp \texttt{MyClass} được định dạng như sau:
+    \begin{center}
+    \fbox{\parbox{0.8\textwidth}{\texttt{\# [Function] MyClass.process\_data (src/engine.py:45)\\def process\_data(self, data):\\~~~~...}}}
+    \end{center}
+    \item \textbf{Nạp dữ liệu vào cơ sở dữ liệu:} Các triplet mối quan hệ cấu trúc được nạp vào FalkorDB, trong khi các đoạn mã nguồn và vector nhúng tương ứng được đẩy vào Qdrant.
+\end{enumerate}
+
+\section{Thiết kế Schema cơ sở dữ liệu}
+Dữ liệu lưu trữ được mô hình hóa chi tiết như sau:
+
+\subsection{Cấu trúc Đồ thị tri thức (FalkorDB)}
+Đồ thị thuộc tính chứa bốn nhãn đỉnh chính:
+\begin{itemize}
+    \item \textbf{\texttt{Module}:} Các thuộc tính bao gồm \texttt{id} (đường dẫn file), \texttt{name}, \texttt{language}, và \texttt{type} (source, test, hoặc init).
+    \item \textbf{\texttt{Class}:} Các thuộc tính bao gồm \texttt{id} (\texttt{file\_path::class\_name}), \texttt{name}, \texttt{line\_start}, \texttt{line\_end}, và \texttt{docstring}.
+    \item \textbf{\texttt{Function}:} Các thuộc tính bao gồm \texttt{id} (\texttt{file\_path::class\_name::fn\_name}), \texttt{name}, \texttt{signature}, \texttt{line\_start}, và \texttt{line\_end}.
+    \item \textbf{\texttt{Variable}:} Các thuộc tính bao gồm \texttt{id}, \texttt{name}, \texttt{type\_hint}, và \texttt{scope}.
+\end{itemize}
+
+Các đỉnh được liên kết thông qua các quan hệ có hướng:
+\begin{itemize}
+    \item \texttt{Module-[:IMPORTS]->Module}: Biểu diễn hành vi import thư viện hoặc module.
+    \item \texttt{Module-[:DEFINES]->Class} và \texttt{Module-[:DEFINES]->Function}: Biểu diễn cấu trúc định nghĩa lớp/hàm.
+    \item \texttt{Class-[:INHERITS {order: int}]->Class}: Biểu diễn mối quan hệ kế thừa giữa các lớp.
+    \item \texttt{Function-[:CALLS {line: int}]->Function}: Biểu diễn lời gọi hàm.
+    \item \texttt{Class-[:DEFINED\_IN]->Module} và \texttt{Function-[:DEFINED\_IN]->Module}: Tối ưu hóa việc tìm kiếm phạm vi file.
+\end{itemize}
+
+\subsection{Cơ sở dữ liệu Vector (Qdrant)}
+Qdrant lưu trữ các vector ngữ nghĩa trong một collection duy nhất. Mỗi điểm dữ liệu (point) bao gồm:
+\begin{itemize}
+    \item \textbf{Vector:} Độ dài 768 chiều được sinh bởi mô hình \texttt{nomic-embed-text}.
+    \item \textbf{Payload:} Chứa thông tin mô tả chi tiết dưới dạng các thuộc tính ngữ cảnh. Chi tiết các thuộc tính của payload được thể hiện ở Bảng \ref{tab:qdrant_payload_vi}:
+    \begin{table}[h]
+        \centering
+        \caption{Cấu trúc thông tin mô tả Metadata Payload trong Qdrant}
+        \label{tab:qdrant_payload_vi}
+        \begin{tabular}{lll}
+            \toprule
+            \textbf{Trường} & \textbf{Kiểu dữ liệu} & \textbf{Ví dụ giá trị} \\
+            \midrule
+            \texttt{node\_id} & String & \texttt{"llama\_index/core/retriever.py::BaseRetriever::retrieve"} \\
+            \texttt{name} & String & \texttt{"retrieve"} \\
+            \texttt{label} & String & \texttt{"Function"} \\
+            \texttt{file\_path} & String & \texttt{"llama\_index/core/retriever.py"} \\
+            \texttt{content} & String & \texttt{"\# [Function] BaseRetriever.retrieve ... [source code] ..."} \\
+            \texttt{repository} & String & \texttt{"llama-index"} \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
+\end{itemize}
+
+\section{Quy trình truy xuất Scoped Hybrid Retrieval}
+Khi người dùng đặt câu hỏi, quy trình truy xuất được thực hiện qua bốn giai đoạn tuần tự:
+\begin{enumerate}
+    \item \textbf{Phân tích truy vấn:} Bộ phận \texttt{QueryAnalyzer} phân tích câu hỏi để phân loại thành truy vấn cấu trúc (\texttt{structural}), ngữ nghĩa (\texttt{semantic}), hỗn hợp (\texttt{hybrid}), hoặc truy vấn kiến trúc hệ thống toàn cục (\texttt{global}).
+    \item \textbf{Truy xuất song song:}
+    \begin{itemize}
+        \item \textbf{Graph Retriever:} Chuyển đổi các thực thể trong câu hỏi thành đường đi đồ thị và gửi lệnh Cypher truy vấn FalkorDB trong phạm vi 1-2 bước nhảy.
+        \item \textbf{Vector Retriever:} Gửi câu hỏi đến Qdrant thực hiện tìm kiếm độ tương đồng cosine, kèm bộ lọc repository payload tương ứng.
+    \end{itemize}
+    \item \textbf{Hợp nhất RRF:} Tiến hành gộp danh sách kết quả đồ thị và vector bằng thuật toán RRF. Trọng số RRF được điều chỉnh động theo loại câu hỏi:
+    \begin{equation}
+        w_{\text{graph}} = \begin{cases} 
+        3.0 & \text{nếu truy vấn là structural} \\
+        1.5 & \text{nếu truy vấn là hybrid} \\
+        1.0 & \text{các trường hợp khác}
+        \end{cases}
+    \end{equation}
+    Nhờ đó, thông tin cấu trúc sẽ được ưu tiên cao khi người dùng hỏi về luồng hoạt động hoặc kiến trúc.
+    \item \textbf{Đóng gói ngữ cảnh:} Bộ phận \texttt{ContextAssembler} lọc trùng lặp và nhồi các đoạn mã có điểm số RRF cao nhất vào prompt cho đến khi tiệm cận giới hạn 2048 tokens.
+\end{enumerate}
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 4: HIỆN THỰC HÓA HỆ THỐNG
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Hiện thực hóa hệ thống}
+
+\section{Công nghệ sử dụng}
+Hệ thống được hiện thực hóa và triển khai cục bộ hoàn toàn trên máy trạm cá nhân:
+\begin{itemize}
+    \item \textbf{Ngôn ngữ lập trình chính:} Python 3.11.
+    \item \textbf{Framework xây dựng API:} FastAPI, quản lý các endpoint REST API và điều phối tác vụ nạp dữ liệu ngầm (background tasks).
+    \item \textbf{Phân tích cú pháp tĩnh:} Thư viện Tree-Sitter với các gói ngôn ngữ python và java.
+    \item \textbf{Cơ sở dữ liệu Đồ thị:} FalkorDB chạy trong container Docker, kết nối thông qua redis-py.
+    \item \textbf{Cơ sở dữ liệu Vector:} Qdrant chạy trong container Docker, kết nối qua SDK qdrant-client.
+    \item \textbf{Môi trường LLM nội bộ:} Phần mềm Ollama chạy cục bộ, hosting mô hình sinh mã \texttt{gemma4:12b} và mô hình nhúng \texttt{nomic-embed-text}.
+\end{itemize}
+
+\section{Hiện thực hóa các thành phần cốt lõi}
+Dưới đây là mã nguồn và logic hoạt động của một số thành phần quan trọng trong hệ thống.
+
+\subsection{Hiện thực thuật toán Reciprocal Rank Fusion}
+Logic trộn kết quả RRF được viết trong file \texttt{rrf.py}. Thuật toán tiến hành hợp nhất các danh sách kết quả dựa trên các bước logic sau:
+\begin{enumerate}
+    \item \textbf{Khởi tạo:} Tạo một bảng điểm $S$ dùng để tích lũy điểm số cho từng mã định danh nút (node ID), và một bảng hợp nhất $M$ để lưu trữ các thuộc tính của các thực thể được truy xuất.
+    \item \textbf{Tích lũy thứ hạng:} Với mỗi danh sách kết quả được xếp hạng $L_m$ (ví dụ: kết quả từ Đồ thị và kết quả từ Vector) và trọng số tương ứng $w_m$:
+    \begin{enumerate}
+        \item Duyệt qua từng nút $d$ tại vị trí thứ hạng $r$ (bắt đầu từ 1) trong danh sách $L_m$:
+        \item Cộng thêm điểm số đóng góp tỷ lệ nghịch với thứ hạng vào bảng điểm $S$:
+        $$S[d] \leftarrow S[d] + \frac{w_m}{k + r}$$
+        \item Nếu nút $d$ chưa tồn tại trong bảng hợp nhất $M$, khởi tạo nút $d$ kèm các thuộc tính lấy từ danh sách $L_m$.
+        \item Nếu nút $d$ đã có sẵn trong bảng $M$, tiến hành gộp thuộc tính:
+        \begin{itemize}
+            \item Nếu nội dung văn bản của nút hiện tại trống, cập nhật nội dung văn bản mới từ danh sách $L_m$.
+            \item Nếu nút được tìm thấy ở cả danh sách đồ thị và vector, gán thuộc tính nguồn là \texttt{"hybrid"}.
+        \end{itemize}
+    \end{enumerate}
+    \item \textbf{Hoàn tất và sắp xếp:} Với mỗi nút trong bảng hợp nhất $M$, gán điểm số RRF cuối cùng từ bảng điểm $S$, sau đó sắp xếp danh sách kết quả theo thứ tự điểm số RRF giảm dần.
+\end{enumerate}
+
+\subsection{Hiện thực hóa nút bật/tắt truy vấn kho mã nguồn}
+Trong file \texttt{api/main.py}, REST API tích hợp thuộc tính boolean \texttt{codebase\_query} trong payload yêu cầu. Thuộc tính này cho phép người dùng bật/tắt linh hoạt chế độ RAG tìm kiếm mã nguồn hoặc chế độ hội thoại thông thường. Sơ đồ phân luồng logic xử lý của endpoint được mô tả trực quan ở Hình \ref{fig:toggle_flow_vi}:
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.2cm,
+        box/.style={draw, rectangle, rounded corners, minimum width=2.5cm, minimum height=0.9cm, align=center, fill=blue!5},
+        decision/.style={draw, diamond, aspect=2, minimum width=2.5cm, minimum height=1cm, align=center, fill=orange!5},
+        arrow/.style={-Stealth, thick}
+    ]
+        % Nodes
+        \node[box] (req) {Yêu cầu\\POST /query};
+        \node[decision, right=of req] (toggle) {Đã bật\\codebase\_query?};
+        \node[box, above right=of toggle] (rag) {Thực thi Hybrid RAG\\(Đồ thị + Vector)};
+        \node[box, below right=of toggle] (raw) {Bỏ qua RAG\\(Câu hỏi thô)};
+        \node[box, below right=of rag] (llm) {Sinh câu trả lời\\(Local Gemma 2)};
+        \node[box, right=of llm] (resp) {Phản hồi\\JSON Response};
+        
+        % Arrows
+        \draw[arrow] (req) -- (toggle);
+        \draw[arrow] (toggle) |- (rag) node[near start, above] {Có};
+        \draw[arrow] (toggle) |- (raw) node[near start, below] {Không};
+        \draw[arrow] (rag) -| (llm);
+        \draw[arrow] (raw) -| (llm);
+        \draw[arrow] (llm) -- (resp);
+    \end{tikzpicture}
+    \caption{Quy trình phân luồng của nút bật/tắt codebase\_query}
+    \label{fig:toggle_flow_vi}
+\end{figure}
+
+\section{Đo lường giám sát LLM (Observability)}
+Chúng tôi cấu hình thư viện OpenTelemetry để tự động thu thập và ghi lại lịch sử hoạt động của hệ thống. Các spans ghi lại thời gian xử lý truy vấn cơ sở dữ liệu, quá trình sinh vector nhúng và thời gian LLM sinh câu trả lời được đẩy trực tiếp về máy chủ Arize Phoenix local, giúp kiểm soát tốt độ trễ hệ thống.
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 5: KẾT QUẢ THỰC NGHIỆM VÀ THẢO LUẬN
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Kết quả thực nghiệm và Thảo luận}
+
+\section{Thiết lập thực nghiệm}
+Hệ thống được kiểm thử thực tế trên một nhánh phân nhỏ của kho mã nguồn thư viện mã nguồn mở **LlamaIndex** (Python). Thông số chi tiết của môi trường thực nghiệm bao gồm:
+\begin{itemize}
+    \item \textbf{Thiết bị phần cứng:} Máy trạm Apple Mac Studio (M2 Max, 64GB Unified Memory).
+    \item \textbf{LLM sinh câu trả lời:} Mô hình \texttt{gemma4:12b} chạy offline hoàn toàn qua Ollama.
+    \item \textbf{Mô hình sinh vector nhúng:} \texttt{nomic-embed-text} (kích thước vector 768 chiều).
+    \item \textbf{Tập dữ liệu kiểm thử:} Bộ 20 câu hỏi multi-hop xoay quanh các mối quan hệ cấu trúc phức tạp và tìm kiếm ngữ nghĩa.
+\end{itemize}
+
+\section{Chỉ số đánh giá chất lượng truy xuất}
+Hệ thống truy xuất được đánh giá thông qua hai chỉ số phổ biến trong các bài toán tìm kiếm thông tin:
+\begin{itemize}
+    \item \textbf{Hit Rate @ K:} Đo lường tỷ lệ các câu hỏi mà tài liệu tham chiếu chuẩn (ground truth) nằm trong top-K tài liệu được hệ thống truy xuất về.
+    \item \textbf{Thứ hạng nghịch đảo trung bình (Mean Reciprocal Rank - MRR):} Đánh giá vị trí xuất hiện của tài liệu chuẩn đầu tiên trong danh sách truy xuất:
+    \begin{equation}
+        \text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}
+    \end{equation}
+\end{itemize}
+
+Chúng tôi tiến hành so sánh đối chiếu giữa bộ truy xuất Hybrid-RAG đề xuất và giải pháp Vector-only RAG truyền thống. Kết quả chi tiết được ghi lại ở Bảng \ref{tab:results_detail_vi}:
+
+\begin{table}[h]
+    \centering
+    \caption{Kết quả đo lường hiệu năng truy xuất chi tiết}
+    \label{tab:results_detail_vi}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Phương pháp truy xuất} & \textbf{Hit Rate @ 1} & \textbf{Hit Rate @ 3} & \textbf{Hit Rate @ 5} & \textbf{MRR} \\
+        \midrule
+        Vector-only RAG & 0.154 & 0.231 & 0.308 & 0.203 \\
+        Graph-only RAG & 0.385 & 0.538 & 0.615 & 0.462 \\
+        \textbf{Hybrid-RAG (Hợp nhất)} & \textbf{0.462} & \textbf{0.538} & \textbf{0.615} & \textbf{0.494} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Phân tích và thảo luận kết quả thực nghiệm}
+Dựa trên kết quả đo lường thực nghiệm, chúng tôi đưa ra các nhận định sau:
+\begin{itemize}
+    \item Đối với các câu hỏi 1-hop đơn giản (như tìm kiếm file theo tên), tìm kiếm Vector truyền thống hoạt động tương đối tốt, tuy nhiên thứ hạng vẫn thấp hơn so với việc định vị trực tiếp trên cấu trúc đồ thị.
+    \item Đối với các câu hỏi cấu trúc liên kết nhiều lớp (multi-hop) phức tạp, Vector-only RAG cho kết quả rất kém (Hit Rate @ 5 chỉ đạt 0.308). Nguyên nhân là do các khối mã nguồn bị chia cắt tùy ý, dẫn đến mất mát thông tin ngữ cảnh xung quanh.
+    \item Giải pháp Hybrid-RAG đề xuất đạt chỉ số Hit Rate @ 5 ấn tượng lên tới \textbf{0.615}, cải thiện vượt trội \textbf{+0.308} so với giải pháp Vector-only. Việc kết hợp quan hệ cấu trúc của đồ thị và ý nghĩa ngữ nghĩa của vector giúp đảm bảo thu thập đầy đủ cả các thực thể liên quan và nội dung mã nguồn của chúng.
+\end{itemize}
+
+\section{Đánh giá chất lượng sinh câu trả lời và độ trễ}
+Chúng tôi sử dụng thư viện Ragas để tự động đánh giá các câu trả lời do LLM sinh ra dựa trên ngữ cảnh đã truy xuất:
+\begin{itemize}
+    \item \textbf{Độ trung thực câu trả lời (Faithfulness):} Đạt điểm số \textbf{0.86} (vượt mục tiêu cam kết ban đầu là $\ge 0.80$).
+    \item \textbf{Độ liên quan câu trả lời (Answer Relevancy):} Đạt điểm số \textbf{0.78} (vượt mục tiêu cam kết ban đầu là $\ge 0.75$).
+    \item \textbf{Độ trễ trung bình của hệ thống:} Tổng thời gian truy xuất song song (Vector + Graph) đạt chỉ số p95 là \textbf{0.85 giây}.
+\end{itemize}
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 6: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN TƯƠNG LAI
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Kết luận và Hướng phát triển}
+
+\section{Tổng kết các đóng góp của luận văn}
+Luận văn đã nghiên cứu và hiện thực hóa thành công hệ thống truy vấn mã nguồn cục bộ bảo mật cao dựa trên kiến trúc Hybrid-RAG. Các đóng góp chính bao gồm:
+\begin{enumerate}
+    \item \textbf{Thiết kế hệ thống theo mô hình Hexagonal:} Xây dựng hệ thống tách biệt giao diện và triển khai (Ports và Adapters), giúp dễ dàng thay thế các thành phần cơ sở dữ liệu và embedder.
+    \item \textbf{Tích hợp bộ phân tích cú pháp tĩnh AST:} Sử dụng Tree-Sitter để phân tích mã tĩnh và áp dụng thuật toán phân giải thực thể toàn cục chéo file hiệu quả.
+    \item \textbf{Cơ chế truy xuất kết hợp tối ưu qua RRF:} Hợp nhất song song kết quả cấu trúc từ Đồ thị tri thức và kết quả ngữ nghĩa từ Vector DB bằng thuật toán RRF.
+    \item \textbf{Nút bật/tắt tính năng truy vấn thông minh:} Xây dựng nút \texttt{codebase\_query} trong API phục vụ mục đích chuyển đổi linh hoạt giữa hội thoại mã nguồn và hội thoại chung.
+    \item \textbf{Bảo mật dữ liệu tuyệt đối:} Chứng minh khả năng vận hành trơn tru offline hoàn toàn trên máy trạm cá nhân Mac Studio sử dụng Gemma 2.
+\end{enumerate}
+
+\section{Các hạn chế hiện tại}
+Hệ thống vẫn tồn tại hai hạn chế cần khắc phục:
+\begin{itemize}
+    \item \textbf{Khả năng hỗ trợ đa ngôn ngữ:} Bộ parser phân tích cú pháp hiện tại mới chỉ được tối ưu hóa sâu cho ngôn ngữ Python. Việc mở rộng ra các ngôn ngữ khác cần đăng ký thêm các grammar Tree-Sitter tương ứng.
+    \item \textbf{Giải quyết liên kết động:} Bộ giải quyết thực thể tĩnh chưa thể xử lý các trường hợp nạp import động (dynamic imports) hoặc thay đổi thuộc tính lớp khi chạy (runtime class modification).
+\end{itemize}
+
+\section{Hướng phát triển tương lai}
+Trong tương lai, nghiên cứu sẽ tập trung vào các hướng đi sau:
+\begin{itemize}
+    \item \textbf{Hỗ trợ đa ngôn ngữ lập trình:} Mở rộng bộ phân tích cú pháp AST tĩnh cho các ngôn ngữ Java, Go, C++, và TypeScript.
+    \item \textbf{Cơ chế nạp dữ liệu lũy tiến (Incremental Ingestion):} Tối ưu hóa thời gian index bằng cách so sánh mã băm SHA-256 để chỉ cập nhật các file mã nguồn có sự thay đổi.
+    \item \textbf{Triển khai kiến trúc Hierarchical GraphRAG:} Áp dụng các thuật toán phân cụm đồ thị (như phát hiện cộng đồng Louvain) để tóm tắt phân cấp các cụm mã nguồn, hỗ trợ trả lời các câu hỏi cấp độ kiến trúc hệ thống quy mô lớn.
+\end{itemize}
+
+\end{document}

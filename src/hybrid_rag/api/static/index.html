@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1/dist/3d-force-graph.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
 
@@ -722,6 +723,202 @@
 
     /* Highlight override */
     .hljs { background: #0b0e14 !important; }
+
+    /* ── Markdown styling within chat ── */
+    .msg-body p {
+      margin-bottom: 8px;
+    }
+    .msg-body p:last-child {
+      margin-bottom: 0;
+    }
+    .msg-body h1, .msg-body h2, .msg-body h3, .msg-body h4 {
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-family: 'Outfit', sans-serif;
+      color: #fff;
+    }
+    .msg-body h1 { font-size: 15px; }
+    .msg-body h2 { font-size: 14px; }
+    .msg-body h3 { font-size: 13px; }
+    .msg-body h4 { font-size: 12.5px; }
+    
+    .msg-body ul, .msg-body ol {
+      margin-top: 4px;
+      margin-bottom: 8px;
+      padding-left: 20px;
+    }
+    .msg-body li {
+      margin-bottom: 4px;
+    }
+    .msg-body hr {
+      border: 0;
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+    .msg-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+      font-size: 11.5px;
+    }
+    .msg-body th, .msg-body td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .msg-body th {
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+    }
+
+    /* ── Resizers ── */
+    .resizer {
+      width: 4px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      background: transparent;
+      position: relative;
+      z-index: 10;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .resizer:hover, .resizer.dragging {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .resizer::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -4px;
+      right: -4px;
+      background: transparent;
+    }
+    body.dragging-active iframe, 
+    body.dragging-active canvas,
+    body.dragging-active #graph-3d,
+    body.dragging-active #graph-2d {
+      pointer-events: none;
+    }
+
+    /* ── Welcome Suggestions ── */
+    .chat-empty h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      color: #fff;
+      margin-top: 4px;
+    }
+    .chat-empty p {
+      max-width: 280px;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+    .welcome-icon {
+      font-size: 36px;
+      opacity: 0.8;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .welcome-suggestions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 320px;
+      margin-top: 4px;
+    }
+    .suggestion-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .suggestion-card:hover {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .suggestion-card strong {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .suggestion-card span {
+      color: var(--text-muted);
+      font-size: 10.5px;
+      font-family: 'Fira Code', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Search Suggestions ── */
+    .search-suggest-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 8px 4px;
+    }
+    .suggest-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .suggest-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .btn-clear-history {
+      background: none;
+      border: none;
+      color: var(--accent2);
+      font-size: 9.5px;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-clear-history:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+    .suggest-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .suggest-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-family: 'Fira Code', monospace;
+    }
+    .suggest-chip:hover {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.08);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -774,6 +971,8 @@
       </div>
     </div>
   </div>
+
+  <div class="resizer" id="leftResizer" title="Drag to resize sidebar"></div>
 
   <!-- ── Centre Canvas (3D/2D Graph Visualizer) ── -->
   <div class="canvas-wrap" id="canvasWrap">
@@ -834,6 +1033,8 @@
     </div>
   </div>
 
+  <div class="resizer" id="rightResizer" title="Drag to resize chat panel"></div>
+
   <!-- ── Right Panel (Sleek Chat Interface) ── -->
   <div class="chat-panel">
     <div class="chat-header">
@@ -848,8 +1049,23 @@
     </div>
     <div class="chat-messages" id="chatMessages">
       <div class="chat-empty">
-        <span>💬</span>
-        Ask any semantic or structural question about the indexed repositories.
+        <span class="welcome-icon">💬</span>
+        <h3>Ask the Codebase</h3>
+        <p>Ask semantic or structural questions about your indexed repositories.</p>
+        <div class="welcome-suggestions">
+          <div class="suggestion-card" onclick="populatePrompt('Which classes inherit from Calculator?')">
+            <strong>Inheritance structures</strong>
+            <span>"Which classes inherit from Calculator?"</span>
+          </div>
+          <div class="suggestion-card" onclick="populatePrompt('Explain the main components and how they interact.')">
+            <strong>Architecture overview</strong>
+            <span>"Explain the main components and how they interact."</span>
+          </div>
+          <div class="suggestion-card" onclick="populatePrompt('Find all methods calling QdrantStore in the codebase.')">
+            <strong>Call structures</strong>
+            <span>"Find all methods calling QdrantStore."</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="chat-input-bar">
@@ -911,7 +1127,16 @@ const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
 
 window.addEventListener('DOMContentLoaded', () => {
   loadRepositories();
+  initResizers();
+  renderSearchSuggestions();
 });
+
+function populatePrompt(text) {
+  questionInput.value = text;
+  questionInput.focus();
+  questionInput.style.height = 'auto';
+  questionInput.style.height = Math.min(questionInput.scrollHeight, 140) + 'px';
+}
 
 async function loadRepositories() {
   try {
@@ -935,6 +1160,11 @@ resultsList.addEventListener('click', e => {
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+searchInput.addEventListener('input', () => {
+  if (!searchInput.value.trim()) {
+    renderSearchSuggestions();
+  }
+});
 repoSelect.addEventListener('change', () => {
   activeRepo = repoSelect.value;
   doSearch();
@@ -977,7 +1207,10 @@ closeInspectorBtn.addEventListener('click', () => {
 
 async function doSearch() {
   const q = searchInput.value.trim();
-  if (!q) return;
+  if (!q) {
+    renderSearchSuggestions();
+    return;
+  }
   searchBtn.textContent = '…';
   try {
     let url = `${API}/graph/search?q=${encodeURIComponent(q)}&limit=25`;
@@ -994,6 +1227,7 @@ async function doSearch() {
       nodes = nodes.filter(n => n.label === activeLabel);
     }
     renderResultsList(nodes);
+    saveRecentSearch(q);
   } catch (err) {
     resultsList.innerHTML = `<div role="alert" style="color:var(--red);padding:8px;font-size:11px;">Error: ${escHtml(err.message)}</div>`;
   } finally {
@@ -1293,9 +1527,12 @@ function drawGraph() {
 }
 
 new ResizeObserver(() => {
+  const wrap = document.getElementById('canvasWrap');
   if (graphInstance && currentViewMode === '3d') {
-    const wrap = document.getElementById('canvasWrap');
     graphInstance.width(wrap.clientWidth).height(wrap.clientHeight);
+  }
+  if (cyInstance && currentViewMode === '2d') {
+    cyInstance.resize();
   }
 }).observe(document.getElementById('canvasWrap'));
 
@@ -1312,8 +1549,23 @@ function renderMessages() {
   if (!messages.length) {
     chatMessages.innerHTML = `
       <div class="chat-empty">
-        <span>💬</span>
-        Ask any semantic or structural question about the indexed repositories.
+        <span class="welcome-icon">💬</span>
+        <h3>Ask the Codebase</h3>
+        <p>Ask semantic or structural questions about your indexed repositories.</p>
+        <div class="welcome-suggestions">
+          <div class="suggestion-card" onclick="populatePrompt('Which classes inherit from Calculator?')">
+            <strong>Inheritance structures</strong>
+            <span>"Which classes inherit from Calculator?"</span>
+          </div>
+          <div class="suggestion-card" onclick="populatePrompt('Explain the main components and how they interact.')">
+            <strong>Architecture overview</strong>
+            <span>"Explain the main components and how they interact."</span>
+          </div>
+          <div class="suggestion-card" onclick="populatePrompt('Find all methods calling QdrantStore in the codebase.')">
+            <strong>Call structures</strong>
+            <span>"Find all methods calling QdrantStore."</span>
+          </div>
+        </div>
       </div>`;
     return;
   }
@@ -1365,35 +1617,22 @@ function renderCitations(msgId, sources) {
     </details>`;
 }
 
-// Simple safe Markdown parsing for assistant streaming response
+// Configure marked.js with custom renderer for syntax highlighted code blocks
+const renderer = new marked.Renderer();
+renderer.code = function(code, lang) {
+  const language = lang && hljs.getLanguage(lang) ? lang : null;
+  const highlighted = language
+    ? hljs.highlight(code, { language }).value
+    : escHtml(code);
+  const langBadge = lang ? `<span class="code-lang">${escHtml(lang)}</span>` : '';
+  return `<div class="code-block">${langBadge}<pre><code class="hljs">${highlighted}</code></pre></div>`;
+};
+marked.use({ renderer });
+
+// Simple safe Markdown parsing for assistant response
 function renderMarkdown(raw) {
   if (!raw) return '';
-  const parts = [];
-  let last = 0;
-  const fence = /```(\w*)\n([\s\S]*?)```/g;
-  let m;
-  while ((m = fence.exec(raw)) !== null) {
-    if (m.index > last) parts.push({ type: 'text', content: raw.slice(last, m.index) });
-    parts.push({ type: 'code', lang: m[1] || null, content: m[2] });
-    last = m.index + m[0].length;
-  }
-  if (last < raw.length) parts.push({ type: 'text', content: raw.slice(last) });
-
-  return parts.map(p => {
-    if (p.type === 'code') {
-      const lang        = p.lang && hljs.getLanguage(p.lang) ? p.lang : null;
-      const highlighted = lang
-        ? hljs.highlight(p.content.trimEnd(), { language: lang }).value
-        : escHtml(p.content.trimEnd());
-      const langBadge   = p.lang ? `<span class="code-lang">${escHtml(p.lang)}</span>` : '';
-      return `<div class="code-block">${langBadge}<pre><code class="hljs">${highlighted}</code></pre></div>`;
-    }
-    return escHtml(p.content)
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g,     '<em>$1</em>')
-      .replace(/`([^`]+)`/g,     '<code>$1</code>')
-      .replace(/\n/g,            '<br>');
-  }).join('');
+  return marked.parse(raw);
 }
 
 askBtn.addEventListener('click', doAsk);
@@ -1525,6 +1764,140 @@ function escHtml(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+// ── Resizable Panels Logic ───────────────────────────────────────────────────
+
+function initResizers() {
+  const leftResizer = document.getElementById('leftResizer');
+  const rightResizer = document.getElementById('rightResizer');
+  const sidebar = document.querySelector('.sidebar');
+  const chatPanel = document.querySelector('.chat-panel');
+
+  let isDraggingLeft = false;
+  let isDraggingRight = false;
+
+  leftResizer.addEventListener('mousedown', e => {
+    isDraggingLeft = true;
+    leftResizer.classList.add('dragging');
+    document.body.classList.add('dragging-active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  rightResizer.addEventListener('mousedown', e => {
+    isDraggingRight = true;
+    rightResizer.classList.add('dragging');
+    document.body.classList.add('dragging-active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (isDraggingLeft) {
+      const containerRect = document.querySelector('.layout').getBoundingClientRect();
+      let newWidth = e.clientX - containerRect.left;
+      if (newWidth < 200) newWidth = 200;
+      if (newWidth > 450) newWidth = 450;
+      sidebar.style.width = `${newWidth}px`;
+    }
+
+    if (isDraggingRight) {
+      const containerRect = document.querySelector('.layout').getBoundingClientRect();
+      let newWidth = containerRect.right - e.clientX;
+      if (newWidth < 300) newWidth = 300;
+      if (newWidth > 600) newWidth = 600;
+      chatPanel.style.width = `${newWidth}px`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDraggingLeft || isDraggingRight) {
+      isDraggingLeft = false;
+      isDraggingRight = false;
+      leftResizer.classList.remove('dragging');
+      rightResizer.classList.remove('dragging');
+      document.body.classList.remove('dragging-active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
+
+// ── Search Suggestions Logic ──────────────────────────────────────────────────
+
+const CORE_SUGGESTIONS = ['main', 'HybridRetriever', 'FalkorDBStore', 'QdrantStore', 'OllamaEmbedder'];
+
+function saveRecentSearch(query) {
+  if (!query) return;
+  let recent = [];
+  try {
+    recent = JSON.parse(localStorage.getItem('recent_kg_searches')) || [];
+  } catch (_) {}
+  
+  if (!Array.isArray(recent)) recent = [];
+  
+  recent = recent.filter(q => q.toLowerCase() !== query.toLowerCase());
+  recent.unshift(query);
+  recent = recent.slice(0, 5);
+  
+  localStorage.setItem('recent_kg_searches', JSON.stringify(recent));
+}
+
+function clearRecentSearches() {
+  localStorage.removeItem('recent_kg_searches');
+  renderSearchSuggestions();
+}
+
+function selectSearchSuggestion(query) {
+  searchInput.value = query;
+  doSearch();
+}
+
+function renderSearchSuggestions() {
+  let recent = [];
+  try {
+    recent = JSON.parse(localStorage.getItem('recent_kg_searches')) || [];
+  } catch (_) {}
+  if (!Array.isArray(recent)) recent = [];
+
+  let html = `<div class="search-suggest-container">`;
+
+  // 1. Recent Searches
+  if (recent.length > 0) {
+    html += `
+      <div class="suggest-section">
+        <div class="suggest-section-header">
+          <span>Recent Searches</span>
+          <button class="btn-clear-history" onclick="clearRecentSearches()">Clear</button>
+        </div>
+        <div class="suggest-list">
+          ${recent.map(q => `<button class="suggest-chip" onclick="selectSearchSuggestion('${escHtml(q)}')">${escHtml(q)}</button>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. Suggested Core Nodes
+  html += `
+    <div class="suggest-section">
+      <div class="suggest-section-header">
+        <span>Suggested Nodes</span>
+      </div>
+      <div class="suggest-list">
+        ${CORE_SUGGESTIONS.map(q => `<button class="suggest-chip" onclick="selectSearchSuggestion('${escHtml(q)}')">${escHtml(q)}</button>`).join('')}
+      </div>
+    </div>
+  `;
+
+  html += `</div>`;
+  resultsList.innerHTML = html;
+}
+
+// Bind to window for inline HTML onclick attributes
+window.clearRecentSearches = clearRecentSearches;
+window.selectSearchSuggestion = selectSearchSuggestion;
 </script>
 </body>
 </html>

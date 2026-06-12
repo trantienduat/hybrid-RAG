@@ -982,6 +982,79 @@
       font-style: italic;
       line-height: 1.5;
     }
+
+    /* ── Stop Button ── */
+    .btn-ask.btn-stop {
+      background: var(--red);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+    .btn-ask.btn-stop:hover {
+      background: #dc2626;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+    }
+
+    /* ── Conversations list ── */
+    .conversation-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 4px 0;
+    }
+    .conversation-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: rgba(22, 26, 38, 0.2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      position: relative;
+    }
+    .conversation-item:hover {
+      border-color: var(--border-hover);
+      background: rgba(22, 26, 38, 0.5);
+      color: var(--text);
+    }
+    .conversation-item.active {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.08);
+      color: #fff;
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .conversation-item .title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 20px;
+    }
+    .btn-delete-chat {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0;
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      transition: opacity 0.2s, color 0.2s;
+    }
+    .conversation-item:hover .btn-delete-chat {
+      opacity: 0.8;
+    }
+    .btn-delete-chat:hover {
+      color: var(--red) !important;
+      opacity: 1 !important;
+    }
   </style>
 </head>
 <body>
@@ -1031,6 +1104,14 @@
     <div class="results-list" id="resultsList">
       <div style="color:var(--text-muted);padding:8px;font-size:11px;text-align:center;font-weight:500;">
         Search for a node to visualize its architectural relationships.
+      </div>
+    </div>
+
+    <!-- Conversations Section -->
+    <div class="sidebar-section" style="flex: 1.2; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--border);">
+      <label>Conversations</label>
+      <div class="conversation-list" id="conversationList">
+        <!-- Renders conversation list items -->
       </div>
     </div>
   </div>
@@ -1102,11 +1183,12 @@
   <div class="chat-panel">
     <div class="chat-header">
       <span>Ask the Codebase</span>
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0; margin-right: 4px;">
           <input type="checkbox" id="codebaseQueryToggle" checked style="accent-color: var(--accent); cursor: pointer; transform: scale(1.05); margin: 0;" />
           Codebase RAG
         </label>
+        <button class="btn-clear" id="newChatBtn" type="button" style="border-color: var(--accent); color: var(--accent);">+ New Chat</button>
         <button class="btn-clear" id="clearBtn" type="button">Clear</button>
       </div>
     </div>
@@ -1185,6 +1267,8 @@ const nodeInspector = document.getElementById('nodeInspector');
 const closeInspectorBtn = document.getElementById('closeInspectorBtn');
 const statusBar     = document.getElementById('statusBar');
 const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
+const newChatBtn    = document.getElementById('newChatBtn');
+const conversationList = document.getElementById('conversationList');
 
 // ── Page Initialization ────────────────────────────────────────────────────────
 
@@ -1192,6 +1276,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadRepositories();
   initResizers();
   renderSearchSuggestions();
+  loadConversations();
 });
 
 function populatePrompt(text) {
@@ -1223,6 +1308,7 @@ resultsList.addEventListener('click', e => {
 
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+newChatBtn.addEventListener('click', startNewChat);
 searchInput.addEventListener('input', () => {
   if (!searchInput.value.trim()) {
     renderSearchSuggestions();
@@ -1757,21 +1843,38 @@ questionInput.addEventListener('input', () => {
 });
 
 clearBtn.addEventListener('click', () => {
+  if (currentAsk) {
+    currentAsk.abort();
+    currentAsk = null;
+  }
   messages.length = 0;
   renderMessages();
+  if (currentChatId) {
+    saveCurrentChat();
+  }
 });
 
 async function doAsk() {
   const q = questionInput.value.trim();
+  
+  if (currentAsk) {
+    currentAsk.abort();
+    currentAsk = null;
+    return;
+  }
+  
   if (!q) return;
 
-  if (currentAsk) { currentAsk.abort(); }
   currentAsk = new AbortController();
-  askBtn.disabled = true;
+  askBtn.textContent = 'Stop';
+  askBtn.classList.add('btn-stop');
+  askBtn.disabled = false;
+  
   questionInput.value = '';
   questionInput.style.height = 'auto';
 
   pushMessage('user', q);
+  saveCurrentChat();
 
   const assistantId = ++msgIdCounter;
   messages.push({ id: assistantId, role: 'assistant', text: '', sources: [], latency: null, streaming: true });
@@ -1889,6 +1992,7 @@ async function doAsk() {
               });
             }
             renderMessages();
+            saveCurrentChat();
           }
         } catch (_) {}
       }
@@ -1898,10 +2002,21 @@ async function doAsk() {
       const entry = messages.find(x => x.id === assistantId);
       if (entry) Object.assign(entry, { text: `Error: ${err.message}`, streaming: false });
       renderMessages();
+      saveCurrentChat();
+    } else {
+      const entry = messages.find(x => x.id === assistantId);
+      if (entry) {
+        entry.text = streamBuf || "Generation stopped by user.";
+        entry.streaming = false;
+      }
+      renderMessages();
+      saveCurrentChat();
     }
   } finally {
     currentAsk = null;
     askBtn.disabled = false;
+    askBtn.textContent = 'Ask';
+    askBtn.classList.remove('btn-stop');
   }
 }
 
@@ -2002,6 +2117,154 @@ function parseThinkingAndResponse(text) {
   }
   return { thinking, response };
 }
+
+// ── Conversation History Logic ────────────────────────────────────────────────
+
+let currentChatId = null;
+
+function loadConversations() {
+  let chats = [];
+  try {
+    chats = JSON.parse(localStorage.getItem('hybrid_rag_chats')) || [];
+  } catch (_) {}
+  if (!Array.isArray(chats)) chats = [];
+
+  if (chats.length === 0) {
+    conversationList.innerHTML = `<div style="color:var(--text-muted);padding:8px;font-size:11.5px;text-align:center;font-weight:500;">No recent conversations.</div>`;
+    return;
+  }
+
+  conversationList.innerHTML = chats.map(chat => {
+    const activeClass = chat.id === currentChatId ? 'active' : '';
+    return `
+      <div class="conversation-item ${activeClass}" onclick="selectConversation('${chat.id}')">
+        <span class="title" title="${escHtml(chat.title)}">${escHtml(chat.title)}</span>
+        <button class="btn-delete-chat" onclick="deleteConversation('${chat.id}', event)" title="Delete conversation">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function startNewChat() {
+  if (currentAsk) {
+    currentAsk.abort();
+    currentAsk = null;
+  }
+  currentChatId = null;
+  messages.length = 0;
+  renderMessages();
+  
+  document.querySelectorAll('.conversation-item').forEach(el => el.classList.remove('active'));
+}
+
+function selectConversation(chatId) {
+  if (chatId === currentChatId) return;
+  
+  if (currentAsk) {
+    currentAsk.abort();
+    currentAsk = null;
+  }
+
+  let chats = [];
+  try {
+    chats = JSON.parse(localStorage.getItem('hybrid_rag_chats')) || [];
+  } catch (_) {}
+  
+  const chat = chats.find(c => c.id === chatId);
+  if (chat) {
+    currentChatId = chatId;
+    
+    messages.length = 0;
+    (chat.messages || []).forEach(m => messages.push(m));
+    
+    codebaseQueryToggle.checked = chat.codebase_query !== false;
+    codebaseQueryToggle.dispatchEvent(new Event('change'));
+    
+    if (chat.repository !== undefined) {
+      repoSelect.value = chat.repository;
+      activeRepo = chat.repository;
+    }
+    
+    renderMessages();
+    loadConversations();
+  }
+}
+
+function saveCurrentChat() {
+  if (currentChatId && messages.length === 0) {
+    deleteConversation(currentChatId);
+    return;
+  }
+  if (messages.length === 0) return;
+  
+  let chats = [];
+  try {
+    chats = JSON.parse(localStorage.getItem('hybrid_rag_chats')) || [];
+  } catch (_) {}
+  if (!Array.isArray(chats)) chats = [];
+  
+  const firstUserMsg = messages.find(m => m.role === 'user');
+  const title = firstUserMsg ? firstUserMsg.text : 'New Chat';
+  
+  if (currentChatId === null) {
+    currentChatId = 'chat_' + Date.now();
+    chats.unshift({
+      id: currentChatId,
+      title: title,
+      messages: [...messages],
+      repository: activeRepo,
+      codebase_query: codebaseQueryToggle.checked
+    });
+  } else {
+    const index = chats.findIndex(c => c.id === currentChatId);
+    if (index !== -1) {
+      chats[index].messages = [...messages];
+      chats[index].repository = activeRepo;
+      chats[index].codebase_query = codebaseQueryToggle.checked;
+      const [currChat] = chats.splice(index, 1);
+      chats.unshift(currChat);
+    } else {
+      chats.unshift({
+        id: currentChatId,
+        title: title,
+        messages: [...messages],
+        repository: activeRepo,
+        codebase_query: codebaseQueryToggle.checked
+      });
+    }
+  }
+  
+  localStorage.setItem('hybrid_rag_chats', JSON.stringify(chats));
+  loadConversations();
+}
+
+function deleteConversation(chatId, event) {
+  if (event) event.stopPropagation();
+  
+  if (chatId === currentChatId) {
+    if (currentAsk) {
+      currentAsk.abort();
+      currentAsk = null;
+    }
+    currentChatId = null;
+    messages.length = 0;
+    renderMessages();
+  }
+  
+  let chats = [];
+  try {
+    chats = JSON.parse(localStorage.getItem('hybrid_rag_chats')) || [];
+  } catch (_) {}
+  if (!Array.isArray(chats)) chats = [];
+  
+  chats = chats.filter(c => c.id !== chatId);
+  localStorage.setItem('hybrid_rag_chats', JSON.stringify(chats));
+  
+  loadConversations();
+}
+
+window.selectConversation = selectConversation;
+window.deleteConversation = deleteConversation;
 
 const CORE_SUGGESTIONS = ['main', 'HybridRetriever', 'FalkorDBStore', 'QdrantStore', 'OllamaEmbedder'];
 

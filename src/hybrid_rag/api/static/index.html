@@ -919,6 +919,69 @@
       background: rgba(99, 102, 241, 0.08);
       color: #fff;
     }
+
+    /* ── RAG Pipeline Tracer ── */
+    .rag-trace {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-family: inherit;
+    }
+    .trace-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+    }
+    .trace-icon {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+    .trace-step strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── Collapsible LLM Thinking Box ── */
+    .thinking-box {
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid var(--text-muted);
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .thinking-box[open] summary {
+      margin-bottom: 6px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+      padding-bottom: 4px;
+    }
+    .thinking-box summary {
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+      outline: none;
+      color: var(--text-muted);
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .thinking-box summary::-webkit-details-marker {
+      color: var(--text-muted);
+    }
+    .thinking-content {
+      font-style: italic;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -1575,16 +1638,64 @@ function renderMessages() {
 
 function renderMessage(m) {
   const isUser   = m.role === 'user';
-  const bodyHtml = isUser
-    ? escHtml(m.text)
-    : (m.streaming ? escHtml(m.text) : renderMarkdown(m.text));
-  const cursor  = m.streaming ? '<span class="cursor"></span>' : '';
+  let bodyHtml = '';
+
+  if (isUser) {
+    bodyHtml = escHtml(m.text);
+  } else {
+    // 1. Render RAG Pipeline Trace if available
+    let traceHtml = '';
+    if (m.query_type && m.query_type !== 'general') {
+      const sourceCount = m.sources ? m.sources.length : 0;
+      traceHtml = `
+        <div class="rag-trace">
+          <div class="trace-step">
+            <span class="trace-icon">🔍</span>
+            <span>Query classified as: <strong>${escHtml(m.query_type.toUpperCase())}</strong> query</span>
+          </div>
+          <div class="trace-step">
+            <span class="trace-icon">🗂️</span>
+            <span>Retrieved <strong>${sourceCount}</strong> structural source chunks from FalkorDB & Qdrant</span>
+          </div>
+          <div class="trace-step">
+            <span class="trace-icon">🎛️</span>
+            <span>Fused and ranked results using <strong>Reciprocal Rank Fusion (RRF)</strong></span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Parse Thinking and Response
+    const parsed = parseThinkingAndResponse(m.text);
+    let thinkingHtml = '';
+    if (parsed.thinking) {
+      const openAttr = m.streaming ? 'open' : '';
+      thinkingHtml = `
+        <details class="thinking-box" ${openAttr}>
+          <summary>Gemma 4 Thinking Process</summary>
+          <div class="thinking-content">${renderMarkdown(parsed.thinking)}</div>
+        </details>
+      `;
+    }
+
+    // 3. Render Answer
+    const cursor = m.streaming ? '<span class="cursor"></span>' : '';
+    let responseHtml = '';
+    if (parsed.response || m.streaming) {
+      responseHtml = `<div class="answer-content">${m.streaming ? escHtml(parsed.response) : renderMarkdown(parsed.response)}${cursor}</div>`;
+    } else if (!parsed.thinking) {
+      responseHtml = `<div class="answer-content">${renderMarkdown(m.text)}${cursor}</div>`;
+    }
+
+    bodyHtml = traceHtml + thinkingHtml + responseHtml;
+  }
+
   const sources = (!isUser && m.sources && m.sources.length) ? renderCitations(m.id, m.sources) : '';
   const latency = m.latency ? `<div class="msg-meta">Latency: ${m.latency}s</div>` : '';
   return `
     <div class="msg msg-${m.role}" id="msg-${m.id}">
       <div class="msg-role">${isUser ? 'You' : 'Assistant'}</div>
-      <div class="msg-body" id="msg-body-${m.id}">${bodyHtml}${cursor}</div>
+      <div class="msg-body" id="msg-body-${m.id}">${bodyHtml}</div>
       ${sources}${latency}
     </div>`;
 }
@@ -1711,6 +1822,11 @@ async function doAsk() {
           if (firstEvent) {
             firstEvent      = false;
             capturedSources = ev.sources || [];
+            const entry = messages.find(x => x.id === assistantId);
+            if (entry) {
+              entry.sources = capturedSources;
+              entry.query_type = ev.query_type || q_type;
+            }
             continue;
           }
 
@@ -1718,7 +1834,49 @@ async function doAsk() {
 
           const bodyEl = document.getElementById(`msg-body-${assistantId}`);
           if (bodyEl) {
-            bodyEl.innerHTML = escHtml(streamBuf) + '<span class="cursor"></span>';
+            const activeMsg = messages.find(x => x.id === assistantId);
+            const queryType = (activeMsg && activeMsg.query_type) || q_type;
+            const sourcesList = (activeMsg && activeMsg.sources) || capturedSources || [];
+
+            let traceHtml = '';
+            if (queryType && queryType !== 'general') {
+              traceHtml = `
+                <div class="rag-trace">
+                  <div class="trace-step">
+                    <span class="trace-icon">🔍</span>
+                    <span>Query classified as: <strong>${escHtml(queryType.toUpperCase())}</strong> query</span>
+                  </div>
+                  <div class="trace-step">
+                    <span class="trace-icon">🗂️</span>
+                    <span>Retrieved <strong>${sourcesList.length}</strong> structural source chunks from FalkorDB & Qdrant</span>
+                  </div>
+                  <div class="trace-step">
+                    <span class="trace-icon">🎛️</span>
+                    <span>Fused and ranked results using <strong>Reciprocal Rank Fusion (RRF)</strong></span>
+                  </div>
+                </div>
+              `;
+            }
+
+            const parsed = parseThinkingAndResponse(streamBuf);
+            let thinkingHtml = '';
+            if (parsed.thinking) {
+              thinkingHtml = `
+                <details class="thinking-box" open>
+                  <summary>Gemma 4 Thinking Process</summary>
+                  <div class="thinking-content">${escHtml(parsed.thinking)}</div>
+                </details>
+              `;
+            }
+
+            let responseHtml = '';
+            if (parsed.response || !parsed.thinking) {
+              responseHtml = `<div class="answer-content">${escHtml(parsed.response)}<span class="cursor"></span></div>`;
+            } else {
+              responseHtml = `<div class="answer-content"><span class="cursor"></span></div>`;
+            }
+
+            bodyEl.innerHTML = traceHtml + thinkingHtml + responseHtml;
             chatMessages.scrollTop = chatMessages.scrollHeight;
           }
 
@@ -1826,6 +1984,24 @@ function initResizers() {
 }
 
 // ── Search Suggestions Logic ──────────────────────────────────────────────────
+
+function parseThinkingAndResponse(text) {
+  let thinking = '';
+  let response = text;
+  
+  const thinkStart = text.indexOf('<think>');
+  if (thinkStart !== -1) {
+    const thinkEnd = text.indexOf('</think>');
+    if (thinkEnd !== -1) {
+      thinking = text.slice(thinkStart + 7, thinkEnd).trim();
+      response = text.slice(thinkEnd + 8).trim();
+    } else {
+      thinking = text.slice(thinkStart + 7);
+      response = '';
+    }
+  }
+  return { thinking, response };
+}
 
 const CORE_SUGGESTIONS = ['main', 'HybridRetriever', 'FalkorDBStore', 'QdrantStore', 'OllamaEmbedder'];
 

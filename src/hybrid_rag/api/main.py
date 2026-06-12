@@ -174,6 +174,7 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "describing the structural design, modules, and dependencies of the codebase.\n"
             "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
             "Highlight key components, database models, core flows, and cross-module relationships.\n\n"
+            "Before writing your report, output your step-by-step thinking process and structural analysis inside <think> and </think> tags.\n\n"
             f"Community Summaries Context:\n{context}\n\n"
             f"User Request: {question}\n\n"
             "Architectural Report:"
@@ -181,6 +182,7 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
     return (
         "You are an expert code assistant. Use ONLY the context below to answer the question. "
         "If the context does not contain enough information, say so clearly.\n\n"
+        "Before answering, output your step-by-step thinking process, code analysis, and reasoning inside <think> and </think> tags.\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {question}\n\n"
         "Answer:"
@@ -405,7 +407,12 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
             ]
             q_type = analysis.query_type
     else:
-        prompt = req.question
+        prompt = (
+            "You are an expert AI software developer and codebase assistant. Before answering, output your "
+            "thinking process and reasoning inside <think> and </think> tags.\n\n"
+            f"Question: {req.question}\n\n"
+            "Answer:"
+        )
         sources = []
         q_type = "general"
 
@@ -490,7 +497,12 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             ]
             q_type = analysis.query_type
     else:
-        prompt = req.question
+        prompt = (
+            "You are an expert AI software developer and codebase assistant. Before answering, output your "
+            "thinking process and reasoning inside <think> and </think> tags.\n\n"
+            f"Question: {req.question}\n\n"
+            "Answer:"
+        )
         sources_payload = []
         q_type = "general"
 

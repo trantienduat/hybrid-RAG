@@ -838,7 +838,13 @@
   <div class="chat-panel">
     <div class="chat-header">
       <span>Ask the Codebase</span>
-      <button class="btn-clear" id="clearBtn" type="button">Clear</button>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">
+          <input type="checkbox" id="codebaseQueryToggle" checked style="accent-color: var(--accent); cursor: pointer; transform: scale(1.05); margin: 0;" />
+          Codebase RAG
+        </label>
+        <button class="btn-clear" id="clearBtn" type="button">Clear</button>
+      </div>
     </div>
     <div class="chat-messages" id="chatMessages">
       <div class="chat-empty">
@@ -899,6 +905,7 @@ const viewToggleBtn = document.getElementById('viewToggleBtn');
 const nodeInspector = document.getElementById('nodeInspector');
 const closeInspectorBtn = document.getElementById('closeInspectorBtn');
 const statusBar     = document.getElementById('statusBar');
+const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
 
 // ── Page Initialization ────────────────────────────────────────────────────────
 
@@ -941,6 +948,15 @@ labelTabs.addEventListener('click', e => {
   btn.classList.add('active');
   activeLabel = btn.dataset.label;
   doSearch();
+});
+
+// Toggle codebase query mode placeholder update
+codebaseQueryToggle.addEventListener('change', () => {
+  if (codebaseQueryToggle.checked) {
+    questionInput.placeholder = "e.g. Which classes inherit from Calculator? (Enter ↵ to send)";
+  } else {
+    questionInput.placeholder = "Ask general questions... (Enter ↵ to send)";
+  }
 });
 
 // Toggle view between 2D Cytoscape and 3D Force-Graph
@@ -1416,7 +1432,13 @@ async function doAsk() {
   let capturedSources = [];
 
   try {
-    const body = { question: q, top_k: 20, context_n: 5, stream: true };
+    const body = {
+      question: q,
+      top_k: 20,
+      context_n: 5,
+      stream: true,
+      codebase_query: codebaseQueryToggle.checked
+    };
     if (activeRepo) {
       body.repository = activeRepo;
     }

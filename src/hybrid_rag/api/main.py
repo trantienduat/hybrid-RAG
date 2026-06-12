@@ -354,72 +354,76 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     t0 = time.perf_counter()
 
     analysis = analyze(req.question)
-    retriever: HybridRetriever = app.state.retriever
 
-    with start_span(
-        "api_query_endpoint", {"question": req.question, "repository": req.repository or "all"}
-    ):
-        try:
-            # Route budget parameters
-            with start_span(
-                "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
-            ):
-                if req.max_tokens is None and req.max_chars is None:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=None,
-                        max_chars=None,
-                        context_n=req.context_n,
-                        repository=req.repository,
-                    )
-                else:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=req.max_tokens,
-                        max_chars=req.max_chars,
-                        repository=req.repository,
-                    )
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Retrieval failed")
-            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    if req.codebase_query:
+        retriever: HybridRetriever = app.state.retriever
+        with start_span(
+            "api_query_endpoint", {"question": req.question, "repository": req.repository or "all"}
+        ):
+            try:
+                # Route budget parameters
+                with start_span(
+                    "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
+                ):
+                    if req.max_tokens is None and req.max_chars is None:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=None,
+                            max_chars=None,
+                            context_n=req.context_n,
+                            repository=req.repository,
+                        )
+                    else:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=req.max_tokens,
+                            max_chars=req.max_chars,
+                            repository=req.repository,
+                        )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Retrieval failed")
+                raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-        prompt = _build_prompt(
-            req.question,
-            ctx.text or "(no code context retrieved)",
-            is_global=(analysis.query_type == "global"),
-        )
-
-        try:
-            answer = await _llm_generate(prompt, req.llm_model)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("LLM generation failed")
-            raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
-
-        latency_ms = (time.perf_counter() - t0) * 1000
-
-        # Build response sources from actually packed context chunks
-        sources = [
-            SourceChunk(
-                node_id=r.get("node_id", ""),
-                name=r.get("name", ""),
-                label=r.get("label", ""),
-                file_path=r.get("file_path", ""),
-                text=r.get("text", ""),
-                source=r.get("source", ""),
-                rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+            prompt = _build_prompt(
+                req.question,
+                ctx.text or "(no code context retrieved)",
+                is_global=(analysis.query_type == "global"),
             )
-            for r in ctx.chunks
-        ]
+            sources = [
+                SourceChunk(
+                    node_id=r.get("node_id", ""),
+                    name=r.get("name", ""),
+                    label=r.get("label", ""),
+                    file_path=r.get("file_path", ""),
+                    text=r.get("text", ""),
+                    source=r.get("source", ""),
+                    rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+                )
+                for r in ctx.chunks
+            ]
+            q_type = analysis.query_type
+    else:
+        prompt = req.question
+        sources = []
+        q_type = "general"
 
-        return QueryResponse(
-            question=req.question,
-            answer=answer,
-            query_type=analysis.query_type,
-            sources=sources,
-            latency_ms=round(latency_ms, 2),
-        )
+    try:
+        answer = await _llm_generate(prompt, req.llm_model)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("LLM generation failed")
+        raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
+
+    latency_ms = (time.perf_counter() - t0) * 1000
+
+    return QueryResponse(
+        question=req.question,
+        answer=answer,
+        query_type=q_type,
+        sources=sources,
+        latency_ms=round(latency_ms, 2),
+    )
 
 
 # ── POST /query/stream ─────────────────────────────────────────────────────────
@@ -435,79 +439,85 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     Final:       {"token": "", "done": true}
     """
     analysis = analyze(req.question)
-    retriever: HybridRetriever = app.state.retriever
 
-    with start_span(
-        "api_query_stream", {"question": req.question, "repository": req.repository or "all"}
-    ):
-        try:
-            # Route budget parameters
-            with start_span(
-                "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
-            ):
-                if req.max_tokens is None and req.max_chars is None:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=None,
-                        max_chars=None,
-                        context_n=req.context_n,
-                        repository=req.repository,
-                    )
-                else:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=req.max_tokens,
-                        max_chars=req.max_chars,
-                        repository=req.repository,
-                    )
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    if req.codebase_query:
+        retriever: HybridRetriever = app.state.retriever
+        with start_span(
+            "api_query_stream", {"question": req.question, "repository": req.repository or "all"}
+        ):
+            try:
+                # Route budget parameters
+                with start_span(
+                    "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
+                ):
+                    if req.max_tokens is None and req.max_chars is None:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=None,
+                            max_chars=None,
+                            context_n=req.context_n,
+                            repository=req.repository,
+                        )
+                    else:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=req.max_tokens,
+                            max_chars=req.max_chars,
+                            repository=req.repository,
+                        )
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-        prompt = _build_prompt(
-            req.question,
-            ctx.text or "(no code context retrieved)",
-            is_global=(analysis.query_type == "global"),
-        )
-
-        sources_payload = [
-            {
-                "node_id": r.get("node_id", ""),
-                "name": r.get("name", ""),
-                "label": r.get("label", ""),
-                "file_path": r.get("file_path", ""),
-                "text": r.get("text", ""),
-                "source": r.get("source", ""),
-                "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
-            }
-            for r in ctx.chunks
-        ]
-
-        async def _event_stream() -> AsyncIterator[str]:
-            # First event: metadata
-            meta = json.dumps(
-                {
-                    "token": "",
-                    "done": False,
-                    "sources": sources_payload,
-                    "query_type": analysis.query_type,
-                }
+            prompt = _build_prompt(
+                req.question,
+                ctx.text or "(no code context retrieved)",
+                is_global=(analysis.query_type == "global"),
             )
-            yield f"data: {meta}\n\n"
 
-            # Stream LLM tokens
-            async for chunk in _llm_stream(prompt, req.llm_model):
-                yield chunk
+            sources_payload = [
+                {
+                    "node_id": r.get("node_id", ""),
+                    "name": r.get("name", ""),
+                    "label": r.get("label", ""),
+                    "file_path": r.get("file_path", ""),
+                    "text": r.get("text", ""),
+                    "source": r.get("source", ""),
+                    "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
+                }
+                for r in ctx.chunks
+            ]
+            q_type = analysis.query_type
+    else:
+        prompt = req.question
+        sources_payload = []
+        q_type = "general"
 
-        return StreamingResponse(
-            _event_stream(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-            },
+    async def _event_stream() -> AsyncIterator[str]:
+        # First event: metadata
+        meta = json.dumps(
+            {
+                "token": "",
+                "done": False,
+                "sources": sources_payload,
+                "query_type": q_type,
+            }
         )
+        yield f"data: {meta}\n\n"
+
+        # Stream LLM tokens
+        async for chunk in _llm_stream(prompt, req.llm_model):
+            yield chunk
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ── GET /graph/repositories ───────────────────────────────────────────────────

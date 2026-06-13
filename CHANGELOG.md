@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-13
+
+### Added
+- Created a persistent **Conversation History Manager** in the Web UI sidebar using browser `localStorage`, allowing users to save, switch between, and delete chat threads.
+- Added a frontend **LLM Generation Stop Button** using `AbortController` to cancel active streaming HTTP requests and free backend resources.
+- Implemented **Dynamic Resizable Layout Panels** with vertical divider bars (`.resizer`) that support responsive drag-to-resize operations and trigger automatic Cytoscape & 3D Force-graph resizing.
+- Implemented a **Collapsible Reasoning (Thinking Box)** to extract model thoughts wrapped inside `<think>...</think>` tags and present them in a glassmorphic details panel.
+- Added an execution **Trace & Metadata Dashboard** rendering badges for query classification (HYBRID/VECTOR/etc.), retrieved source count, and fusion status with generation latency.
+- Integrated `marked.js` library via CDN for rich Markdown rendering of LLM responses (headings, tables, bullet lists, code blocks).
+- Added recent search history tags and node type suggestion chips to the sidebar.
+- Added a Product Requirement Prompt (`docs/prp/prp-07-ui-ux-enhancements.md`) specifying frontend improvements and master replication prompts.
+
+### Changed
+- Increased server-side HTTPX timeouts (`_llm_stream` and `_llm_generate` in `src/hybrid_rag/api/main.py`) from `120s` to `300s` to support long codebase prompt pre-fills under local LLMs.
+- Updated system prompts in `src/hybrid_rag/api/main.py` with instructions for Gemma 4 to output step-by-step reasoning inside `<think>` tags and handle sparse codebase contexts conceptually.
+
+### Fixed
+- Fixed a critical chat history ID collision bug in `index.html` where loading a saved chat thread failed to update the global `msgIdCounter`, causing subsequent query responses to overwrite previous assistant bubbles.
+
 ## [0.2.0] - 2026-05-28
 
 ### Added

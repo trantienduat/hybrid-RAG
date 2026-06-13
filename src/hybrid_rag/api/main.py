@@ -173,14 +173,30 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "You are an expert principal software architect. Below is a set of hierarchical community summaries "
             "describing the structural design, modules, and dependencies of the codebase.\n"
             "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
-            "Highlight key components, database models, core flows, and cross-module relationships.\n\n"
+            "Highlight key components, database models, core flows, and cross-module relationships.\n"
+            "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+            "to infer design patterns, architectures, and intent.\n\n"
+            "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
+            "and then write your final report outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your detailed code analysis, module reviews, and thinking steps]\n"
+            "</think>\n\n"
+            "[Your final architectural report]\n\n"
             f"Community Summaries Context:\n{context}\n\n"
             f"User Request: {question}\n\n"
             "Architectural Report:"
         )
     return (
-        "You are an expert code assistant. Use ONLY the context below to answer the question. "
-        "If the context does not contain enough information, say so clearly.\n\n"
+        "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+        "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+        "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+        "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n\n"
+        "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
+        "and then write your final answer outside the tags. You must strictly follow this format:\n"
+        "<think>\n"
+        "[Your step-by-step reasoning, context analysis, and synthesis with general knowledge]\n"
+        "</think>\n\n"
+        "[Your final detailed answer]\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {question}\n\n"
         "Answer:"
@@ -205,7 +221,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.0},
             }
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 resp = await client.post(url, json=payload)
                 resp.raise_for_status()
                 res_json = resp.json()
@@ -239,7 +255,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 return ""
         else:
             payload = {"model": model, "prompt": prompt, "stream": False}
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
                 resp.raise_for_status()
                 return resp.json().get("response", "")
@@ -260,7 +276,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.0},
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", url, json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -280,7 +296,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                 yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
     else:
         payload = {"model": model, "prompt": prompt, "stream": True}
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -354,72 +370,86 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     t0 = time.perf_counter()
 
     analysis = analyze(req.question)
-    retriever: HybridRetriever = app.state.retriever
 
-    with start_span(
-        "api_query_endpoint", {"question": req.question, "repository": req.repository or "all"}
-    ):
-        try:
-            # Route budget parameters
-            with start_span(
-                "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
-            ):
-                if req.max_tokens is None and req.max_chars is None:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=None,
-                        max_chars=None,
-                        context_n=req.context_n,
-                        repository=req.repository,
-                    )
-                else:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=req.max_tokens,
-                        max_chars=req.max_chars,
-                        repository=req.repository,
-                    )
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Retrieval failed")
-            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    if req.codebase_query:
+        retriever: HybridRetriever = app.state.retriever
+        with start_span(
+            "api_query_endpoint", {"question": req.question, "repository": req.repository or "all"}
+        ):
+            try:
+                # Route budget parameters
+                with start_span(
+                    "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
+                ):
+                    if req.max_tokens is None and req.max_chars is None:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=None,
+                            max_chars=None,
+                            context_n=req.context_n,
+                            repository=req.repository,
+                        )
+                    else:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=req.max_tokens,
+                            max_chars=req.max_chars,
+                            repository=req.repository,
+                        )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Retrieval failed")
+                raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-        prompt = _build_prompt(
-            req.question,
-            ctx.text or "(no code context retrieved)",
-            is_global=(analysis.query_type == "global"),
-        )
-
-        try:
-            answer = await _llm_generate(prompt, req.llm_model)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("LLM generation failed")
-            raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
-
-        latency_ms = (time.perf_counter() - t0) * 1000
-
-        # Build response sources from actually packed context chunks
-        sources = [
-            SourceChunk(
-                node_id=r.get("node_id", ""),
-                name=r.get("name", ""),
-                label=r.get("label", ""),
-                file_path=r.get("file_path", ""),
-                text=r.get("text", ""),
-                source=r.get("source", ""),
-                rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+            prompt = _build_prompt(
+                req.question,
+                ctx.text or "(no code context retrieved)",
+                is_global=(analysis.query_type == "global"),
             )
-            for r in ctx.chunks
-        ]
-
-        return QueryResponse(
-            question=req.question,
-            answer=answer,
-            query_type=analysis.query_type,
-            sources=sources,
-            latency_ms=round(latency_ms, 2),
+            sources = [
+                SourceChunk(
+                    node_id=r.get("node_id", ""),
+                    name=r.get("name", ""),
+                    label=r.get("label", ""),
+                    file_path=r.get("file_path", ""),
+                    text=r.get("text", ""),
+                    source=r.get("source", ""),
+                    rrf_score=round(float(r.get("rrf_score", 0.0)), 6),
+                )
+                for r in ctx.chunks
+            ]
+            q_type = analysis.query_type
+    else:
+        prompt = (
+            "You are an expert AI software developer and codebase assistant. "
+            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+            "and then write your final answer outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your thinking process]\n"
+            "</think>\n\n"
+            "[Your final answer]\n\n"
+            f"Question: {req.question}\n\n"
+            "Answer:"
         )
+        sources = []
+        q_type = "general"
+
+    try:
+        answer = await _llm_generate(prompt, req.llm_model)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("LLM generation failed")
+        raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
+
+    latency_ms = (time.perf_counter() - t0) * 1000
+
+    return QueryResponse(
+        question=req.question,
+        answer=answer,
+        query_type=q_type,
+        sources=sources,
+        latency_ms=round(latency_ms, 2),
+    )
 
 
 # ── POST /query/stream ─────────────────────────────────────────────────────────
@@ -435,79 +465,95 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     Final:       {"token": "", "done": true}
     """
     analysis = analyze(req.question)
-    retriever: HybridRetriever = app.state.retriever
 
-    with start_span(
-        "api_query_stream", {"question": req.question, "repository": req.repository or "all"}
-    ):
-        try:
-            # Route budget parameters
-            with start_span(
-                "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
-            ):
-                if req.max_tokens is None and req.max_chars is None:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=None,
-                        max_chars=None,
-                        context_n=req.context_n,
-                        repository=req.repository,
-                    )
-                else:
-                    ctx = retriever.retrieve_with_context(
-                        req.question,
-                        top_k=req.top_k,
-                        max_tokens=req.max_tokens,
-                        max_chars=req.max_chars,
-                        repository=req.repository,
-                    )
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
+    if req.codebase_query:
+        retriever: HybridRetriever = app.state.retriever
+        with start_span(
+            "api_query_stream", {"question": req.question, "repository": req.repository or "all"}
+        ):
+            try:
+                # Route budget parameters
+                with start_span(
+                    "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
+                ):
+                    if req.max_tokens is None and req.max_chars is None:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=None,
+                            max_chars=None,
+                            context_n=req.context_n,
+                            repository=req.repository,
+                        )
+                    else:
+                        ctx = retriever.retrieve_with_context(
+                            req.question,
+                            top_k=req.top_k,
+                            max_tokens=req.max_tokens,
+                            max_chars=req.max_chars,
+                            repository=req.repository,
+                        )
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
-        prompt = _build_prompt(
-            req.question,
-            ctx.text or "(no code context retrieved)",
-            is_global=(analysis.query_type == "global"),
-        )
-
-        sources_payload = [
-            {
-                "node_id": r.get("node_id", ""),
-                "name": r.get("name", ""),
-                "label": r.get("label", ""),
-                "file_path": r.get("file_path", ""),
-                "text": r.get("text", ""),
-                "source": r.get("source", ""),
-                "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
-            }
-            for r in ctx.chunks
-        ]
-
-        async def _event_stream() -> AsyncIterator[str]:
-            # First event: metadata
-            meta = json.dumps(
-                {
-                    "token": "",
-                    "done": False,
-                    "sources": sources_payload,
-                    "query_type": analysis.query_type,
-                }
+            prompt = _build_prompt(
+                req.question,
+                ctx.text or "(no code context retrieved)",
+                is_global=(analysis.query_type == "global"),
             )
-            yield f"data: {meta}\n\n"
 
-            # Stream LLM tokens
-            async for chunk in _llm_stream(prompt, req.llm_model):
-                yield chunk
-
-        return StreamingResponse(
-            _event_stream(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-            },
+            sources_payload = [
+                {
+                    "node_id": r.get("node_id", ""),
+                    "name": r.get("name", ""),
+                    "label": r.get("label", ""),
+                    "file_path": r.get("file_path", ""),
+                    "text": r.get("text", ""),
+                    "source": r.get("source", ""),
+                    "rrf_score": round(float(r.get("rrf_score", 0.0)), 6),
+                }
+                for r in ctx.chunks
+            ]
+            q_type = analysis.query_type
+    else:
+        prompt = (
+            "You are an expert AI software developer and codebase assistant. "
+            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+            "and then write your final answer outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Your thinking process]\n"
+            "</think>\n\n"
+            "[Your final answer]\n\n"
+            f"Question: {req.question}\n\n"
+            "Answer:"
         )
+        sources_payload = []
+        q_type = "general"
+
+    async def _event_stream() -> AsyncIterator[str]:
+        # First event: metadata
+        meta = json.dumps(
+            {
+                "token": "",
+                "done": False,
+                "sources": sources_payload,
+                "query_type": q_type,
+            }
+        )
+        yield f"data: {meta}\n\n"
+
+        # Stream LLM tokens
+        async for chunk in _llm_stream(prompt, req.llm_model):
+            yield chunk
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ── GET /graph/repositories ───────────────────────────────────────────────────

@@ -32,6 +32,9 @@ class QueryRequest(BaseModel):
     repository: str | None = Field(
         None, description="Optional repository name to filter search results and context by."
     )
+    codebase_query: bool = Field(
+        True, description="Enable codebase context search (RAG) and constraint. Set to False for normal LLM conversation."
+    )
 
 
 # ── Source chunk ───────────────────────────────────────────────────────────────

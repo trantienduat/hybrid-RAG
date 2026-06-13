@@ -1848,6 +1848,7 @@ clearBtn.addEventListener('click', () => {
     currentAsk = null;
   }
   messages.length = 0;
+  msgIdCounter = 0;
   renderMessages();
   if (currentChatId) {
     saveCurrentChat();
@@ -2152,6 +2153,7 @@ function startNewChat() {
   }
   currentChatId = null;
   messages.length = 0;
+  msgIdCounter = 0;
   renderMessages();
   
   document.querySelectorAll('.conversation-item').forEach(el => el.classList.remove('active'));
@@ -2175,7 +2177,13 @@ function selectConversation(chatId) {
     currentChatId = chatId;
     
     messages.length = 0;
-    (chat.messages || []).forEach(m => messages.push(m));
+    msgIdCounter = 0;
+    (chat.messages || []).forEach(m => {
+      messages.push(m);
+      if (m.id && m.id > msgIdCounter) {
+        msgIdCounter = m.id;
+      }
+    });
     
     codebaseQueryToggle.checked = chat.codebase_query !== false;
     codebaseQueryToggle.dispatchEvent(new Event('change'));
@@ -2248,6 +2256,7 @@ function deleteConversation(chatId, event) {
     }
     currentChatId = null;
     messages.length = 0;
+    msgIdCounter = 0;
     renderMessages();
   }
   

@@ -173,7 +173,9 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "You are an expert principal software architect. Below is a set of hierarchical community summaries "
             "describing the structural design, modules, and dependencies of the codebase.\n"
             "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
-            "Highlight key components, database models, core flows, and cross-module relationships.\n\n"
+            "Highlight key components, database models, core flows, and cross-module relationships.\n"
+            "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+            "to infer design patterns, architectures, and intent.\n\n"
             "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
             "and then write your final report outside the tags. You must strictly follow this format:\n"
             "<think>\n"
@@ -185,12 +187,14 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "Architectural Report:"
         )
     return (
-        "You are an expert code assistant. Use ONLY the context below to answer the question. "
-        "If the context does not contain enough information, say so clearly.\n\n"
+        "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+        "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+        "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+        "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n\n"
         "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
         "and then write your final answer outside the tags. You must strictly follow this format:\n"
         "<think>\n"
-        "[Your step-by-step reasoning and search chunk analysis]\n"
+        "[Your step-by-step reasoning, context analysis, and synthesis with general knowledge]\n"
         "</think>\n\n"
         "[Your final detailed answer]\n\n"
         f"Context:\n{context}\n\n"
@@ -217,7 +221,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.0},
             }
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 resp = await client.post(url, json=payload)
                 resp.raise_for_status()
                 res_json = resp.json()
@@ -251,7 +255,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 return ""
         else:
             payload = {"model": model, "prompt": prompt, "stream": False}
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=300.0) as client:
                 resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
                 resp.raise_for_status()
                 return resp.json().get("response", "")
@@ -272,7 +276,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.0},
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", url, json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -292,7 +296,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                 yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
     else:
         payload = {"model": model, "prompt": prompt, "stream": True}
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():

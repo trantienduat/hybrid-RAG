@@ -57,6 +57,9 @@ from hybrid_rag.retrieval.query_analyzer import analyze
 from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
+from hybrid_rag.utils.cache import RedisQueryCache
+import gc
+
 logger = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -121,9 +124,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.indexing_tasks = {}
     app.state.indexing_lock = asyncio.Lock()
+    
+    # Initialize Concurrency Guard and Redis Query Cache
+    app.state.llm_semaphore = asyncio.Semaphore(1)
+    app.state.query_cache = RedisQueryCache()
+    await app.state.query_cache.connect()
+    
     logger.info("hybrid-rag API ready")
     yield
     app.state.embedder.close()
+    await app.state.query_cache.disconnect()
     logger.info("hybrid-rag API shutdown complete")
 
 
@@ -254,7 +264,12 @@ async def _llm_generate(prompt: str, model: str) -> str:
                         return parts[0].get("text", "")
                 return ""
         else:
-            payload = {"model": model, "prompt": prompt, "stream": False}
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+            }
             async with httpx.AsyncClient(timeout=300.0) as client:
                 resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
                 resp.raise_for_status()
@@ -295,7 +310,12 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                             yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
                 yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
     else:
-        payload = {"model": model, "prompt": prompt, "stream": True}
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": True,
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+        }
         async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
                 resp.raise_for_status()
@@ -369,6 +389,22 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     """Hybrid retrieval + LLM answer (synchronous)."""
     t0 = time.perf_counter()
 
+    # 1. Check Redis Cache
+    cache_key = RedisQueryCache.generate_key(
+        question=req.question,
+        codebase_query=req.codebase_query,
+        repository=req.repository,
+        llm_model=req.llm_model,
+        top_k=req.top_k,
+        context_n=req.context_n,
+    )
+    
+    cached_resp = await app.state.query_cache.get(cache_key)
+    if cached_resp is not None:
+        logger.info("Serving query response from Redis cache: '%s'", req.question)
+        cached_resp["latency_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+        return QueryResponse(**cached_resp)
+
     analysis = analyze(req.question)
 
     if req.codebase_query:
@@ -402,9 +438,23 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                 logger.exception("Retrieval failed")
                 raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
+            # Apply Dynamic Context Safety Cap to prevent VRAM overflow
+            context_text = ctx.text or ""
+            max_safe_chars = int(os.environ.get("RAG_CONTEXT_MAX_CHARS", 12000))
+            if len(context_text) > max_safe_chars:
+                logger.warning(
+                    "Context size (%d chars) exceeds safety cap (%d chars). Truncating context.",
+                    len(context_text),
+                    max_safe_chars
+                )
+                context_text = (
+                    context_text[:max_safe_chars] + 
+                    "\n\n... [Context truncated to prevent VRAM overflow] ..."
+                )
+
             prompt = _build_prompt(
                 req.question,
-                ctx.text or "(no code context retrieved)",
+                context_text,
                 is_global=(analysis.query_type == "global"),
             )
             sources = [
@@ -436,20 +486,31 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         q_type = "general"
 
     try:
-        answer = await _llm_generate(prompt, req.llm_model)
+        # Concurrency Guard
+        async with app.state.llm_semaphore:
+            answer = await _llm_generate(prompt, req.llm_model)
     except Exception as exc:  # noqa: BLE001
         logger.exception("LLM generation failed")
         raise HTTPException(status_code=503, detail=f"LLM generation failed: {exc}") from exc
+    finally:
+        gc.collect()
 
     latency_ms = (time.perf_counter() - t0) * 1000
 
-    return QueryResponse(
+    response = QueryResponse(
         question=req.question,
         answer=answer,
         query_type=q_type,
         sources=sources,
         latency_ms=round(latency_ms, 2),
     )
+    
+    try:
+        await app.state.query_cache.set(cache_key, response.model_dump())
+    except Exception as exc:
+        logger.warning("Failed to cache response: %s", exc)
+
+    return response
 
 
 # ── POST /query/stream ─────────────────────────────────────────────────────────
@@ -464,6 +525,32 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     Subsequent: {"token": "<word>", "done": false}
     Final:       {"token": "", "done": true}
     """
+    # 1. Check Redis Cache
+    cache_key = RedisQueryCache.generate_key(
+        question=req.question,
+        codebase_query=req.codebase_query,
+        repository=req.repository,
+        llm_model=req.llm_model,
+        top_k=req.top_k,
+        context_n=req.context_n,
+    )
+    
+    cached_events = await app.state.query_cache.get(cache_key)
+    if cached_events is not None:
+        logger.info("Serving query streaming response from Redis cache: '%s'", req.question)
+        async def _cached_stream() -> AsyncIterator[str]:
+            for event in cached_events:
+                yield event
+            gc.collect()
+        return StreamingResponse(
+            _cached_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     analysis = analyze(req.question)
 
     if req.codebase_query:
@@ -496,9 +583,23 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 
+            # Apply Dynamic Context Safety Cap to prevent VRAM overflow
+            context_text = ctx.text or ""
+            max_safe_chars = int(os.environ.get("RAG_CONTEXT_MAX_CHARS", 12000))
+            if len(context_text) > max_safe_chars:
+                logger.warning(
+                    "Context size (%d chars) exceeds safety cap (%d chars). Truncating context.",
+                    len(context_text),
+                    max_safe_chars
+                )
+                context_text = (
+                    context_text[:max_safe_chars] + 
+                    "\n\n... [Context truncated to prevent VRAM overflow] ..."
+                )
+
             prompt = _build_prompt(
                 req.question,
-                ctx.text or "(no code context retrieved)",
+                context_text,
                 is_global=(analysis.query_type == "global"),
             )
 
@@ -540,11 +641,29 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 "query_type": q_type,
             }
         )
-        yield f"data: {meta}\n\n"
+        meta_event = f"data: {meta}\n\n"
+        yield meta_event
+        
+        events_accumulated = [meta_event]
 
-        # Stream LLM tokens
-        async for chunk in _llm_stream(prompt, req.llm_model):
-            yield chunk
+        try:
+            # Concurrency Guard
+            async with app.state.llm_semaphore:
+                async for chunk in _llm_stream(prompt, req.llm_model):
+                    yield chunk
+                    events_accumulated.append(chunk)
+            
+            # Cache the successful stream
+            try:
+                await app.state.query_cache.set(cache_key, events_accumulated)
+            except Exception as exc:
+                logger.warning("Failed to cache stream response: %s", exc)
+        except Exception as exc:
+            logger.exception("Streaming LLM generation failed")
+            error_data = json.dumps({"token": f"\n\n[Error: {exc}]", "done": True})
+            yield f"data: {error_data}\n\n"
+        finally:
+            gc.collect()
 
     return StreamingResponse(
         _event_stream(),

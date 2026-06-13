@@ -139,7 +139,11 @@ class OllamaEmbedder(BaseEmbedder):
             try:
                 resp = self._client.post(
                     f"{self._url}/api/embeddings",
-                    json={"model": self._model, "prompt": text},
+                    json={
+                        "model": self._model,
+                        "prompt": text,
+                        "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                    },
                 )
                 resp.raise_for_status()
                 return resp.json()["embedding"]
@@ -157,7 +161,11 @@ class OllamaEmbedder(BaseEmbedder):
                         logger.warning("Retrying with heavily truncated text (500 chars)...")
                         resp = self._client.post(
                             f"{self._url}/api/embeddings",
-                            json={"model": self._model, "prompt": text[:500]},
+                            json={
+                                "model": self._model,
+                                "prompt": text[:500],
+                                "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                            },
                         )
                         resp.raise_for_status()
                         return resp.json()["embedding"]

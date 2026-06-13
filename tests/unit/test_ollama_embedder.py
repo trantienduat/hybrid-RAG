@@ -34,7 +34,7 @@ class TestOllamaEmbedder:
             assert res == expected
             mock_post.assert_called_once()
             args, kwargs = mock_post.call_args
-            assert kwargs["json"] == {"model": "test-embed-model", "prompt": "hello world"}
+            assert kwargs["json"] == {"model": "test-embed-model", "prompt": "hello world", "keep_alive": "10s"}
 
     def test_embed_texts_concurrent_success(self):
         embedder = _embedder()

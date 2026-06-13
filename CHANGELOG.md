@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-13
+
+### Added
+- Integrated **Redis Query Cache** (`RedisQueryCache` in `src/hybrid_rag/utils/cache.py`) supporting fast exact matching for synchronous and streaming endpoints.
+- Implemented **Fail-Open Fallback** for Redis, ensuring the application operates normally with warning logs if the cache store is offline.
+- Added a **Concurrency Guard** (`asyncio.Semaphore(1)`) on LLM generation endpoints to serialize local model inference requests and prevent concurrent VRAM spikes.
+- Added a **Dynamic Context Safety Cap** (`max_safe_chars`) to truncate excessively large retrieved codebase context before LLM prompting to prevent KV cache memory overflow.
+- Added active **Garbage Collection** (`gc.collect()`) triggers at the end of ingestion pipelines and query request lifecycles.
+- Added a Product Requirement Prompt (`docs/prp/prp-08-ram-optimization.md`) specifying requirements for RAM optimizations.
+
+### Changed
+- Refactored the codebase ingestion pipeline (`pipeline.py`) to stream chunking/embedding/upsert operations in batches of 128 instead of pre-collecting all embeddings in-memory.
+- Configured local model requests to pass `"keep_alive": "10s"` for embeddings and `"keep_alive": "5m"` for LLM to allow quick VRAM reclamation.
+- Added `"redis>=5.0.0"` to `pyproject.toml` dependencies.
+
+### Fixed
+- Fixed an ingestion memory leak by removing the unused global `source_lines` dictionary allocation in `pipeline.py`.
+
 ## [0.3.0] - 2026-06-13
 
 ### Added

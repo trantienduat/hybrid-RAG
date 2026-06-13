@@ -176,16 +176,6 @@ def run_indexing_pipeline(
     # ── 5. Chunk + Embed + Vector Ingest ───────────────────────────────────────
     listener.on_step("embed_chunks", "Chunking source files for vector indexing...", 0.0)
 
-    source_lines: dict[str, list[str]] = {}
-    for node in result.nodes:
-        fp = node.properties.get("file_path", "")
-        if fp and fp not in source_lines:
-            abs_fp = repo / fp
-            try:
-                source_lines[fp] = abs_fp.read_text(encoding="utf-8", errors="replace").splitlines()
-            except OSError:
-                source_lines[fp] = []
-
     from hybrid_rag.ingestion.chunker import chunk_file
 
     chunks_to_embed = []
@@ -199,7 +189,7 @@ def run_indexing_pipeline(
             chunks_to_embed.extend(file_chunks)
 
     total_chunks = len(chunks_to_embed)
-    all_chunks: list[dict] = []
+    upserted = 0
 
     listener.on_step(
         "embed_chunks",
@@ -233,8 +223,10 @@ def run_indexing_pipeline(
                     batch = chunks_to_embed[i : i + batch_size]
                     batch_texts = [ch.text for ch in batch]
                     embeddings = embedder.embed_texts(batch_texts)
+                    
+                    batch_payload = []
                     for ch, emb in zip(batch, embeddings):
-                        all_chunks.append(
+                        batch_payload.append(
                             {
                                 "node_id": f"{ch.node_id}::{ch.chunk_index}",
                                 "label": ch.label,
@@ -245,16 +237,25 @@ def run_indexing_pipeline(
                             }
                         )
 
+                    # Upsert each batch immediately to free RAM
+                    upserted += vector_store.upsert(batch_payload)
+
+                    # Clear variables to allow garbage collection
+                    batch_payload = None
+                    embeddings = None
+                    batch_texts = None
+
                     progress_val = float(min(i + len(batch), total_chunks)) / total_chunks
                     listener.on_step(
                         "embed_chunks",
-                        f"Generated embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
+                        f"Generated and upserted embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
                         progress_val,
                     )
 
-    listener.on_step("vector_write", f"Upserting {len(all_chunks)} chunks to Qdrant...", 0.0)
-    with start_span("pipeline_vector_write", {"total_vectors": len(all_chunks)}):
-        upserted = vector_store.upsert(all_chunks)
+    # Trigger garbage collection
+    import gc
+    gc.collect()
+
     listener.on_step(
         "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
     )

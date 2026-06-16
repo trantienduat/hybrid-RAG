@@ -275,7 +275,7 @@ class TestM2Pipeline:
         result = parse_file(fp, fixture_repo)
         source_text = fp.read_text(encoding="utf-8")
 
-        with OllamaLLMExtractor(model="gemma4:12b") as extractor:
+        with OllamaLLMExtractor(model="gemma2:9b") as extractor:
             edges = extractor.extract(source_text, result)
 
         assert isinstance(edges, list)

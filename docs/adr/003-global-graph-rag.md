@@ -8,7 +8,7 @@ However, local retrieval methods fail completely on **Global RAG** queries (e.g.
 *   **The Vector Search Bottleneck:** Vector similarity retrieval acts as a keyword-matching fallback on high-level conceptual questions, retrieving unrelated raw code snippets instead of structured architectural overviews.
 *   **The Graph Bottleneck:** Standard local graph retrievers traverse 1-to-3-hop relationships around specific extracted entities. For repository-wide questions, there is no single starting entity, causing traversal to fail.
 
-To solve this, we adapt **Microsoft's GraphRAG (Option A: Global Search)** architecture to an offline, privacy-preserving, local-first stack running on top of **FalkorDB**, **networkx**, and **Ollama (Gemma 4 12B)**.
+To solve this, we adapt **Microsoft's GraphRAG (Option A: Global Search)** architecture to an offline, privacy-preserving, local-first stack running on top of **FalkorDB**, **networkx**, and **Ollama (Gemma 2 9B)**.
 
 ---
 
@@ -22,7 +22,7 @@ We will implement a **Global GraphRAG engine** utilizing **Community Detection**
     *   Execute Louvain community clustering (`networkx.algorithms.community.louvain_communities`) to partition the codebase into cohesive clusters (communities).
 2.  **Community Summarization (Offline Compilation):**
     *   For each detected community, aggregate all member entities, their metadata, structural relationships, and context.
-    *   Pass the community details to the local LLM (`gemma4:12b`) with a specialized structural summary prompt.
+    *   Pass the community details to the local LLM (`gemma2:9b`) with a specialized structural summary prompt.
     *   Save the generated summaries as rich `Community` nodes in FalkorDB, establishing `[:IN_COMMUNITY]` relationships from code entities to their respective community.
 3.  **Global Retrieval Engine (Online Query):**
     *   Upgrade the `QueryAnalyzer` to detect global architectural queries (e.g., query type `"global"`).
@@ -87,7 +87,7 @@ An offline builder runs via the CLI:
     MATCH (c:Community) RETURN c.name, c.summary
     ```
 *   **Synthesis (Map-Reduce / Direct Packing):**
-    *   Since Gemma 4 12B supports a 128k context window, we can directly pack all community summaries (typically 3–8 communities, ~500 words each = ~4000 tokens) into the context window.
+    *   Since Gemma 2 9B supports a 128k context window, we can directly pack all community summaries (typically 3–8 communities, ~500 words each = ~4000 tokens) into the context window.
     *   The LLM generates a comprehensive, cohesive, and perfectly accurate repository summary.
 
 ---

@@ -13,7 +13,7 @@ Ensure Ollama is running locally on your host machine, and download the default 
 ollama pull nomic-embed-text
 
 # Pull the default coding LLM
-ollama pull gemma4:12b
+ollama pull gemma2:9b
 ```
 
 ### Step B: Start the Service Stack (Docker)

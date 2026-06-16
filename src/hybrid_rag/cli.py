@@ -21,6 +21,8 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL, DEFAULT_EMBED_MODEL
+
 app = typer.Typer(name="hybrid-rag", help="Privacy-preserving Graph-Hybrid RAG for codebases.")
 console = Console()
 err_console = Console(stderr=True, style="bold red")
@@ -47,8 +49,8 @@ def index(
     qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
-    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
+    embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
+    llm_model: str = typer.Option(DEFAULT_LLM_MODEL, envvar="LLM_MODEL"),
     llm_extract: bool = typer.Option(
         False,
         "--llm-extract/--no-llm-extract",
@@ -156,7 +158,7 @@ def community_build(
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
+    llm_model: str = typer.Option(DEFAULT_LLM_MODEL, envvar="LLM_MODEL"),
 ) -> None:
     """Run community clustering and compile architectural summaries using FalkorDB and Ollama."""
     console.rule("[bold cyan]hybrid-rag community-build[/]")
@@ -271,7 +273,7 @@ def query(
     qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     rrf_k: int = typer.Option(60, help="RRF k parameter (default: 60)."),
 ) -> None:
     """Query the indexed codebase using hybrid graph + vector retrieval."""
@@ -384,7 +386,7 @@ def eval(
     qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON results to stdout."),
 ) -> None:
     """Run codebase evaluation (diagnostic structural/hybrid or RepoQA Searching Needle Function)."""
@@ -708,7 +710,7 @@ def serve(
 def ragas(
     top_k: int = typer.Option(20, help="Retrieval candidates per query."),
     context_n: int = typer.Option(5, help="Context chunks assembled for LLM."),
-    llm_model: str = typer.Option("gemma4:12b", envvar="LLM_MODEL"),
+    llm_model: str = typer.Option(DEFAULT_LLM_MODEL, envvar="LLM_MODEL"),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -716,7 +718,7 @@ def ragas(
     qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
     subset: str = typer.Option("all", help="Corpus subset: all | 1hop | 2hop | 3hop | hybrid"),
 ) -> None:
@@ -832,7 +834,7 @@ def bench(
     qdrant_port: int = typer.Option(6333, envvar="QDRANT_PORT"),
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
-    embed_model: str = typer.Option("nomic-embed-text", envvar="EMBED_MODEL"),
+    embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
 ) -> None:
     """Measure p50/p95/p99 retrieval latency per query type (M4 #32)."""

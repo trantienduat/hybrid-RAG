@@ -983,6 +983,38 @@
       line-height: 1.5;
     }
 
+    /* ── Loading Animation ── */
+    .assistant-loading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+    }
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.4s infinite ease-in-out both;
+      opacity: 0.6;
+    }
+    .loading-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    .loading-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    @keyframes pulse {
+      0%, 80%, 100% {
+        transform: scale(0.2);
+        opacity: 0.2;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     /* ── Stop Button ── */
     .btn-ask.btn-stop {
       background: var(--red);
@@ -1758,7 +1790,7 @@ function renderMessage(m) {
       const openAttr = m.streaming ? 'open' : '';
       thinkingHtml = `
         <details class="thinking-box" ${openAttr}>
-          <summary>Gemma 4 Thinking Process</summary>
+          <summary>Gemma 2 Thinking Process</summary>
           <div class="thinking-content">${renderMarkdown(parsed.thinking)}</div>
         </details>
       `;
@@ -1767,7 +1799,9 @@ function renderMessage(m) {
     // 3. Render Answer
     const cursor = m.streaming ? '<span class="cursor"></span>' : '';
     let responseHtml = '';
-    if (parsed.response || m.streaming) {
+    if (m.streaming && !parsed.thinking && !parsed.response) {
+      responseHtml = `<div class="answer-content"><div class="assistant-loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>`;
+    } else if (parsed.response || m.streaming) {
       responseHtml = `<div class="answer-content">${m.streaming ? escHtml(parsed.response) : renderMarkdown(parsed.response)}${cursor}</div>`;
     } else if (!parsed.thinking) {
       responseHtml = `<div class="answer-content">${renderMarkdown(m.text)}${cursor}</div>`;
@@ -1931,7 +1965,18 @@ async function doAsk() {
               entry.sources = capturedSources;
               entry.query_type = ev.query_type || q_type;
             }
-            continue;
+            if (capturedSources.length > 0) {
+              const msgEl = document.getElementById(`msg-${assistantId}`);
+              if (msgEl) {
+                const oldCite = document.getElementById(`cite-${assistantId}`);
+                if (oldCite) oldCite.remove();
+                const citeHtml = renderCitations(assistantId, capturedSources);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = citeHtml;
+                const citeEl = tempDiv.firstElementChild;
+                if (citeEl) msgEl.appendChild(citeEl);
+              }
+            }
           }
 
           if (ev.token) streamBuf += ev.token;
@@ -1967,17 +2012,19 @@ async function doAsk() {
             if (parsed.thinking) {
               thinkingHtml = `
                 <details class="thinking-box" open>
-                  <summary>Gemma 4 Thinking Process</summary>
+                  <summary>Gemma 2 Thinking Process</summary>
                   <div class="thinking-content">${escHtml(parsed.thinking)}</div>
                 </details>
               `;
             }
 
             let responseHtml = '';
-            if (parsed.response || !parsed.thinking) {
+            if (parsed.response) {
               responseHtml = `<div class="answer-content">${escHtml(parsed.response)}<span class="cursor"></span></div>`;
-            } else {
+            } else if (parsed.thinking) {
               responseHtml = `<div class="answer-content"><span class="cursor"></span></div>`;
+            } else {
+              responseHtml = `<div class="answer-content"><div class="assistant-loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>`;
             }
 
             bodyEl.innerHTML = traceHtml + thinkingHtml + responseHtml;

@@ -82,7 +82,7 @@ class TestIndexingPipeline:
             vector_store=mock_vector_store,
             ollama_url="http://localhost:11434",
             embed_model="nomic-embed-text",
-            llm_model="gemma4:12b",
+            llm_model="gemma2:9b",
             llm_extract=False,
             max_tokens=512,
             listener=listener,
@@ -124,7 +124,7 @@ class TestIndexingPipeline:
                 vector_store=mock_vector_store,
                 ollama_url="http://localhost:11434",
                 embed_model="nomic-embed-text",
-                llm_model="gemma4:12b",
+                llm_model="gemma2:9b",
                 llm_extract=False,
                 max_tokens=512,
             )

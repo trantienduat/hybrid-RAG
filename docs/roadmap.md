@@ -134,7 +134,7 @@ PR checklist:
 | 001 | Graph store: FalkorDB | Accepted |
 | 002 | AST parser: tree-sitter | Accepted |
 | 003 | Embedding model: nomic-embed-text | Accepted |
-| 004 | LLM: gemma4:12b | Accepted |
+| 004 | LLM: gemma2:9b | Accepted |
 
 ---
 

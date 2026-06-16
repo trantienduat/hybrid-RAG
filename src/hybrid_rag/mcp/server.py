@@ -18,6 +18,7 @@ from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.vector.qdrant_store import QdrantStore
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 
 logger = logging.getLogger("hybrid_rag.mcp")
 
@@ -40,7 +41,7 @@ _QDRANT_HOST = os.environ.get("QDRANT_HOST") or "localhost"
 _QDRANT_PORT = int(os.environ.get("QDRANT_PORT") or 6333)
 _QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
 _OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
-_EMBED_MODEL = os.environ.get("EMBED_MODEL") or "nomic-embed-text"
+_EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
 _RRF_K = int(os.environ.get("RRF_K", 60))
 _RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))

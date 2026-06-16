@@ -1,7 +1,7 @@
 """
 Ollama LLM extractor adapter — implements BaseLLMExtractor port.
 
-Vendor: Ollama local inference server (gemma4:12b or any code-capable model).
+Vendor: Ollama local inference server (gemma2:9b or any code-capable model).
 
 Extracts USES relationships from type annotations that AST cannot capture:
   - Typed function parameters: def foo(self, x: SomeClass)
@@ -27,7 +27,7 @@ from hybrid_rag.ports.llm_extractor import BaseLLMExtractor
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OLLAMA_URL = "http://localhost:11434"
-_DEFAULT_MODEL = "gemma4:12b"
+_DEFAULT_MODEL = "gemma2:9b"
 _HTTP_TIMEOUT = 60.0
 _MIN_CONFIDENCE = 0.7
 

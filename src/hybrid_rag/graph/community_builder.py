@@ -19,7 +19,7 @@ from hybrid_rag.ports.graph_store import GraphStore
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OLLAMA_URL = "http://localhost:11434"
-_DEFAULT_MODEL = "gemma4:12b"
+_DEFAULT_MODEL = "gemma2:9b"
 _HTTP_TIMEOUT = 120.0
 
 _SYSTEM_PROMPT = (

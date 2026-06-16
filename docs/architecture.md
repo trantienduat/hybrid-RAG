@@ -44,7 +44,7 @@ graph TD
     end
 
     subgraph Inference ["4. Inference Layer"]
-        OllamaLLM["Ollama Local LLM (gemma2:9b)"]
+        OllamaLLM["Ollama Local LLM (gemma4:12b)"]
     end
 
     %% Flow links
@@ -161,7 +161,7 @@ graph LR
     
     RRF --> |RRF Ranked Candidates| BudgetAssembler["Token-Budget Context Assembler"]
     BudgetAssembler --> |Filter out over-budget chunks| PackedContext["Context Packed Prompt"]
-    PackedContext --> LLM["Local LLM (gemma2:9b)"]
+    PackedContext --> LLM["Local LLM (gemma4:12b)"]
 
     class ParallelPath pipeline;
 ```
@@ -252,4 +252,4 @@ Vectors are partitioned using payload metadata to support fast, targeted scoping
 The codebase strictly enforces local data sovereignty:
 *   **Offline Operation:** No external network requests are made. External API calls to non-localhost loops are explicitly prohibited.
 *   **Docker Containerization:** Storage engines (FalkorDB, Qdrant) run on local loopback ports (`127.0.0.1`) only, preventing any external ingress or egress.
-*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`gemma2:9b`) are hosted entirely offline.
+*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`gemma4:12b`) are hosted entirely offline.

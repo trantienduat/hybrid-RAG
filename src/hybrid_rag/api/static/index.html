@@ -1790,7 +1790,7 @@ function renderMessage(m) {
       const openAttr = m.streaming ? 'open' : '';
       thinkingHtml = `
         <details class="thinking-box" ${openAttr}>
-          <summary>Gemma 2 Thinking Process</summary>
+          <summary>Gemma 4 Thinking Process</summary>
           <div class="thinking-content">${renderMarkdown(parsed.thinking)}</div>
         </details>
       `;
@@ -2012,7 +2012,7 @@ async function doAsk() {
             if (parsed.thinking) {
               thinkingHtml = `
                 <details class="thinking-box" open>
-                  <summary>Gemma 2 Thinking Process</summary>
+                  <summary>Gemma 4 Thinking Process</summary>
                   <div class="thinking-content">${escHtml(parsed.thinking)}</div>
                 </details>
               `;

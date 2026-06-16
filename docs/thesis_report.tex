@@ -166,7 +166,7 @@ Khi người dùng đặt câu hỏi:
         \item \textbf{Vector Retriever:} Truy vấn tìm kiếm độ tương đồng vector trên Qdrant (áp dụng bộ lọc repository namespace).
     \end{itemize}
     \item \textbf{RRF Merger:} Hợp nhất hai danh sách kết quả dựa trên trọng số $w_{graph} = 3.0$ và $w_{vector} = 1.5$.
-    \item \textbf{Token-Budget Assembler:} Lắp ráp các code chunk vào prompt cho đến khi đạt giới hạn tối đa của cửa sổ ngữ cảnh LLM (\texttt{gemma2:9b}).
+    \item \textbf{Token-Budget Assembler:} Lắp ráp các code chunk vào prompt cho đến khi đạt giới hạn tối đa của cửa sổ ngữ cảnh LLM (\texttt{gemma4:12b}).
 \end{enumerate}
 
 \newpage
@@ -211,7 +211,7 @@ def initialize_tracing():
 \chapter{Kết quả thực nghiệm và Thảo luận}
 
 \section{Thiết lập thực nghiệm}
-Hệ thống được thử nghiệm trên kho mã nguồn thư viện \textbf{LlamaIndex} (Python) chạy cục bộ. Thiết bị thử nghiệm: Apple Mac Studio (M2 Max, 64GB Unified Memory), hệ điều hành macOS, chạy offline hoàn toàn. Mô hình cục bộ được sử dụng: \texttt{gemma2:9b} (GPU-accelerated qua Ollama Cask) và \texttt{nomic-embed-text} (cho embeddings).
+Hệ thống được thử nghiệm trên kho mã nguồn thư viện \textbf{LlamaIndex} (Python) chạy cục bộ. Thiết bị thử nghiệm: Apple Mac Studio (M2 Max, 64GB Unified Memory), hệ điều hành macOS, chạy offline hoàn toàn. Mô hình cục bộ được sử dụng: \texttt{gemma4:12b} (GPU-accelerated qua Ollama Cask) và \texttt{nomic-embed-text} (cho embeddings).
 
 \section{Kết quả so sánh hiệu năng truy xuất}
 Hệ thống được kiểm thử bằng bộ 20 câu hỏi multi-hop phân cấp từ 1 đến 3 bước. Kết quả so sánh Hit Rate tại K=5 giữa Vector-only RAG truyền thống và kiến trúc Hybrid-RAG được thể hiện trong Bảng \ref{tab:comparison}:

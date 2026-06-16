@@ -22,7 +22,7 @@ We will implement a **Global GraphRAG engine** utilizing **Community Detection**
     *   Execute Louvain community clustering (`networkx.algorithms.community.louvain_communities`) to partition the codebase into cohesive clusters (communities).
 2.  **Community Summarization (Offline Compilation):**
     *   For each detected community, aggregate all member entities, their metadata, structural relationships, and context.
-    *   Pass the community details to the local LLM (`gemma2:9b`) with a specialized structural summary prompt.
+    *   Pass the community details to the local LLM (`gemma4:12b`) with a specialized structural summary prompt.
     *   Save the generated summaries as rich `Community` nodes in FalkorDB, establishing `[:IN_COMMUNITY]` relationships from code entities to their respective community.
 3.  **Global Retrieval Engine (Online Query):**
     *   Upgrade the `QueryAnalyzer` to detect global architectural queries (e.g., query type `"global"`).

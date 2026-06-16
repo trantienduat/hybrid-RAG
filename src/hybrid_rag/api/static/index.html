@@ -1784,7 +1784,7 @@ function renderMessage(m) {
     }
 
     // 2. Parse Thinking and Response
-    const parsed = parseThinkingAndResponse(m.text);
+    const parsed = parseThinkingAndResponse(m.text, m.streaming);
     let thinkingHtml = '';
     if (parsed.thinking) {
       const openAttr = m.streaming ? 'open' : '';
@@ -2027,8 +2027,11 @@ async function doAsk() {
               responseHtml = `<div class="answer-content"><div class="assistant-loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>`;
             }
 
+            const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
             bodyEl.innerHTML = traceHtml + thinkingHtml + responseHtml;
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (isNearBottom) {
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
           }
 
           if (ev.done) {
@@ -2148,7 +2151,7 @@ function initResizers() {
 
 // ── Search Suggestions Logic ──────────────────────────────────────────────────
 
-function parseThinkingAndResponse(text) {
+function parseThinkingAndResponse(text, isStreaming = true) {
   let thinking = '';
   let response = text;
   
@@ -2159,8 +2162,15 @@ function parseThinkingAndResponse(text) {
       thinking = text.slice(thinkStart + 7, thinkEnd).trim();
       response = text.slice(thinkEnd + 8).trim();
     } else {
-      thinking = text.slice(thinkStart + 7);
-      response = '';
+      if (isStreaming) {
+        thinking = text.slice(thinkStart + 7);
+        response = '';
+      } else {
+        // Not streaming anymore, but no closing </think> tag found!
+        // Treat everything inside <think> as the response so the answer is not empty.
+        thinking = '';
+        response = text.replace('<think>', '').trim();
+      }
     }
   }
   return { thinking, response };

@@ -111,13 +111,13 @@ def test_falkordb_store_commit_metadata():
 
         # Test get_repository_metadata
         mock_meta_res = MagicMock()
-        mock_meta_res.result_set = [["commit456", "/path/to/repo"]]
+        mock_meta_res.result_set = [["commit456", "/path/to/repo", 1700000000000]]
         mock_graph.query.return_value = mock_meta_res
 
         meta = store.get_repository_metadata("repo123")
-        assert meta == {"last_indexed_commit": "commit456", "repo_path": "/path/to/repo"}
+        assert meta == {"last_indexed_commit": "commit456", "repo_path": "/path/to/repo", "updated_at": 1700000000000}
         mock_graph.query.assert_called_with(
-            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.repo_path AS path",
+            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.repo_path AS path, r.updated_at AS updated_at",
             {"repo": "repo123"}
         )
 

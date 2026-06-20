@@ -815,6 +815,15 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
 
     last_commit = metadata.get("last_indexed_commit") if metadata else None
     repo_path = metadata.get("repo_path") if metadata else None
+    updated_at = metadata.get("updated_at") if metadata else None
+    
+    last_synced = None
+    if updated_at:
+        try:
+            last_synced = datetime.datetime.fromtimestamp(updated_at / 1000.0).isoformat()
+        except Exception:
+            pass
+
     effective_path = repo_path
     
     # New Auto-scan logic if repo_path is not set in DB or not found
@@ -892,6 +901,7 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         "is_sync": is_sync,
         "path_status": path_status,
         "active_task": active_task,
+        "last_synced": last_synced,
     }
 
 

@@ -225,16 +225,17 @@ class FalkorDBStore(GraphStore):
             self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
 
     def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
-        """Retrieve repository metadata including last indexed commit and path."""
+        """Retrieve repository metadata including last indexed commit, path, and last synced time."""
         cypher = (
             "MATCH (r:RepositoryMetadata {id: $repo}) "
-            "RETURN r.last_indexed_commit AS commit, r.repo_path AS path"
+            "RETURN r.last_indexed_commit AS commit, r.repo_path AS path, r.updated_at AS updated_at"
         )
         res = self._graph.query(cypher, {"repo": repository})
         if res.result_set:
             return {
                 "last_indexed_commit": res.result_set[0][0],
-                "repo_path": res.result_set[0][1]
+                "repo_path": res.result_set[0][1],
+                "updated_at": res.result_set[0][2]
             }
         return None
 

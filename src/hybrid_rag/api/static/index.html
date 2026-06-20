@@ -1140,6 +1140,13 @@
           </button>
         </div>
       </div>
+      <!-- Global Active Tasks Panel -->
+      <div id="globalTasksPanel" style="display: none; margin-top: 8px; padding: 10px; border-radius: 6px; background: rgba(30,35,55,0.4); border: 1px solid var(--border); font-size: 11px;">
+        <label style="font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Active Sync Tasks</label>
+        <div id="globalTasksList" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Renders running/pending tasks with progress bars and abort buttons -->
+        </div>
+      </div>
     </div>
 
     <!-- Graph Node Search -->
@@ -1337,6 +1344,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initResizers();
   renderSearchSuggestions();
   loadConversations();
+  updateGlobalTasks();
 });
 
 function populatePrompt(text) {
@@ -1472,6 +1480,10 @@ async function checkRepoSyncStatus(repoName) {
       if (data.last_indexed_commit) {
         html += `<strong>Indexed:</strong> ${data.last_indexed_commit.substring(0, 8)}<br/>`;
       }
+      if (data.last_synced) {
+        const dateStr = new Date(data.last_synced).toLocaleString();
+        html += `<strong>Last Synced:</strong> ${dateStr}<br/>`;
+      }
       if (data.head_commit) {
         html += `<strong>Local HEAD:</strong> ${data.head_commit.substring(0, 8)}`;
         if (data.last_indexed_commit && data.last_indexed_commit !== data.head_commit) {
@@ -1555,8 +1567,9 @@ async function triggerRepoSync(rebuild = false) {
 
     if (!res.ok) throw new Error("Failed to trigger index");
     
-    // Successfully triggered! Reload status to start polling.
+    // Successfully triggered! Reload status and global tasks to start polling.
     checkRepoSyncStatus(repoName);
+    updateGlobalTasks();
   } catch (err) {
     alert("Error: " + err.message);
     checkRepoSyncStatus(repoName);
@@ -1568,8 +1581,11 @@ async function abortRepoSync(taskId) {
   if (!confirm("Are you sure you want to abort the current indexing task?")) return;
 
   const syncBtn = document.getElementById('syncRepoBtn');
-  syncBtn.disabled = true;
-  syncBtn.textContent = 'Aborting...';
+  const isActiveSelected = syncBtn.dataset.taskId === taskId;
+  if (isActiveSelected) {
+    syncBtn.disabled = true;
+    syncBtn.textContent = 'Aborting...';
+  }
 
   try {
     const res = await fetch(`${API}/graph/index/tasks/${encodeURIComponent(taskId)}/abort`, {
@@ -1577,11 +1593,74 @@ async function abortRepoSync(taskId) {
     });
     if (!res.ok) throw new Error("Failed to abort task");
     
-    // Status polling will handle the updated status automatically
+    updateGlobalTasks();
     checkRepoSyncStatus(repoSelect.value);
   } catch (err) {
     alert("Error aborting task: " + err.message);
+    updateGlobalTasks();
     checkRepoSyncStatus(repoSelect.value);
+  }
+}
+
+let globalTasksPollTimer = null;
+
+async function updateGlobalTasks() {
+  const panel = document.getElementById('globalTasksPanel');
+  const listContainer = document.getElementById('globalTasksList');
+  if (!panel || !listContainer) return;
+
+  try {
+    const res = await fetch(`${API}/graph/index/tasks`);
+    if (!res.ok) throw new Error("Failed to fetch tasks");
+    const tasks = await res.json();
+
+    // Filter for active tasks (pending or running)
+    const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'running');
+
+    if (activeTasks.length === 0) {
+      panel.style.display = 'none';
+      if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+      globalTasksPollTimer = setTimeout(updateGlobalTasks, 5000);
+      return;
+    }
+
+    panel.style.display = 'block';
+    
+    let html = '';
+    for (const task of activeTasks) {
+      const pct = Math.round(task.progress * 100);
+      const stepText = (task.current_step || 'indexing').toUpperCase().replace('_', ' ');
+      
+      html += `
+        <div style="background: rgba(30,35,55,0.4); border: 1px solid var(--border); padding: 8px; border-radius: 6px; font-size: 11px; margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-weight: bold; color: var(--accent);">${escHtml(task.repository)}</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="font-size: 8px; padding: 2px 4px; border-radius: 3px; background: ${task.status === 'running' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 170, 0, 0.15)'}; color: ${task.status === 'running' ? 'var(--accent)' : '#ffaa00'}; font-weight: bold; text-transform: uppercase;">
+                ${task.status === 'running' ? 'Syncing' : 'Pending'}
+              </span>
+              <button type="button" onclick="abortRepoSync('${task.task_id}')" title="Abort Task" style="background: none; border: none; color: #ff5050; cursor: pointer; font-size: 11px; font-weight: bold; padding: 0 4px; line-height: 1;">✕</button>
+            </div>
+          </div>
+          <div style="color: var(--text-muted); font-size: 9px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escHtml(task.current_message || '')}">
+            <strong>${escHtml(stepText)}</strong>: ${escHtml(task.current_message || 'Waiting...')}
+          </div>
+          <!-- Progress Bar -->
+          <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--accent), #00e673); transition: width 0.3s ease;"></div>
+          </div>
+        </div>
+      `;
+    }
+    listContainer.innerHTML = html;
+
+    if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+    globalTasksPollTimer = setTimeout(updateGlobalTasks, 1500);
+
+  } catch (err) {
+    console.warn("Failed to update global tasks:", err);
+    if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+    globalTasksPollTimer = setTimeout(updateGlobalTasks, 5000);
   }
 }
 

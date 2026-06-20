@@ -88,4 +88,4 @@ class GraphStore(ABC):
 
     @abstractmethod
     def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
-        """Retrieve repository metadata including last indexed commit and path."""
+        """Retrieve repository metadata including last indexed commit, path, and last synced time."""

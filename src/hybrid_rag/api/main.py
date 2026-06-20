@@ -90,6 +90,115 @@ _RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
 
 
+async def _run_periodic_sync(app_state: Any) -> None:
+    """Periodic background worker that runs incremental sync for all repositories."""
+    enabled = os.environ.get("CRON_SYNC_ENABLED", "false").lower() == "true"
+    if not enabled:
+        logger.info("Scheduled periodic sync is disabled.")
+        return
+
+    interval_min = int(os.environ.get("CRON_SYNC_INTERVAL_MINUTES", "60"))
+    logger.info("Starting periodic sync loop: every %d minutes", interval_min)
+
+    # Startup delay: wait 60s
+    await asyncio.sleep(60)
+
+    while True:
+        try:
+            logger.info("Running scheduled repository synchronization check...")
+            repos = app_state.graph_store.list_repositories()
+            for repo_name in repos:
+                metadata = None
+                try:
+                    metadata = app_state.graph_store.get_repository_metadata(repo_name)
+                except Exception:
+                    continue
+
+                if not metadata or not metadata.get("repo_path"):
+                    continue
+
+                repo_path = metadata["repo_path"]
+                last_commit = metadata.get("last_indexed_commit")
+
+                # Resolve effective path in container
+                effective_path = repo_path
+                if not os.path.isdir(repo_path):
+                    fallback_1 = os.path.join("/codebases", repo_name)
+                    if os.path.isdir(fallback_1):
+                        effective_path = fallback_1
+                    else:
+                        dir_name = os.path.basename(repo_path)
+                        fallback_2 = os.path.join("/codebases", dir_name)
+                        if os.path.isdir(fallback_2):
+                            effective_path = fallback_2
+
+                # Verify directory exists and is a git repository
+                if not os.path.isdir(effective_path) or not os.path.isdir(os.path.join(effective_path, ".git")):
+                    continue
+
+                # Run fast Git check (rev-parse HEAD) to see if we actually need to sync
+                head_commit = None
+                try:
+                    import subprocess
+                    res_head = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=effective_path,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=True,
+                    )
+                    head_commit = res_head.stdout.strip()
+                except Exception:
+                    continue
+
+                # If commit hash is identical, skip creating a task! Save CPU/VRAM/Task history
+                if last_commit == head_commit:
+                    logger.debug("Scheduled sync: Repository %s is already up-to-date at %s, skipping", repo_name, head_commit)
+                    continue
+
+                # Avoid duplicate tasks if one is already running
+                already_running = False
+                for task in app_state.indexing_tasks.values():
+                    if task["repository"] == repo_name and task["status"] in ("pending", "running"):
+                        already_running = True
+                        break
+
+                if already_running:
+                    continue
+
+                # Trigger incremental index task under background worker
+                task_id = str(uuid.uuid4())
+                app_state.indexing_tasks[task_id] = {
+                    "task_id": task_id,
+                    "repository": repo_name,
+                    "status": "pending",
+                    "created_at": datetime.datetime.now().isoformat(),
+                    "completed_at": None,
+                    "logs": [
+                        f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Scheduled periodic sync task initialized."
+                    ],
+                    "error": None,
+                }
+                
+                # Import IndexRequest locally
+                from hybrid_rag.api.schemas import IndexRequest
+                req = IndexRequest(
+                    repo_path=effective_path,
+                    repo_name=repo_name,
+                    incremental=True,
+                    rebuild=False
+                )
+                
+                # process_indexing_task is async, we run it as an independent task
+                asyncio.create_task(process_indexing_task(task_id, req, app_state))
+
+        except Exception as exc:
+            logger.exception("Scheduled sync loop encountered an error: %s", exc)
+
+        await asyncio.sleep(interval_min * 60)
+
+
 # ── Lifespan: wire up stores once ──────────────────────────────────────────────
 
 
@@ -130,6 +239,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.llm_semaphore = asyncio.Semaphore(1)
     app.state.query_cache = RedisQueryCache()
     await app.state.query_cache.connect()
+    
+    # Start scheduled periodic sync background task
+    asyncio.create_task(_run_periodic_sync(app.state))
     
     logger.info("hybrid-rag API ready")
     yield

@@ -189,6 +189,34 @@ class FalkorDBStore(GraphStore):
             )
         return results
 
+    def delete_file_nodes(self, file_path: str, repository: str) -> None:
+        """Delete all nodes associated with a specific file in a repository."""
+        cypher = (
+            "MATCH (n) "
+            "WHERE n.file_path = $file_path AND n.repository = $repository "
+            "DETACH DELETE n"
+        )
+        self._graph.query(cypher, {"file_path": file_path, "repository": repository})
+
+    def get_repository_commit(self, repository: str) -> str | None:
+        """Retrieve the last indexed commit hash for a repository."""
+        cypher = (
+            "MATCH (r:RepositoryMetadata {id: $repo}) "
+            "RETURN r.last_indexed_commit AS commit"
+        )
+        res = self._graph.query(cypher, {"repo": repository})
+        if res.result_set:
+            return res.result_set[0][0]
+        return None
+
+    def set_repository_commit(self, repository: str, commit_hash: str) -> None:
+        """Save the last indexed commit hash for a repository."""
+        cypher = (
+            "MERGE (r:RepositoryMetadata {id: $repo}) "
+            "SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()"
+        )
+        self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
+
     # ── Internal ──────────────────────────────────────────────────
 
     def _upsert_nodes(self, nodes: list[NodeData]) -> int:

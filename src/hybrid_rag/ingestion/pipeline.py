@@ -31,6 +31,90 @@ class IndexingListener:
         pass
 
 
+def _detect_git_changes(
+    repo: Path,
+    last_commit: str,
+    languages: list[str],
+    excludes: list[str] | None,
+) -> tuple[set[str], set[str]] | None:
+    """
+    Detect modified (including added/untracked) and deleted files in a git repo.
+    Returns (modified_files, deleted_files) or None if not a valid Git repo or commit.
+    """
+    import subprocess
+    from hybrid_rag.ingestion.parser import LANGUAGE_BY_EXT
+
+    def run_git(args: list[str]) -> str:
+        res = subprocess.run(
+            ["git", *args],
+            cwd=str(repo),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+        return res.stdout.strip()
+
+    try:
+        # Check inside work tree
+        is_inside = run_git(["rev-parse", "--is-inside-work-tree"])
+        if is_inside != "true":
+            return None
+        
+        # Verify if last_commit exists in git history
+        run_git(["cat-file", "-t", last_commit])
+    except Exception:
+        # Not a git repo or commit doesn't exist
+        return None
+
+    try:
+        # Get tracked changes relative to last_commit (includes working dir modifications)
+        diff_out = run_git(["diff", "--name-status", last_commit])
+        # Get untracked files
+        status_out = run_git(["status", "--porcelain"])
+
+        modified_files = set()
+        deleted_files = set()
+
+        for line in diff_out.splitlines():
+            if not line:
+                continue
+            parts = line.split("\t")
+            status = parts[0]
+            if status.startswith("D"):
+                deleted_files.add(parts[1])
+            elif status.startswith("R"):
+                deleted_files.add(parts[1])
+                modified_files.add(parts[2])
+            else:
+                modified_files.add(parts[1])
+
+        for line in status_out.splitlines():
+            if line.startswith("?? "):
+                modified_files.add(line[3:])
+
+        # Filtering logic
+        exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
+        exclude_set = set(excludes) if excludes is not None else {
+            ".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"
+        }
+
+        def is_valid(fpath_str: str) -> bool:
+            path = Path(fpath_str)
+            if path.suffix.lower() not in exts:
+                return False
+            if any(p in exclude_set or p.startswith(".venv") for p in path.parts):
+                return False
+            return True
+
+        valid_modified = {f for f in modified_files if is_valid(f)}
+        valid_deleted = {f for f in deleted_files if is_valid(f)}
+        return valid_modified, valid_deleted
+
+    except Exception:
+        return None
+
+
 def run_indexing_pipeline(
     repo_path: Path,
     languages: list[str],
@@ -44,6 +128,9 @@ def run_indexing_pipeline(
     max_tokens: int,
     listener: IndexingListener | None = None,
     excludes: list[str] | None = None,
+    incremental: bool = False,
+    rebuild: bool = False,
+    from_commit: str | None = None,
 ) -> dict[str, Any]:
     """Parse a code repository and ingest its code graph and embeddings.
 
@@ -66,27 +153,120 @@ def run_indexing_pipeline(
     # Lazy imports to keep execution startups fast
     from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
     from hybrid_rag.ingestion.merger import merge_supplemental
-    from hybrid_rag.ingestion.parser import parse_file, parse_repo
+    from hybrid_rag.ingestion.parser import parse_file, parse_repo, ParseResult
     from hybrid_rag.utils.tracing import start_span
 
     # ── 1. Parse AST ───────────────────────────────────────────────────────────
-    listener.on_step(
-        "parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None
-    )
-    with start_span("pipeline_parse_ast", {"repo": str(repo)}):
-        result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
-    listener.on_step(
-        "parse",
-        f"AST parsing complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges, {len(result.errors)} errors.",
-        1.0,
-    )
+    is_incremental = False
+    modified_files = None
+    deleted_files = None
+    head_commit = None
+
+    if incremental and not rebuild:
+        try:
+            import subprocess
+            res_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(repo),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            head_commit = res_head.stdout.strip()
+            
+            last_commit = from_commit or graph_store.get_repository_commit(repo_name)
+            if last_commit:
+                git_changes = _detect_git_changes(repo, last_commit, languages, excludes)
+                if git_changes is not None:
+                    modified_files, deleted_files = git_changes
+                    is_incremental = True
+                    logger.info(
+                        "Incremental sync detected: %d files modified/added, %d files deleted since %s",
+                        len(modified_files),
+                        len(deleted_files),
+                        last_commit,
+                    )
+        except Exception as exc:
+            logger.debug("Incremental check failed, falling back to full index: %s", exc)
+
+    if is_incremental:
+        listener.on_step(
+            "parse",
+            f"Incremental sync: {len(modified_files)} files modified, {len(deleted_files)} files deleted...",
+            0.0,
+        )
+        
+        # Cleanup deleted & modified files from stores to avoid duplicates/orphans
+        for f in deleted_files | modified_files:
+            graph_store.delete_file_nodes(f, repo_name)
+            vector_store.delete_file_vectors(f, repo_name)
+
+        if not modified_files and not deleted_files:
+            listener.on_step("complete", "Index is already up to date.", 1.0)
+            if head_commit:
+                graph_store.set_repository_commit(repo_name, head_commit)
+            return {
+                "elapsed_seconds": time.perf_counter() - t_start,
+                "nodes_parsed": 0,
+                "edges_parsed": 0,
+                "nodes_upserted": 0,
+                "edges_upserted": 0,
+                "chunks_embedded": 0,
+                "vectors_upserted": 0,
+            }
+
+        # Parse only modified files
+        result = ParseResult()
+        for f in sorted(modified_files):
+            file_res = parse_file(repo / f, repo, repo_name=repo_name)
+            result.nodes.extend(file_res.nodes)
+            result.edges.extend(file_res.edges)
+            result.errors.extend(file_res.errors)
+
+        listener.on_step(
+            "parse",
+            f"Incremental parse complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges.",
+            1.0,
+        )
+    else:
+        # Full Ingest Parse AST
+        listener.on_step(
+            "parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None
+        )
+        with start_span("pipeline_parse_ast", {"repo": str(repo)}):
+            result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
+        listener.on_step(
+            "parse",
+            f"AST parsing complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges, {len(result.errors)} errors.",
+            1.0,
+        )
+
+        # Get HEAD commit for full ingest so we can do incremental sync next time
+        try:
+            import subprocess
+            res_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(repo),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            head_commit = res_head.stdout.strip()
+        except Exception:
+            pass
 
     # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
     if llm_extract:
         import os
 
         all_extra_edges: list = []
-        py_files = sorted(repo.rglob("*.py"))
+        if is_incremental:
+            py_files = sorted(repo.rglob("*.py"))
+            py_files = [fp for fp in py_files if str(fp.relative_to(repo)) in modified_files]
+        else:
+            py_files = sorted(repo.rglob("*.py"))
         total_files = len(py_files)
 
         listener.on_step(
@@ -259,6 +439,14 @@ def run_indexing_pipeline(
     listener.on_step(
         "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
     )
+
+    # Save HEAD commit state to FalkorDB for next incremental sync
+    if head_commit:
+        try:
+            graph_store.set_repository_commit(repo_name, head_commit)
+            logger.info("Saved last indexed commit %s to graph store metadata", head_commit)
+        except Exception as exc:
+            logger.debug("Failed to save commit state to graph store: %s", exc)
 
     elapsed = time.perf_counter() - t_start
     listener.on_step(

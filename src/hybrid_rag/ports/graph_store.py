@@ -73,3 +73,15 @@ class GraphStore(ABC):
           endpoints (rel set to "REACHABLE").
         Returns list of dicts: src_id, rel, dst_id, dst_label, dst_name, dst_file_path.
         """
+
+    @abstractmethod
+    def delete_file_nodes(self, file_path: str, repository: str) -> None:
+        """Delete all nodes associated with a specific file in a repository."""
+
+    @abstractmethod
+    def get_repository_commit(self, repository: str) -> str | None:
+        """Retrieve the last indexed commit hash for a repository."""
+
+    @abstractmethod
+    def set_repository_commit(self, repository: str, commit_hash: str) -> None:
+        """Save the last indexed commit hash for a repository."""

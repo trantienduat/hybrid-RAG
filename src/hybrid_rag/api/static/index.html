@@ -1451,12 +1451,14 @@ async function triggerRepoSync(rebuild = false) {
   try {
     const statusRes = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
     const statusData = await statusRes.json();
-    const path = statusData.repo_path;
+    let path = statusData.repo_path;
     
     if (!path) {
-      alert("Cannot locate local repository path. Please use the CLI to index the repository first.");
-      checkRepoSyncStatus(repoName);
-      return;
+      path = prompt("Cannot locate local repository path in database. Please enter the absolute path to this repository on your machine:");
+      if (!path) {
+        checkRepoSyncStatus(repoName);
+        return;
+      }
     }
 
     const res = await fetch(`${API}/graph/index`, {

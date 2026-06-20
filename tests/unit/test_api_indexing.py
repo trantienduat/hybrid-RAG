@@ -140,3 +140,55 @@ class TestApiIndexing:
             resp = client.get("/graph/repositories/my-repo/status")
             assert resp.status_code == 200
             assert resp.json()["is_sync"] is False
+
+    @patch("os.listdir")
+    @patch("os.path.isdir")
+    @patch("subprocess.run")
+    def test_get_repository_status_autoscan(self, mock_sub_run, mock_is_dir, mock_listdir):
+        from unittest.mock import MagicMock
+        with TestClient(app) as client:
+            # Mock get_repository_metadata returning None (meaning not set/configured)
+            app.state.graph_store.get_repository_metadata.return_value = None
+
+            # Reset mock calls on set_repository_commit
+            app.state.graph_store.set_repository_commit.reset_mock()
+
+            # Side effects to mock paths
+            def isdir_side_effect(path):
+                if path == "/codebases" or path == "/codebases/my-repo" or path == "/codebases/my-repo/.git":
+                    return True
+                return False
+            mock_is_dir.side_effect = isdir_side_effect
+
+            def listdir_side_effect(path):
+                if path == "/codebases":
+                    return ["my-repo"]
+                if path == "/codebases/my-repo":
+                    return [".git", "file.py"]
+                return []
+            mock_listdir.side_effect = listdir_side_effect
+
+            # Mock subprocess run to return HEAD commit
+            mock_head_res = MagicMock()
+            mock_head_res.stdout = "commitabc\n"
+            mock_sub_run.return_value = mock_head_res
+
+            # Clear active tasks to ensure no active task
+            app.state.indexing_tasks.clear()
+
+            resp = client.get("/graph/repositories/my-repo/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["repository"] == "my-repo"
+            assert data["last_indexed_commit"] is None
+            assert data["repo_path"] == "/codebases/my-repo"
+            assert data["effective_path"] == "/codebases/my-repo"
+            assert data["head_commit"] == "commitabc"
+            assert data["path_status"] == "valid"
+            assert data["is_sync"] is False
+
+            # Verify set_repository_commit was called automatically to save the path
+            app.state.graph_store.set_repository_commit.assert_called_once_with(
+                "my-repo", "", repo_path="/codebases/my-repo"
+            )
+

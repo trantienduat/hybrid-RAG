@@ -815,18 +815,27 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
 
     last_commit = metadata.get("last_indexed_commit") if metadata else None
     repo_path = metadata.get("repo_path") if metadata else None
-    
-    # Path fallback resolution inside Docker container
     effective_path = repo_path
-    if repo_path and not os.path.isdir(repo_path):
-        fallback_1 = os.path.join("/codebases", repo_name)
-        if os.path.isdir(fallback_1):
-            effective_path = fallback_1
-        else:
-            dir_name = os.path.basename(repo_path)
-            fallback_2 = os.path.join("/codebases", dir_name)
-            if os.path.isdir(fallback_2):
-                effective_path = fallback_2
+    
+    # New Auto-scan logic if repo_path is not set in DB or not found
+    if (not effective_path or not os.path.isdir(effective_path)) and os.path.isdir("/codebases"):
+        try:
+            repo_words = set(repo_name.lower().replace("-", " ").replace("_", " ").split())
+            repo_words -= {"app", "core", "repo", "repository"}
+            
+            for entry in os.listdir("/codebases"):
+                entry_path = os.path.join("/codebases", entry)
+                if os.path.isdir(entry_path):
+                    entry_words = set(entry.lower().replace("-", " ").replace("_", " ").split())
+                    # Match if exact case-insensitive match OR shares a significant word
+                    if entry.lower() == repo_name.lower() or (repo_words & entry_words):
+                        effective_path = entry_path
+                        repo_path = entry_path
+                        # Automatically save this path to FalkorDB so we don't have to scan again
+                        store.set_repository_commit(repo_name, last_commit or "", repo_path=entry_path)
+                        break
+        except Exception:
+            pass
 
     # Check path accessibility status
     path_status = "valid"

@@ -690,6 +690,57 @@ async def list_repositories() -> list[str]:
         return []
 
 
+@app.get("/graph/repositories/{repo_name}/status")
+async def get_repository_status(repo_name: str) -> dict[str, Any]:
+    """Retrieve indexing sync status and active background tasks for a repository."""
+    store: FalkorDBStore = app.state.graph_store
+    
+    metadata = None
+    try:
+        metadata = store.get_repository_metadata(repo_name)
+    except Exception as exc:
+        logger.warning("Failed to get repository metadata: %s", exc)
+
+    last_commit = metadata.get("last_indexed_commit") if metadata else None
+    repo_path = metadata.get("repo_path") if metadata else None
+    
+    head_commit = None
+    if repo_path and os.path.isdir(repo_path):
+        try:
+            import subprocess
+            res_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            head_commit = res_head.stdout.strip()
+        except Exception:
+            pass
+
+    is_sync = (last_commit is not None) and (head_commit is not None) and (last_commit == head_commit)
+    
+    active_task = None
+    for task in app.state.indexing_tasks.values():
+        if task["repository"] == repo_name and task["status"] in ("pending", "running"):
+            active_task = {
+                "task_id": task["task_id"],
+                "status": task["status"]
+            }
+            break
+
+    return {
+        "repository": repo_name,
+        "last_indexed_commit": last_commit,
+        "repo_path": repo_path,
+        "head_commit": head_commit,
+        "is_sync": is_sync,
+        "active_task": active_task,
+    }
+
+
 # ── GET /graph/neighbors/{node_id} ─────────────────────────────────────────────
 
 
@@ -811,6 +862,8 @@ async def process_indexing_task(
                 llm_extract=req.llm_extract,
                 max_tokens=req.max_tokens,
                 listener=ApiIndexingListener(),
+                incremental=req.incremental,
+                rebuild=req.rebuild,
             )
 
             task["status"] = "completed"

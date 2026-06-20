@@ -83,11 +83,18 @@ def test_falkordb_store_commit_metadata():
     with patch("falkordb.FalkorDB", return_value=mock_db):
         store = FalkorDBStore(host="localhost", port=6379, graph_name="test")
         
-        # Test set_repository_commit
+        # Test set_repository_commit without path
         store.set_repository_commit("repo123", "commit456")
         mock_graph.query.assert_called_with(
             "MERGE (r:RepositoryMetadata {id: $repo}) SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()",
             {"repo": "repo123", "commit_hash": "commit456"}
+        )
+
+        # Test set_repository_commit with path
+        store.set_repository_commit("repo123", "commit456", "/path/to/repo")
+        mock_graph.query.assert_called_with(
+            "MERGE (r:RepositoryMetadata {id: $repo}) SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()",
+            {"repo": "repo123", "commit_hash": "commit456", "repo_path": "/path/to/repo"}
         )
 
         # Test get_repository_commit
@@ -99,6 +106,18 @@ def test_falkordb_store_commit_metadata():
         assert commit == "commit456"
         mock_graph.query.assert_called_with(
             "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit",
+            {"repo": "repo123"}
+        )
+
+        # Test get_repository_metadata
+        mock_meta_res = MagicMock()
+        mock_meta_res.result_set = [["commit456", "/path/to/repo"]]
+        mock_graph.query.return_value = mock_meta_res
+
+        meta = store.get_repository_metadata("repo123")
+        assert meta == {"last_indexed_commit": "commit456", "repo_path": "/path/to/repo"}
+        mock_graph.query.assert_called_with(
+            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.repo_path AS path",
             {"repo": "repo123"}
         )
 
@@ -192,4 +211,4 @@ def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_d
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
         # Assert commit was updated to HEAD (commit456)
-        mock_graph.set_repository_commit.assert_called_with("myrepo", "commit456")
+        mock_graph.set_repository_commit.assert_called_with("myrepo", "commit456", repo_path=str(tmp_path))

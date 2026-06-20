@@ -102,3 +102,38 @@ class TestApiIndexing:
             # Test get non-existent task
             resp_get_404 = client.get("/graph/index/tasks/does-not-exist")
             assert resp_get_404.status_code == 404
+
+    @patch("os.path.isdir", return_value=True)
+    @patch("subprocess.run")
+    def test_get_repository_status(self, mock_sub_run, mock_is_dir):
+        from unittest.mock import MagicMock
+        with TestClient(app) as client:
+            # Mock get_repository_metadata on the store instance
+            app.state.graph_store.get_repository_metadata.return_value = {
+                "last_indexed_commit": "commit123",
+                "repo_path": "/mock/repo"
+            }
+            
+            # Mock subprocess run to return HEAD commit
+            mock_head_res = MagicMock()
+            mock_head_res.stdout = "commit123\n"
+            mock_sub_run.return_value = mock_head_res
+
+            # Clear active tasks to ensure no active task
+            app.state.indexing_tasks.clear()
+
+            resp = client.get("/graph/repositories/my-repo/status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["repository"] == "my-repo"
+            assert data["last_indexed_commit"] == "commit123"
+            assert data["repo_path"] == "/mock/repo"
+            assert data["head_commit"] == "commit123"
+            assert data["is_sync"] is True
+            assert data["active_task"] is None
+
+            # Test mismatch (Out of sync)
+            mock_head_res.stdout = "commit999\n"
+            resp = client.get("/graph/repositories/my-repo/status")
+            assert resp.status_code == 200
+            assert resp.json()["is_sync"] is False

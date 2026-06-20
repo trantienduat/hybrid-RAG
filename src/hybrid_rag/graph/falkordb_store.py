@@ -209,13 +209,34 @@ class FalkorDBStore(GraphStore):
             return res.result_set[0][0]
         return None
 
-    def set_repository_commit(self, repository: str, commit_hash: str) -> None:
+    def set_repository_commit(self, repository: str, commit_hash: str, repo_path: str | None = None) -> None:
         """Save the last indexed commit hash for a repository."""
+        if repo_path:
+            cypher = (
+                "MERGE (r:RepositoryMetadata {id: $repo}) "
+                "SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()"
+            )
+            self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash, "repo_path": repo_path})
+        else:
+            cypher = (
+                "MERGE (r:RepositoryMetadata {id: $repo}) "
+                "SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()"
+            )
+            self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
+
+    def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
+        """Retrieve repository metadata including last indexed commit and path."""
         cypher = (
-            "MERGE (r:RepositoryMetadata {id: $repo}) "
-            "SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()"
+            "MATCH (r:RepositoryMetadata {id: $repo}) "
+            "RETURN r.last_indexed_commit AS commit, r.repo_path AS path"
         )
-        self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
+        res = self._graph.query(cypher, {"repo": repository})
+        if res.result_set:
+            return {
+                "last_indexed_commit": res.result_set[0][0],
+                "repo_path": res.result_set[0][1]
+            }
+        return None
 
     # ── Internal ──────────────────────────────────────────────────
 

@@ -1112,6 +1112,24 @@
           <option value="">All Repositories</option>
         </select>
       </div>
+      <!-- Repository Sync Status Panel -->
+      <div id="repoStatusPanel" class="repo-status-panel" style="display: none; margin-top: 6px; padding: 10px; border-radius: 6px; background: rgba(30,35,55,0.4); border: 1px solid var(--border); font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="color: var(--text-muted);">Sync Status:</span>
+          <span id="repoSyncBadge" style="padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9px; text-transform: uppercase;">Checking...</span>
+        </div>
+        <div id="repoCommitInfo" style="color: var(--text-muted); font-family: monospace; font-size: 10px; margin-bottom: 8px; word-break: break-all; line-height: 1.3;">
+          <!-- Loaded Commit / HEAD Hash -->
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="syncRepoBtn" type="button" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--accent); background: rgba(0, 240, 255, 0.1); color: var(--accent); cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.2s;">
+            Sync Changes
+          </button>
+          <button id="rebuildRepoBtn" type="button" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: var(--text); cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.2s;">
+            Rebuild All
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Graph Node Search -->
@@ -1330,6 +1348,138 @@ async function loadRepositories() {
   }
 }
 
+let syncStatusPollTimer = null;
+
+async function checkRepoSyncStatus(repoName) {
+  const panel = document.getElementById('repoStatusPanel');
+  const badge = document.getElementById('repoSyncBadge');
+  const info = document.getElementById('repoCommitInfo');
+  const syncBtn = document.getElementById('syncRepoBtn');
+  const rebuildBtn = document.getElementById('rebuildRepoBtn');
+
+  if (syncStatusPollTimer) {
+    clearTimeout(syncStatusPollTimer);
+    syncStatusPollTimer = null;
+  }
+
+  if (!repoName) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  badge.textContent = 'Checking...';
+  badge.style.background = 'rgba(255, 255, 255, 0.1)';
+  badge.style.color = 'var(--text-muted)';
+  info.textContent = '';
+  syncBtn.disabled = true;
+  rebuildBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
+    if (!res.ok) throw new Error("Status API failed");
+    const data = await res.json();
+    
+    // Check if there is an active task
+    if (data.active_task) {
+      badge.textContent = data.active_task.status === 'running' ? 'Syncing...' : 'Pending...';
+      badge.style.background = 'rgba(255, 170, 0, 0.15)';
+      badge.style.color = '#ffaa00';
+      
+      info.innerHTML = `<strong>Active Task:</strong> ${data.active_task.task_id.substring(0, 8)}...<br/>` +
+                       `Path: ${escHtml(data.repo_path || 'unknown')}`;
+      
+      syncBtn.disabled = true;
+      rebuildBtn.disabled = true;
+      
+      // Poll every 3 seconds
+      syncStatusPollTimer = setTimeout(() => checkRepoSyncStatus(repoName), 3000);
+    } else {
+      syncBtn.disabled = false;
+      rebuildBtn.disabled = false;
+      
+      if (data.is_sync) {
+        badge.textContent = 'Synced';
+        badge.style.background = 'rgba(0, 230, 115, 0.15)';
+        badge.style.color = '#00e673';
+      } else {
+        badge.textContent = data.last_indexed_commit ? 'Out of Sync' : 'Not Indexed';
+        badge.style.background = 'rgba(255, 50, 50, 0.15)';
+        badge.style.color = '#ff3232';
+      }
+      
+      let html = '';
+      if (data.repo_path) {
+        html += `<strong>Path:</strong> ${escHtml(data.repo_path)}<br/>`;
+      }
+      if (data.last_indexed_commit) {
+        html += `<strong>Indexed:</strong> ${data.last_indexed_commit.substring(0, 8)}<br/>`;
+      }
+      if (data.head_commit) {
+        html += `<strong>Local HEAD:</strong> ${data.head_commit.substring(0, 8)}`;
+        if (data.last_indexed_commit && data.last_indexed_commit !== data.head_commit) {
+          html += ` <span style="color:#ffaa00;">(diff)</span>`;
+        }
+      } else if (data.repo_path) {
+        html += `<span style="color:var(--text-muted);">Local Git repo not accessible</span>`;
+      }
+      info.innerHTML = html;
+    }
+  } catch (err) {
+    console.warn("Failed to get repository status:", err);
+    badge.textContent = 'Unknown';
+    info.textContent = 'Failed to fetch status';
+    syncBtn.disabled = false;
+    rebuildBtn.disabled = false;
+  }
+}
+
+async function triggerRepoSync(rebuild = false) {
+  const repoName = repoSelect.value;
+  if (!repoName) return;
+
+  const syncBtn = document.getElementById('syncRepoBtn');
+  const rebuildBtn = document.getElementById('rebuildRepoBtn');
+  const badge = document.getElementById('repoSyncBadge');
+
+  syncBtn.disabled = true;
+  rebuildBtn.disabled = true;
+  badge.textContent = rebuild ? 'Rebuilding...' : 'Syncing...';
+  badge.style.background = 'rgba(255, 170, 0, 0.15)';
+  badge.style.color = '#ffaa00';
+
+  try {
+    const statusRes = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
+    const statusData = await statusRes.json();
+    const path = statusData.repo_path;
+    
+    if (!path) {
+      alert("Cannot locate local repository path. Please use the CLI to index the repository first.");
+      checkRepoSyncStatus(repoName);
+      return;
+    }
+
+    const res = await fetch(`${API}/graph/index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        repo_path: path,
+        repo_name: repoName,
+        incremental: !rebuild,
+        rebuild: rebuild
+      })
+    });
+
+    if (!res.ok) throw new Error("Failed to trigger index");
+    
+    // Successfully triggered! Reload status to start polling.
+    checkRepoSyncStatus(repoName);
+  } catch (err) {
+    alert("Error: " + err.message);
+    checkRepoSyncStatus(repoName);
+  }
+}
+
 // ── Events & Event Listeners ───────────────────────────────────────────────────
 
 resultsList.addEventListener('click', e => {
@@ -1349,7 +1499,11 @@ searchInput.addEventListener('input', () => {
 repoSelect.addEventListener('change', () => {
   activeRepo = repoSelect.value;
   doSearch();
+  checkRepoSyncStatus(activeRepo);
 });
+
+document.getElementById('syncRepoBtn').addEventListener('click', () => triggerRepoSync(false));
+document.getElementById('rebuildRepoBtn').addEventListener('click', () => triggerRepoSync(true));
 
 // Category filtering tabs
 labelTabs.addEventListener('click', e => {
@@ -2248,6 +2402,7 @@ function selectConversation(chatId) {
     if (chat.repository !== undefined) {
       repoSelect.value = chat.repository;
       activeRepo = chat.repository;
+      checkRepoSyncStatus(activeRepo);
     }
     
     renderMessages();

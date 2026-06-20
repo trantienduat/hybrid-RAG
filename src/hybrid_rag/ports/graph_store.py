@@ -83,5 +83,9 @@ class GraphStore(ABC):
         """Retrieve the last indexed commit hash for a repository."""
 
     @abstractmethod
-    def set_repository_commit(self, repository: str, commit_hash: str) -> None:
+    def set_repository_commit(self, repository: str, commit_hash: str, repo_path: str | None = None) -> None:
         """Save the last indexed commit hash for a repository."""
+
+    @abstractmethod
+    def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
+        """Retrieve repository metadata including last indexed commit and path."""

@@ -704,13 +704,41 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
     last_commit = metadata.get("last_indexed_commit") if metadata else None
     repo_path = metadata.get("repo_path") if metadata else None
     
+    # Path fallback resolution inside Docker container
+    effective_path = repo_path
+    if repo_path and not os.path.isdir(repo_path):
+        fallback_1 = os.path.join("/codebases", repo_name)
+        if os.path.isdir(fallback_1):
+            effective_path = fallback_1
+        else:
+            dir_name = os.path.basename(repo_path)
+            fallback_2 = os.path.join("/codebases", dir_name)
+            if os.path.isdir(fallback_2):
+                effective_path = fallback_2
+
+    # Check path accessibility status
+    path_status = "valid"
+    if not repo_path:
+        path_status = "not_provided"
+    elif not os.path.isdir(effective_path):
+        path_status = "not_found"
+    else:
+        try:
+            files = os.listdir(effective_path)
+            if not files:
+                path_status = "empty"
+            elif not os.path.isdir(os.path.join(effective_path, ".git")):
+                path_status = "not_a_git_repo"
+        except Exception:
+            path_status = "inaccessible"
+
     head_commit = None
-    if repo_path and os.path.isdir(repo_path):
+    if path_status == "valid":
         try:
             import subprocess
             res_head = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
-                cwd=repo_path,
+                cwd=effective_path,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -718,7 +746,7 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
             )
             head_commit = res_head.stdout.strip()
         except Exception:
-            pass
+            path_status = "inaccessible"
 
     is_sync = (last_commit is not None) and (head_commit is not None) and (last_commit == head_commit)
     
@@ -735,8 +763,10 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         "repository": repo_name,
         "last_indexed_commit": last_commit,
         "repo_path": repo_path,
+        "effective_path": effective_path,
         "head_commit": head_commit,
         "is_sync": is_sync,
+        "path_status": path_status,
         "active_task": active_task,
     }
 

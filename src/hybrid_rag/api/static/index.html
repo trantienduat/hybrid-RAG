@@ -1411,6 +1411,9 @@ async function checkRepoSyncStatus(repoName) {
       let html = '';
       if (data.repo_path) {
         html += `<strong>Path:</strong> ${escHtml(data.repo_path)}<br/>`;
+        if (data.effective_path && data.effective_path !== data.repo_path) {
+          html += `<span style="color:var(--text-muted); font-size:9px; display:block; margin:2px 0;">(Docker: ${escHtml(data.effective_path)})</span>`;
+        }
       }
       if (data.last_indexed_commit) {
         html += `<strong>Indexed:</strong> ${data.last_indexed_commit.substring(0, 8)}<br/>`;
@@ -1420,8 +1423,32 @@ async function checkRepoSyncStatus(repoName) {
         if (data.last_indexed_commit && data.last_indexed_commit !== data.head_commit) {
           html += ` <span style="color:#ffaa00;">(diff)</span>`;
         }
-      } else if (data.repo_path) {
-        html += `<span style="color:var(--text-muted);">Local Git repo not accessible</span>`;
+      }
+
+      // Render codebase path warnings if not work
+      if (data.path_status && data.path_status !== 'valid') {
+        let warningText = '';
+        if (data.path_status === 'not_found') {
+          warningText = '⚠️ Path not found inside Docker container. Ensure workspace is mounted to /codebases.';
+        } else if (data.path_status === 'empty') {
+          warningText = '⚠️ Directory is empty inside Docker. Check your volume mount mapping.';
+        } else if (data.path_status === 'not_a_git_repo') {
+          warningText = '⚠️ Directory is not a Git repository. Git sync requires git initialized.';
+        } else if (data.path_status === 'inaccessible') {
+          warningText = '⚠️ Directory is inaccessible inside Docker. Check permissions.';
+        } else if (data.path_status === 'not_provided') {
+          warningText = '⚠️ No path stored in DB. Syncing will prompt for path.';
+        }
+        
+        if (warningText) {
+          html += `<div style="margin-top: 8px; padding: 6px; border-radius: 4px; background: rgba(255, 80, 80, 0.1); border: 1px solid rgba(255, 80, 80, 0.2); color: #ff9999; font-size: 10px; line-height: 1.4;">${escHtml(warningText)}</div>`;
+        }
+
+        // Disable sync action buttons if path is broken
+        if (data.path_status !== 'not_provided') {
+          syncBtn.disabled = true;
+          rebuildBtn.disabled = true;
+        }
       }
       info.innerHTML = html;
     }

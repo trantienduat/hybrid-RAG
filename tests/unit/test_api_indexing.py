@@ -103,9 +103,10 @@ class TestApiIndexing:
             resp_get_404 = client.get("/graph/index/tasks/does-not-exist")
             assert resp_get_404.status_code == 404
 
+    @patch("os.listdir", return_value=[".git", "file.py"])
     @patch("os.path.isdir", return_value=True)
     @patch("subprocess.run")
-    def test_get_repository_status(self, mock_sub_run, mock_is_dir):
+    def test_get_repository_status(self, mock_sub_run, mock_is_dir, mock_listdir):
         from unittest.mock import MagicMock
         with TestClient(app) as client:
             # Mock get_repository_metadata on the store instance
@@ -129,6 +130,8 @@ class TestApiIndexing:
             assert data["last_indexed_commit"] == "commit123"
             assert data["repo_path"] == "/mock/repo"
             assert data["head_commit"] == "commit123"
+            assert data["effective_path"] == "/mock/repo"
+            assert data["path_status"] == "valid"
             assert data["is_sync"] is True
             assert data["active_task"] is None
 

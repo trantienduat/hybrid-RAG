@@ -157,9 +157,39 @@ Once setup and indexing are completed, the following services are fully operatio
 *   **REST API Documentation:** Open `http://localhost:8000/docs` to view the FastAPI Swagger UI.
 *   **Qdrant Admin Dashboard:** Visit `http://localhost:6333/dashboard` to inspect vector collections.
 
+
 ---
 
-## 🛠️ 3. Additional Operational CLI Commands
+## 🔄 3. Incremental Indexing & Git Sync
+
+To optimize performance and save resources on large repositories, Hybrid-RAG supports **File-level Incremental Indexing**. Instead of re-indexing the entire repository, the system detects modified, added, renamed, or deleted files, performs a scoped cleanup in both FalkorDB and Qdrant, and indexes only the changes.
+
+### Incremental CLI Flags
+When running `hybrid-rag index`, you can pass the following options:
+*   `--incremental` / `--no-incremental` (Default: `--incremental`): Toggles incremental indexing. If enabled, compares the repository state against the last indexed commit stored in FalkorDB.
+*   `--rebuild`: Forces a full rebuild of the repository, ignoring previously indexed commit state.
+*   `--from-commit <hash>`: Overrides auto-detection and compares the current codebase against a specific past commit hash. Highly useful inside CI/CD workflows (e.g., GitHub Actions using target commit ranges).
+
+Example:
+```bash
+# Force a full rebuild
+hybrid-rag index . --rebuild
+
+# Run incremental indexing compared to a specific past commit
+hybrid-rag index . --from-commit a1b2c3d4
+```
+
+### Git Hook Integration
+You can automate indexing on your local machine so that whenever you pull new commits (`git pull`/`git merge`) or checkout/switch branches (`git checkout`/`git switch`), the database stays in sync automatically:
+```bash
+# Install post-merge and post-checkout hooks into your local repository
+hybrid-rag install-hooks .
+```
+This writes executable hook scripts into `.git/hooks/post-merge` and `.git/hooks/post-checkout` that invoke the CLI in incremental mode.
+
+---
+
+## 🛠️ 4. Additional Operational CLI Commands
 
 When developing or running diagnostic evaluations locally, you can use the active python environment to execute the following commands:
 

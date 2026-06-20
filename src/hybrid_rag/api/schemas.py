@@ -160,8 +160,12 @@ class IndexTaskDetailResponse(BaseModel):
 
     task_id: str
     repository: str
-    status: str  # pending | running | completed | failed
+    status: str  # pending | running | completed | failed | aborted
     created_at: str
     completed_at: str | None = None
     logs: list[str]
     error: str | None = None
+    progress: float = 0.0
+    current_step: str = ""
+    current_message: str = ""
+

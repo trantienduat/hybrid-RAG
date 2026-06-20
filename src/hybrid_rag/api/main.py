@@ -876,7 +876,10 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         if task["repository"] == repo_name and task["status"] in ("pending", "running"):
             active_task = {
                 "task_id": task["task_id"],
-                "status": task["status"]
+                "status": task["status"],
+                "progress": task.get("progress", 0.0),
+                "current_step": task.get("current_step", ""),
+                "current_message": task.get("current_message", ""),
             }
             break
 
@@ -988,7 +991,15 @@ async def process_indexing_task(
 
     add_log("Waiting to acquire indexing lock...")
 
+    if task.get("status") == "aborted":
+        add_log("Task was aborted before it could run.")
+        return
+
     async with app_state.indexing_lock:
+        if task.get("status") == "aborted":
+            add_log("Task was aborted before it could run.")
+            return
+
         task["status"] = "running"
         add_log("Lock acquired. Starting indexing pipeline...")
 
@@ -996,7 +1007,37 @@ async def process_indexing_task(
 
         class ApiIndexingListener(IndexingListener):
             def on_step(self, step_name: str, message: str, progress: float | None = None) -> None:
+                if app_state.indexing_tasks[task_id].get("status") == "aborted":
+                    raise RuntimeError("Task aborted by user")
+
                 add_log(f"[{step_name}] {message}")
+
+                # Linear progress mapping
+                p_val = progress if progress is not None else 0.0
+                if step_name == "init":
+                    overall = 0.05
+                elif step_name == "git_diff":
+                    overall = 0.05 + p_val * 0.05
+                elif step_name == "parse":
+                    overall = 0.10 + p_val * 0.30
+                elif step_name == "llm_extract":
+                    overall = 0.40 + p_val * 0.20
+                elif step_name == "resolution":
+                    overall = 0.60 + p_val * 0.15
+                elif step_name == "db_write":
+                    overall = 0.75 + p_val * 0.10
+                elif step_name == "embed_chunks":
+                    overall = 0.85 + p_val * 0.10
+                elif step_name == "vector_write":
+                    overall = 0.95 + p_val * 0.04
+                elif step_name == "complete":
+                    overall = 1.0
+                else:
+                    overall = p_val
+
+                app_state.indexing_tasks[task_id]["progress"] = round(overall, 3)
+                app_state.indexing_tasks[task_id]["current_step"] = step_name
+                app_state.indexing_tasks[task_id]["current_message"] = message
 
         try:
             # run_indexing_pipeline is synchronous; run in a thread pool to avoid blocking the main event loop
@@ -1017,6 +1058,10 @@ async def process_indexing_task(
                 rebuild=req.rebuild,
             )
 
+            if task.get("status") == "aborted":
+                add_log("Indexing completed but was flagged as aborted.")
+                return
+
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()
             add_log(
@@ -1026,11 +1071,16 @@ async def process_indexing_task(
             )
 
         except Exception as exc:
-            task["status"] = "failed"
-            task["error"] = str(exc)
-            task["completed_at"] = datetime.datetime.now().isoformat()
-            add_log(f"Indexing failed with error: {exc}")
-            logger.exception(f"Indexing task {task_id} failed")
+            if task.get("status") == "aborted" or "Task aborted by user" in str(exc):
+                task["status"] = "aborted"
+                task["completed_at"] = datetime.datetime.now().isoformat()
+                add_log("Indexing aborted by user.")
+            else:
+                task["status"] = "failed"
+                task["error"] = str(exc)
+                task["completed_at"] = datetime.datetime.now().isoformat()
+                add_log(f"Indexing failed with error: {exc}")
+                logger.exception(f"Indexing task {task_id} failed")
 
 
 @app.post("/graph/index", response_model=IndexTaskResponse)
@@ -1060,6 +1110,9 @@ async def trigger_index(
             f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Task initialized and queued."
         ],
         "error": None,
+        "progress": 0.0,
+        "current_step": "init",
+        "current_message": "Task queued.",
     }
     app.state.indexing_tasks[task_id] = task
 
@@ -1090,3 +1143,21 @@ async def get_indexing_task(task_id: str) -> IndexTaskDetailResponse:
     if task_id not in app.state.indexing_tasks:
         raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
     return IndexTaskDetailResponse(**app.state.indexing_tasks[task_id])
+
+
+@app.post("/graph/index/tasks/{task_id}/abort")
+async def abort_indexing_task(task_id: str) -> dict[str, str]:
+    """Abort a pending or running indexing task."""
+    if task_id not in app.state.indexing_tasks:
+        raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
+    
+    task = app.state.indexing_tasks[task_id]
+    if task["status"] in ("pending", "running"):
+        task["status"] = "aborted"
+        task["completed_at"] = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        task["logs"].append(f"[{timestamp}] Task abort requested by user.")
+        logger.info(f"Task {task_id} aborted by user.")
+        return {"task_id": task_id, "status": "aborted"}
+    
+    return {"task_id": task_id, "status": task["status"], "message": "Task is not in a cancellable/abortable state."}

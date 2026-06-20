@@ -192,3 +192,37 @@ class TestApiIndexing:
                 "my-repo", "", repo_path="/codebases/my-repo"
             )
 
+    def test_abort_indexing_task(self):
+        with TestClient(app) as client:
+            # Clear tasks
+            app.state.indexing_tasks.clear()
+
+            # Insert a mock task in pending state
+            task_id = "test-abort-task-123"
+            app.state.indexing_tasks[task_id] = {
+                "task_id": task_id,
+                "repository": "mock-repo",
+                "status": "pending",
+                "created_at": "2026-06-05T12:00:00",
+                "completed_at": None,
+                "logs": ["Task initialized and queued."],
+                "error": None,
+                "progress": 0.0,
+                "current_step": "init",
+                "current_message": "Task queued.",
+            }
+
+            # Test abort success
+            resp = client.post(f"/graph/index/tasks/{task_id}/abort")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["task_id"] == task_id
+            assert data["status"] == "aborted"
+            
+            # Verify status in state is updated
+            assert app.state.indexing_tasks[task_id]["status"] == "aborted"
+            assert app.state.indexing_tasks[task_id]["completed_at"] is not None
+
+            # Test aborting non-existent task
+            resp_404 = client.post("/graph/index/tasks/does-not-exist/abort")
+            assert resp_404.status_code == 404

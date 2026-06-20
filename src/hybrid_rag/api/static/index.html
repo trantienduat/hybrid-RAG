@@ -1121,6 +1121,16 @@
         <div id="repoCommitInfo" style="color: var(--text-muted); font-family: monospace; font-size: 10px; margin-bottom: 8px; word-break: break-all; line-height: 1.3;">
           <!-- Loaded Commit / HEAD Hash -->
         </div>
+        <!-- Progress Container -->
+        <div id="repoProgressContainer" style="display: none; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 3px;">
+            <span id="repoProgressStep" style="color: var(--accent);">Syncing...</span>
+            <span id="repoProgressPercent" style="font-weight: bold; color: var(--accent);">0%</span>
+          </div>
+          <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+            <div id="repoProgressBar" style="width: 0%; height: 100%; background: linear-gradient(95deg, var(--accent), #00e673); transition: width 0.3s ease; border-radius: 3px;"></div>
+          </div>
+        </div>
         <div style="display: flex; gap: 6px;">
           <button id="syncRepoBtn" type="button" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--accent); background: rgba(0, 240, 255, 0.1); color: var(--accent); cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.2s;">
             Sync Changes
@@ -1380,23 +1390,67 @@ async function checkRepoSyncStatus(repoName) {
     if (!res.ok) throw new Error("Status API failed");
     const data = await res.json();
     
+    const progContainer = document.getElementById('repoProgressContainer');
+    const progStep = document.getElementById('repoProgressStep');
+    const progPercent = document.getElementById('repoProgressPercent');
+    const progBar = document.getElementById('repoProgressBar');
+
     // Check if there is an active task
     if (data.active_task) {
       badge.textContent = data.active_task.status === 'running' ? 'Syncing...' : 'Pending...';
       badge.style.background = 'rgba(255, 170, 0, 0.15)';
       badge.style.color = '#ffaa00';
       
+      let stepMsg = data.active_task.current_message ? `: ${data.active_task.current_message}` : '';
       info.innerHTML = `<strong>Active Task:</strong> ${data.active_task.task_id.substring(0, 8)}...<br/>` +
-                       `Path: ${escHtml(data.repo_path || 'unknown')}`;
+                       `Path: ${escHtml(data.repo_path || 'unknown')}${escHtml(stepMsg)}`;
       
-      syncBtn.disabled = true;
-      rebuildBtn.disabled = true;
-      
-      // Poll every 3 seconds
-      syncStatusPollTimer = setTimeout(() => checkRepoSyncStatus(repoName), 3000);
-    } else {
+      if (progContainer && progStep && progPercent && progBar) {
+        progContainer.style.display = 'block';
+        const pct = Math.round((data.active_task.progress || 0) * 100);
+        progPercent.textContent = `${pct}%`;
+        progBar.style.width = `${pct}%`;
+        
+        let stepText = 'Indexing...';
+        if (data.active_task.current_step) {
+          stepText = data.active_task.current_step.toUpperCase().replace('_', ' ');
+        }
+        progStep.textContent = stepText;
+      }
+
+      // Configure Sync Button as Abort Button
+      syncBtn.textContent = 'Abort Sync';
+      syncBtn.style.borderColor = '#ff3232';
+      syncBtn.style.background = 'rgba(255, 50, 50, 0.15)';
+      syncBtn.style.color = '#ff9999';
       syncBtn.disabled = false;
+      syncBtn.dataset.mode = 'abort';
+      syncBtn.dataset.taskId = data.active_task.task_id;
+      
+      // Disable Rebuild Button
+      rebuildBtn.disabled = true;
+      rebuildBtn.style.opacity = '0.5';
+      
+      // Poll every 1.5 seconds for responsive updates
+      syncStatusPollTimer = setTimeout(() => checkRepoSyncStatus(repoName), 1500);
+    } else {
+      if (progContainer) progContainer.style.display = 'none';
+
+      // Restore Sync Button
+      syncBtn.textContent = 'Sync Changes';
+      syncBtn.style.borderColor = 'var(--accent)';
+      syncBtn.style.background = 'rgba(0, 240, 255, 0.1)';
+      syncBtn.style.color = 'var(--accent)';
+      syncBtn.disabled = false;
+      syncBtn.dataset.mode = 'sync';
+      delete syncBtn.dataset.taskId;
+
+      // Restore Rebuild Button
       rebuildBtn.disabled = false;
+      rebuildBtn.style.opacity = '1';
+      rebuildBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      rebuildBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+      rebuildBtn.style.color = 'var(--text)';
       
       if (data.is_sync) {
         badge.textContent = 'Synced';
@@ -1509,6 +1563,28 @@ async function triggerRepoSync(rebuild = false) {
   }
 }
 
+async function abortRepoSync(taskId) {
+  if (!taskId) return;
+  if (!confirm("Are you sure you want to abort the current indexing task?")) return;
+
+  const syncBtn = document.getElementById('syncRepoBtn');
+  syncBtn.disabled = true;
+  syncBtn.textContent = 'Aborting...';
+
+  try {
+    const res = await fetch(`${API}/graph/index/tasks/${encodeURIComponent(taskId)}/abort`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error("Failed to abort task");
+    
+    // Status polling will handle the updated status automatically
+    checkRepoSyncStatus(repoSelect.value);
+  } catch (err) {
+    alert("Error aborting task: " + err.message);
+    checkRepoSyncStatus(repoSelect.value);
+  }
+}
+
 // ── Events & Event Listeners ───────────────────────────────────────────────────
 
 resultsList.addEventListener('click', e => {
@@ -1531,7 +1607,14 @@ repoSelect.addEventListener('change', () => {
   checkRepoSyncStatus(activeRepo);
 });
 
-document.getElementById('syncRepoBtn').addEventListener('click', () => triggerRepoSync(false));
+document.getElementById('syncRepoBtn').addEventListener('click', () => {
+  const syncBtn = document.getElementById('syncRepoBtn');
+  if (syncBtn.dataset.mode === 'abort') {
+    abortRepoSync(syncBtn.dataset.taskId);
+  } else {
+    triggerRepoSync(false);
+  }
+});
 document.getElementById('rebuildRepoBtn').addEventListener('click', () => triggerRepoSync(true));
 
 // Category filtering tabs

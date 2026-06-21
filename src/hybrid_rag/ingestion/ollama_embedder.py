@@ -15,11 +15,12 @@ import httpx
 
 from hybrid_rag.ingestion.parser import NodeData
 from hybrid_rag.ports.embedder import BaseEmbedder
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OLLAMA_URL = "http://localhost:11434"
-_DEFAULT_MODEL = "nomic-embed-text"
+_DEFAULT_MODEL = DEFAULT_EMBED_MODEL
 _HTTP_TIMEOUT = 30.0
 
 

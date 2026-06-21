@@ -8,7 +8,7 @@ However, local retrieval methods fail completely on **Global RAG** queries (e.g.
 *   **The Vector Search Bottleneck:** Vector similarity retrieval acts as a keyword-matching fallback on high-level conceptual questions, retrieving unrelated raw code snippets instead of structured architectural overviews.
 *   **The Graph Bottleneck:** Standard local graph retrievers traverse 1-to-3-hop relationships around specific extracted entities. For repository-wide questions, there is no single starting entity, causing traversal to fail.
 
-To solve this, we adapt **Microsoft's GraphRAG (Option A: Global Search)** architecture to an offline, privacy-preserving, local-first stack running on top of **FalkorDB**, **networkx**, and **Ollama (Gemma 4 12B)**.
+To solve this, we adapt **Microsoft's GraphRAG (Option A: Global Search)** architecture to an offline, privacy-preserving, local-first stack running on top of **FalkorDB**, **networkx**, and **Ollama (Gemma 2 9B)**.
 
 ---
 
@@ -87,7 +87,7 @@ An offline builder runs via the CLI:
     MATCH (c:Community) RETURN c.name, c.summary
     ```
 *   **Synthesis (Map-Reduce / Direct Packing):**
-    *   Since Gemma 4 12B supports a 128k context window, we can directly pack all community summaries (typically 3–8 communities, ~500 words each = ~4000 tokens) into the context window.
+    *   Since Gemma 2 9B supports a 128k context window, we can directly pack all community summaries (typically 3–8 communities, ~500 words each = ~4000 tokens) into the context window.
     *   The LLM generates a comprehensive, cohesive, and perfectly accurate repository summary.
 
 ---

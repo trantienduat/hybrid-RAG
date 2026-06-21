@@ -58,6 +58,7 @@ from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
 from hybrid_rag.utils.cache import RedisQueryCache
+from hybrid_rag.constants import DEFAULT_LLM_MODEL, DEFAULT_EMBED_MODEL
 import gc
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ _QDRANT_HOST = os.environ.get("QDRANT_HOST") or "localhost"
 _QDRANT_PORT = int(os.environ.get("QDRANT_PORT") or 6333)
 _QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
 _OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
-_EMBED_MODEL = os.environ.get("EMBED_MODEL") or "nomic-embed-text"
+_EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
 _RRF_K = int(os.environ.get("RRF_K", 60))
 _RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
@@ -806,7 +807,7 @@ async def process_indexing_task(
                 vector_store=app_state.vector_store,
                 ollama_url=_OLLAMA_URL,
                 embed_model=_EMBED_MODEL,
-                llm_model=os.environ.get("LLM_MODEL") or "gemma4:12b",
+                llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
                 llm_extract=req.llm_extract,
                 max_tokens=req.max_tokens,
                 listener=ApiIndexingListener(),

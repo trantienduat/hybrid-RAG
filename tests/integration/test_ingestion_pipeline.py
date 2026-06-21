@@ -267,6 +267,7 @@ class TestM2Pipeline:
         (possibly empty if LLM finds nothing, but never raise).
         Requires Ollama with a code-capable model.
         """
+        from hybrid_rag.constants import DEFAULT_LLM_MODEL
         from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
         from hybrid_rag.ingestion.parser import parse_file
 
@@ -275,7 +276,7 @@ class TestM2Pipeline:
         result = parse_file(fp, fixture_repo)
         source_text = fp.read_text(encoding="utf-8")
 
-        with OllamaLLMExtractor(model="gemma4:12b") as extractor:
+        with OllamaLLMExtractor(model=DEFAULT_LLM_MODEL) as extractor:
             edges = extractor.extract(source_text, result)
 
         assert isinstance(edges, list)

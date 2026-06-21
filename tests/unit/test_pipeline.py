@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL, DEFAULT_EMBED_MODEL
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ingestion.pipeline import IndexingListener, run_indexing_pipeline
 
@@ -81,8 +82,8 @@ class TestIndexingPipeline:
             graph_store=mock_graph_store,
             vector_store=mock_vector_store,
             ollama_url="http://localhost:11434",
-            embed_model="nomic-embed-text",
-            llm_model="gemma4:12b",
+            embed_model=DEFAULT_EMBED_MODEL,
+            llm_model=DEFAULT_LLM_MODEL,
             llm_extract=False,
             max_tokens=512,
             listener=listener,
@@ -123,8 +124,8 @@ class TestIndexingPipeline:
                 graph_store=mock_graph_store,
                 vector_store=mock_vector_store,
                 ollama_url="http://localhost:11434",
-                embed_model="nomic-embed-text",
-                llm_model="gemma4:12b",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
                 llm_extract=False,
                 max_tokens=512,
             )

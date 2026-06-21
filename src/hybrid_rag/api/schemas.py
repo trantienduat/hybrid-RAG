@@ -7,6 +7,7 @@ M4 #28.
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 
 # ── Request ────────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ class QueryRequest(BaseModel):
     max_chars: int | None = Field(
         None, ge=1, le=65536, description="Maximum characters for dynamic context budget."
     )
-    llm_model: str = Field("gemma4:12b", description="Ollama model name for generation.")
+    llm_model: str = Field(DEFAULT_LLM_MODEL, description="Ollama model name for generation.")
     stream: bool = Field(False, description="Set True to use SSE streaming endpoint instead.")
     repository: str | None = Field(
         None, description="Optional repository name to filter search results and context by."

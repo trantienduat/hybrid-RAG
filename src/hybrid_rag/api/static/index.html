@@ -983,6 +983,38 @@
       line-height: 1.5;
     }
 
+    /* ── Loading Animation ── */
+    .assistant-loading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+    }
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.4s infinite ease-in-out both;
+      opacity: 0.6;
+    }
+    .loading-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    .loading-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    @keyframes pulse {
+      0%, 80%, 100% {
+        transform: scale(0.2);
+        opacity: 0.2;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     /* ── Stop Button ── */
     .btn-ask.btn-stop {
       background: var(--red);
@@ -1752,7 +1784,7 @@ function renderMessage(m) {
     }
 
     // 2. Parse Thinking and Response
-    const parsed = parseThinkingAndResponse(m.text);
+    const parsed = parseThinkingAndResponse(m.text, m.streaming);
     let thinkingHtml = '';
     if (parsed.thinking) {
       const openAttr = m.streaming ? 'open' : '';
@@ -1767,7 +1799,9 @@ function renderMessage(m) {
     // 3. Render Answer
     const cursor = m.streaming ? '<span class="cursor"></span>' : '';
     let responseHtml = '';
-    if (parsed.response || m.streaming) {
+    if (m.streaming && !parsed.thinking && !parsed.response) {
+      responseHtml = `<div class="answer-content"><div class="assistant-loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>`;
+    } else if (parsed.response || m.streaming) {
       responseHtml = `<div class="answer-content">${m.streaming ? escHtml(parsed.response) : renderMarkdown(parsed.response)}${cursor}</div>`;
     } else if (!parsed.thinking) {
       responseHtml = `<div class="answer-content">${renderMarkdown(m.text)}${cursor}</div>`;
@@ -1931,7 +1965,18 @@ async function doAsk() {
               entry.sources = capturedSources;
               entry.query_type = ev.query_type || q_type;
             }
-            continue;
+            if (capturedSources.length > 0) {
+              const msgEl = document.getElementById(`msg-${assistantId}`);
+              if (msgEl) {
+                const oldCite = document.getElementById(`cite-${assistantId}`);
+                if (oldCite) oldCite.remove();
+                const citeHtml = renderCitations(assistantId, capturedSources);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = citeHtml;
+                const citeEl = tempDiv.firstElementChild;
+                if (citeEl) msgEl.appendChild(citeEl);
+              }
+            }
           }
 
           if (ev.token) streamBuf += ev.token;
@@ -1974,14 +2019,19 @@ async function doAsk() {
             }
 
             let responseHtml = '';
-            if (parsed.response || !parsed.thinking) {
+            if (parsed.response) {
               responseHtml = `<div class="answer-content">${escHtml(parsed.response)}<span class="cursor"></span></div>`;
-            } else {
+            } else if (parsed.thinking) {
               responseHtml = `<div class="answer-content"><span class="cursor"></span></div>`;
+            } else {
+              responseHtml = `<div class="answer-content"><div class="assistant-loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>`;
             }
 
+            const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 100;
             bodyEl.innerHTML = traceHtml + thinkingHtml + responseHtml;
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (isNearBottom) {
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
           }
 
           if (ev.done) {
@@ -2101,7 +2151,7 @@ function initResizers() {
 
 // ── Search Suggestions Logic ──────────────────────────────────────────────────
 
-function parseThinkingAndResponse(text) {
+function parseThinkingAndResponse(text, isStreaming = true) {
   let thinking = '';
   let response = text;
   
@@ -2112,8 +2162,15 @@ function parseThinkingAndResponse(text) {
       thinking = text.slice(thinkStart + 7, thinkEnd).trim();
       response = text.slice(thinkEnd + 8).trim();
     } else {
-      thinking = text.slice(thinkStart + 7);
-      response = '';
+      if (isStreaming) {
+        thinking = text.slice(thinkStart + 7);
+        response = '';
+      } else {
+        // Not streaming anymore, but no closing </think> tag found!
+        // Treat everything inside <think> as the response so the answer is not empty.
+        thinking = '';
+        response = text.replace('<think>', '').trim();
+      }
     }
   }
   return { thinking, response };

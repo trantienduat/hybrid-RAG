@@ -24,10 +24,12 @@ import httpx
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ports.llm_extractor import BaseLLMExtractor
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OLLAMA_URL = "http://localhost:11434"
-_DEFAULT_MODEL = "gemma4:12b"
+_DEFAULT_MODEL = DEFAULT_LLM_MODEL
 _HTTP_TIMEOUT = 60.0
 _MIN_CONFIDENCE = 0.7
 

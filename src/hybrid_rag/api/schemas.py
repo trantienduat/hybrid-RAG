@@ -122,6 +122,14 @@ class HealthResponse(BaseModel):
     ollama: str
 
 
+class LLMModelResponse(BaseModel):
+    """Available Ollama model response."""
+
+    name: str
+    parameter_size: str | None = None
+    size_bytes: int | None = None
+
+
 # ── Indexing ───────────────────────────────────────────────────────────────────
 
 

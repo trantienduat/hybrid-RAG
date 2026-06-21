@@ -1255,6 +1255,9 @@
           <input type="checkbox" id="codebaseQueryToggle" checked style="accent-color: var(--accent); cursor: pointer; transform: scale(1.05); margin: 0;" />
           Codebase RAG
         </label>
+        <select id="llmModelSelect" style="background: rgba(30, 41, 59, 0.45); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; outline: none; cursor: pointer; max-width: 170px; font-family: inherit; transition: border-color 0.2s, background-color 0.2s;" onmouseover="this.style.background='rgba(30, 41, 59, 0.65)'" onmouseout="this.style.background='rgba(30, 41, 59, 0.45)'">
+          <option value="">Loading models...</option>
+        </select>
         <button class="btn-clear" id="newChatBtn" type="button" style="border-color: var(--accent); color: var(--accent);">+ New Chat</button>
         <button class="btn-clear" id="clearBtn" type="button">Clear</button>
       </div>
@@ -1334,6 +1337,7 @@ const nodeInspector = document.getElementById('nodeInspector');
 const closeInspectorBtn = document.getElementById('closeInspectorBtn');
 const statusBar     = document.getElementById('statusBar');
 const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
+const llmModelSelect = document.getElementById('llmModelSelect');
 const newChatBtn    = document.getElementById('newChatBtn');
 const conversationList = document.getElementById('conversationList');
 
@@ -1341,10 +1345,15 @@ const conversationList = document.getElementById('conversationList');
 
 window.addEventListener('DOMContentLoaded', () => {
   loadRepositories();
+  loadLLMModels();
   initResizers();
   renderSearchSuggestions();
   loadConversations();
   updateGlobalTasks();
+
+  llmModelSelect.addEventListener('change', () => {
+    localStorage.setItem('hybrid_rag_selected_model', llmModelSelect.value);
+  });
 });
 
 function populatePrompt(text) {
@@ -1363,6 +1372,41 @@ async function loadRepositories() {
       repos.map(repo => `<option value="${escHtml(repo)}">${escHtml(repo)}</option>`).join('');
   } catch (err) {
     console.warn("Failed to fetch repository list:", err);
+  }
+}
+
+async function loadLLMModels() {
+  try {
+    const r = await fetch(`${API}/llm/models`);
+    if (!r.ok) throw new Error("Failed to load models");
+    const models = await r.json();
+
+    // Sort models by name
+    models.sort((a, b) => a.name.localeCompare(b.name));
+
+    const savedModel = localStorage.getItem('hybrid_rag_selected_model') || '';
+
+    llmModelSelect.innerHTML = models.map(m => {
+      let displayName = m.name;
+      if (m.parameter_size) {
+        displayName += ` (${m.parameter_size}`;
+        if (m.size_bytes) {
+          const sizeGB = (m.size_bytes / (1024 * 1024 * 1024)).toFixed(1);
+          displayName += `, ${sizeGB} GB`;
+        }
+        displayName += `)`;
+      }
+      const selected = m.name === savedModel ? 'selected' : '';
+      return `<option value="${escHtml(m.name)}" ${selected}>${escHtml(displayName)}</option>`;
+    }).join('');
+
+    // Handle case where saved model is not in the list, default to first option
+    if (models.length > 0 && !models.some(m => m.name === savedModel)) {
+      localStorage.setItem('hybrid_rag_selected_model', models[0].name);
+    }
+  } catch (err) {
+    console.warn("Failed to fetch LLM models:", err);
+    llmModelSelect.innerHTML = '<option value="">Ollama Offline</option>';
   }
 }
 
@@ -2275,6 +2319,10 @@ async function doAsk() {
     if (activeRepo) {
       body.repository = activeRepo;
     }
+    const selectedModel = llmModelSelect.value;
+    if (selectedModel) {
+      body.llm_model = selectedModel;
+    }
 
     const resp = await fetch(`${API}/query/stream`, {
       method: 'POST',
@@ -2589,6 +2637,11 @@ function selectConversation(chatId) {
     
     codebaseQueryToggle.checked = chat.codebase_query !== false;
     codebaseQueryToggle.dispatchEvent(new Event('change'));
+
+    if (chat.llm_model) {
+      llmModelSelect.value = chat.llm_model;
+      localStorage.setItem('hybrid_rag_selected_model', chat.llm_model);
+    }
     
     if (chat.repository !== undefined) {
       repoSelect.value = chat.repository;
@@ -2624,7 +2677,8 @@ function saveCurrentChat() {
       title: title,
       messages: [...messages],
       repository: activeRepo,
-      codebase_query: codebaseQueryToggle.checked
+      codebase_query: codebaseQueryToggle.checked,
+      llm_model: llmModelSelect.value
     });
   } else {
     const index = chats.findIndex(c => c.id === currentChatId);
@@ -2632,6 +2686,7 @@ function saveCurrentChat() {
       chats[index].messages = [...messages];
       chats[index].repository = activeRepo;
       chats[index].codebase_query = codebaseQueryToggle.checked;
+      chats[index].llm_model = llmModelSelect.value;
       const [currChat] = chats.splice(index, 1);
       chats.unshift(currChat);
     } else {
@@ -2640,7 +2695,8 @@ function saveCurrentChat() {
         title: title,
         messages: [...messages],
         repository: activeRepo,
-        codebase_query: codebaseQueryToggle.checked
+        codebase_query: codebaseQueryToggle.checked,
+        llm_model: llmModelSelect.value
       });
     }
   }

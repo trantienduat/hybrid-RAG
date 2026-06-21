@@ -226,3 +226,50 @@ class TestApiIndexing:
             # Test aborting non-existent task
             resp_404 = client.post("/graph/index/tasks/does-not-exist/abort")
             assert resp_404.status_code == 404
+
+    @patch("httpx.AsyncClient.get")
+    def test_list_llm_models_success(self, mock_get):
+        from unittest.mock import MagicMock
+        with TestClient(app) as client:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.raise_for_status = MagicMock()
+            mock_resp.json.return_value = {
+                "models": [
+                    {
+                        "name": "qwen2.5-coder:7b",
+                        "size": 4700000000,
+                        "details": {
+                            "parameter_size": "7B"
+                        }
+                    },
+                    {
+                        "name": "nomic-embed-text:latest",
+                        "size": 274000000,
+                        "details": {
+                            "parameter_size": "274M"
+                        }
+                    },
+                    {
+                        "name": "gemma2:9b",
+                        "size": 5400000000,
+                        "details": {
+                            "parameter_size": "9B"
+                        }
+                    }
+                ]
+            }
+            mock_get.return_value = mock_resp
+
+            resp = client.get("/llm/models")
+            assert resp.status_code == 200
+            data = resp.json()
+
+            # nomic-embed-text should be filtered out
+            assert len(data) == 2
+            assert data[0]["name"] == "qwen2.5-coder:7b"
+            assert data[0]["parameter_size"] == "7B"
+            assert data[0]["size_bytes"] == 4700000000
+            assert data[1]["name"] == "gemma2:9b"
+            assert data[1]["parameter_size"] == "9B"
+            assert data[1]["size_bytes"] == 5400000000

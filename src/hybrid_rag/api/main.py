@@ -46,6 +46,7 @@ from hybrid_rag.api.schemas import (
     IndexRequest,
     IndexTaskDetailResponse,
     IndexTaskResponse,
+    LLMModelResponse,
     QueryRequest,
     QueryResponse,
     SourceChunk,
@@ -500,6 +501,38 @@ async def health() -> HealthResponse:
         overall = "degraded"
 
     return HealthResponse(status=overall, **results)
+
+
+@app.get("/llm/models", response_model=list[LLMModelResponse])
+async def list_models() -> list[LLMModelResponse]:
+    """Retrieve the list of available local Ollama models, filtering out embeddings."""
+    try:
+        client = app.state.http_client
+        resp = await client.get(f"{_OLLAMA_URL}/api/tags")
+        resp.raise_for_status()
+        models = resp.json().get("models", [])
+
+        result = []
+        for m in models:
+            name = m.get("name", "")
+            # Filter out embedding models
+            if "embed" in name.lower():
+                continue
+            details = m.get("details", {})
+            result.append(
+                LLMModelResponse(
+                    name=name,
+                    parameter_size=details.get("parameter_size"),
+                    size_bytes=m.get("size"),
+                )
+            )
+        return result
+    except Exception as exc:
+        logger.exception("Failed to fetch Ollama models")
+        from hybrid_rag.constants import DEFAULT_LLM_MODEL
+        return [
+            LLMModelResponse(name=DEFAULT_LLM_MODEL),
+        ]
 
 
 # ── POST /query ────────────────────────────────────────────────────────────────

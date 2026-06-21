@@ -13,7 +13,7 @@ Usage::
     runner = RagasRunner(
         retriever=hybrid_retriever,
         ollama_url="http://localhost:11434",
-        llm_model="gemma4:12b",
+        llm_model="qwen2.5-coder:7b",
     )
     report = runner.run(EVAL_CORPUS[:5], top_k=20)
     print(report.summary())
@@ -146,7 +146,7 @@ class RagasRunner:
         self,
         retriever: HybridRetriever,
         ollama_url: str = "http://localhost:11434",
-        llm_model: str = "gemma4:12b",
+        llm_model: str = "qwen2.5-coder:7b",
     ) -> None:
         self._retriever = retriever
         self._ollama_url = ollama_url

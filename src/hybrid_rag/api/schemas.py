@@ -139,6 +139,12 @@ class IndexRequest(BaseModel):
         False, description="Run LLM-assisted extraction to supplement AST edges."
     )
     max_tokens: int = Field(512, ge=1, le=4096, description="Max tokens per chunk.")
+    incremental: bool = Field(
+        True, description="Run indexing incrementally based on Git changes since last indexed commit."
+    )
+    rebuild: bool = Field(
+        False, description="Force a full rebuild and overwrite cached data."
+    )
 
 
 class IndexTaskResponse(BaseModel):
@@ -154,8 +160,12 @@ class IndexTaskDetailResponse(BaseModel):
 
     task_id: str
     repository: str
-    status: str  # pending | running | completed | failed
+    status: str  # pending | running | completed | failed | aborted
     created_at: str
     completed_at: str | None = None
     logs: list[str]
     error: str | None = None
+    progress: float = 0.0
+    current_step: str = ""
+    current_message: str = ""
+

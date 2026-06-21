@@ -1112,6 +1112,41 @@
           <option value="">All Repositories</option>
         </select>
       </div>
+      <!-- Repository Sync Status Panel -->
+      <div id="repoStatusPanel" class="repo-status-panel" style="display: none; margin-top: 6px; padding: 10px; border-radius: 6px; background: rgba(30,35,55,0.4); border: 1px solid var(--border); font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="color: var(--text-muted);">Sync Status:</span>
+          <span id="repoSyncBadge" style="padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9px; text-transform: uppercase;">Checking...</span>
+        </div>
+        <div id="repoCommitInfo" style="color: var(--text-muted); font-family: monospace; font-size: 10px; margin-bottom: 8px; word-break: break-all; line-height: 1.3;">
+          <!-- Loaded Commit / HEAD Hash -->
+        </div>
+        <!-- Progress Container -->
+        <div id="repoProgressContainer" style="display: none; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 3px;">
+            <span id="repoProgressStep" style="color: var(--accent);">Syncing...</span>
+            <span id="repoProgressPercent" style="font-weight: bold; color: var(--accent);">0%</span>
+          </div>
+          <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+            <div id="repoProgressBar" style="width: 0%; height: 100%; background: linear-gradient(95deg, var(--accent), #00e673); transition: width 0.3s ease; border-radius: 3px;"></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="syncRepoBtn" type="button" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--accent); background: rgba(0, 240, 255, 0.1); color: var(--accent); cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.2s;">
+            Sync Changes
+          </button>
+          <button id="rebuildRepoBtn" type="button" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: var(--text); cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.2s;">
+            Rebuild All
+          </button>
+        </div>
+      </div>
+      <!-- Global Active Tasks Panel -->
+      <div id="globalTasksPanel" style="display: none; margin-top: 8px; padding: 10px; border-radius: 6px; background: rgba(30,35,55,0.4); border: 1px solid var(--border); font-size: 11px;">
+        <label style="font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Active Sync Tasks</label>
+        <div id="globalTasksList" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Renders running/pending tasks with progress bars and abort buttons -->
+        </div>
+      </div>
     </div>
 
     <!-- Graph Node Search -->
@@ -1309,6 +1344,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initResizers();
   renderSearchSuggestions();
   loadConversations();
+  updateGlobalTasks();
 });
 
 function populatePrompt(text) {
@@ -1327,6 +1363,304 @@ async function loadRepositories() {
       repos.map(repo => `<option value="${escHtml(repo)}">${escHtml(repo)}</option>`).join('');
   } catch (err) {
     console.warn("Failed to fetch repository list:", err);
+  }
+}
+
+let syncStatusPollTimer = null;
+
+async function checkRepoSyncStatus(repoName) {
+  const panel = document.getElementById('repoStatusPanel');
+  const badge = document.getElementById('repoSyncBadge');
+  const info = document.getElementById('repoCommitInfo');
+  const syncBtn = document.getElementById('syncRepoBtn');
+  const rebuildBtn = document.getElementById('rebuildRepoBtn');
+
+  if (syncStatusPollTimer) {
+    clearTimeout(syncStatusPollTimer);
+    syncStatusPollTimer = null;
+  }
+
+  if (!repoName) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  badge.textContent = 'Checking...';
+  badge.style.background = 'rgba(255, 255, 255, 0.1)';
+  badge.style.color = 'var(--text-muted)';
+  info.textContent = '';
+  syncBtn.disabled = true;
+  rebuildBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
+    if (!res.ok) throw new Error("Status API failed");
+    const data = await res.json();
+    
+    const progContainer = document.getElementById('repoProgressContainer');
+    const progStep = document.getElementById('repoProgressStep');
+    const progPercent = document.getElementById('repoProgressPercent');
+    const progBar = document.getElementById('repoProgressBar');
+
+    // Check if there is an active task
+    if (data.active_task) {
+      badge.textContent = data.active_task.status === 'running' ? 'Syncing...' : 'Pending...';
+      badge.style.background = 'rgba(255, 170, 0, 0.15)';
+      badge.style.color = '#ffaa00';
+      
+      let stepMsg = data.active_task.current_message ? `: ${data.active_task.current_message}` : '';
+      info.innerHTML = `<strong>Active Task:</strong> ${data.active_task.task_id.substring(0, 8)}...<br/>` +
+                       `Path: ${escHtml(data.repo_path || 'unknown')}${escHtml(stepMsg)}`;
+      
+      if (progContainer && progStep && progPercent && progBar) {
+        progContainer.style.display = 'block';
+        const pct = Math.round((data.active_task.progress || 0) * 100);
+        progPercent.textContent = `${pct}%`;
+        progBar.style.width = `${pct}%`;
+        
+        let stepText = 'Indexing...';
+        if (data.active_task.current_step) {
+          stepText = data.active_task.current_step.toUpperCase().replace('_', ' ');
+        }
+        progStep.textContent = stepText;
+      }
+
+      // Configure Sync Button as Abort Button
+      syncBtn.textContent = 'Abort Sync';
+      syncBtn.style.borderColor = '#ff3232';
+      syncBtn.style.background = 'rgba(255, 50, 50, 0.15)';
+      syncBtn.style.color = '#ff9999';
+      syncBtn.disabled = false;
+      syncBtn.dataset.mode = 'abort';
+      syncBtn.dataset.taskId = data.active_task.task_id;
+      
+      // Disable Rebuild Button
+      rebuildBtn.disabled = true;
+      rebuildBtn.style.opacity = '0.5';
+      
+      // Poll every 1.5 seconds for responsive updates
+      syncStatusPollTimer = setTimeout(() => checkRepoSyncStatus(repoName), 1500);
+    } else {
+      if (progContainer) progContainer.style.display = 'none';
+
+      // Restore Sync Button
+      syncBtn.textContent = 'Sync Changes';
+      syncBtn.style.borderColor = 'var(--accent)';
+      syncBtn.style.background = 'rgba(0, 240, 255, 0.1)';
+      syncBtn.style.color = 'var(--accent)';
+      syncBtn.disabled = false;
+      syncBtn.dataset.mode = 'sync';
+      delete syncBtn.dataset.taskId;
+
+      // Restore Rebuild Button
+      rebuildBtn.disabled = false;
+      rebuildBtn.style.opacity = '1';
+      rebuildBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      rebuildBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+      rebuildBtn.style.color = 'var(--text)';
+      
+      if (data.is_sync) {
+        badge.textContent = 'Synced';
+        badge.style.background = 'rgba(0, 230, 115, 0.15)';
+        badge.style.color = '#00e673';
+      } else {
+        badge.textContent = data.last_indexed_commit ? 'Out of Sync' : 'Not Indexed';
+        badge.style.background = 'rgba(255, 50, 50, 0.15)';
+        badge.style.color = '#ff3232';
+      }
+      
+      let html = '';
+      if (data.repo_path) {
+        html += `<strong>Path:</strong> ${escHtml(data.repo_path)}<br/>`;
+        if (data.effective_path && data.effective_path !== data.repo_path) {
+          html += `<span style="color:var(--text-muted); font-size:9px; display:block; margin:2px 0;">(Docker: ${escHtml(data.effective_path)})</span>`;
+        }
+      }
+      if (data.last_indexed_commit) {
+        html += `<strong>Indexed:</strong> ${data.last_indexed_commit.substring(0, 8)}<br/>`;
+      }
+      if (data.last_synced) {
+        const dateStr = new Date(data.last_synced).toLocaleString();
+        html += `<strong>Last Synced:</strong> ${dateStr}<br/>`;
+      }
+      if (data.head_commit) {
+        html += `<strong>Local HEAD:</strong> ${data.head_commit.substring(0, 8)}`;
+        if (data.last_indexed_commit && data.last_indexed_commit !== data.head_commit) {
+          html += ` <span style="color:#ffaa00;">(diff)</span>`;
+        }
+      }
+
+      // Render codebase path warnings if not work
+      if (data.path_status && data.path_status !== 'valid') {
+        let warningText = '';
+        if (data.path_status === 'not_found') {
+          warningText = '⚠️ Path not found inside Docker container. Ensure workspace is mounted to /codebases.';
+        } else if (data.path_status === 'empty') {
+          warningText = '⚠️ Directory is empty inside Docker. Check your volume mount mapping.';
+        } else if (data.path_status === 'not_a_git_repo') {
+          warningText = '⚠️ Directory is not a Git repository. Git sync requires git initialized.';
+        } else if (data.path_status === 'inaccessible') {
+          warningText = '⚠️ Directory is inaccessible inside Docker. Check permissions.';
+        } else if (data.path_status === 'not_provided') {
+          warningText = '⚠️ No path stored in DB. Syncing will prompt for path.';
+        }
+        
+        if (warningText) {
+          html += `<div style="margin-top: 8px; padding: 6px; border-radius: 4px; background: rgba(255, 80, 80, 0.1); border: 1px solid rgba(255, 80, 80, 0.2); color: #ff9999; font-size: 10px; line-height: 1.4;">${escHtml(warningText)}</div>`;
+        }
+
+        // Disable sync action buttons if path is broken
+        if (data.path_status !== 'not_provided') {
+          syncBtn.disabled = true;
+          rebuildBtn.disabled = true;
+        }
+      }
+      info.innerHTML = html;
+    }
+  } catch (err) {
+    console.warn("Failed to get repository status:", err);
+    badge.textContent = 'Unknown';
+    info.textContent = 'Failed to fetch status';
+    syncBtn.disabled = false;
+    rebuildBtn.disabled = false;
+  }
+}
+
+async function triggerRepoSync(rebuild = false) {
+  const repoName = repoSelect.value;
+  if (!repoName) return;
+
+  const syncBtn = document.getElementById('syncRepoBtn');
+  const rebuildBtn = document.getElementById('rebuildRepoBtn');
+  const badge = document.getElementById('repoSyncBadge');
+
+  syncBtn.disabled = true;
+  rebuildBtn.disabled = true;
+  badge.textContent = rebuild ? 'Rebuilding...' : 'Syncing...';
+  badge.style.background = 'rgba(255, 170, 0, 0.15)';
+  badge.style.color = '#ffaa00';
+
+  try {
+    const statusRes = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
+    const statusData = await statusRes.json();
+    let path = statusData.repo_path;
+    
+    if (!path) {
+      path = prompt("Cannot locate local repository path in database. Please enter the absolute path to this repository on your machine:");
+      if (!path) {
+        checkRepoSyncStatus(repoName);
+        return;
+      }
+    }
+
+    const res = await fetch(`${API}/graph/index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        repo_path: path,
+        repo_name: repoName,
+        incremental: !rebuild,
+        rebuild: rebuild
+      })
+    });
+
+    if (!res.ok) throw new Error("Failed to trigger index");
+    
+    // Successfully triggered! Reload status and global tasks to start polling.
+    checkRepoSyncStatus(repoName);
+    updateGlobalTasks();
+  } catch (err) {
+    alert("Error: " + err.message);
+    checkRepoSyncStatus(repoName);
+  }
+}
+
+async function abortRepoSync(taskId) {
+  if (!taskId) return;
+  if (!confirm("Are you sure you want to abort the current indexing task?")) return;
+
+  const syncBtn = document.getElementById('syncRepoBtn');
+  const isActiveSelected = syncBtn.dataset.taskId === taskId;
+  if (isActiveSelected) {
+    syncBtn.disabled = true;
+    syncBtn.textContent = 'Aborting...';
+  }
+
+  try {
+    const res = await fetch(`${API}/graph/index/tasks/${encodeURIComponent(taskId)}/abort`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error("Failed to abort task");
+    
+    updateGlobalTasks();
+    checkRepoSyncStatus(repoSelect.value);
+  } catch (err) {
+    alert("Error aborting task: " + err.message);
+    updateGlobalTasks();
+    checkRepoSyncStatus(repoSelect.value);
+  }
+}
+
+let globalTasksPollTimer = null;
+
+async function updateGlobalTasks() {
+  const panel = document.getElementById('globalTasksPanel');
+  const listContainer = document.getElementById('globalTasksList');
+  if (!panel || !listContainer) return;
+
+  try {
+    const res = await fetch(`${API}/graph/index/tasks`);
+    if (!res.ok) throw new Error("Failed to fetch tasks");
+    const tasks = await res.json();
+
+    // Filter for active tasks (pending or running)
+    const activeTasks = tasks.filter(t => t.status === 'pending' || t.status === 'running');
+
+    if (activeTasks.length === 0) {
+      panel.style.display = 'none';
+      if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+      globalTasksPollTimer = setTimeout(updateGlobalTasks, 5000);
+      return;
+    }
+
+    panel.style.display = 'block';
+    
+    let html = '';
+    for (const task of activeTasks) {
+      const pct = Math.round(task.progress * 100);
+      const stepText = (task.current_step || 'indexing').toUpperCase().replace('_', ' ');
+      
+      html += `
+        <div style="background: rgba(30,35,55,0.4); border: 1px solid var(--border); padding: 8px; border-radius: 6px; font-size: 11px; margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-weight: bold; color: var(--accent);">${escHtml(task.repository)}</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="font-size: 8px; padding: 2px 4px; border-radius: 3px; background: ${task.status === 'running' ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255, 170, 0, 0.15)'}; color: ${task.status === 'running' ? 'var(--accent)' : '#ffaa00'}; font-weight: bold; text-transform: uppercase;">
+                ${task.status === 'running' ? 'Syncing' : 'Pending'}
+              </span>
+              <button type="button" onclick="abortRepoSync('${task.task_id}')" title="Abort Task" style="background: none; border: none; color: #ff5050; cursor: pointer; font-size: 11px; font-weight: bold; padding: 0 4px; line-height: 1;">✕</button>
+            </div>
+          </div>
+          <div style="color: var(--text-muted); font-size: 9px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escHtml(task.current_message || '')}">
+            <strong>${escHtml(stepText)}</strong>: ${escHtml(task.current_message || 'Waiting...')}
+          </div>
+          <!-- Progress Bar -->
+          <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, var(--accent), #00e673); transition: width 0.3s ease;"></div>
+          </div>
+        </div>
+      `;
+    }
+    listContainer.innerHTML = html;
+
+    if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+    globalTasksPollTimer = setTimeout(updateGlobalTasks, 1500);
+
+  } catch (err) {
+    console.warn("Failed to update global tasks:", err);
+    if (globalTasksPollTimer) clearTimeout(globalTasksPollTimer);
+    globalTasksPollTimer = setTimeout(updateGlobalTasks, 5000);
   }
 }
 
@@ -1349,7 +1683,18 @@ searchInput.addEventListener('input', () => {
 repoSelect.addEventListener('change', () => {
   activeRepo = repoSelect.value;
   doSearch();
+  checkRepoSyncStatus(activeRepo);
 });
+
+document.getElementById('syncRepoBtn').addEventListener('click', () => {
+  const syncBtn = document.getElementById('syncRepoBtn');
+  if (syncBtn.dataset.mode === 'abort') {
+    abortRepoSync(syncBtn.dataset.taskId);
+  } else {
+    triggerRepoSync(false);
+  }
+});
+document.getElementById('rebuildRepoBtn').addEventListener('click', () => triggerRepoSync(true));
 
 // Category filtering tabs
 labelTabs.addEventListener('click', e => {
@@ -2248,6 +2593,7 @@ function selectConversation(chatId) {
     if (chat.repository !== undefined) {
       repoSelect.value = chat.repository;
       activeRepo = chat.repository;
+      checkRepoSyncStatus(activeRepo);
     }
     
     renderMessages();

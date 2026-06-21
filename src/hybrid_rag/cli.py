@@ -63,6 +63,21 @@ def index(
         "-e",
         help="Folder or file name patterns to exclude from parsing (multi-value allowed).",
     ),
+    incremental: bool = typer.Option(
+        True,
+        "--incremental/--no-incremental",
+        help="Run indexing incrementally based on Git changes since last indexed commit.",
+    ),
+    rebuild: bool = typer.Option(
+        False,
+        "--rebuild",
+        help="Force a full rebuild and overwrite cached data.",
+    ),
+    from_commit: str = typer.Option(
+        None,
+        "--from-commit",
+        help="Commit hash to compare against for incremental sync (overrides auto-detection).",
+    ),
 ) -> None:
     """Parse REPO and ingest code graph + embeddings into FalkorDB and Qdrant."""
     repo = repo.resolve()
@@ -136,6 +151,9 @@ def index(
                 max_tokens=max_tokens,
                 listener=listener,
                 excludes=exclude,
+                incremental=incremental,
+                rebuild=rebuild,
+                from_commit=from_commit,
             )
 
     except Exception as exc:  # noqa: BLE001
@@ -144,6 +162,50 @@ def index(
 
     elapsed = time.perf_counter() - t0
     console.rule(f"[bold green]Done in {elapsed:.1f}s[/]")
+
+
+@app.command("install-hooks")
+def install_hooks(
+    repo: Path = typer.Argument(..., help="Path to repository root where hooks will be installed."),
+) -> None:
+    """Install automatic Git hooks (post-merge, post-checkout) for incremental indexing."""
+    repo = repo.resolve()
+    git_dir = repo / ".git"
+    if not git_dir.is_dir():
+        err_console.print(f"[ERROR] Not a Git repository: {repo}")
+        raise typer.Exit(1)
+
+    hooks_dir = git_dir / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+
+    post_merge = hooks_dir / "post-merge"
+    post_checkout = hooks_dir / "post-checkout"
+
+    # Shell script templates that run the CLI tool
+    hook_script = f"""#!/bin/sh
+# Automatically sync changes in hybrid-RAG
+echo "Triggering hybrid-rag incremental indexing..."
+hybrid-rag index "{repo}" --incremental
+"""
+
+    try:
+        post_merge.write_text(hook_script, encoding="utf-8")
+        post_checkout.write_text(hook_script, encoding="utf-8")
+        
+        # Make them executable (chmod +x)
+        import os
+        import stat
+        for p in (post_merge, post_checkout):
+            st = p.stat()
+            p.chmod(st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+            
+        console.print(f"[green]✓[/] Installed Git hooks to {hooks_dir}")
+        console.print("  - post-merge (runs on git pull/merge)")
+        console.print("  - post-checkout (runs on git checkout/switch)")
+        console.print("[dim]Tip: Ensure 'hybrid-rag' is available in your system PATH.[/]")
+    except Exception as exc:
+        err_console.print(f"[ERROR] Failed to install hooks: {exc}")
+        raise typer.Exit(1) from exc
 
 
 # ── community-build command ───────────────────────────────────────────────────

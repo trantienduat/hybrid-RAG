@@ -126,6 +126,19 @@ class QdrantStore(VectorStore):
         self._client.delete_collection(self._collection)
         self._ensure_collection()
 
+    def delete_file_vectors(self, file_path: str, repository: str) -> None:
+        """Delete all vectors associated with a specific file in a repository."""
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        self._client.delete(
+            collection_name=self._collection,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+                    FieldCondition(key="repository", match=MatchValue(value=repository)),
+                ]
+            ),
+        )
+
     # ── Internal ──────────────────────────────────────────────────
 
     def _ensure_collection(self) -> None:

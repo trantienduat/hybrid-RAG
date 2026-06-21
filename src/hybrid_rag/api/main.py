@@ -90,6 +90,115 @@ _RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
 
 
+async def _run_periodic_sync(app_state: Any) -> None:
+    """Periodic background worker that runs incremental sync for all repositories."""
+    enabled = os.environ.get("CRON_SYNC_ENABLED", "false").lower() == "true"
+    if not enabled:
+        logger.info("Scheduled periodic sync is disabled.")
+        return
+
+    interval_min = int(os.environ.get("CRON_SYNC_INTERVAL_MINUTES", "60"))
+    logger.info("Starting periodic sync loop: every %d minutes", interval_min)
+
+    # Startup delay: wait 60s
+    await asyncio.sleep(60)
+
+    while True:
+        try:
+            logger.info("Running scheduled repository synchronization check...")
+            repos = app_state.graph_store.list_repositories()
+            for repo_name in repos:
+                metadata = None
+                try:
+                    metadata = app_state.graph_store.get_repository_metadata(repo_name)
+                except Exception:
+                    continue
+
+                if not metadata or not metadata.get("repo_path"):
+                    continue
+
+                repo_path = metadata["repo_path"]
+                last_commit = metadata.get("last_indexed_commit")
+
+                # Resolve effective path in container
+                effective_path = repo_path
+                if not os.path.isdir(repo_path):
+                    fallback_1 = os.path.join("/codebases", repo_name)
+                    if os.path.isdir(fallback_1):
+                        effective_path = fallback_1
+                    else:
+                        dir_name = os.path.basename(repo_path)
+                        fallback_2 = os.path.join("/codebases", dir_name)
+                        if os.path.isdir(fallback_2):
+                            effective_path = fallback_2
+
+                # Verify directory exists and is a git repository
+                if not os.path.isdir(effective_path) or not os.path.isdir(os.path.join(effective_path, ".git")):
+                    continue
+
+                # Run fast Git check (rev-parse HEAD) to see if we actually need to sync
+                head_commit = None
+                try:
+                    import subprocess
+                    res_head = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=effective_path,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        check=True,
+                    )
+                    head_commit = res_head.stdout.strip()
+                except Exception:
+                    continue
+
+                # If commit hash is identical, skip creating a task! Save CPU/VRAM/Task history
+                if last_commit == head_commit:
+                    logger.debug("Scheduled sync: Repository %s is already up-to-date at %s, skipping", repo_name, head_commit)
+                    continue
+
+                # Avoid duplicate tasks if one is already running
+                already_running = False
+                for task in app_state.indexing_tasks.values():
+                    if task["repository"] == repo_name and task["status"] in ("pending", "running"):
+                        already_running = True
+                        break
+
+                if already_running:
+                    continue
+
+                # Trigger incremental index task under background worker
+                task_id = str(uuid.uuid4())
+                app_state.indexing_tasks[task_id] = {
+                    "task_id": task_id,
+                    "repository": repo_name,
+                    "status": "pending",
+                    "created_at": datetime.datetime.now().isoformat(),
+                    "completed_at": None,
+                    "logs": [
+                        f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Scheduled periodic sync task initialized."
+                    ],
+                    "error": None,
+                }
+                
+                # Import IndexRequest locally
+                from hybrid_rag.api.schemas import IndexRequest
+                req = IndexRequest(
+                    repo_path=effective_path,
+                    repo_name=repo_name,
+                    incremental=True,
+                    rebuild=False
+                )
+                
+                # process_indexing_task is async, we run it as an independent task
+                asyncio.create_task(process_indexing_task(task_id, req, app_state))
+
+        except Exception as exc:
+            logger.exception("Scheduled sync loop encountered an error: %s", exc)
+
+        await asyncio.sleep(interval_min * 60)
+
+
 # ── Lifespan: wire up stores once ──────────────────────────────────────────────
 
 
@@ -126,15 +235,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.indexing_tasks = {}
     app.state.indexing_lock = asyncio.Lock()
     
+    # Initialize global HTTP client
+    app.state.http_client = httpx.AsyncClient(timeout=300.0)
+    
     # Initialize Concurrency Guard and Redis Query Cache
     app.state.llm_semaphore = asyncio.Semaphore(1)
     app.state.query_cache = RedisQueryCache()
     await app.state.query_cache.connect()
     
+    # Start scheduled periodic sync background task
+    asyncio.create_task(_run_periodic_sync(app.state))
+    
     logger.info("hybrid-rag API ready")
     yield
     app.state.embedder.close()
     await app.state.query_cache.disconnect()
+    await app.state.http_client.aclose()
     logger.info("hybrid-rag API shutdown complete")
 
 
@@ -221,6 +337,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
     with start_span(
         "llm_generate", {"model": model, "provider": "gemini" if is_gemini else "ollama"}
     ):
+        client = app.state.http_client
         if is_gemini:
             api_key = os.environ.get("GEMINI_API_KEY")
             if not api_key:
@@ -232,54 +349,56 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.0},
             }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                res_json = resp.json()
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            res_json = resp.json()
 
-                usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
-                if usage:
-                    prompt_tokens = (
-                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
-                    )
-                    candidates_tokens = (
-                        usage.get("candidatesTokenCount")
-                        or usage.get("candidates_token_count")
-                        or 0
-                    )
-                    total_tokens = (
-                        usage.get("totalTokenCount") or usage.get("total_token_count") or 0
-                    )
-                    logger.info(
-                        "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
-                        prompt_tokens,
-                        candidates_tokens,
-                        total_tokens,
-                    )
+            usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
+            if usage:
+                prompt_tokens = (
+                    usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                )
+                candidates_tokens = (
+                    usage.get("candidatesTokenCount")
+                    or usage.get("candidates_token_count")
+                    or 0
+                )
+                total_tokens = (
+                    usage.get("totalTokenCount") or usage.get("total_token_count") or 0
+                )
+                logger.info(
+                    "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
+                    prompt_tokens,
+                    candidates_tokens,
+                    total_tokens,
+                )
 
-                candidates = res_json.get("candidates", [])
-                if candidates:
-                    content = candidates[0].get("content", {})
-                    parts = content.get("parts", [])
-                    if parts:
-                        return parts[0].get("text", "")
-                return ""
+            candidates = res_json.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if parts:
+                    return parts[0].get("text", "")
+            return ""
         else:
             payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+                "options": {
+                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+                }
             }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
-                resp.raise_for_status()
-                return resp.json().get("response", "")
+            resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
+            resp.raise_for_status()
+            return resp.json().get("response", "")
 
 
 async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
     """Unified LLM streaming helper supporting Ollama and Gemini (yielding event-stream format)."""
     is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
+    client = app.state.http_client
 
     if is_gemini:
         api_key = os.environ.get("GEMINI_API_KEY")
@@ -292,46 +411,47 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.0},
         }
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            async with client.stream("POST", url, json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    try:
-                        data = json.loads(line[6:])
-                    except json.JSONDecodeError:
-                        continue
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        content = candidates[0].get("content", {})
-                        parts = content.get("parts", [])
-                        if parts:
-                            token = parts[0].get("text", "")
-                            yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
-                yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
+        async with client.stream("POST", url, json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                except json.JSONDecodeError:
+                    continue
+                candidates = data.get("candidates", [])
+                if candidates:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts:
+                        token = parts[0].get("text", "")
+                        yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
+            yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
     else:
         payload = {
             "model": model,
             "prompt": prompt,
             "stream": True,
-            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+            "options": {
+                "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+            }
         }
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    token = data.get("response", "")
-                    done = bool(data.get("done", False))
-                    yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
-                    if done:
-                        break
+        async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                token = data.get("response", "")
+                done = bool(data.get("done", False))
+                yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
+                if done:
+                    break
 
 
 # ── GET / ──────────────────────────────────────────────────────────────────────
@@ -690,6 +810,109 @@ async def list_repositories() -> list[str]:
         return []
 
 
+@app.get("/graph/repositories/{repo_name}/status")
+async def get_repository_status(repo_name: str) -> dict[str, Any]:
+    """Retrieve indexing sync status and active background tasks for a repository."""
+    store: FalkorDBStore = app.state.graph_store
+    
+    metadata = None
+    try:
+        metadata = store.get_repository_metadata(repo_name)
+    except Exception as exc:
+        logger.warning("Failed to get repository metadata: %s", exc)
+
+    last_commit = metadata.get("last_indexed_commit") if metadata else None
+    repo_path = metadata.get("repo_path") if metadata else None
+    updated_at = metadata.get("updated_at") if metadata else None
+    
+    last_synced = None
+    if updated_at:
+        try:
+            last_synced = datetime.datetime.fromtimestamp(updated_at / 1000.0).isoformat()
+        except Exception:
+            pass
+
+    effective_path = repo_path
+    
+    # New Auto-scan logic if repo_path is not set in DB or not found
+    if (not effective_path or not os.path.isdir(effective_path)) and os.path.isdir("/codebases"):
+        try:
+            repo_words = set(repo_name.lower().replace("-", " ").replace("_", " ").split())
+            repo_words -= {"app", "core", "repo", "repository"}
+            
+            for entry in os.listdir("/codebases"):
+                entry_path = os.path.join("/codebases", entry)
+                if os.path.isdir(entry_path):
+                    entry_words = set(entry.lower().replace("-", " ").replace("_", " ").split())
+                    # Match if exact case-insensitive match OR shares a significant word
+                    if entry.lower() == repo_name.lower() or (repo_words & entry_words):
+                        effective_path = entry_path
+                        repo_path = entry_path
+                        # Automatically save this path to FalkorDB so we don't have to scan again
+                        store.set_repository_commit(repo_name, last_commit or "", repo_path=entry_path)
+                        break
+        except Exception:
+            pass
+
+    # Check path accessibility status
+    path_status = "valid"
+    if not repo_path:
+        path_status = "not_provided"
+    elif not os.path.isdir(effective_path):
+        path_status = "not_found"
+    else:
+        try:
+            files = os.listdir(effective_path)
+            if not files:
+                path_status = "empty"
+            elif not os.path.isdir(os.path.join(effective_path, ".git")):
+                path_status = "not_a_git_repo"
+        except Exception:
+            path_status = "inaccessible"
+
+    head_commit = None
+    if path_status == "valid":
+        try:
+            import subprocess
+            res_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=effective_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            head_commit = res_head.stdout.strip()
+        except Exception:
+            path_status = "inaccessible"
+
+    is_sync = (last_commit is not None) and (head_commit is not None) and (last_commit == head_commit)
+    
+    active_task = None
+    for task in app.state.indexing_tasks.values():
+        if task["repository"] == repo_name and task["status"] in ("pending", "running"):
+            active_task = {
+                "task_id": task["task_id"],
+                "status": task["status"],
+                "progress": task.get("progress", 0.0),
+                "current_step": task.get("current_step", ""),
+                "current_message": task.get("current_message", ""),
+            }
+            break
+
+    return {
+        "repository": repo_name,
+        "last_indexed_commit": last_commit,
+        "repo_path": repo_path,
+        "effective_path": effective_path,
+        "head_commit": head_commit,
+        "is_sync": is_sync,
+        "path_status": path_status,
+        "active_task": active_task,
+        "last_synced": last_synced,
+    }
+
+
 # ── GET /graph/neighbors/{node_id} ─────────────────────────────────────────────
 
 
@@ -786,7 +1009,15 @@ async def process_indexing_task(
 
     add_log("Waiting to acquire indexing lock...")
 
+    if task.get("status") == "aborted":
+        add_log("Task was aborted before it could run.")
+        return
+
     async with app_state.indexing_lock:
+        if task.get("status") == "aborted":
+            add_log("Task was aborted before it could run.")
+            return
+
         task["status"] = "running"
         add_log("Lock acquired. Starting indexing pipeline...")
 
@@ -794,7 +1025,37 @@ async def process_indexing_task(
 
         class ApiIndexingListener(IndexingListener):
             def on_step(self, step_name: str, message: str, progress: float | None = None) -> None:
+                if app_state.indexing_tasks[task_id].get("status") == "aborted":
+                    raise RuntimeError("Task aborted by user")
+
                 add_log(f"[{step_name}] {message}")
+
+                # Linear progress mapping
+                p_val = progress if progress is not None else 0.0
+                if step_name == "init":
+                    overall = 0.05
+                elif step_name == "git_diff":
+                    overall = 0.05 + p_val * 0.05
+                elif step_name == "parse":
+                    overall = 0.10 + p_val * 0.30
+                elif step_name == "llm_extract":
+                    overall = 0.40 + p_val * 0.20
+                elif step_name == "resolution":
+                    overall = 0.60 + p_val * 0.15
+                elif step_name == "db_write":
+                    overall = 0.75 + p_val * 0.10
+                elif step_name == "embed_chunks":
+                    overall = 0.85 + p_val * 0.10
+                elif step_name == "vector_write":
+                    overall = 0.95 + p_val * 0.04
+                elif step_name == "complete":
+                    overall = 1.0
+                else:
+                    overall = p_val
+
+                app_state.indexing_tasks[task_id]["progress"] = round(overall, 3)
+                app_state.indexing_tasks[task_id]["current_step"] = step_name
+                app_state.indexing_tasks[task_id]["current_message"] = message
 
         try:
             # run_indexing_pipeline is synchronous; run in a thread pool to avoid blocking the main event loop
@@ -811,7 +1072,13 @@ async def process_indexing_task(
                 llm_extract=req.llm_extract,
                 max_tokens=req.max_tokens,
                 listener=ApiIndexingListener(),
+                incremental=req.incremental,
+                rebuild=req.rebuild,
             )
+
+            if task.get("status") == "aborted":
+                add_log("Indexing completed but was flagged as aborted.")
+                return
 
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()
@@ -822,11 +1089,16 @@ async def process_indexing_task(
             )
 
         except Exception as exc:
-            task["status"] = "failed"
-            task["error"] = str(exc)
-            task["completed_at"] = datetime.datetime.now().isoformat()
-            add_log(f"Indexing failed with error: {exc}")
-            logger.exception(f"Indexing task {task_id} failed")
+            if task.get("status") == "aborted" or "Task aborted by user" in str(exc):
+                task["status"] = "aborted"
+                task["completed_at"] = datetime.datetime.now().isoformat()
+                add_log("Indexing aborted by user.")
+            else:
+                task["status"] = "failed"
+                task["error"] = str(exc)
+                task["completed_at"] = datetime.datetime.now().isoformat()
+                add_log(f"Indexing failed with error: {exc}")
+                logger.exception(f"Indexing task {task_id} failed")
 
 
 @app.post("/graph/index", response_model=IndexTaskResponse)
@@ -856,6 +1128,9 @@ async def trigger_index(
             f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Task initialized and queued."
         ],
         "error": None,
+        "progress": 0.0,
+        "current_step": "init",
+        "current_message": "Task queued.",
     }
     app.state.indexing_tasks[task_id] = task
 
@@ -886,3 +1161,21 @@ async def get_indexing_task(task_id: str) -> IndexTaskDetailResponse:
     if task_id not in app.state.indexing_tasks:
         raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
     return IndexTaskDetailResponse(**app.state.indexing_tasks[task_id])
+
+
+@app.post("/graph/index/tasks/{task_id}/abort")
+async def abort_indexing_task(task_id: str) -> dict[str, str]:
+    """Abort a pending or running indexing task."""
+    if task_id not in app.state.indexing_tasks:
+        raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
+    
+    task = app.state.indexing_tasks[task_id]
+    if task["status"] in ("pending", "running"):
+        task["status"] = "aborted"
+        task["completed_at"] = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        task["logs"].append(f"[{timestamp}] Task abort requested by user.")
+        logger.info(f"Task {task_id} aborted by user.")
+        return {"task_id": task_id, "status": "aborted"}
+    
+    return {"task_id": task_id, "status": task["status"], "message": "Task is not in a cancellable/abortable state."}

@@ -46,3 +46,7 @@ class VectorStore(ABC):
     @abstractmethod
     def clear(self) -> None:
         """Delete all vectors. Intended for tests only."""
+
+    @abstractmethod
+    def delete_file_vectors(self, file_path: str, repository: str) -> None:
+        """Delete all vectors associated with a specific file in a repository."""

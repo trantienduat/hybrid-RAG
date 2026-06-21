@@ -235,6 +235,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.indexing_tasks = {}
     app.state.indexing_lock = asyncio.Lock()
     
+    # Initialize global HTTP client
+    app.state.http_client = httpx.AsyncClient(timeout=300.0)
+    
     # Initialize Concurrency Guard and Redis Query Cache
     app.state.llm_semaphore = asyncio.Semaphore(1)
     app.state.query_cache = RedisQueryCache()
@@ -247,6 +250,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     app.state.embedder.close()
     await app.state.query_cache.disconnect()
+    await app.state.http_client.aclose()
     logger.info("hybrid-rag API shutdown complete")
 
 
@@ -333,6 +337,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
     with start_span(
         "llm_generate", {"model": model, "provider": "gemini" if is_gemini else "ollama"}
     ):
+        client = app.state.http_client
         if is_gemini:
             api_key = os.environ.get("GEMINI_API_KEY")
             if not api_key:
@@ -344,54 +349,56 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.0},
             }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                resp = await client.post(url, json=payload)
-                resp.raise_for_status()
-                res_json = resp.json()
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            res_json = resp.json()
 
-                usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
-                if usage:
-                    prompt_tokens = (
-                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
-                    )
-                    candidates_tokens = (
-                        usage.get("candidatesTokenCount")
-                        or usage.get("candidates_token_count")
-                        or 0
-                    )
-                    total_tokens = (
-                        usage.get("totalTokenCount") or usage.get("total_token_count") or 0
-                    )
-                    logger.info(
-                        "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
-                        prompt_tokens,
-                        candidates_tokens,
-                        total_tokens,
-                    )
+            usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
+            if usage:
+                prompt_tokens = (
+                    usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                )
+                candidates_tokens = (
+                    usage.get("candidatesTokenCount")
+                    or usage.get("candidates_token_count")
+                    or 0
+                )
+                total_tokens = (
+                    usage.get("totalTokenCount") or usage.get("total_token_count") or 0
+                )
+                logger.info(
+                    "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
+                    prompt_tokens,
+                    candidates_tokens,
+                    total_tokens,
+                )
 
-                candidates = res_json.get("candidates", [])
-                if candidates:
-                    content = candidates[0].get("content", {})
-                    parts = content.get("parts", [])
-                    if parts:
-                        return parts[0].get("text", "")
-                return ""
+            candidates = res_json.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if parts:
+                    return parts[0].get("text", "")
+            return ""
         else:
             payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+                "options": {
+                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+                }
             }
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
-                resp.raise_for_status()
-                return resp.json().get("response", "")
+            resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
+            resp.raise_for_status()
+            return resp.json().get("response", "")
 
 
 async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
     """Unified LLM streaming helper supporting Ollama and Gemini (yielding event-stream format)."""
     is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
+    client = app.state.http_client
 
     if is_gemini:
         api_key = os.environ.get("GEMINI_API_KEY")
@@ -404,46 +411,47 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.0},
         }
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            async with client.stream("POST", url, json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    try:
-                        data = json.loads(line[6:])
-                    except json.JSONDecodeError:
-                        continue
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        content = candidates[0].get("content", {})
-                        parts = content.get("parts", [])
-                        if parts:
-                            token = parts[0].get("text", "")
-                            yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
-                yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
+        async with client.stream("POST", url, json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                except json.JSONDecodeError:
+                    continue
+                candidates = data.get("candidates", [])
+                if candidates:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts:
+                        token = parts[0].get("text", "")
+                        yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
+            yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
     else:
         payload = {
             "model": model,
             "prompt": prompt,
             "stream": True,
-            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m")
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+            "options": {
+                "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+            }
         }
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    token = data.get("response", "")
-                    done = bool(data.get("done", False))
-                    yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
-                    if done:
-                        break
+        async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                token = data.get("response", "")
+                done = bool(data.get("done", False))
+                yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
+                if done:
+                    break
 
 
 # ── GET / ──────────────────────────────────────────────────────────────────────

@@ -110,8 +110,41 @@ class OllamaEmbedder(BaseEmbedder):
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
-        Embed multiple text strings concurrently using a ThreadPoolExecutor.
+        Embed multiple text strings in a batch using Ollama's /api/embed API.
+        Falls back to thread-based single embeds if the batch API fails or is not supported.
         """
+        if not texts:
+            return []
+
+        # 1. Truncate each text to max_safe_len to prevent huge payload crashes (same as single _embed)
+        max_safe_len = 8000
+        safe_texts = []
+        for text in texts:
+            if len(text) > max_safe_len:
+                logger.warning("Embedding text truncated from %d to %d chars in batch", len(text), max_safe_len)
+                safe_texts.append(text[:max_safe_len])
+            else:
+                safe_texts.append(text)
+
+        # 2. Try the batch embed API
+        try:
+            resp = self._client.post(
+                f"{self._url}/api/embed",
+                json={
+                    "model": self._model,
+                    "input": safe_texts,
+                    "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                },
+            )
+            resp.raise_for_status()
+            embeddings = resp.json().get("embeddings")
+            if embeddings and len(embeddings) == len(texts):
+                return embeddings
+            logger.warning("Batch embedding response format invalid or mismatched length. Falling back to single embeds.")
+        except Exception as exc:
+            logger.warning("Batch embedding via /api/embed failed: %s. Falling back to single/concurrent embeds.", exc)
+
+        # 3. Fallback to legacy concurrent/sequential _embed
         import concurrent.futures
 
         max_workers = int(os.environ.get("EMBED_CONCURRENCY", "8"))

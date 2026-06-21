@@ -19,6 +19,14 @@ def _mock_response(embedding: list[float]) -> MagicMock:
     return mock_resp
 
 
+def _mock_batch_response(embeddings: list[list[float]]) -> MagicMock:
+    """Return a mock httpx.Response yielding JSON with multiple embeddings."""
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {"embeddings": embeddings}
+    return mock_resp
+
+
 def _embedder() -> OllamaEmbedder:
     return OllamaEmbedder(ollama_url="http://localhost:11434", model="test-embed-model")
 
@@ -36,43 +44,64 @@ class TestOllamaEmbedder:
             args, kwargs = mock_post.call_args
             assert kwargs["json"] == {"model": "test-embed-model", "prompt": "hello world", "keep_alive": "10s"}
 
-    def test_embed_texts_concurrent_success(self):
+    def test_embed_texts_batch_success(self):
+        embedder = _embedder()
+        expected = [[0.1] * 768, [0.2] * 768, [0.3] * 768]
+        mock_resp = _mock_batch_response(expected)
+        with patch.object(embedder._client, "post", return_value=mock_resp) as mock_post:
+            res = embedder.embed_texts(["one", "two", "three"])
+            assert res == expected
+            mock_post.assert_called_once()
+            args, kwargs = mock_post.call_args
+            assert args[0].endswith("/api/embed")
+            assert kwargs["json"]["input"] == ["one", "two", "three"]
+
+    def test_embed_texts_concurrent_fallback(self):
         embedder = _embedder()
         expected = [[0.1] * 768, [0.2] * 768, [0.3] * 768]
 
-        # We need mock responses for each call to post
+        # First call is /api/embed (fails), subsequent ones are fallback /api/embeddings (success)
         mock_posts = [
+            Exception("Batch embed not supported"),
             _mock_response([0.1] * 768),
             _mock_response([0.2] * 768),
             _mock_response([0.3] * 768),
         ]
 
         def side_effect(*args, **kwargs):
-            return mock_posts.pop(0)
+            val = mock_posts.pop(0)
+            if isinstance(val, Exception):
+                raise val
+            return val
 
         with patch.object(embedder._client, "post", side_effect=side_effect) as mock_post:
             res = embedder.embed_texts(["one", "two", "three"])
             assert res == expected
-            assert mock_post.call_count == 3
+            assert mock_post.call_count == 4
 
-    def test_embed_texts_concurrency_one(self, monkeypatch):
+    def test_embed_texts_concurrency_one_fallback(self, monkeypatch):
         # Set EMBED_CONCURRENCY to "1" to test the sequential branch
         monkeypatch.setenv("EMBED_CONCURRENCY", "1")
         embedder = _embedder()
         expected = [[0.1] * 768, [0.2] * 768]
 
+        # First call is /api/embed (fails), subsequent ones are fallback /api/embeddings (success)
         mock_posts = [
+            Exception("Batch embed not supported"),
             _mock_response([0.1] * 768),
             _mock_response([0.2] * 768),
         ]
 
         def side_effect(*args, **kwargs):
-            return mock_posts.pop(0)
+            val = mock_posts.pop(0)
+            if isinstance(val, Exception):
+                raise val
+            return val
 
         with patch.object(embedder._client, "post", side_effect=side_effect) as mock_post:
             res = embedder.embed_texts(["one", "two"])
             assert res == expected
-            assert mock_post.call_count == 2
+            assert mock_post.call_count == 3
 
     def test_embed_failsafe_permanent_failure(self):
         embedder = _embedder()

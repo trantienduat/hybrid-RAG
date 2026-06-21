@@ -194,7 +194,7 @@ def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_d
             vector_store=mock_vector,
             ollama_url="http://localhost:11434",
             embed_model="nomic-embed-text",
-            llm_model="gemma4:12b",
+            llm_model="qwen2.5-coder:7b",
             llm_extract=False,
             max_tokens=512,
             incremental=True,

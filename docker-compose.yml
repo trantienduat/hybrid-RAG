@@ -44,7 +44,8 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
-      - LLM_MODEL=gemma4:12b
+      - LLM_MODEL=qwen2.5-coder:7b
+      - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
     depends_on:
@@ -79,7 +80,8 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
-      - LLM_MODEL=gemma4:12b
+      - LLM_MODEL=qwen2.5-coder:7b
+      - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
     depends_on:

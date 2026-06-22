@@ -60,8 +60,30 @@ from hybrid_rag.retrieval.query_analyzer import analyze
 from hybrid_rag.utils.cache import RedisQueryCache
 from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
+from prometheus_client import Counter, Histogram, make_asgi_app
 
 logger = logging.getLogger(__name__)
+
+# Define Prometheus metrics
+RAG_TOKENS_SAVED = Counter(
+    "rag_tokens_saved_total",
+    "Total input tokens saved by using RAG instead of full codebase context",
+    ["model", "query_type"],
+)
+QUERY_CACHE_HITS = Counter(
+    "query_cache_hits_total",
+    "Total number of query hits resolved from Redis cache"
+)
+LLM_TOKENS_CONSUMED = Counter(
+    "llm_tokens_consumed_total",
+    "Total tokens consumed by the LLM backend",
+    ["model", "token_type"],
+)
+QUERY_DURATION = Histogram(
+    "query_duration_seconds",
+    "Time taken to resolve the query",
+    ["query_type", "cache_status"],
+)
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -274,6 +296,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/metrics", make_asgi_app())
+
 if _STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
@@ -470,6 +494,10 @@ async def _llm_generate(prompt: str, model: str) -> str:
                     candidates_tokens,
                     total_tokens,
                 )
+                if prompt_tokens > 0:
+                    LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+                if candidates_tokens > 0:
+                    LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
 
             candidates = res_json.get("candidates", [])
             if candidates:
@@ -488,7 +516,14 @@ async def _llm_generate(prompt: str, model: str) -> str:
             }
             resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
             resp.raise_for_status()
-            return resp.json().get("response", "")
+            res_json = resp.json()
+            prompt_tokens = res_json.get("prompt_eval_count", 0)
+            candidates_tokens = res_json.get("eval_count", 0)
+            if prompt_tokens > 0:
+                LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+            if candidates_tokens > 0:
+                LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+            return res_json.get("response", "")
 
 
 async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
@@ -516,6 +551,16 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                     data = json.loads(line[6:])
                 except json.JSONDecodeError:
                     continue
+                
+                usage = data.get("usageMetadata") or data.get("usage_metadata")
+                if usage:
+                    prompt_tokens = usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                    candidates_tokens = usage.get("candidatesTokenCount") or usage.get("candidates_token_count") or 0
+                    if prompt_tokens > 0:
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+                    if candidates_tokens > 0:
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+
                 candidates = data.get("candidates", [])
                 if candidates:
                     content = candidates[0].get("content", {})
@@ -542,6 +587,13 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                 except json.JSONDecodeError:
                     continue
                 token = data.get("response", "")
+                if data.get("done", False):
+                    prompt_tokens = data.get("prompt_eval_count", 0)
+                    candidates_tokens = data.get("eval_count", 0)
+                    if prompt_tokens > 0:
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+                    if candidates_tokens > 0:
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
                 done = bool(data.get("done", False))
                 yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
                 if done:
@@ -659,6 +711,8 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     cached_resp = await app.state.query_cache.get(cache_key)
     if cached_resp is not None:
         logger.info("Serving query response from Redis cache: '%s'", req.question)
+        QUERY_CACHE_HITS.inc()
+        QUERY_DURATION.labels(query_type=cached_resp.get("query_type", "general"), cache_status="hit").observe(time.perf_counter() - t0)
         cached_resp["latency_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return QueryResponse(**cached_resp)
 
@@ -786,6 +840,26 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         latency_ms=round(latency_ms, 2),
     )
 
+    QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
+
+    if req.codebase_query:
+        try:
+            import tiktoken
+            try:
+                count_res = app.state.vector_store._client.count(
+                    collection_name=app.state.vector_store._collection,
+                    exact=True
+                )
+                codebase_tokens = count_res.count * 300
+            except Exception:
+                codebase_tokens = 160000
+            
+            prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
+            saved_tokens = max(0, codebase_tokens - prompt_tokens)
+            RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
+        except Exception as e:
+            logger.warning("Failed to count RAG tokens saved: %s", e)
+
     try:
         await app.state.query_cache.set(cache_key, response.model_dump())
     except Exception as exc:
@@ -806,6 +880,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     Subsequent: {"token": "<word>", "done": false}
     Final:       {"token": "", "done": true}
     """
+    t0 = time.perf_counter()
     # 1. Check Redis Cache
     cache_key = RedisQueryCache.generate_key(
         question=req.question,
@@ -819,6 +894,13 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     cached_events = await app.state.query_cache.get(cache_key)
     if cached_events is not None:
         logger.info("Serving query streaming response from Redis cache: '%s'", req.question)
+        QUERY_CACHE_HITS.inc()
+        try:
+            first_event = json.loads(cached_events[0].replace("data: ", "").strip())
+            q_type = first_event.get("query_type", "general")
+        except Exception:
+            q_type = "general"
+        QUERY_DURATION.labels(query_type=q_type, cache_status="hit").observe(time.perf_counter() - t0)
 
         async def _cached_stream() -> AsyncIterator[str]:
             for event in cached_events:
@@ -959,6 +1041,26 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 async for chunk in _llm_stream(prompt, req.llm_model):
                     yield chunk
                     events_accumulated.append(chunk)
+
+            QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
+
+            if req.codebase_query:
+                try:
+                    import tiktoken
+                    try:
+                        count_res = app.state.vector_store._client.count(
+                            collection_name=app.state.vector_store._collection,
+                            exact=True
+                        )
+                        codebase_tokens = count_res.count * 300
+                    except Exception:
+                        codebase_tokens = 160000
+                    
+                    prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
+                    saved_tokens = max(0, codebase_tokens - prompt_tokens)
+                    RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
+                except Exception as e:
+                    logger.warning("Failed to count RAG tokens saved: %s", e)
 
             # Cache the successful stream
             try:

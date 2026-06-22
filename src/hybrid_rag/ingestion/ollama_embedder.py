@@ -13,9 +13,9 @@ from typing import Any
 
 import httpx
 
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 from hybrid_rag.ingestion.parser import NodeData
 from hybrid_rag.ports.embedder import BaseEmbedder
-from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,9 @@ class OllamaEmbedder(BaseEmbedder):
         safe_texts = []
         for text in texts:
             if len(text) > max_safe_len:
-                logger.warning("Embedding text truncated from %d to %d chars in batch", len(text), max_safe_len)
+                logger.warning(
+                    "Embedding text truncated from %d to %d chars in batch", len(text), max_safe_len
+                )
                 safe_texts.append(text[:max_safe_len])
             else:
                 safe_texts.append(text)
@@ -133,16 +135,21 @@ class OllamaEmbedder(BaseEmbedder):
                 json={
                     "model": self._model,
                     "input": safe_texts,
-                    "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                    "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s"),
                 },
             )
             resp.raise_for_status()
             embeddings = resp.json().get("embeddings")
             if embeddings and len(embeddings) == len(texts):
                 return embeddings
-            logger.warning("Batch embedding response format invalid or mismatched length. Falling back to single embeds.")
+            logger.warning(
+                "Batch embedding response format invalid or mismatched length. Falling back to single embeds."
+            )
         except Exception as exc:
-            logger.warning("Batch embedding via /api/embed failed: %s. Falling back to single/concurrent embeds.", exc)
+            logger.warning(
+                "Batch embedding via /api/embed failed: %s. Falling back to single/concurrent embeds.",
+                exc,
+            )
 
         # 3. Fallback to legacy concurrent/sequential _embed
         import concurrent.futures
@@ -176,7 +183,7 @@ class OllamaEmbedder(BaseEmbedder):
                     json={
                         "model": self._model,
                         "prompt": text,
-                        "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                        "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s"),
                     },
                 )
                 resp.raise_for_status()
@@ -198,7 +205,7 @@ class OllamaEmbedder(BaseEmbedder):
                             json={
                                 "model": self._model,
                                 "prompt": text[:500],
-                                "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s")
+                                "keep_alive": os.environ.get("OLLAMA_EMBED_KEEP_ALIVE", "10s"),
                             },
                         )
                         resp.raise_for_status()

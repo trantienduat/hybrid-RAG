@@ -7,6 +7,7 @@ M4 #28.
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 
 # ── Request ────────────────────────────────────────────────────────────────────
@@ -34,7 +35,8 @@ class QueryRequest(BaseModel):
         None, description="Optional repository name to filter search results and context by."
     )
     codebase_query: bool = Field(
-        True, description="Enable codebase context search (RAG) and constraint. Set to False for normal LLM conversation."
+        True,
+        description="Enable codebase context search (RAG) and constraint. Set to False for normal LLM conversation.",
     )
 
 
@@ -128,6 +130,7 @@ class LLMModelResponse(BaseModel):
     name: str
     parameter_size: str | None = None
     size_bytes: int | None = None
+    is_default: bool = False
 
 
 # ── Indexing ───────────────────────────────────────────────────────────────────
@@ -148,11 +151,10 @@ class IndexRequest(BaseModel):
     )
     max_tokens: int = Field(512, ge=1, le=4096, description="Max tokens per chunk.")
     incremental: bool = Field(
-        True, description="Run indexing incrementally based on Git changes since last indexed commit."
+        True,
+        description="Run indexing incrementally based on Git changes since last indexed commit.",
     )
-    rebuild: bool = Field(
-        False, description="Force a full rebuild and overwrite cached data."
-    )
+    rebuild: bool = Field(False, description="Force a full rebuild and overwrite cached data.")
 
 
 class IndexTaskResponse(BaseModel):
@@ -176,4 +178,3 @@ class IndexTaskDetailResponse(BaseModel):
     progress: float = 0.0
     current_step: str = ""
     current_message: str = ""
-

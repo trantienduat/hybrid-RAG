@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import gc
 import json
 import logging
 import os
@@ -51,16 +52,14 @@ from hybrid_rag.api.schemas import (
     QueryResponse,
     SourceChunk,
 )
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.retrieval.query_analyzer import analyze
+from hybrid_rag.utils.cache import RedisQueryCache
 from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
-
-from hybrid_rag.utils.cache import RedisQueryCache
-from hybrid_rag.constants import DEFAULT_LLM_MODEL, DEFAULT_EMBED_MODEL
-import gc
 
 logger = logging.getLogger(__name__)
 
@@ -134,18 +133,20 @@ async def _run_periodic_sync(app_state: Any) -> None:
                             effective_path = fallback_2
 
                 # Verify directory exists and is a git repository
-                if not os.path.isdir(effective_path) or not os.path.isdir(os.path.join(effective_path, ".git")):
+                if not os.path.isdir(effective_path) or not os.path.isdir(
+                    os.path.join(effective_path, ".git")
+                ):
                     continue
 
                 # Run fast Git check (rev-parse HEAD) to see if we actually need to sync
                 head_commit = None
                 try:
                     import subprocess
+
                     res_head = subprocess.run(
                         ["git", "rev-parse", "HEAD"],
                         cwd=effective_path,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
+                        capture_output=True,
                         text=True,
                         check=True,
                     )
@@ -155,7 +156,11 @@ async def _run_periodic_sync(app_state: Any) -> None:
 
                 # If commit hash is identical, skip creating a task! Save CPU/VRAM/Task history
                 if last_commit == head_commit:
-                    logger.debug("Scheduled sync: Repository %s is already up-to-date at %s, skipping", repo_name, head_commit)
+                    logger.debug(
+                        "Scheduled sync: Repository %s is already up-to-date at %s, skipping",
+                        repo_name,
+                        head_commit,
+                    )
                     continue
 
                 # Avoid duplicate tasks if one is already running
@@ -181,16 +186,14 @@ async def _run_periodic_sync(app_state: Any) -> None:
                     ],
                     "error": None,
                 }
-                
+
                 # Import IndexRequest locally
                 from hybrid_rag.api.schemas import IndexRequest
+
                 req = IndexRequest(
-                    repo_path=effective_path,
-                    repo_name=repo_name,
-                    incremental=True,
-                    rebuild=False
+                    repo_path=effective_path, repo_name=repo_name, incremental=True, rebuild=False
                 )
-                
+
                 # process_indexing_task is async, we run it as an independent task
                 asyncio.create_task(process_indexing_task(task_id, req, app_state))
 
@@ -235,18 +238,18 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.indexing_tasks = {}
     app.state.indexing_lock = asyncio.Lock()
-    
+
     # Initialize global HTTP client
     app.state.http_client = httpx.AsyncClient(timeout=300.0)
-    
+
     # Initialize Concurrency Guard and Redis Query Cache
     app.state.llm_semaphore = asyncio.Semaphore(1)
     app.state.query_cache = RedisQueryCache()
     await app.state.query_cache.connect()
-    
+
     # Start scheduled periodic sync background task
     asyncio.create_task(_run_periodic_sync(app.state))
-    
+
     logger.info("hybrid-rag API ready")
     yield
     app.state.embedder.close()
@@ -295,7 +298,101 @@ def _to_source_chunks(results: list[dict[str, Any]], n: int) -> list[SourceChunk
     return chunks
 
 
+def _is_vietnamese(text: str) -> bool:
+    import re
+
+    # 1. Check diacritics
+    vietnamese_diacritics = re.compile(
+        r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ"
+        r"ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]"
+    )
+    if vietnamese_diacritics.search(text):
+        return True
+
+    # 2. Check common non-diacritic Vietnamese words/stop words with low English overlap
+    viet_words = {
+        "luong",
+        "cach",
+        "tong",
+        "hop",
+        "giai",
+        "thich",
+        "huong",
+        "dan",
+        "phan",
+        "tich",
+        "viet",
+        "khong",
+        "cua",
+        "cai",
+        "nao",
+        "sao",
+        "lam",
+        "chay",
+        "chuc",
+        "nang",
+        "hoat",
+        "dong",
+        "thuc",
+        "dung",
+        "tieng",
+        "xem",
+    }
+    words = set(re.findall(r"\b\w+\b", text.lower()))
+    if words & viet_words:
+        return True
+
+    return False
+
+
 def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
+    is_viet = _is_vietnamese(question)
+
+    if is_viet:
+        lang_instruction = (
+            "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+            "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+            "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+            "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+        )
+        if is_global:
+            return (
+                "You are an expert principal software architect. Below is a set of hierarchical community summaries "
+                "describing the structural design, modules, and dependencies of the codebase.\n"
+                "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
+                "Highlight key components, database models, core flows, and cross-module relationships.\n"
+                "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+                "to infer design patterns, architectures, and intent.\n"
+                f"{lang_instruction}\n\n"
+                "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
+                "and then write your final report outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Viết quá trình suy nghĩ và phân tích chi tiết của bạn tại đây bằng Tiếng Việt]\n"
+                "</think>\n\n"
+                "[Viết báo cáo kiến trúc cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                f"Community Summaries Context:\n{context}\n\n"
+                f"User Request: {question}\n\n"
+                f"{lang_instruction}\n"
+                "Architectural Report (in Vietnamese):"
+            )
+        return (
+            "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+            "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+            "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+            "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
+            f"{lang_instruction}\n\n"
+            "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
+            "and then write your final answer outside the tags. You must strictly follow this format:\n"
+            "<think>\n"
+            "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+            "</think>\n\n"
+            "[Viết câu trả lời chi tiết cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+            f"Context:\n{context}\n\n"
+            f"Question: {question}\n\n"
+            f"{lang_instruction}\n"
+            "Answer (in Vietnamese):"
+        )
+
     if is_global:
         return (
             "You are an expert principal software architect. Below is a set of hierarchical community summaries "
@@ -303,7 +400,9 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
             "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
             "Highlight key components, database models, core flows, and cross-module relationships.\n"
             "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
-            "to infer design patterns, architectures, and intent.\n\n"
+            "to infer design patterns, architectures, and intent.\n"
+            "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+            "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
             "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
             "and then write your final report outside the tags. You must strictly follow this format:\n"
             "<think>\n"
@@ -318,7 +417,9 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
         "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
         "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
         "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
-        "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n\n"
+        "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
+        "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+        "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
         "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
         "and then write your final answer outside the tags. You must strictly follow this format:\n"
         "<think>\n"
@@ -360,13 +461,9 @@ async def _llm_generate(prompt: str, model: str) -> str:
                     usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
                 )
                 candidates_tokens = (
-                    usage.get("candidatesTokenCount")
-                    or usage.get("candidates_token_count")
-                    or 0
+                    usage.get("candidatesTokenCount") or usage.get("candidates_token_count") or 0
                 )
-                total_tokens = (
-                    usage.get("totalTokenCount") or usage.get("total_token_count") or 0
-                )
+                total_tokens = usage.get("totalTokenCount") or usage.get("total_token_count") or 0
                 logger.info(
                     "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
                     prompt_tokens,
@@ -387,9 +484,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "prompt": prompt,
                 "stream": False,
                 "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-                "options": {
-                    "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
-                }
+                "options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))},
             }
             resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
             resp.raise_for_status()
@@ -435,9 +530,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "prompt": prompt,
             "stream": True,
             "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-            "options": {
-                "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
-            }
+            "options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))},
         }
         async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
             resp.raise_for_status()
@@ -507,6 +600,8 @@ async def health() -> HealthResponse:
 async def list_models() -> list[LLMModelResponse]:
     """Retrieve the list of available local Ollama models, filtering out embeddings."""
     try:
+        from hybrid_rag.constants import DEFAULT_LLM_MODEL
+
         client = app.state.http_client
         resp = await client.get(f"{_OLLAMA_URL}/api/tags")
         resp.raise_for_status()
@@ -519,19 +614,27 @@ async def list_models() -> list[LLMModelResponse]:
             if "embed" in name.lower():
                 continue
             details = m.get("details", {})
+
+            # Match either exact name or base name (e.g. qwen2.5-coder:7b vs qwen2.5-coder:latest)
+            is_default = (
+                name == DEFAULT_LLM_MODEL or name.split(":")[0] == DEFAULT_LLM_MODEL.split(":")[0]
+            )
+
             result.append(
                 LLMModelResponse(
                     name=name,
                     parameter_size=details.get("parameter_size"),
                     size_bytes=m.get("size"),
+                    is_default=is_default,
                 )
             )
         return result
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to fetch Ollama models")
         from hybrid_rag.constants import DEFAULT_LLM_MODEL
+
         return [
-            LLMModelResponse(name=DEFAULT_LLM_MODEL),
+            LLMModelResponse(name=DEFAULT_LLM_MODEL, is_default=True),
         ]
 
 
@@ -552,7 +655,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         top_k=req.top_k,
         context_n=req.context_n,
     )
-    
+
     cached_resp = await app.state.query_cache.get(cache_key)
     if cached_resp is not None:
         logger.info("Serving query response from Redis cache: '%s'", req.question)
@@ -599,11 +702,11 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                 logger.warning(
                     "Context size (%d chars) exceeds safety cap (%d chars). Truncating context.",
                     len(context_text),
-                    max_safe_chars
+                    max_safe_chars,
                 )
                 context_text = (
-                    context_text[:max_safe_chars] + 
-                    "\n\n... [Context truncated to prevent VRAM overflow] ..."
+                    context_text[:max_safe_chars]
+                    + "\n\n... [Context truncated to prevent VRAM overflow] ..."
                 )
 
             prompt = _build_prompt(
@@ -625,17 +728,41 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
             ]
             q_type = analysis.query_type
     else:
-        prompt = (
-            "You are an expert AI software developer and codebase assistant. "
-            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-            "and then write your final answer outside the tags. You must strictly follow this format:\n"
-            "<think>\n"
-            "[Your thinking process]\n"
-            "</think>\n\n"
-            "[Your final answer]\n\n"
-            f"Question: {req.question}\n\n"
-            "Answer:"
-        )
+        is_viet = _is_vietnamese(req.question)
+        if is_viet:
+            lang_instruction = (
+                "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+                "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+                "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+            )
+            prompt = (
+                "You are an expert AI software developer and codebase assistant.\n"
+                f"{lang_instruction}\n\n"
+                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+                "</think>\n\n"
+                "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                f"Question: {req.question}\n\n"
+                f"{lang_instruction}\n"
+                "Answer (in Vietnamese):"
+            )
+        else:
+            prompt = (
+                "You are an expert AI software developer and codebase assistant. "
+                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
+                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Your thinking process]\n"
+                "</think>\n\n"
+                "[Your final answer]\n\n"
+                f"Question: {req.question}\n\n"
+                "Answer:"
+            )
         sources = []
         q_type = "general"
 
@@ -658,7 +785,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         sources=sources,
         latency_ms=round(latency_ms, 2),
     )
-    
+
     try:
         await app.state.query_cache.set(cache_key, response.model_dump())
     except Exception as exc:
@@ -688,14 +815,16 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         top_k=req.top_k,
         context_n=req.context_n,
     )
-    
+
     cached_events = await app.state.query_cache.get(cache_key)
     if cached_events is not None:
         logger.info("Serving query streaming response from Redis cache: '%s'", req.question)
+
         async def _cached_stream() -> AsyncIterator[str]:
             for event in cached_events:
                 yield event
             gc.collect()
+
         return StreamingResponse(
             _cached_stream(),
             media_type="text/event-stream",
@@ -744,11 +873,11 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 logger.warning(
                     "Context size (%d chars) exceeds safety cap (%d chars). Truncating context.",
                     len(context_text),
-                    max_safe_chars
+                    max_safe_chars,
                 )
                 context_text = (
-                    context_text[:max_safe_chars] + 
-                    "\n\n... [Context truncated to prevent VRAM overflow] ..."
+                    context_text[:max_safe_chars]
+                    + "\n\n... [Context truncated to prevent VRAM overflow] ..."
                 )
 
             prompt = _build_prompt(
@@ -771,17 +900,41 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             ]
             q_type = analysis.query_type
     else:
-        prompt = (
-            "You are an expert AI software developer and codebase assistant. "
-            "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-            "and then write your final answer outside the tags. You must strictly follow this format:\n"
-            "<think>\n"
-            "[Your thinking process]\n"
-            "</think>\n\n"
-            "[Your final answer]\n\n"
-            f"Question: {req.question}\n\n"
-            "Answer:"
-        )
+        is_viet = _is_vietnamese(req.question)
+        if is_viet:
+            lang_instruction = (
+                "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+                "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+                "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+            )
+            prompt = (
+                "You are an expert AI software developer and codebase assistant.\n"
+                f"{lang_instruction}\n\n"
+                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+                "</think>\n\n"
+                "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                f"Question: {req.question}\n\n"
+                f"{lang_instruction}\n"
+                "Answer (in Vietnamese):"
+            )
+        else:
+            prompt = (
+                "You are an expert AI software developer and codebase assistant. "
+                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
+                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Your thinking process]\n"
+                "</think>\n\n"
+                "[Your final answer]\n\n"
+                f"Question: {req.question}\n\n"
+                "Answer:"
+            )
         sources_payload = []
         q_type = "general"
 
@@ -797,7 +950,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         )
         meta_event = f"data: {meta}\n\n"
         yield meta_event
-        
+
         events_accumulated = [meta_event]
 
         try:
@@ -806,7 +959,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 async for chunk in _llm_stream(prompt, req.llm_model):
                     yield chunk
                     events_accumulated.append(chunk)
-            
+
             # Cache the successful stream
             try:
                 await app.state.query_cache.set(cache_key, events_accumulated)
@@ -847,7 +1000,7 @@ async def list_repositories() -> list[str]:
 async def get_repository_status(repo_name: str) -> dict[str, Any]:
     """Retrieve indexing sync status and active background tasks for a repository."""
     store: FalkorDBStore = app.state.graph_store
-    
+
     metadata = None
     try:
         metadata = store.get_repository_metadata(repo_name)
@@ -857,7 +1010,7 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
     last_commit = metadata.get("last_indexed_commit") if metadata else None
     repo_path = metadata.get("repo_path") if metadata else None
     updated_at = metadata.get("updated_at") if metadata else None
-    
+
     last_synced = None
     if updated_at:
         try:
@@ -866,13 +1019,13 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
             pass
 
     effective_path = repo_path
-    
+
     # New Auto-scan logic if repo_path is not set in DB or not found
     if (not effective_path or not os.path.isdir(effective_path)) and os.path.isdir("/codebases"):
         try:
             repo_words = set(repo_name.lower().replace("-", " ").replace("_", " ").split())
             repo_words -= {"app", "core", "repo", "repository"}
-            
+
             for entry in os.listdir("/codebases"):
                 entry_path = os.path.join("/codebases", entry)
                 if os.path.isdir(entry_path):
@@ -882,7 +1035,9 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
                         effective_path = entry_path
                         repo_path = entry_path
                         # Automatically save this path to FalkorDB so we don't have to scan again
-                        store.set_repository_commit(repo_name, last_commit or "", repo_path=entry_path)
+                        store.set_repository_commit(
+                            repo_name, last_commit or "", repo_path=entry_path
+                        )
                         break
         except Exception:
             pass
@@ -907,11 +1062,11 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
     if path_status == "valid":
         try:
             import subprocess
+
             res_head = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=effective_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 check=True,
             )
@@ -919,8 +1074,10 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         except Exception:
             path_status = "inaccessible"
 
-    is_sync = (last_commit is not None) and (head_commit is not None) and (last_commit == head_commit)
-    
+    is_sync = (
+        (last_commit is not None) and (head_commit is not None) and (last_commit == head_commit)
+    )
+
     active_task = None
     for task in app.state.indexing_tasks.values():
         if task["repository"] == repo_name and task["status"] in ("pending", "running"):
@@ -1201,7 +1358,7 @@ async def abort_indexing_task(task_id: str) -> dict[str, str]:
     """Abort a pending or running indexing task."""
     if task_id not in app.state.indexing_tasks:
         raise HTTPException(status_code=404, detail=f"Indexing task not found: {task_id}")
-    
+
     task = app.state.indexing_tasks[task_id]
     if task["status"] in ("pending", "running"):
         task["status"] = "aborted"
@@ -1210,5 +1367,9 @@ async def abort_indexing_task(task_id: str) -> dict[str, str]:
         task["logs"].append(f"[{timestamp}] Task abort requested by user.")
         logger.info(f"Task {task_id} aborted by user.")
         return {"task_id": task_id, "status": "aborted"}
-    
-    return {"task_id": task_id, "status": task["status"], "message": "Task is not in a cancellable/abortable state."}
+
+    return {
+        "task_id": task_id,
+        "status": task["status"],
+        "message": "Task is not in a cancellable/abortable state.",
+    }

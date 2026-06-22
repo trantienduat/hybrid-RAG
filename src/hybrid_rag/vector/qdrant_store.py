@@ -88,6 +88,7 @@ class QdrantStore(VectorStore):
             collection_name=self._collection,
             points=points,
             batch_size=self._upsert_batch_size,
+            wait=True,
         )
         logger.debug("Upserted %d points to %s", len(points), self._collection)
         return len(points)
@@ -118,8 +119,8 @@ class QdrantStore(VectorStore):
         return [{**hit.payload, "score": hit.score, "point_id": str(hit.id)} for hit in results]
 
     def point_count(self) -> int:
-        info = self._client.get_collection(self._collection)
-        return info.points_count or 0
+        res = self._client.count(collection_name=self._collection, exact=True)
+        return res.count
 
     def clear(self) -> None:
         """Delete and recreate the collection. Use in tests only."""
@@ -128,7 +129,8 @@ class QdrantStore(VectorStore):
 
     def delete_file_vectors(self, file_path: str, repository: str) -> None:
         """Delete all vectors associated with a specific file in a repository."""
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
         self._client.delete(
             collection_name=self._collection,
             points_selector=Filter(

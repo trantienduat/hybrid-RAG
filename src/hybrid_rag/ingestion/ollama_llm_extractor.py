@@ -21,10 +21,9 @@ from typing import Any
 
 import httpx
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ports.llm_extractor import BaseLLMExtractor
-
-from hybrid_rag.constants import DEFAULT_LLM_MODEL
 
 logger = logging.getLogger(__name__)
 

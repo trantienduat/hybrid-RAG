@@ -84,6 +84,16 @@ class TestQueryAnalyzer:
         a = analyze("describe how chunking works")
         assert a.query_type == "semantic"
 
+    def test_vietnamese_query_analysis(self):
+        a = analyze("mô tả về luồng của graph db đi")
+        assert a.query_type == "hybrid"
+        assert "luồng" in a.keywords
+        assert "graph" in a.keywords
+        assert "db" in a.keywords
+        assert "về" not in a.keywords
+        assert "của" not in a.keywords
+        assert "mô" not in a.keywords
+
     def test_query_analysis_repr(self):
         a = QueryAnalysis(query_type="hybrid", entities=["Foo"], keywords=["bar"])
         assert "hybrid" in repr(a)
@@ -495,3 +505,11 @@ class TestHybridRetriever:
         with HybridRetriever(graph_store=graph_store, vector_store=vector_store, embedder=embedder):
             pass
         embedder.close.assert_called_once()
+
+    def test_is_vietnamese_detection(self):
+        from hybrid_rag.api.main import _is_vietnamese
+
+        assert _is_vietnamese("mô tả về luồng của graph db đi") is True
+        assert _is_vietnamese("mo ta luong graph va cach tong hop") is True
+        assert _is_vietnamese("how does the graph database work?") is False
+        assert _is_vietnamese("explain this code") is False

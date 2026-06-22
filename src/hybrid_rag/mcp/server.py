@@ -14,11 +14,11 @@ from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.vector.qdrant_store import QdrantStore
-from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 
 logger = logging.getLogger("hybrid_rag.mcp")
 

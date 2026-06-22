@@ -42,14 +42,14 @@ def _detect_git_changes(
     Returns (modified_files, deleted_files) or None if not a valid Git repo or commit.
     """
     import subprocess
+
     from hybrid_rag.ingestion.parser import LANGUAGE_BY_EXT
 
     def run_git(args: list[str]) -> str:
         res = subprocess.run(
             ["git", *args],
             cwd=str(repo),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             check=True,
         )
@@ -60,7 +60,7 @@ def _detect_git_changes(
         is_inside = run_git(["rev-parse", "--is-inside-work-tree"])
         if is_inside != "true":
             return None
-        
+
         # Verify if last_commit exists in git history
         run_git(["cat-file", "-t", last_commit])
     except Exception:
@@ -95,9 +95,20 @@ def _detect_git_changes(
 
         # Filtering logic
         exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
-        exclude_set = set(excludes) if excludes is not None else {
-            ".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"
-        }
+        exclude_set = (
+            set(excludes)
+            if excludes is not None
+            else {
+                ".venv",
+                "venv",
+                "fixtures",
+                "experiments",
+                "dist",
+                "build",
+                ".git",
+                "__pycache__",
+            }
+        )
 
         def is_valid(fpath_str: str) -> bool:
             path = Path(fpath_str)
@@ -153,7 +164,7 @@ def run_indexing_pipeline(
     # Lazy imports to keep execution startups fast
     from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
     from hybrid_rag.ingestion.merger import merge_supplemental
-    from hybrid_rag.ingestion.parser import parse_file, parse_repo, ParseResult
+    from hybrid_rag.ingestion.parser import ParseResult, parse_file, parse_repo
     from hybrid_rag.utils.tracing import start_span
 
     # ── 1. Parse AST ───────────────────────────────────────────────────────────
@@ -165,16 +176,16 @@ def run_indexing_pipeline(
     if incremental and not rebuild:
         try:
             import subprocess
+
             res_head = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=str(repo),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 check=True,
             )
             head_commit = res_head.stdout.strip()
-            
+
             last_commit = from_commit or graph_store.get_repository_commit(repo_name)
             if last_commit:
                 git_changes = _detect_git_changes(repo, last_commit, languages, excludes)
@@ -196,7 +207,7 @@ def run_indexing_pipeline(
             f"Incremental sync: {len(modified_files)} files modified, {len(deleted_files)} files deleted...",
             0.0,
         )
-        
+
         # Cleanup deleted & modified files from stores to avoid duplicates/orphans
         for f in deleted_files | modified_files:
             graph_store.delete_file_nodes(f, repo_name)
@@ -232,7 +243,9 @@ def run_indexing_pipeline(
     else:
         # Full Ingest Parse AST
         listener.on_step(
-            "parse", f"Parsing source files in {repo} for languages: {', '.join(languages)}...", None
+            "parse",
+            f"Parsing source files in {repo} for languages: {', '.join(languages)}...",
+            None,
         )
         with start_span("pipeline_parse_ast", {"repo": str(repo)}):
             result = parse_repo(repo, languages=languages, repo_name=repo_name, excludes=excludes)
@@ -245,11 +258,11 @@ def run_indexing_pipeline(
         # Get HEAD commit for full ingest so we can do incremental sync next time
         try:
             import subprocess
+
             res_head = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 cwd=str(repo),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 check=True,
             )
@@ -403,7 +416,7 @@ def run_indexing_pipeline(
                     batch = chunks_to_embed[i : i + batch_size]
                     batch_texts = [ch.text for ch in batch]
                     embeddings = embedder.embed_texts(batch_texts)
-                    
+
                     batch_payload = []
                     for ch, emb in zip(batch, embeddings):
                         batch_payload.append(
@@ -434,6 +447,7 @@ def run_indexing_pipeline(
 
     # Trigger garbage collection
     import gc
+
     gc.collect()
 
     listener.on_step(

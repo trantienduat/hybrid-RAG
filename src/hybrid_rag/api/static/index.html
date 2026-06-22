@@ -1386,6 +1386,18 @@ async function loadLLMModels() {
 
     const savedModel = localStorage.getItem('hybrid_rag_selected_model') || '';
 
+    // Find the correct model to select
+    let modelToSelect = '';
+    if (models.length > 0) {
+      const hasSavedModel = models.some(m => m.name === savedModel);
+      if (hasSavedModel) {
+        modelToSelect = savedModel;
+      } else {
+        const defaultModel = models.find(m => m.is_default);
+        modelToSelect = defaultModel ? defaultModel.name : models[0].name;
+      }
+    }
+
     llmModelSelect.innerHTML = models.map(m => {
       let displayName = m.name;
       if (m.parameter_size) {
@@ -1396,13 +1408,13 @@ async function loadLLMModels() {
         }
         displayName += `)`;
       }
-      const selected = m.name === savedModel ? 'selected' : '';
+      const selected = m.name === modelToSelect ? 'selected' : '';
       return `<option value="${escHtml(m.name)}" ${selected}>${escHtml(displayName)}</option>`;
     }).join('');
 
-    // Handle case where saved model is not in the list, default to first option
-    if (models.length > 0 && !models.some(m => m.name === savedModel)) {
-      localStorage.setItem('hybrid_rag_selected_model', models[0].name);
+    // Persist the choice if changed or newly defaulted
+    if (modelToSelect && modelToSelect !== savedModel) {
+      localStorage.setItem('hybrid_rag_selected_model', modelToSelect);
     }
   } catch (err) {
     console.warn("Failed to fetch LLM models:", err);
@@ -2179,7 +2191,7 @@ function renderMessage(m) {
       const openAttr = m.streaming ? 'open' : '';
       thinkingHtml = `
         <details class="thinking-box" ${openAttr}>
-          <summary>Gemma 4 Thinking Process</summary>
+          <summary>▼ ${escHtml(llmModelSelect.value || 'LLM')} Thinking Process</summary>
           <div class="thinking-content">${renderMarkdown(parsed.thinking)}</div>
         </details>
       `;
@@ -2405,7 +2417,7 @@ async function doAsk() {
             if (parsed.thinking) {
               thinkingHtml = `
                 <details class="thinking-box" open>
-                  <summary>Gemma 4 Thinking Process</summary>
+                  <summary>▼ ${escHtml(llmModelSelect.value || 'LLM')} Thinking Process</summary>
                   <div class="thinking-content">${escHtml(parsed.thinking)}</div>
                 </details>
               `;

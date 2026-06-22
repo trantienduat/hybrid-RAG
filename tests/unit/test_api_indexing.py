@@ -6,9 +6,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
-
 import pytest
+from fastapi.testclient import TestClient
 
 from hybrid_rag.api.main import app
 
@@ -108,13 +107,14 @@ class TestApiIndexing:
     @patch("subprocess.run")
     def test_get_repository_status(self, mock_sub_run, mock_is_dir, mock_listdir):
         from unittest.mock import MagicMock
+
         with TestClient(app) as client:
             # Mock get_repository_metadata on the store instance
             app.state.graph_store.get_repository_metadata.return_value = {
                 "last_indexed_commit": "commit123",
-                "repo_path": "/mock/repo"
+                "repo_path": "/mock/repo",
             }
-            
+
             # Mock subprocess run to return HEAD commit
             mock_head_res = MagicMock()
             mock_head_res.stdout = "commit123\n"
@@ -146,6 +146,7 @@ class TestApiIndexing:
     @patch("subprocess.run")
     def test_get_repository_status_autoscan(self, mock_sub_run, mock_is_dir, mock_listdir):
         from unittest.mock import MagicMock
+
         with TestClient(app) as client:
             # Mock get_repository_metadata returning None (meaning not set/configured)
             app.state.graph_store.get_repository_metadata.return_value = None
@@ -155,9 +156,14 @@ class TestApiIndexing:
 
             # Side effects to mock paths
             def isdir_side_effect(path):
-                if path == "/codebases" or path == "/codebases/my-repo" or path == "/codebases/my-repo/.git":
+                if (
+                    path == "/codebases"
+                    or path == "/codebases/my-repo"
+                    or path == "/codebases/my-repo/.git"
+                ):
                     return True
                 return False
+
             mock_is_dir.side_effect = isdir_side_effect
 
             def listdir_side_effect(path):
@@ -166,6 +172,7 @@ class TestApiIndexing:
                 if path == "/codebases/my-repo":
                     return [".git", "file.py"]
                 return []
+
             mock_listdir.side_effect = listdir_side_effect
 
             # Mock subprocess run to return HEAD commit
@@ -218,7 +225,7 @@ class TestApiIndexing:
             data = resp.json()
             assert data["task_id"] == task_id
             assert data["status"] == "aborted"
-            
+
             # Verify status in state is updated
             assert app.state.indexing_tasks[task_id]["status"] == "aborted"
             assert app.state.indexing_tasks[task_id]["completed_at"] is not None
@@ -230,6 +237,7 @@ class TestApiIndexing:
     @patch("httpx.AsyncClient.get")
     def test_list_llm_models_success(self, mock_get):
         from unittest.mock import MagicMock
+
         with TestClient(app) as client:
             mock_resp = MagicMock()
             mock_resp.status_code = 200
@@ -239,24 +247,14 @@ class TestApiIndexing:
                     {
                         "name": "qwen2.5-coder:7b",
                         "size": 4700000000,
-                        "details": {
-                            "parameter_size": "7B"
-                        }
+                        "details": {"parameter_size": "7B"},
                     },
                     {
                         "name": "nomic-embed-text:latest",
                         "size": 274000000,
-                        "details": {
-                            "parameter_size": "274M"
-                        }
+                        "details": {"parameter_size": "274M"},
                     },
-                    {
-                        "name": "gemma2:9b",
-                        "size": 5400000000,
-                        "details": {
-                            "parameter_size": "9B"
-                        }
-                    }
+                    {"name": "gemma2:9b", "size": 5400000000, "details": {"parameter_size": "9B"}},
                 ]
             }
             mock_get.return_value = mock_resp

@@ -24,7 +24,8 @@ _GLOBAL_RE = re.compile(
     r"\b(?:summarize\s+(?:the\s+)?codebase|codebase\s+summary|repository\s+summary|"
     r"architecture|high-level\s+(?:design|overview)|modules?\s+overview|dependencies\s+flow|"
     r"architectural\s+design|system\s+design|general\s+overview|how\s+is\s+the\s+project\s+structured|"
-    r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống)\b",
+    r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống|"
+    r"tổng\s+quan\s+dự\s+án|tóm\s+tắt\s+codebase|luồng\s+hệ\s+thống|cấu\s+trúc\s+thư\s+mục)\b",
     re.IGNORECASE,
 )
 
@@ -36,7 +37,8 @@ _STRUCTURAL_RE = re.compile(
     r"defines?|declares?|"
     r"relations?|connections?|graph|paths?|reaches?|"
     r"ancestor|descendant|parent|child(?:ren)?|"
-    r"which\s+(?:classes?|functions?|methods?|modules?))\b",
+    r"which\s+(?:classes?|functions?|methods?|modules?)|"
+    r"kế\s+thừa|nhập|nhập\s+khẩu|phụ\s+thuộc|gọi|định\s+nghĩa|quan\s+hệ|liên\s+kết|đồ\s+thị|đường\s+dẫn|cha|con|lớp|hàm|thư\s+viện)\b",
     re.IGNORECASE,
 )
 
@@ -45,7 +47,8 @@ _SEMANTIC_RE = re.compile(
     r"\b(?:explain|describes?|summarize[sd]?|"
     r"what\s+does|how\s+does|why\s+does|how\s+(?:it\s+)?works?|"
     r"purpose|meaning|intent|example|"
-    r"behavior|logic|algorithm|pattern|workflow|handles?|processes?)\b",
+    r"behavior|logic|algorithm|pattern|workflow|handles?|processes?|"
+    r"mô\s+tả|giải\s+thích|hoạt\s+động|ý\s+nghĩa|mục\s+đích|ví\s+dụ|luồng|quy\s+trình|xử\s+lý|làm\s+gì|thế\s+nào|tại\s+sao)\b",
     re.IGNORECASE,
 )
 
@@ -139,6 +142,53 @@ _STOP_WORDS = frozenset(
         "than",
         "just",
         "only",
+        # Vietnamese stop words
+        "về",
+        "của",
+        "và",
+        "hoặc",
+        "là",
+        "cho",
+        "từ",
+        "đến",
+        "trong",
+        "trên",
+        "dưới",
+        "đi",
+        "này",
+        "đó",
+        "kia",
+        "nào",
+        "gì",
+        "sao",
+        "thế",
+        "như",
+        "được",
+        "bị",
+        "bởi",
+        "các",
+        "những",
+        "một",
+        "hai",
+        "ba",
+        "ra",
+        "vào",
+        "lại",
+        "qua",
+        "theo",
+        "với",
+        "tại",
+        "cùng",
+        "ở",
+        "mỗi",
+        "từng",
+        "tự",
+        "chỉ",
+        "cả",
+        "mô",
+        "tả",
+        "giải",
+        "thích",
     }
 )
 
@@ -197,8 +247,11 @@ def analyze(query: str) -> QueryAnalysis:
     keywords: list[str] = []
     kw_seen: set[str] = set()
     entity_lower = {e.lower() for e in entities}
-    for m in re.finditer(r"\b([a-zA-Z][a-zA-Z0-9]{2,})\b", query):
+    for m in re.finditer(r"\b(\w{2,})\b", query):
         w = m.group(1).lower()
+        # Ensure it contains at least one letter (avoid pure numbers/underscores as keywords)
+        if not any(c.isalpha() for c in w):
+            continue
         if w not in _STOP_WORDS and w not in entity_lower and w not in kw_seen:
             kw_seen.add(w)
             keywords.append(w)

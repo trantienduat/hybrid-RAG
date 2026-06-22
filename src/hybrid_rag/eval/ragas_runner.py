@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.eval.corpus import QueryCase
 
 if TYPE_CHECKING:
@@ -146,11 +147,11 @@ class RagasRunner:
         self,
         retriever: HybridRetriever,
         ollama_url: str = "http://localhost:11434",
-        llm_model: str = "qwen2.5-coder:7b",
+        llm_model: str | None = None,
     ) -> None:
         self._retriever = retriever
         self._ollama_url = ollama_url
-        self._llm_model = llm_model
+        self._llm_model = llm_model or DEFAULT_LLM_MODEL
 
     # ── Public ────────────────────────────────────────────────────
 

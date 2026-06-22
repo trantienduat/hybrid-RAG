@@ -21,7 +21,7 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from hybrid_rag.constants import DEFAULT_LLM_MODEL, DEFAULT_EMBED_MODEL
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 
 app = typer.Typer(name="hybrid-rag", help="Privacy-preserving Graph-Hybrid RAG for codebases.")
 console = Console()
@@ -191,14 +191,14 @@ hybrid-rag index "{repo}" --incremental
     try:
         post_merge.write_text(hook_script, encoding="utf-8")
         post_checkout.write_text(hook_script, encoding="utf-8")
-        
+
         # Make them executable (chmod +x)
-        import os
         import stat
+
         for p in (post_merge, post_checkout):
             st = p.stat()
             p.chmod(st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-            
+
         console.print(f"[green]✓[/] Installed Git hooks to {hooks_dir}")
         console.print("  - post-merge (runs on git pull/merge)")
         console.print("  - post-checkout (runs on git checkout/switch)")

@@ -169,3 +169,63 @@ class TestStubCount:
     def test_zero_when_no_stubs(self):
         result = ParseResult(nodes=[_module("a.py", "a", "a.py")])
         assert stub_count(result) == 0
+
+
+def _function(node_id: str, name: str, file_path: str) -> NodeData:
+    return NodeData(label="Function", id=node_id, properties={"name": name, "file_path": file_path})
+
+
+# ── AST Call Stub Resolution ──────────────────────────────────────────────────
+
+
+class TestASTCallResolver:
+    def test_resolve_sibling_class_method(self):
+        """__call__helper inside class context should resolve to sibling method."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _class("a.py::MyClass", "MyClass", "a.py"),
+                _function("a.py::MyClass.helper", "helper", "a.py"),
+                _function("a.py::MyClass.main", "main", "a.py"),
+            ],
+            edges=[
+                _edge("a.py::MyClass.main", "CALLS", "__call__helper"),
+            ],
+        )
+        resolved = resolve(result)
+        call_edge = resolved.edges[0]
+        assert call_edge.dst_id == "a.py::MyClass.helper"
+
+    def test_resolve_same_module_function(self):
+        """__call__helper should resolve to same-module function if class context is not sibling."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _function("a.py.helper", "helper", "a.py"),
+                _function("a.py.main", "main", "a.py"),
+            ],
+            edges=[
+                _edge("a.py.main", "CALLS", "__call__helper"),
+            ],
+        )
+        resolved = resolve(result)
+        call_edge = resolved.edges[0]
+        assert call_edge.dst_id == "a.py.helper"
+
+    def test_resolve_global_unique_fallback(self):
+        """__call__unique_func should resolve to unique global function."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _function("a.py.main", "main", "a.py"),
+                _module("b.py", "b", "b.py"),
+                _function("b.py.unique_func", "unique_func", "b.py"),
+            ],
+            edges=[
+                _edge("a.py.main", "CALLS", "__call__unique_func"),
+            ],
+        )
+        resolved = resolve(result)
+        call_edge = resolved.edges[0]
+        assert call_edge.dst_id == "b.py.unique_func"
+

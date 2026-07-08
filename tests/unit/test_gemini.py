@@ -56,6 +56,7 @@ class TestGeminiEmbedder:
     def test_initialize_no_api_key_raises_error(self):
         # Explicitly pass api_key as None and ensure env is cleared
         import pytest
+
         with patch.dict("os.environ", {}, clear=True):
             with pytest.raises(ValueError, match="GEMINI_API_KEY is not set"):
                 GeminiEmbedder(api_key=None)

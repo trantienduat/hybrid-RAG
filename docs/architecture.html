@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid RAG — Architecture & Main Flows</title>
+<script>
+  (function () {
+    const saved = localStorage.getItem('theme');
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', dark);
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAF9F5; --surface: #FFFFFF; --surface2: #F0EEE6;
+    --ink: #141413; --body: #3D3D3A; --muted: #87867F;
+    --line: #D1CFC5; --line-soft: #E6E3DA;
+    --clay: #D97757; --clay-soft: rgba(217,119,87,0.10);
+    --olive: #788C5D; --olive-soft: rgba(120,140,93,0.12);
+    --gold: #C9A45C; --blue: #5B7E96; --blue-soft: rgba(91,126,150,0.10);
+    --zone: rgba(20,20,19,0.025); --zone-line: #D1CFC5;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  html.dark {
+    --bg: #141413; --surface: #1F1F1D; --surface2: #2A2A28;
+    --ink: #FAF9F5; --body: #D1CFC5; --muted: #87867F;
+    --line: #3D3D3A; --line-soft: #2A2A28;
+    --clay: #E48A6E; --clay-soft: rgba(228,138,110,0.14);
+    --olive: #9DB07C; --olive-soft: rgba(157,176,124,0.16);
+    --gold: #D4B36F; --blue: #7FA3BC; --blue-soft: rgba(127,163,188,0.14);
+    --zone: rgba(250,249,245,0.03); --zone-line: #3D3D3A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--body); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── top bar ─────────────────────────────── */
+  .bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line-soft); flex: none;
+  }
+  .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
+  .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--muted); }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  #themeToggle {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* ── stage ───────────────────────────────── */
+  .stage { flex: 1; position: relative; min-height: 0; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* zones */
+  .zone rect { fill: var(--zone); stroke: var(--zone-line); stroke-width: 1; stroke-dasharray: 5 5; rx: 16; }
+  .zone .ztitle { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+  .zone .zsub { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); opacity: 0.75; }
+
+  /* nodes */
+  .node { cursor: pointer; }
+  .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 10; transition: stroke .15s ease, filter .15s ease; }
+  .node:hover rect { stroke: var(--muted); }
+  .node.sel rect { stroke: var(--clay) !important; stroke-width: 2; }
+  .node .t  { font-family: var(--sans); font-size: 13.5px; font-weight: 600; fill: var(--ink); pointer-events: none; }
+  .node .m  { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); pointer-events: none; }
+  .node .k  { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--clay); pointer-events: none; }
+  .node.gate rect { fill: var(--clay-soft); stroke: var(--clay); }
+  .node.store rect { fill: var(--surface2); }
+  .node.do rect { fill: var(--olive-soft); stroke: var(--olive); }
+  .node.ext rect { stroke-dasharray: 6 3; }
+  .node.otel rect { fill: var(--blue-soft); stroke: var(--blue); }
+
+  /* edges */
+  .edge { stroke: var(--muted); stroke-width: 1.6; fill: none; marker-end: url(#a-mut); transition: opacity .2s ease, stroke .2s ease; }
+  .edge.dash { stroke-dasharray: 5 4; }
+  .edge.ws { stroke-width: 2; }
+  .elbl { font-family: var(--mono); font-size: 10px; fill: var(--muted); transition: opacity .2s ease; }
+
+  /* flow highlighting */
+  .stage.flowing .edge { opacity: 0.13; }
+  .stage.flowing .elbl { opacity: 0.13; }
+  .stage.flowing .node { opacity: 0.30; }
+  .stage.flowing .zone { opacity: 0.45; }
+  .stage.flowing .edge.lit {
+    opacity: 1; stroke: var(--clay); marker-end: url(#a-clay);
+    stroke-dasharray: 7 5; animation: march 0.9s linear infinite;
+  }
+  .stage.flowing .elbl.lit { opacity: 1; fill: var(--clay); }
+  .stage.flowing .node.lit { opacity: 1; }
+  .stage.flowing .node.lit rect { stroke: var(--clay); }
+  @keyframes march { to { stroke-dashoffset: -12; } }
+  @media (prefers-reduced-motion: reduce) { .stage.flowing .edge.lit { animation: none; } }
+
+  .badge { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+  .badge circle { fill: var(--clay); }
+  .badge text { fill: var(--bg); }
+  .stage:not(.flowing) .badge { display: none; }
+
+  /* ── floating cards ──────────────────────── */
+  .card {
+    position: absolute; max-width: 360px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+  }
+  #detail { right: 16px; bottom: 16px; width: 340px; }
+  #detail h3 { font-family: var(--serif); font-weight: 500; font-size: 17px; color: var(--ink); margin-bottom: 2px; }
+  #detail .meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-bottom: 8px; }
+  #detail p { font-size: 12.5px; line-height: 1.55; }
+  #detail p code, #flowcap code { font-family: var(--mono); font-size: 11px; color: var(--clay); }
+  #flowcap { left: 16px; bottom: 16px; max-width: 480px; display: none; }
+  #flowcap.show { display: block; }
+  #flowcap .fname { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 6px; }
+  #flowcap ol { margin-left: 18px; }
+  #flowcap li { font-size: 12.5px; line-height: 1.55; }
+  .src { position: absolute; top: 10px; right: 16px; font-family: var(--mono); font-size: 10px; color: var(--muted); opacity: 0.8; }
+  @media (max-width: 880px) {
+    body { overflow: auto; }
+    .stage { min-height: 75vh; }
+    #detail { position: static; width: auto; margin: 10px 16px; }
+    #flowcap { position: static; margin: 0 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div>
+    <h1>Hybrid RAG — System Flows</h1>
+    <div class="sub">AST parsing · local databases · reciprocal rank fusion · openTelemetry</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-flow="all">Full Stack</button>
+    <button class="chip" data-flow="ingest">1. Ingestion</button>
+    <button class="chip" data-flow="community">2. GraphRAG Communities</button>
+    <button class="chip" data-flow="retrieve">3. Scoped Hybrid Query</button>
+    <button class="chip" data-flow="observe">4. Telemetry Pipeline</button>
+  </div>
+  <button id="themeToggle">Theme</button>
+</div>
+
+<div class="stage" id="stage">
+<svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hybrid RAG Architecture and flow diagram">
+  <defs>
+    <marker id="a-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+    </marker>
+    <marker id="a-clay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill: var(--clay)"/>
+    </marker>
+  </defs>
+
+  <!-- ── zones ─────────────────────────────── -->
+  <g class="zone" id="z-clients">
+    <rect x="40" y="80" width="220" height="870"/>
+    <text class="ztitle" x="60" y="115">Trigger / Clients</text>
+    <text class="zsub" x="60" y="133">CLI or local API client</text>
+  </g>
+  <g class="zone" id="z-ingest">
+    <rect x="290" y="80" width="430" height="420"/>
+    <text class="ztitle" x="310" y="115">1. Ingestion Pipeline</text>
+    <text class="zsub" x="310" y="133">source extraction & resolution</text>
+  </g>
+  <g class="zone" id="z-storage">
+    <rect x="750" y="80" width="280" height="420"/>
+    <text class="ztitle" x="770" y="115">2. Storage Engines</text>
+    <text class="zsub" x="770" y="133">localized database loopbacks</text>
+  </g>
+  <g class="zone" id="z-retrieve">
+    <rect x="290" y="530" width="740" height="420"/>
+    <text class="ztitle" x="310" y="565">3. Scoped Hybrid Retrieval</text>
+    <text class="zsub" x="310" y="583">context construction & generation</text>
+  </g>
+  <g class="zone" id="z-otel">
+    <rect x="1060" y="80" width="490" height="870"/>
+    <text class="ztitle" x="1080" y="115">4. Observability Pipeline</text>
+    <text class="zsub" x="1080" y="133">OTel telemetry collector & APMs</text>
+  </g>
+
+  <!-- ── edges ─────────────────────────────── -->
+  <!-- Ingestion flow -->
+  <path class="edge" id="e-src-parse" d="M225,220 L310,165"/>
+  <path class="edge" id="e-parse-res" d="M480,165 L510,165"/>
+  <path class="edge" id="e-res-fdb" d="M680,165 L790,175"/>
+  <path class="edge" id="e-parse-chk" d="M395,200 L395,240"/>
+  <path class="edge" id="e-chk-emb" d="M395,310 L395,350"/>
+  <path class="edge" id="e-emb-qdr" d="M480,385 L790,395"/>
+
+  <!-- GraphRAG community detection -->
+  <path class="edge" id="e-fdb-cb" d="M850,220 L680,325"/>
+  <path class="edge" id="e-cb-fdb" d="M640,320 L790,200"/>
+
+  <!-- Retrieval flow -->
+  <path class="edge" id="e-q-ana" d="M225,640 L310,640"/>
+  <path class="edge" id="e-ana-vr" d="M490,620 L540,595"/>
+  <path class="edge" id="e-ana-gr" d="M490,660 L540,695"/>
+  <path class="edge" id="e-vr-qdr" d="M720,595 L840,440"/>
+  <path class="edge" id="e-gr-fdb" d="M720,695 L840,220"/>
+  <path class="edge" id="e-vr-rrf" d="M720,595 L770,645"/>
+  <path class="edge" id="e-gr-rrf" d="M720,695 L770,645"/>
+  <path class="edge" id="e-rrf-asm" d="M860,680 L860,730"/>
+  <path class="edge" id="e-asm-llm" d="M860,800 L860,840"/>
+  <path class="edge" id="e-llm-out" d="M770,875 C 650,875 490,830 225,660"/>
+
+  <!-- Observability flow -->
+  <path class="edge" id="e-api-op" d="M225,640 L1130,180"/>
+  <path class="edge" id="e-api-coll" d="M1225,220 L1225,320"/>
+  <path class="edge" id="e-coll-prom" d="M1320,345 C 1340,345 1340,290 1360,290"/>
+  <path class="edge" id="e-coll-tempo" d="M1320,360 L1360,370"/>
+  <path class="edge" id="e-coll-loki" d="M1320,375 C 1340,375 1340,450 1360,450"/>
+  <path class="edge" id="e-coll-phx" d="M1320,390 C 1335,400 1340,530 1360,530"/>
+  <path class="edge" id="e-prom-graf" d="M1435,320 L1435,700"/>
+  <path class="edge" id="e-tempo-graf" d="M1475,400 L1475,700"/>
+  <path class="edge" id="e-loki-graf" d="M1495,480 L1495,700"/>
+  <path class="edge" id="e-phx-graf" d="M1515,560 L1515,700"/>
+
+  <!-- Edge Labels -->
+  <text class="elbl" data-e="e-src-parse" x="250" y="185">repo path</text>
+  <text class="elbl" data-e="e-parse-res" x="495" y="155" text-anchor="middle">FQN triplets</text>
+  <text class="elbl" data-e="e-res-fdb" x="740" y="155" text-anchor="middle">resolve stubs</text>
+  <text class="elbl" data-e="e-parse-chk" x="405" y="225">source content</text>
+  <text class="elbl" data-e="e-chk-emb" x="405" y="335">AST chunks</text>
+  <text class="elbl" data-e="e-emb-qdr" x="630" y="380" text-anchor="middle">768d embeddings</text>
+  <text class="elbl" data-e="e-fdb-cb" x="760" y="280">extract hierarchies</text>
+  <text class="elbl" data-e="e-cb-fdb" x="730" y="250">inject reports</text>
+  <text class="elbl" data-e="e-q-ana" x="260" y="630">user query</text>
+  <text class="elbl" data-e="e-ana-vr" x="510" y="600">semantics</text>
+  <text class="elbl" data-e="e-ana-gr" x="510" y="680">entities</text>
+  <text class="elbl" data-e="e-vr-qdr" x="790" y="520">payload filters</text>
+  <text class="elbl" data-e="e-gr-fdb" x="790" y="620">graph expansion</text>
+  <text class="elbl" data-e="e-vr-rrf" x="735" y="615">candidates</text>
+  <text class="elbl" data-e="e-gr-rrf" x="735" y="700">candidates</text>
+  <text class="elbl" data-e="e-rrf-asm" x="870" y="715">unified rank</text>
+  <text class="elbl" data-e="e-asm-llm" x="870" y="825">packed context</text>
+  <text class="elbl" data-e="e-llm-out" x="490" y="860" text-anchor="middle">synthesized answer</text>
+  <text class="elbl" data-e="e-api-op" x="700" y="420" text-anchor="middle">API calls</text>
+  <text class="elbl" data-e="e-api-coll" x="1235" y="275">OTLP stream</text>
+
+  <!-- ── nodes: clients ────────────────────── -->
+  <g class="node" data-k="source">
+    <rect x="60" y="180" width="180" height="80"/>
+    <text class="t" x="80" y="215">Local Codebase</text>
+    <text class="m" x="80" y="235">Python / Java files</text>
+    <text class="m" x="80" y="249">namespace partition</text>
+  </g>
+  <g class="node" data-k="query">
+    <rect x="60" y="600" width="180" height="80"/>
+    <text class="t" x="80" y="635">CLI / API Client</text>
+    <text class="m" x="80" y="655">user questions</text>
+    <text class="m" x="80" y="669">repo-scoped queries</text>
+  </g>
+
+  <!-- ── nodes: ingestion ──────────────────── -->
+  <g class="node" data-k="parser">
+    <rect x="310" y="130" width="170" height="70"/>
+    <text class="t" x="325" y="158">AST Parser</text>
+    <text class="m" x="325" y="178">tree-sitter module</text>
+    <text class="m" x="325" y="190">extracts functions/classes</text>
+  </g>
+  <g class="node" data-k="resolver">
+    <rect x="510" y="130" width="170" height="70"/>
+    <text class="t" x="525" y="158">Global Resolver</text>
+    <text class="m" x="525" y="178">resolves imports/stubs</text>
+    <text class="m" x="525" y="190">cross-repo linking</text>
+  </g>
+  <g class="node" data-k="chunker">
+    <rect x="310" y="240" width="170" height="70"/>
+    <text class="t" x="325" y="268">AST Chunker</text>
+    <text class="m" x="325" y="288">boundary-aware split</text>
+    <text class="m" x="325" y="300">preserves logic blocks</text>
+  </g>
+  <g class="node" data-k="embedder">
+    <rect x="310" y="350" width="170" height="70"/>
+    <text class="t" x="325" y="378">Batch Embedder</text>
+    <text class="m" x="325" y="398">ThreadPoolExecutor</text>
+    <text class="m" x="325" y="410">nomic-embed-text</text>
+  </g>
+  <g class="node" data-k="community_builder">
+    <rect x="510" y="320" width="170" height="80"/>
+    <text class="t" x="525" y="348">Community Builder</text>
+    <text class="m" x="525" y="368">hierarchical partition</text>
+    <text class="m" x="525" y="380">Ollama summaries</text>
+    <text class="k" x="525" y="392">graphrag option a</text>
+  </g>
+
+  <!-- ── nodes: storage ────────────────────── -->
+  <g class="node store" data-k="falkordb">
+    <rect x="790" y="130" width="200" height="90"/>
+    <text class="t" x="810" y="160">FalkorDB Graph</text>
+    <text class="m" x="810" y="180">entities & relations</text>
+    <text class="m" x="810" y="194">Cypher query engine</text>
+    <text class="m" x="810" y="208">defines/calls/inherits</text>
+  </g>
+  <g class="node store" data-k="qdrant">
+    <rect x="790" y="350" width="200" height="90"/>
+    <text class="t" x="810" y="380">Qdrant Vector DB</text>
+    <text class="m" x="810" y="400">embeddings store</text>
+    <text class="m" x="810" y="414">payload-based filters</text>
+    <text class="m" x="810" y="428">repo_name indexing</text>
+  </g>
+
+  <!-- ── nodes: retrieval ──────────────────── -->
+  <g class="node" data-k="analyzer">
+    <rect x="310" y="600" width="180" height="75"/>
+    <text class="t" x="325" y="628">Query Analyzer</text>
+    <text class="m" x="325" y="648">extracts search terms</text>
+    <text class="m" x="325" y="660">identifies scoped repos</text>
+  </g>
+  <g class="node" data-k="vector_retriever">
+    <rect x="540" y="560" width="180" height="70"/>
+    <text class="t" x="555" y="588">Vector Retriever</text>
+    <text class="m" x="555" y="608">dense semantic search</text>
+    <text class="m" x="555" y="620">returns matching code</text>
+  </g>
+  <g class="node" data-k="graph_retriever">
+    <rect x="540" y="660" width="180" height="70"/>
+    <text class="t" x="555" y="688">Graph Retriever</text>
+    <text class="m" x="555" y="708">ego-net paths & hops</text>
+    <text class="m" x="555" y="720">fetches entities/reports</text>
+  </g>
+  <g class="node gate" data-k="rrf">
+    <rect x="770" y="610" width="180" height="70"/>
+    <text class="t" x="785" y="638">RRF Merger</text>
+    <text class="k" x="785" y="655">k = 60 merger</text>
+    <text class="m" x="785" y="668">reciprocal rank fusion</text>
+  </g>
+  <g class="node" data-k="assembler">
+    <rect x="770" y="730" width="180" height="70"/>
+    <text class="t" x="785" y="758">Context Assembler</text>
+    <text class="m" x="785" y="778">token budget manager</text>
+    <text class="m" x="785" y="790">deduplicates candidates</text>
+  </g>
+  <g class="node" data-k="llm">
+    <rect x="770" y="840" width="180" height="70"/>
+    <text class="t" x="785" y="868">Local LLM</text>
+    <text class="m" x="785" y="888">Ollama (qwen2.5-coder)</text>
+    <text class="m" x="785" y="900">Gemini fallback/API</text>
+  </g>
+
+  <!-- ── nodes: observability ──────────────── -->
+  <g class="node otel" data-k="api">
+    <rect x="1130" y="140" width="190" height="80"/>
+    <text class="t" x="1145" y="172">hybrid-rag-api</text>
+    <text class="m" x="1145" y="192">Python FastAPI / API</text>
+    <text class="m" x="1145" y="206">OTel auto-instrumentation</text>
+  </g>
+  <g class="node otel" data-k="collector">
+    <rect x="1130" y="320" width="190" height="80"/>
+    <text class="t" x="1145" y="352">OTel Collector</text>
+    <text class="m" x="1145" y="372">port 4317 / 4318</text>
+    <text class="m" x="1145" y="386">routes/transforms metrics</text>
+  </g>
+  <g class="node store" data-k="prometheus">
+    <rect x="1360" y="260" width="150" height="60"/>
+    <text class="t" x="1375" y="285">Prometheus</text>
+    <text class="m" x="1375" y="305">metrics store</text>
+  </g>
+  <g class="node store" data-k="tempo">
+    <rect x="1360" y="340" width="150" height="60"/>
+    <text class="t" x="1375" y="365">Grafana Tempo</text>
+    <text class="m" x="1375" y="385">distributed traces</text>
+  </g>
+  <g class="node store" data-k="loki">
+    <rect x="1360" y="420" width="150" height="60"/>
+    <text class="t" x="1375" y="445">Grafana Loki</text>
+    <text class="m" x="1375" y="465">correlated logs</text>
+  </g>
+  <g class="node store" data-k="phoenix">
+    <rect x="1360" y="500" width="150" height="60"/>
+    <text class="t" x="1375" y="525">Arize Phoenix</text>
+    <text class="m" x="1375" y="545">LLM APM / evaluations</text>
+  </g>
+  <g class="node" data-k="grafana">
+    <rect x="1130" y="700" width="380" height="100"/>
+    <text class="t" x="1150" y="740">Grafana Single Pane of Glass</text>
+    <text class="m" x="1150" y="762">unified dashboard monitoring port 3010</text>
+    <text class="m" x="1150" y="778">trace-to-log correlation via trace_id</text>
+  </g>
+</svg>
+
+  <div class="src">docs/architecture.md v1.0 · openTelemetry config 1.0</div>
+
+  <div class="card" id="flowcap">
+    <div class="fname" id="f-name"></div>
+    <ol id="f-steps"></ol>
+  </div>
+
+  <div class="card" id="detail">
+    <h3 id="d-title">Click a node</h3>
+    <div class="meta" id="d-meta">hybrid RAG flow details</div>
+    <p id="d-body">Explore the stack! Click on any node to view descriptions, or select individual flows at the top to highlight active requests path.</p>
+  </div>
+</div>
+
+<script>
+const DETAIL = {
+  source: { t:"Local Codebase", m:"Input", b:"Your target code repositories. Indexed folder-by-folder, extracting syntax trees and building namespace partitions so multiple repos can coexist in the same graph database without namespace conflicts." },
+  query: { t:"CLI / API Client", m:"Input", b:"The entrypoint for system interactions. Supports CLI queries like <code>hybrid-rag search</code> or API requests sent to the FastAPI server, scoping requests to specific repositories using the <code>--repo-name</code> parameter." },
+  parser: { t:"AST Parser (tree-sitter)", m:"Ingestion Module", b:"Uses Tree-Sitter to parse Python and Java source code. Extracts syntax nodes: classes, methods, modules, imports, and inheritances. Forms fully qualified namespace paths (FQN) for each node." },
+  resolver: { t:"Global Entity Resolver", m:"Ingestion Module", b:"Resolves external references. If an import or base class points to an FQN that exists in another repository loaded in FalkorDB, it dynamically rewrites graph edges to form cross-repository connections." },
+  chunker: { t:"AST Chunker", m:"Ingestion Module", b:"Splits raw file contents based on semantic AST structure boundaries rather than simple character counts. Ensures class and function bodies stay unified within single chunks." },
+  embedder: { t:"Batch Embedder", m:"Ingestion Module", b:"Embeds chunk text concurrently using a <code>ThreadPoolExecutor</code> talking to Ollama or Gemini. Features batch-size limits to guarantee local inference stability." },
+  community_builder: { t:"Community Builder", m:"Hierarchical Clustering", b:"Executes Microsoft GraphRAG Option A. Groups code nodes based on directory-based partitions and generates summary reports using an LLM. Summaries are indexed back to FalkorDB for global queries." },
+  falkordb: { t:"FalkorDB Graph", m:"Storage Engine", b:"A graph database optimized for ultra-fast Cypher querying. Stores code inheritance, dependency trees, and community structures. Supports multi-hop node searches." },
+  qdrant: { t:"Qdrant Vector DB", m:"Storage Engine", b:"Stores vector embeddings and payloads locally. Employs payload partitioning so queries can filter results exclusively to specific repositories." },
+  analyzer: { t:"Query Analyzer", m:"Retrieval Module", b:"Classifies user queries. Parses terms to extract targeted entities, determines whether a local or global search mode is appropriate, and formats queries for vector and graph lookups." },
+  vector_retriever: { t:"Vector Retriever", m:"Retrieval Module", b:"Executes dense cosine-similarity searches on Qdrant. Restricts search scopes using query filters to limit candidates to specified repositories." },
+  graph_retriever: { t:"Graph Retriever", m:"Retrieval Module", b:"Queries FalkorDB using Cypher. Performs localized ego-network traversals starting from search entities, or retrieves community summaries for global inquiries." },
+  rrf: { t:"RRF Merger", m:"Reciprocal Rank Fusion", b:"Merges candidate lists from vector and graph retrievers using reciprocal rank scoring. Configured with a default constant <code>k=60</code>, weighting graph scores higher to prioritize structural relevance." },
+  assembler: { t:"Context Assembler", m:"Retrieval Module", b:"Combines high-ranking RRF candidates. Monitors and limits output using a token-budget threshold, packing the prompt efficiently up to maximum constraints." },
+  llm: { t:"Local LLM", m:"Inference Engine", b:"Synthesizes context inputs to output clean answers. Runs completely offline via local Ollama deployments or integrates with Gemini APIs." },
+  api: { t:"hybrid-rag-api", m:"Observability Client", b:"FastAPI web server decorated with OpenTelemetry. Records telemetry metrics, spans, and traces, injecting correlation IDs directly into system log streams." },
+  collector: { t:"OTel Collector", m:"Observability Gateway", b:"Runs locally as a Docker service. Receives OpenTelemetry traces and logs on port 4317/4318, routes them to storage backends, and translates protocols." },
+  prometheus: { t:"Prometheus", m:"Metrics Store", b:"Collects CPU metrics, memory allocations, request latencies, and count indicators from the OpenTelemetry collector." },
+  tempo: { t:"Grafana Tempo", m:"Traces Store", b:"A high-scale distributed tracing backend. Stores system spans and provides exact latency timelines of functions from parse-times to database queries." },
+  loki: { t:"Grafana Loki", m:"Logs Store", b:"An indexing-minimized log aggregation system. Directly correlates application logs to their parent spans using matching <code>trace_id</code> parameters." },
+  phoenix: { t:"Arize Phoenix", m:"LLM APM Backend", b:"Specialized tracing UI for LLM applications. Captures user prompts, generated context blocks, parameter weights, and outputs for testing and token accounting." },
+  grafana: { t:"Grafana Dashboard", m:"Visualization Pane", b:"Provides a consolidated view of metrics, traces, and Loki logs. Resolves latency bottlenecks, correlates tracing timelines directly to logging streams." }
+};
+
+const FLOWS = {
+  ingest: {
+    name: "Ingestion Pipeline Flow",
+    edges: ["e-src-parse","e-parse-res","e-res-fdb","e-parse-chk","e-chk-emb","e-emb-qdr"],
+    nodes: ["source","parser","resolver","chunker","embedder","falkordb","qdrant"],
+    steps: [
+      "Developer runs index command targeting local repository root.",
+      "<b>AST Parser</b> extracts definitions (FQN) using tree-sitter syntax definitions.",
+      "<b>Global Entity Resolver</b> matches references against other active repositories in <b>FalkorDB</b>.",
+      "<b>AST Chunker</b> splits file content respecting structural logic borders.",
+      "<b>Batch Embedder</b> utilizes parallel threads to create vector embeddings.",
+      "Vector embeddings are stored in <b>Qdrant</b>, and cross-repo links are finalized in <b>FalkorDB</b>."
+    ]
+  },
+  community: {
+    name: "GraphRAG Community Detection",
+    edges: ["e-fdb-cb","e-cb-fdb"],
+    nodes: ["falkordb","community_builder"],
+    steps: [
+      "Community Builder reads full entity graph from <b>FalkorDB</b>.",
+      "Partitions nodes hierarchically into folder-based groups (communities).",
+      "LLM analyzes the components of each community to generate high-level architectural summaries.",
+      "Saves generated community nodes and description reports back to <b>FalkorDB</b>."
+    ]
+  },
+  retrieve: {
+    name: "Scoped Hybrid Retrieval & Inference",
+    edges: ["e-q-ana","e-ana-vr","e-ana-gr","e-vr-qdr","e-gr-fdb","e-vr-rrf","e-gr-rrf","e-rrf-asm","e-asm-llm","e-llm-out"],
+    nodes: ["query","analyzer","vector_retriever","graph_retriever","qdrant","falkordb","rrf","assembler","llm"],
+    steps: [
+      "User Query reaches <b>Query Analyzer</b> to separate keywords and scopes.",
+      "<b>Vector Retriever</b> runs dense semantic match against <b>Qdrant</b> (optionally repository-scoped).",
+      "<b>Graph Retriever</b> runs ego-network search or pulls community summaries from <b>FalkorDB</b>.",
+      "<b>RRF Merger</b> aligns results into a unified priority rank.",
+      "<b>Context Assembler</b> packs top matches into the prompt up to the token budget limit.",
+      "<b>Local LLM</b> synthesizes response back to the client."
+    ]
+  },
+  observe: {
+    name: "OpenTelemetry Observability Flow",
+    edges: ["e-api-op","e-api-coll","e-coll-prom","e-coll-tempo","e-coll-loki","e-coll-phx","e-prom-graf","e-tempo-graf","e-loki-graf","e-phx-graf"],
+    nodes: ["query","api","collector","prometheus","tempo","loki","phoenix","grafana"],
+    steps: [
+      "API request activates decorated span tracers in <b>hybrid-rag-api</b>.",
+      "OTel SDK streams metrics, logs, and spans to local <b>OTel Collector</b>.",
+      "Collector formats and distributes telemetry to Prometheus, Tempo, Loki, and Arize Phoenix.",
+      "Developer views correlated graphs, logs, and trace timelines in the <b>Grafana UI</b>."
+    ]
+  }
+};
+
+const stage = document.getElementById('stage');
+const nodes = document.querySelectorAll('.node');
+const edges = document.querySelectorAll('.edge');
+const elbls = document.querySelectorAll('.elbl');
+const chips = document.querySelectorAll('.chip');
+const fcap = document.getElementById('flowcap');
+
+function setFlow(key) {
+  chips.forEach(c => c.classList.toggle('on', c.dataset.flow === key));
+  edges.forEach(e => e.classList.remove('lit'));
+  elbls.forEach(l => l.classList.remove('lit'));
+  nodes.forEach(n => n.classList.remove('lit'));
+  if (key === 'all') { stage.classList.remove('flowing'); fcap.classList.remove('show'); return; }
+  const f = FLOWS[key];
+  stage.classList.add('flowing');
+  f.edges.forEach(id => document.getElementById(id)?.classList.add('lit'));
+  elbls.forEach(l => { if (f.edges.includes(l.dataset.e)) l.classList.add('lit'); });
+  f.nodes.forEach(k => document.querySelector(`.node[data-k="${k}"]`)?.classList.add('lit'));
+  document.getElementById('f-name').textContent = f.name;
+  document.getElementById('f-steps').innerHTML = f.steps.map(s => `<li>${s}</li>`).join('');
+  fcap.classList.add('show');
+}
+chips.forEach(c => c.addEventListener('click', () => setFlow(c.dataset.flow)));
+
+nodes.forEach(n => n.addEventListener('click', () => {
+  nodes.forEach(x => x.classList.remove('sel'));
+  n.classList.add('sel');
+  const d = DETAIL[n.dataset.k];
+  if (!d) return;
+  document.getElementById('d-title').textContent = d.t;
+  document.getElementById('d-meta').textContent = d.m;
+  document.getElementById('d-body').innerHTML = d.b;
+}));
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+});
+</script>
+</body>
+</html>

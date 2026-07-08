@@ -70,7 +70,7 @@ The server is implemented via `FastMCP` and exposes the following tools:
 4.  **`get_ast_neighbors(node_id, direction, limit)`**
     *   **Description:** Retrieves incoming or outgoing relations from the FalkorDB AST graph (e.g. tracing who calls a function, or what interface is inherited by a class).
 5.  **`get_community_report(repository)`**
-    *   **Description:** Returns Louvain community partitioning summaries for high-level codebase architectural queries.
+    *   **Description:** Returns Directory-based community partitioning summaries for high-level codebase architectural queries.
 
 ---
 

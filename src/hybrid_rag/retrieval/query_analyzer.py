@@ -17,35 +17,15 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-QueryType = Literal["structural", "semantic", "hybrid", "global"]
+QueryType = Literal["local", "global"]
 
 # Global signals: questions about repository-wide architecture, summaries, modules overview
 _GLOBAL_RE = re.compile(
     r"\b(?:summarize\s+(?:the\s+)?codebase|codebase\s+summary|repository\s+summary|"
     r"architecture|high-level\s+(?:design|overview)|modules?\s+overview|dependencies\s+flow|"
     r"architectural\s+design|system\s+design|general\s+overview|how\s+is\s+the\s+project\s+structured|"
-    r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống)\b",
-    re.IGNORECASE,
-)
-
-# Structural signals: questions about code topology and relationships
-_STRUCTURAL_RE = re.compile(
-    r"\b(?:inherits?|extends?|implements?|subclass(?:es)?|overrides?|"
-    r"imports?|depends?|dependency|dependencies|"
-    r"calls?|invokes?|"
-    r"defines?|declares?|"
-    r"relations?|connections?|graph|paths?|reaches?|"
-    r"ancestor|descendant|parent|child(?:ren)?|"
-    r"which\s+(?:classes?|functions?|methods?|modules?))\b",
-    re.IGNORECASE,
-)
-
-# Semantic signals: questions about meaning, intent, or behavior
-_SEMANTIC_RE = re.compile(
-    r"\b(?:explain|describes?|summarize[sd]?|"
-    r"what\s+does|how\s+does|why\s+does|how\s+(?:it\s+)?works?|"
-    r"purpose|meaning|intent|example|"
-    r"behavior|logic|algorithm|pattern|workflow|handles?|processes?)\b",
+    r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống|"
+    r"tổng\s+quan\s+dự\s+án|tóm\s+tắt\s+codebase|luồng\s+hệ\s+thống|cấu\s+trúc\s+thư\s+mục)\b",
     re.IGNORECASE,
 )
 
@@ -139,6 +119,53 @@ _STOP_WORDS = frozenset(
         "than",
         "just",
         "only",
+        # Vietnamese stop words
+        "về",
+        "của",
+        "và",
+        "hoặc",
+        "là",
+        "cho",
+        "từ",
+        "đến",
+        "trong",
+        "trên",
+        "dưới",
+        "đi",
+        "này",
+        "đó",
+        "kia",
+        "nào",
+        "gì",
+        "sao",
+        "thế",
+        "như",
+        "được",
+        "bị",
+        "bởi",
+        "các",
+        "những",
+        "một",
+        "hai",
+        "ba",
+        "ra",
+        "vào",
+        "lại",
+        "qua",
+        "theo",
+        "với",
+        "tại",
+        "cùng",
+        "ở",
+        "mỗi",
+        "từng",
+        "tự",
+        "chỉ",
+        "cả",
+        "mô",
+        "tả",
+        "giải",
+        "thích",
     }
 )
 
@@ -161,20 +188,7 @@ class QueryAnalysis:
 def analyze(query: str) -> QueryAnalysis:
     """Classify a free-text query and extract code identifiers."""
     is_global = bool(_GLOBAL_RE.search(query))
-    if is_global:
-        query_type: QueryType = "global"
-    else:
-        structural = bool(_STRUCTURAL_RE.search(query))
-        semantic = bool(_SEMANTIC_RE.search(query))
-
-        if structural and semantic:
-            query_type = "hybrid"
-        elif structural:
-            query_type = "structural"
-        elif semantic:
-            query_type = "semantic"
-        else:
-            query_type = "hybrid"  # default: use both graph + vector
+    query_type: QueryType = "global" if is_global else "local"
 
     # ── entity extraction ──────────────────────────────────────────
     seen: set[str] = set()
@@ -197,8 +211,11 @@ def analyze(query: str) -> QueryAnalysis:
     keywords: list[str] = []
     kw_seen: set[str] = set()
     entity_lower = {e.lower() for e in entities}
-    for m in re.finditer(r"\b([a-zA-Z][a-zA-Z0-9]{2,})\b", query):
+    for m in re.finditer(r"\b(\w{2,})\b", query):
         w = m.group(1).lower()
+        # Ensure it contains at least one letter (avoid pure numbers/underscores as keywords)
+        if not any(c.isalpha() for c in w):
+            continue
         if w not in _STOP_WORDS and w not in entity_lower and w not in kw_seen:
             kw_seen.add(w)
             keywords.append(w)

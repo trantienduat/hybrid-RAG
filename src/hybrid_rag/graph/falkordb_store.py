@@ -200,23 +200,24 @@ class FalkorDBStore(GraphStore):
 
     def get_repository_commit(self, repository: str) -> str | None:
         """Retrieve the last indexed commit hash for a repository."""
-        cypher = (
-            "MATCH (r:RepositoryMetadata {id: $repo}) "
-            "RETURN r.last_indexed_commit AS commit"
-        )
+        cypher = "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit"
         res = self._graph.query(cypher, {"repo": repository})
         if res.result_set:
             return res.result_set[0][0]
         return None
 
-    def set_repository_commit(self, repository: str, commit_hash: str, repo_path: str | None = None) -> None:
+    def set_repository_commit(
+        self, repository: str, commit_hash: str, repo_path: str | None = None
+    ) -> None:
         """Save the last indexed commit hash for a repository."""
         if repo_path:
             cypher = (
                 "MERGE (r:RepositoryMetadata {id: $repo}) "
                 "SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()"
             )
-            self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash, "repo_path": repo_path})
+            self._graph.query(
+                cypher, {"repo": repository, "commit_hash": commit_hash, "repo_path": repo_path}
+            )
         else:
             cypher = (
                 "MERGE (r:RepositoryMetadata {id: $repo}) "
@@ -235,7 +236,7 @@ class FalkorDBStore(GraphStore):
             return {
                 "last_indexed_commit": res.result_set[0][0],
                 "repo_path": res.result_set[0][1],
-                "updated_at": res.result_set[0][2]
+                "updated_at": res.result_set[0][2],
             }
         return None
 

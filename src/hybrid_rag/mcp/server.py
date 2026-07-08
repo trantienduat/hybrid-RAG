@@ -14,11 +14,11 @@ from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.vector.qdrant_store import QdrantStore
-from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 
 logger = logging.getLogger("hybrid_rag.mcp")
 
@@ -43,7 +43,7 @@ _QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
 _OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
 _EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
 _RRF_K = int(os.environ.get("RRF_K", 60))
-_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
+_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 1.5))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
 
 # Global caches for lazy initialization
@@ -193,14 +193,14 @@ def get_ast_neighbors(
 
 @mcp.tool()
 def get_community_report(repository: str | None = None) -> list[dict[str, Any]]:
-    """Retrieve Louvain community partitioning summaries for architectural queries.
+    """Retrieve Directory-based community partitioning summaries for architectural queries.
 
     Args:
         repository: Scope community summaries to a specific repository namespace (optional).
     """
     try:
         graph_store, _, _ = get_components()
-        # Louvain communities are stored with 'Community' label in FalkorDB
+        # Directory-based communities are stored with 'Community' label in FalkorDB
         cypher = "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary, c.level AS level"
         res = graph_store.query(cypher)
         communities = []

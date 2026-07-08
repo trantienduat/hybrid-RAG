@@ -22,7 +22,7 @@ We will implement a **Global GraphRAG engine** utilizing **Community Detection**
     *   Execute Louvain community clustering (`networkx.algorithms.community.louvain_communities`) to partition the codebase into cohesive clusters (communities).
 2.  **Community Summarization (Offline Compilation):**
     *   For each detected community, aggregate all member entities, their metadata, structural relationships, and context.
-    *   Pass the community details to the local LLM (`gemma4:12b`) with a specialized structural summary prompt.
+    *   Pass the community details to the local LLM (`qwen2.5-coder:7b`) with a specialized structural summary prompt.
     *   Save the generated summaries as rich `Community` nodes in FalkorDB, establishing `[:IN_COMMUNITY]` relationships from code entities to their respective community.
 3.  **Global Retrieval Engine (Online Query):**
     *   Upgrade the `QueryAnalyzer` to detect global architectural queries (e.g., query type `"global"`).
@@ -101,3 +101,11 @@ An offline builder runs via the CLI:
 
 ### Cons
 *   **One-time CPU Overhead:** The community build process is computationally heavy because it calls the LLM once per community. However, this is done once after indexing and can be cached.
+
+---
+
+## Update: July 2026 (Refactored to Directory Tree Partitioning)
+
+During project finalization, Louvain modularity clustering was replaced with **Directory Tree partitioning**.
+* **Reasoning**: Louvain clustering on large graphs is computationally heavy, and mathematically derived clusters often grouped unrelated utilities together. Directory structures represent human-designed modules, making directory tóm tắt far more intuitive and lightweight to compute and update.
+* **Status**: Implemented and fully integrated into `CommunityBuilder`.

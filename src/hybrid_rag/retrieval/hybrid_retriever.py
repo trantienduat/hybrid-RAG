@@ -46,16 +46,16 @@ class HybridRetriever(BaseRetriever):
         vector_store: VectorStore,
         embedder: BaseEmbedder,
         rrf_k: int = 60,
-        rrf_structural_weight: float = 3.0,
-        rrf_hybrid_weight: float = 1.5,
+        rrf_structural_weight: float = 1.5,  # acts as the unified graph weight
+        rrf_hybrid_weight: float = 1.5,  # unused, kept for compatibility
     ) -> None:
         self._graph_store = graph_store
         self._graph_retriever = GraphRetriever(graph_store)
         self._vector_retriever = VectorRetriever(vector_store, embedder)
         self._assembler = ContextAssembler()
         self._rrf_k = rrf_k
-        self._rrf_structural_weight = rrf_structural_weight
-        self._rrf_hybrid_weight = rrf_hybrid_weight
+        self._rrf_graph_weight = rrf_structural_weight
+        self._last_timings: dict[str, float] = {}
 
     # ── BaseRetriever interface ────────────────────────────────────
 
@@ -78,11 +78,23 @@ class HybridRetriever(BaseRetriever):
                         baseline for evaluation / ablation studies).
             repository: Custom repository namespace to filter results by.
         """
+        import time
+
+        self._last_timings = {
+            "parse_query_ms": 0.0,
+            "graph_search_ms": 0.0,
+            "vector_search_ms": 0.0,
+            "rrf_ms": 0.0,
+        }
+
+        t_start = time.perf_counter()
         analysis = analyze(query)
+        self._last_timings["parse_query_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
         if not skip_graph and analysis.query_type == "global":
             # Global query: fetch all communities and their summaries
+            t_graph = time.perf_counter()
             try:
                 cypher = (
                     "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary"
@@ -104,40 +116,41 @@ class HybridRetriever(BaseRetriever):
                             "rrf_score": 1.0,
                         }
                     )
+                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
                 logger.debug("Retrieved %d communities for global query", len(global_results))
                 if global_results:
                     return global_results
             except Exception as exc:
+                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
                 logger.error("Failed to retrieve communities for global query: %s", exc)
 
         graph_results: list[dict[str, Any]] = []
-        if not skip_graph and analysis.query_type in ("structural", "hybrid"):
+        if not skip_graph and analysis.query_type == "local":
+            t_graph = time.perf_counter()
             graph_results = self._graph_retriever.retrieve(
                 analysis, top_k=top_k * 2, repository=repository
             )
+            self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
             logger.debug("Graph results: %d nodes", len(graph_results))
 
+        t_vector = time.perf_counter()
         filter_payload = {"repository": repository} if repository else None
         vector_results = self._vector_retriever.retrieve(
             query, top_k=top_k * 2, filter_payload=filter_payload
         )
+        self._last_timings["vector_search_ms"] = round((time.perf_counter() - t_vector) * 1000, 2)
         logger.debug("Vector results: %d chunks", len(vector_results))
 
-        # Structural queries are relationship/structure lookups — graph evidence
-        # should dominate so that structural nodes (which have no vector text)
-        # aren't outranked by semantically-similar but irrelevant vector chunks.
+        t_rrf = time.perf_counter()
         if skip_graph:
             rrf_weights = (0.0, 1.0)
-        elif analysis.query_type == "structural":
-            rrf_weights = (self._rrf_structural_weight, 1.0)
-        elif analysis.query_type == "hybrid":
-            rrf_weights = (self._rrf_hybrid_weight, 1.0)
         else:
-            rrf_weights = (1.0, 1.0)
+            rrf_weights = (self._rrf_graph_weight, 1.0)
 
         fused = reciprocal_rank_fusion(
             graph_results, vector_results, k=self._rrf_k, weights=rrf_weights
         )
+        self._last_timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
         return fused[:top_k]
 
     def close(self) -> None:
@@ -159,12 +172,14 @@ class HybridRetriever(BaseRetriever):
 
         # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
         if max_tokens is None and max_chars is None and context_n is not None:
-            return self._assembler.assemble(results, top_n=context_n, query=query)
-
-        # Pack context dynamically under budget constraints
-        return self._assembler.assemble(
-            results,
-            max_tokens=max_tokens,
-            max_chars=max_chars,
-            query=query,
-        )
+            ctx = self._assembler.assemble(results, top_n=context_n, query=query)
+        else:
+            # Pack context dynamically under budget constraints
+            ctx = self._assembler.assemble(
+                results,
+                max_tokens=max_tokens,
+                max_chars=max_chars,
+                query=query,
+            )
+        ctx.timings = self._last_timings.copy()
+        return ctx

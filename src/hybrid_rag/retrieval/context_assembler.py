@@ -24,6 +24,9 @@ class RetrievalContext:
     metadata: dict[str, Any] = field(default_factory=dict)
     """Aggregate metadata: total_results, shown, sources, has_graph, has_vector."""
 
+    timings: dict[str, float] = field(default_factory=dict)
+    """Query and retrieval performance breakdown timings in milliseconds."""
+
 
 class ContextAssembler:
     """Convert ranked retrieval results into a structured context block."""

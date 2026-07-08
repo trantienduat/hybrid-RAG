@@ -13,7 +13,7 @@ Usage::
     runner = RagasRunner(
         retriever=hybrid_retriever,
         ollama_url="http://localhost:11434",
-        llm_model="gemma4:12b",
+        llm_model="qwen2.5-coder:7b",
     )
     report = runner.run(EVAL_CORPUS[:5], top_k=20)
     print(report.summary())
@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.eval.corpus import QueryCase
 
 if TYPE_CHECKING:
@@ -146,11 +147,11 @@ class RagasRunner:
         self,
         retriever: HybridRetriever,
         ollama_url: str = "http://localhost:11434",
-        llm_model: str = "gemma4:12b",
+        llm_model: str | None = None,
     ) -> None:
         self._retriever = retriever
         self._ollama_url = ollama_url
-        self._llm_model = llm_model
+        self._llm_model = llm_model or DEFAULT_LLM_MODEL
 
     # ── Public ────────────────────────────────────────────────────
 

@@ -46,10 +46,17 @@ src/hybrid_rag/
 
 ## 🐳 Containerized Stack & Service Management
 
-The local deployment runs as a fully integrated 3-container stack:
-1.  **`falkordb`:** The Knowledge Graph database (FalkorDB), running on port `6379`.
-2.  **`qdrant`:** The Vector database (Qdrant), running on port `6333` (REST) and `6334` (gRPC).
-3.  **`hybrid-rag-api`:** The Hybrid-RAG REST API and premium Cyber-Dark Web Explorer, running on port `8000`.
+The local deployment runs as a fully integrated containerized stack:
+1.  **`falkordb`:** Knowledge Graph database, running on port `6379` (FalkorDB Browser at port `8008`).
+2.  **`qdrant`:** Vector database, running on port `6333` (REST) and `6334` (gRPC).
+3.  **`hybrid-rag-api`:** REST API and premium Cyber-Dark Web Explorer, running on port `8000`.
+4.  **`hybrid-rag-mcp`:** Model Context Protocol (MCP) Server, running on port `8001`.
+5.  **`otel-collector`:** OpenTelemetry Collector Gateway, running on port `4317` (OTLP gRPC) and `4318` (OTLP HTTP).
+6.  **`prometheus`:** System metrics aggregator, running on port `9090`.
+7.  **`loki`:** Logs aggregation storage, running on port `3100`.
+8.  **`tempo`:** Distributed traces storage, running on port `3200`.
+9.  **`grafana`:** Unified telemetry dashboard, running on port `3010` (credentials: `admin` / `admin`).
+10. **`phoenix`:** Specialized LLM prompt execution and trace evaluator, running on port `6006`.
 
 ### Common Docker Operations
 

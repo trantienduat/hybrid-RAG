@@ -13,7 +13,7 @@ Ensure Ollama is running locally on your host machine, and download the default 
 ollama pull nomic-embed-text
 
 # Pull the default coding LLM
-ollama pull gemma4:12b
+ollama pull qwen2.5-coder:7b
 ```
 
 ### Step B: Start the Service Stack (Docker)
@@ -152,7 +152,7 @@ curl http://localhost:8000/graph/index/tasks
 
 Once setup and indexing are completed, the following services are fully operational:
 
-*   **Interactive Web UI & 3D/2D Visualizer:** Open `http://localhost:8000/` in your browser. Scope queries by repository, view dependency graphs (with Louvain community borders), and chat in real-time.
+*   **Interactive Web UI & 3D/2D Visualizer:** Open `http://localhost:8000/` in your browser. Scope queries by repository, view dependency graphs (with directory-based community borders), and chat in real-time.
 *   **Model Context Protocol (MCP) Server:** Access the SSE network endpoint at `http://localhost:8001/sse` (For detailed setup and Mermaid architecture diagram, refer to the [MCP Setup Guide](mcp.md)).
 *   **REST API Documentation:** Open `http://localhost:8000/docs` to view the FastAPI Swagger UI.
 *   **Qdrant Admin Dashboard:** Visit `http://localhost:6333/dashboard` to inspect vector collections.
@@ -178,16 +178,8 @@ hybrid-rag index . --rebuild
 # Run incremental indexing compared to a specific past commit
 hybrid-rag index . --from-commit a1b2c3d4
 ```
-
-### Git Hook Integration
-You can automate indexing on your local machine so that whenever you pull new commits (`git pull`/`git merge`) or checkout/switch branches (`git checkout`/`git switch`), the database stays in sync automatically:
-```bash
-# Install post-merge and post-checkout hooks into your local repository
-hybrid-rag install-hooks .
-```
-This writes executable hook scripts into `.git/hooks/post-merge` and `.git/hooks/post-checkout` that invoke the CLI in incremental mode.
-
 ---
+
 
 ## 🛠️ 4. Additional Operational CLI Commands
 

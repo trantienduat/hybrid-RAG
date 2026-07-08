@@ -63,9 +63,9 @@ requires_services = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def graph_client():
-    from hybrid_rag.graph.client import GraphClient
+    from hybrid_rag.graph.falkordb_store import FalkorDBStore
 
-    client = GraphClient(graph_name="test_codebase")
+    client = FalkorDBStore(graph_name="test_codebase")
     client.clear()
     yield client
     client.clear()
@@ -73,9 +73,9 @@ def graph_client():
 
 @pytest.fixture(scope="module")
 def vector_client():
-    from hybrid_rag.vector.client import VectorClient
+    from hybrid_rag.vector.qdrant_store import QdrantStore
 
-    client = VectorClient(collection="test_code_chunks")
+    client = QdrantStore(collection="test_code_chunks")
     client.clear()
     yield client
     client.clear()

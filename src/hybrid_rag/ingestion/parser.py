@@ -173,10 +173,12 @@ def parse_repo(
     """
     languages = languages or ["python"]
     exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
-    
-    exclude_set = set(excludes) if excludes is not None else {
-        ".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"
-    }
+
+    exclude_set = (
+        set(excludes)
+        if excludes is not None
+        else {".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"}
+    )
 
     combined = ParseResult()
     for ext in exts:
@@ -186,7 +188,7 @@ def parse_repo(
                 rel_parts = fpath.relative_to(repo_root).parts
             except ValueError:
                 rel_parts = fpath.parts
-            
+
             if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
                 continue
 

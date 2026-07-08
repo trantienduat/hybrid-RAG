@@ -1,7 +1,7 @@
 """
 Community Builder — partitions the codebase graph and compiles community summaries.
 
-Uses networkx Louvain clustering for community detection, Ollama local model for
+Uses directory structure partitioning for community detection, Ollama local model for
 architectural summarization, and writes the resulting communities back to FalkorDB.
 """
 
@@ -35,6 +35,7 @@ Analyze the community details below and write a comprehensive, high-quality arch
 
 Community Details:
 - Community ID: {community_id}
+- Directory Path: {dir_path}
 - Number of Entities: {node_count}
 
 Entity Members:
@@ -106,39 +107,47 @@ class CommunityBuilder:
             self._write_trivial_community(code_nodes, code_edges)
             return 1
 
-        # ── 2. Run Louvain Community Detection using networkx ─────────────────
+        # ── 2. Run Directory-Based Partitioning ──────────────────────────────
         G = nx.Graph()
         for node in code_nodes:
             G.add_node(node["id"], **node)
         for edge in code_edges:
             G.add_edge(edge["src_id"], edge["dst_id"], rel=edge["rel"])
 
-        try:
-            communities_list = nx.algorithms.community.louvain_communities(G, resolution=resolution)
-        except Exception as exc:
-            logger.error(
-                "Louvain community detection failed: %s. Falling back to single partition.", exc
-            )
-            communities_list = [set(G.nodes)]
+        import os
 
-        logger.info("Detected %d communities", len(communities_list))
+        dir_to_nodes: dict[str, set[str]] = {}
+        for node in code_nodes:
+            fp = node.get("file_path", "")
+            if fp:
+                dir_path = os.path.dirname(fp)
+                if not dir_path:
+                    dir_path = "."
+            else:
+                dir_path = "root"
+            dir_to_nodes.setdefault(dir_path, set()).add(node["id"])
+
+        logger.info("Grouped codebase into %d directory-based communities", len(dir_to_nodes))
 
         # Map each code node ID to its community index
         node_to_comm: dict[str, int] = {}
-        for comm_idx, comm_nodes in enumerate(communities_list):
-            for nid in comm_nodes:
+        dir_paths = list(dir_to_nodes.keys())
+        for comm_idx, dir_path in enumerate(dir_paths):
+            for nid in dir_to_nodes[dir_path]:
                 node_to_comm[nid] = comm_idx
 
         # ── 3. Compile and Summarize each Community ──────────────────────────
         compiled_communities = []
 
-        for comm_idx, comm_nodes in enumerate(communities_list):
+        for comm_idx, dir_path in enumerate(dir_paths):
             comm_id = f"community_lvl_0_{comm_idx}"
+            comm_nodes = dir_to_nodes[dir_path]
             logger.info(
-                "Summarizing community %d/%d (%s) with %d nodes…",
+                "Summarizing community %d/%d (%s, Path: %s) with %d nodes…",
                 comm_idx + 1,
-                len(communities_list),
+                len(dir_paths),
                 comm_id,
+                dir_path,
                 len(comm_nodes),
             )
 
@@ -182,6 +191,7 @@ class CommunityBuilder:
             # Send to Ollama
             prompt = _USER_TEMPLATE.format(
                 community_id=comm_id,
+                dir_path=dir_path,
                 node_count=len(comm_nodes),
                 entity_list=entity_list_str,
                 relation_list=relation_list_str,
@@ -312,10 +322,11 @@ class CommunityBuilder:
             "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
             {"id": comm_id, "name": "Codebase Core Core", "summary": summary},
         )
-        for nid in node_ids:
+        if node_ids:
             self._store.query(
-                "MATCH (n) WHERE n.id = $node_id MATCH (c:Community) WHERE c.id = $comm_id MERGE (n)-[:IN_COMMUNITY]->(c)",
-                {"node_id": nid, "comm_id": comm_id},
+                "UNWIND $node_ids AS nid MATCH (n) WHERE n.id = nid "
+                "MATCH (c:Community {id: $comm_id}) MERGE (n)-[:IN_COMMUNITY]->(c)",
+                {"node_ids": node_ids, "comm_id": comm_id},
             )
 
     def _write_communities_to_db(
@@ -335,11 +346,12 @@ class CommunityBuilder:
                 {"id": comm["id"], "name": comm["name"], "summary": comm["summary"]},
             )
 
-            # 3. Create IN_COMMUNITY relationships for all member nodes
-            for node_id in comm["nodes"]:
+            # 3. Create IN_COMMUNITY relationships for all member nodes in batch
+            if comm["nodes"]:
                 self._store.query(
-                    "MATCH (n) WHERE n.id = $node_id MATCH (c:Community) WHERE c.id = $comm_id MERGE (n)-[:IN_COMMUNITY]->(c)",
-                    {"node_id": node_id, "comm_id": comm["id"]},
+                    "UNWIND $node_ids AS nid MATCH (n) WHERE n.id = nid "
+                    "MATCH (c:Community {id: $comm_id}) MERGE (n)-[:IN_COMMUNITY]->(c)",
+                    {"node_ids": list(comm["nodes"]), "comm_id": comm["id"]},
                 )
 
         # 4. Write inter-community dependencies (COMMUNITY_DEPENDS)

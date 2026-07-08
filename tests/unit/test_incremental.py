@@ -8,11 +8,10 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from hybrid_rag.ingestion.parser import NodeData, EdgeData, ParseResult
-from hybrid_rag.ingestion.pipeline import _detect_git_changes, run_indexing_pipeline
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
+from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
+from hybrid_rag.ingestion.pipeline import _detect_git_changes, run_indexing_pipeline
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
 
@@ -20,16 +19,8 @@ def test_detect_git_changes_success():
     repo = Path("/mock/repo")
     last_commit = "commit123"
 
-    mock_diff = (
-        "M\tsrc/foo.py\n"
-        "D\tsrc/bar.py\n"
-        "A\tsrc/baz.py\n"
-        "R099\tsrc/old.py\tsrc/new.py\n"
-    )
-    mock_status = (
-        "?? src/untracked.py\n"
-        "?? docs/untracked.txt\n"
-    )
+    mock_diff = "M\tsrc/foo.py\nD\tsrc/bar.py\nA\tsrc/baz.py\nR099\tsrc/old.py\tsrc/new.py\n"
+    mock_status = "?? src/untracked.py\n?? docs/untracked.txt\n"
 
     def mock_subprocess_run(args, cwd, **kwargs):
         cmd = args[1]
@@ -54,7 +45,7 @@ def test_detect_git_changes_success():
         )
         assert res is not None
         modified, deleted = res
-        
+
         # bar.py and old.py should be deleted
         assert deleted == {"src/bar.py", "src/old.py"}
         # foo.py, baz.py, new.py, untracked.py should be modified
@@ -64,7 +55,7 @@ def test_detect_git_changes_success():
 
 def test_detect_git_changes_not_git_repo():
     repo = Path("/mock/repo")
-    
+
     with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "git")):
         res = _detect_git_changes(
             repo=repo,
@@ -82,19 +73,19 @@ def test_falkordb_store_commit_metadata():
 
     with patch("falkordb.FalkorDB", return_value=mock_db):
         store = FalkorDBStore(host="localhost", port=6379, graph_name="test")
-        
+
         # Test set_repository_commit without path
         store.set_repository_commit("repo123", "commit456")
         mock_graph.query.assert_called_with(
             "MERGE (r:RepositoryMetadata {id: $repo}) SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()",
-            {"repo": "repo123", "commit_hash": "commit456"}
+            {"repo": "repo123", "commit_hash": "commit456"},
         )
 
         # Test set_repository_commit with path
         store.set_repository_commit("repo123", "commit456", "/path/to/repo")
         mock_graph.query.assert_called_with(
             "MERGE (r:RepositoryMetadata {id: $repo}) SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()",
-            {"repo": "repo123", "commit_hash": "commit456", "repo_path": "/path/to/repo"}
+            {"repo": "repo123", "commit_hash": "commit456", "repo_path": "/path/to/repo"},
         )
 
         # Test get_repository_commit
@@ -106,7 +97,7 @@ def test_falkordb_store_commit_metadata():
         assert commit == "commit456"
         mock_graph.query.assert_called_with(
             "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit",
-            {"repo": "repo123"}
+            {"repo": "repo123"},
         )
 
         # Test get_repository_metadata
@@ -115,10 +106,14 @@ def test_falkordb_store_commit_metadata():
         mock_graph.query.return_value = mock_meta_res
 
         meta = store.get_repository_metadata("repo123")
-        assert meta == {"last_indexed_commit": "commit456", "repo_path": "/path/to/repo", "updated_at": 1700000000000}
+        assert meta == {
+            "last_indexed_commit": "commit456",
+            "repo_path": "/path/to/repo",
+            "updated_at": 1700000000000,
+        }
         mock_graph.query.assert_called_with(
             "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.repo_path AS path, r.updated_at AS updated_at",
-            {"repo": "repo123"}
+            {"repo": "repo123"},
         )
 
 
@@ -132,7 +127,7 @@ def test_falkordb_store_delete_file_nodes():
         store.delete_file_nodes("src/foo.py", "repo123")
         mock_graph.query.assert_called_with(
             "MATCH (n) WHERE n.file_path = $file_path AND n.repository = $repository DETACH DELETE n",
-            {"file_path": "src/foo.py", "repository": "repo123"}
+            {"file_path": "src/foo.py", "repository": "repo123"},
         )
 
 
@@ -141,13 +136,13 @@ def test_qdrant_store_delete_file_vectors():
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
         store = QdrantStore(host="localhost", port=6333, collection="test_col")
         store.delete_file_vectors("src/foo.py", "repo123")
-        
+
         # Check client delete call
         mock_client.delete.assert_called_once()
         args, kwargs = mock_client.delete.call_args
         assert kwargs["collection_name"] == "test_col"
         filter_obj = kwargs["points_selector"]
-        
+
         # Verify it has must conditions matching file_path and repository
         conditions = filter_obj.must
         assert len(conditions) == 2
@@ -160,14 +155,16 @@ def test_qdrant_store_delete_file_vectors():
 @patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
 @patch("hybrid_rag.ingestion.parser.parse_file")
 @patch("subprocess.run")
-def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_detect_git, tmp_path):
+def test_incremental_indexing_pipeline_run(
+    mock_sub_run, mock_parse_file, mock_detect_git, tmp_path
+):
     # Set up mocks
     mock_graph = MagicMock()
     mock_vector = MagicMock()
 
     # last indexed commit in DB is commit123, HEAD is commit456
     mock_graph.get_repository_commit.return_value = "commit123"
-    
+
     mock_head_res = MagicMock()
     mock_head_res.stdout = "commit456\n"
     mock_sub_run.return_value = mock_head_res
@@ -177,16 +174,23 @@ def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_d
 
     # Parse result of modified file
     mock_parse_file.return_value = ParseResult(
-        nodes=[NodeData(label="Function", id="src/a.py::foo", properties={"name": "foo", "file_path": "src/a.py"})],
-        edges=[EdgeData(src_id="src/a.py", rel="DEFINES", dst_id="src/a.py::foo")]
+        nodes=[
+            NodeData(
+                label="Function",
+                id="src/a.py::foo",
+                properties={"name": "foo", "file_path": "src/a.py"},
+            )
+        ],
+        edges=[EdgeData(src_id="src/a.py", rel="DEFINES", dst_id="src/a.py::foo")],
     )
 
     # run pipeline
-    with patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda x: x), \
-         patch("hybrid_rag.ingestion.entity_resolver.resolve_global", side_effect=lambda x, y: x), \
-         patch("hybrid_rag.ingestion.chunker.chunk_file", return_value=[]):
-        
-        res = run_indexing_pipeline(
+    with (
+        patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda x: x),
+        patch("hybrid_rag.ingestion.entity_resolver.resolve_global", side_effect=lambda x, y: x),
+        patch("hybrid_rag.ingestion.chunker.chunk_file", return_value=[]),
+    ):
+        run_indexing_pipeline(
             repo_path=tmp_path,
             languages=["python"],
             repo_name="myrepo",
@@ -194,7 +198,7 @@ def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_d
             vector_store=mock_vector,
             ollama_url="http://localhost:11434",
             embed_model="nomic-embed-text",
-            llm_model="qwen2.5-coder:7b",
+            llm_model=DEFAULT_LLM_MODEL,
             llm_extract=False,
             max_tokens=512,
             incremental=True,
@@ -211,4 +215,6 @@ def test_incremental_indexing_pipeline_run(mock_sub_run, mock_parse_file, mock_d
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
         # Assert commit was updated to HEAD (commit456)
-        mock_graph.set_repository_commit.assert_called_with("myrepo", "commit456", repo_path=str(tmp_path))
+        mock_graph.set_repository_commit.assert_called_with(
+            "myrepo", "commit456", repo_path=str(tmp_path)
+        )

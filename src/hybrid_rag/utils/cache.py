@@ -43,9 +43,7 @@ class RedisQueryCache:
             # Perform active ping test
             await self.client.ping()
             self.is_connected = True
-            logger.info(
-                "Connected to Redis cache at %s:%d (db=%d)", self.host, self.port, self.db
-            )
+            logger.info("Connected to Redis cache at %s:%d (db=%d)", self.host, self.port, self.db)
         except Exception as exc:
             self.is_connected = False
             self.client = None

@@ -47,14 +47,12 @@ services:
       - LLM_MODEL=qwen2.5-coder:7b
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
-      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     depends_on:
       falkordb:
         condition: service_healthy
       qdrant:
         condition: service_healthy
-      phoenix:
-        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -83,14 +81,12 @@ services:
       - LLM_MODEL=qwen2.5-coder:7b
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
-      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     depends_on:
       falkordb:
         condition: service_healthy
       qdrant:
         condition: service_healthy
-      phoenix:
-        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -104,16 +100,18 @@ services:
       start_period: 5s
 
   phoenix:
+    profiles: ["observability"]
     image: arizephoenix/phoenix:latest
     container_name: phoenix
     ports:
-      - "6006:6006"   # Web UI / HTTP OTLP collector
-      - "4317:4317"   # gRPC OTLP collector
+      - "6006:6006"   # Web UI
+      - "4317"        # Internal gRPC receiver
     volumes:
       - phoenix_data:/root/.phoenix
     restart: unless-stopped
 
   prometheus:
+    profiles: ["observability"]
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
@@ -125,7 +123,46 @@ services:
       - hybrid-rag-api
     restart: unless-stopped
 
+  loki:
+    profiles: ["observability"]
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    restart: unless-stopped
+
+  tempo:
+    profiles: ["observability"]
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: -config.file=/etc/tempo/tempo-local.yaml
+    ports:
+      - "3200:3200"   # Tempo API / UI
+    volumes:
+      - tempo_data:/var/tempo
+    restart: unless-stopped
+
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    depends_on:
+      - loki
+      - tempo
+      - phoenix
+    restart: unless-stopped
+
   grafana:
+    profiles: ["observability"]
     image: grafana/grafana:latest
     container_name: grafana
     ports:
@@ -138,6 +175,8 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+      - loki
+      - tempo
     restart: unless-stopped
 
 
@@ -147,4 +186,6 @@ volumes:
   phoenix_data:
   prometheus_data:
   grafana_data:
+  loki_data:
+  tempo_data:
 

@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-QueryType = Literal["structural", "semantic", "hybrid", "global"]
+QueryType = Literal["local", "global"]
 
 # Global signals: questions about repository-wide architecture, summaries, modules overview
 _GLOBAL_RE = re.compile(
@@ -26,29 +26,6 @@ _GLOBAL_RE = re.compile(
     r"architectural\s+design|system\s+design|general\s+overview|how\s+is\s+the\s+project\s+structured|"
     r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống|"
     r"tổng\s+quan\s+dự\s+án|tóm\s+tắt\s+codebase|luồng\s+hệ\s+thống|cấu\s+trúc\s+thư\s+mục)\b",
-    re.IGNORECASE,
-)
-
-# Structural signals: questions about code topology and relationships
-_STRUCTURAL_RE = re.compile(
-    r"\b(?:inherits?|extends?|implements?|subclass(?:es)?|overrides?|"
-    r"imports?|depends?|dependency|dependencies|"
-    r"calls?|invokes?|"
-    r"defines?|declares?|"
-    r"relations?|connections?|graph|paths?|reaches?|"
-    r"ancestor|descendant|parent|child(?:ren)?|"
-    r"which\s+(?:classes?|functions?|methods?|modules?)|"
-    r"kế\s+thừa|nhập|nhập\s+khẩu|phụ\s+thuộc|gọi|định\s+nghĩa|quan\s+hệ|liên\s+kết|đồ\s+thị|đường\s+dẫn|cha|con|lớp|hàm|thư\s+viện)\b",
-    re.IGNORECASE,
-)
-
-# Semantic signals: questions about meaning, intent, or behavior
-_SEMANTIC_RE = re.compile(
-    r"\b(?:explain|describes?|summarize[sd]?|"
-    r"what\s+does|how\s+does|why\s+does|how\s+(?:it\s+)?works?|"
-    r"purpose|meaning|intent|example|"
-    r"behavior|logic|algorithm|pattern|workflow|handles?|processes?|"
-    r"mô\s+tả|giải\s+thích|hoạt\s+động|ý\s+nghĩa|mục\s+đích|ví\s+dụ|luồng|quy\s+trình|xử\s+lý|làm\s+gì|thế\s+nào|tại\s+sao)\b",
     re.IGNORECASE,
 )
 
@@ -211,20 +188,7 @@ class QueryAnalysis:
 def analyze(query: str) -> QueryAnalysis:
     """Classify a free-text query and extract code identifiers."""
     is_global = bool(_GLOBAL_RE.search(query))
-    if is_global:
-        query_type: QueryType = "global"
-    else:
-        structural = bool(_STRUCTURAL_RE.search(query))
-        semantic = bool(_SEMANTIC_RE.search(query))
-
-        if structural and semantic:
-            query_type = "hybrid"
-        elif structural:
-            query_type = "structural"
-        elif semantic:
-            query_type = "semantic"
-        else:
-            query_type = "hybrid"  # default: use both graph + vector
+    query_type: QueryType = "global" if is_global else "local"
 
     # ── entity extraction ──────────────────────────────────────────
     seen: set[str] = set()

@@ -57,7 +57,7 @@ class EvalRunner:
         vector_store: VectorStore,
         embedder: BaseEmbedder,
         rrf_k: int = 60,
-        rrf_structural_weight: float = 3.0,
+        rrf_structural_weight: float = 1.5,
         rrf_hybrid_weight: float = 1.5,
     ) -> None:
         self._graph_store = graph_store
@@ -149,7 +149,7 @@ class RepoQAEvalRunner:
         vector_store: VectorStore,
         embedder: BaseEmbedder,
         rrf_k: int = 60,
-        rrf_structural_weight: float = 3.0,
+        rrf_structural_weight: float = 1.5,
         rrf_hybrid_weight: float = 1.5,
     ) -> None:
         self._graph_store = graph_store

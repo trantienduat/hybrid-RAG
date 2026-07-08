@@ -38,6 +38,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from prometheus_client import Counter, Histogram, make_asgi_app
 
 from hybrid_rag.api.schemas import (
     GraphNeighborsResponse,
@@ -60,7 +61,6 @@ from hybrid_rag.retrieval.query_analyzer import analyze
 from hybrid_rag.utils.cache import RedisQueryCache
 from hybrid_rag.utils.tracing import initialize_tracing, start_span
 from hybrid_rag.vector.qdrant_store import QdrantStore
-from prometheus_client import Counter, Histogram, make_asgi_app
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,7 @@ RAG_TOKENS_SAVED = Counter(
     ["model", "query_type"],
 )
 QUERY_CACHE_HITS = Counter(
-    "query_cache_hits_total",
-    "Total number of query hits resolved from Redis cache"
+    "query_cache_hits_total", "Total number of query hits resolved from Redis cache"
 )
 LLM_TOKENS_CONSUMED = Counter(
     "llm_tokens_consumed_total",
@@ -108,7 +107,7 @@ _QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
 _OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
 _EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
 _RRF_K = int(os.environ.get("RRF_K", 60))
-_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 3.0))
+_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 1.5))
 _RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
 
 
@@ -369,16 +368,127 @@ def _is_vietnamese(text: str) -> bool:
     return False
 
 
-def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
+def _is_reasoning_model(model: str | None) -> bool:
+    """Detect if the model is a reasoning/thinking model (like deepseek-r1)."""
+    if not model:
+        return False
+    model_lower = model.lower()
+    return "r1" in model_lower or "reasoner" in model_lower or "thinking" in model_lower
+
+
+def _estimate_num_ctx(prompt: str) -> int:
+    """Estimate dynamic context window size (num_ctx) for Ollama based on prompt length."""
+    env_ctx = os.environ.get("OLLAMA_NUM_CTX")
+    if env_ctx:
+        try:
+            return int(env_ctx)
+        except ValueError:
+            pass
+
+    try:
+        import tiktoken
+
+        encoding = tiktoken.get_encoding("cl100k_base")
+        prompt_tokens = len(encoding.encode(prompt))
+    except Exception:
+        # Fallback approximation: 1 token ~= 4 characters
+        prompt_tokens = len(prompt) // 4
+
+    # We want at least 2048 tokens of response buffer
+    target_ctx = prompt_tokens + 2048
+
+    # Clamp between a safe minimum (8192) and a safe maximum (32768)
+    min_ctx = 8192
+    max_ctx = int(os.environ.get("OLLAMA_MAX_NUM_CTX", "32768"))
+
+    # Round up to nearest 1024
+    target_ctx = ((target_ctx + 1023) // 1024) * 1024
+    return max(min_ctx, min(target_ctx, max_ctx))
+
+
+def _build_prompt(
+    question: str, context: str, model: str | None = None, is_global: bool = False
+) -> str:
     is_viet = _is_vietnamese(question)
+    use_thinking = _is_reasoning_model(model)
 
     if is_viet:
-        lang_instruction = (
-            "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
-            "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
-            "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
-            "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
-        )
+        if use_thinking:
+            lang_instruction = (
+                "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+                "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+                "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+            )
+            if is_global:
+                return (
+                    "You are an expert principal software architect. Below is a set of hierarchical community summaries "
+                    "describing the structural design, modules, and dependencies of the codebase.\n"
+                    "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
+                    "Highlight key components, database models, core flows, and cross-module relationships.\n"
+                    "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+                    "to infer design patterns, architectures, and intent.\n"
+                    f"{lang_instruction}\n\n"
+                    "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
+                    "and then write your final report outside the tags. You must strictly follow this format:\n"
+                    "<think>\n"
+                    "[Viết quá trình suy nghĩ và phân tích chi tiết của bạn tại đây bằng Tiếng Việt]\n"
+                    "</think>\n\n"
+                    "[Viết báo cáo kiến trúc cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                    f"Community Summaries Context:\n{context}\n\n"
+                    f"User Request: {question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Architectural Report (in Vietnamese):"
+                )
+            return (
+                "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+                "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+                "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+                "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
+                f"{lang_instruction}\n\n"
+                "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
+                "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                "<think>\n"
+                "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+                "</think>\n\n"
+                "[Viết câu trả lời chi tiết cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                f"Context:\n{context}\n\n"
+                f"Question: {question}\n\n"
+                f"{lang_instruction}\n"
+                "Answer (in Vietnamese):"
+            )
+        else:
+            lang_instruction = (
+                "IMPORTANT: The user's question is in Vietnamese. You MUST answer in Vietnamese.\n"
+                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI trả lời bằng Tiếng Việt."
+            )
+            if is_global:
+                return (
+                    "You are an expert principal software architect. Below is a set of hierarchical community summaries "
+                    "describing the structural design, modules, and dependencies of the codebase.\n"
+                    "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
+                    "Highlight key components, database models, core flows, and cross-module relationships.\n"
+                    "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+                    "to infer design patterns, architectures, and intent.\n"
+                    f"{lang_instruction}\n\n"
+                    f"Community Summaries Context:\n{context}\n\n"
+                    f"User Request: {question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Architectural Report (in Vietnamese):"
+                )
+            return (
+                "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+                "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+                "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+                "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
+                f"{lang_instruction}\n\n"
+                f"Context:\n{context}\n\n"
+                f"Question: {question}\n\n"
+                f"{lang_instruction}\n"
+                "Answer (in Vietnamese):"
+            )
+
+    if use_thinking:
         if is_global:
             return (
                 "You are an expert principal software architect. Below is a set of hierarchical community summaries "
@@ -387,73 +497,61 @@ def _build_prompt(question: str, context: str, is_global: bool = False) -> str:
                 "Highlight key components, database models, core flows, and cross-module relationships.\n"
                 "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
                 "to infer design patterns, architectures, and intent.\n"
-                f"{lang_instruction}\n\n"
+                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
                 "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
                 "and then write your final report outside the tags. You must strictly follow this format:\n"
                 "<think>\n"
-                "[Viết quá trình suy nghĩ và phân tích chi tiết của bạn tại đây bằng Tiếng Việt]\n"
+                "[Your detailed code analysis, module reviews, and thinking steps]\n"
                 "</think>\n\n"
-                "[Viết báo cáo kiến trúc cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                "[Your final architectural report]\n\n"
                 f"Community Summaries Context:\n{context}\n\n"
                 f"User Request: {question}\n\n"
-                f"{lang_instruction}\n"
-                "Architectural Report (in Vietnamese):"
+                "Architectural Report:"
             )
         return (
             "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
             "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
             "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
             "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
-            f"{lang_instruction}\n\n"
+            "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+            "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
             "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
             "and then write your final answer outside the tags. You must strictly follow this format:\n"
             "<think>\n"
-            "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+            "[Your step-by-step reasoning, context analysis, and synthesis with general knowledge]\n"
             "</think>\n\n"
-            "[Viết câu trả lời chi tiết cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+            "[Your final detailed answer]\n\n"
             f"Context:\n{context}\n\n"
             f"Question: {question}\n\n"
-            f"{lang_instruction}\n"
-            "Answer (in Vietnamese):"
+            "Answer:"
         )
-
-    if is_global:
+    else:
+        if is_global:
+            return (
+                "You are an expert principal software architect. Below is a set of hierarchical community summaries "
+                "describing the structural design, modules, and dependencies of the codebase.\n"
+                "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
+                "Highlight key components, database models, core flows, and cross-module relationships.\n"
+                "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
+                "to infer design patterns, architectures, and intent.\n"
+                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
+                f"Community Summaries Context:\n{context}\n\n"
+                f"User Request: {question}\n\n"
+                "Architectural Report:"
+            )
         return (
-            "You are an expert principal software architect. Below is a set of hierarchical community summaries "
-            "describing the structural design, modules, and dependencies of the codebase.\n"
-            "Analyze these summaries and provide a comprehensive, highly-structured architectural report. "
-            "Highlight key components, database models, core flows, and cross-module relationships.\n"
-            "If the summaries are sparse, combine these structural clues with your general software architecture knowledge "
-            "to infer design patterns, architectures, and intent.\n"
+            "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
+            "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
+            "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
+            "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
             "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
             "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
-            "CRITICAL: You MUST write your detailed, step-by-step reasoning process inside <think> and </think> tags FIRST, "
-            "and then write your final report outside the tags. You must strictly follow this format:\n"
-            "<think>\n"
-            "[Your detailed code analysis, module reviews, and thinking steps]\n"
-            "</think>\n\n"
-            "[Your final architectural report]\n\n"
-            f"Community Summaries Context:\n{context}\n\n"
-            f"User Request: {question}\n\n"
-            "Architectural Report:"
+            f"Context:\n{context}\n\n"
+            f"Question: {question}\n\n"
+            "Answer:"
         )
-    return (
-        "You are an expert code assistant. Use the provided context below as the primary source of truth to answer the question.\n"
-        "If the context is sparse (e.g. only contains a list of directories, modules, or file definitions) but lacks conceptual detail, "
-        "you should synthesize these structural clues with your general software engineering knowledge to explain the architecture, concepts, or design intent. "
-        "Clearly indicate what is derived directly from the code context versus what is inferred based on general programming practices.\n"
-        "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
-        "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
-        "CRITICAL: You MUST write your detailed, step-by-step thinking process and code analysis inside <think> and </think> tags FIRST, "
-        "and then write your final answer outside the tags. You must strictly follow this format:\n"
-        "<think>\n"
-        "[Your step-by-step reasoning, context analysis, and synthesis with general knowledge]\n"
-        "</think>\n\n"
-        "[Your final detailed answer]\n\n"
-        f"Context:\n{context}\n\n"
-        f"Question: {question}\n\n"
-        "Answer:"
-    )
 
 
 async def _llm_generate(prompt: str, model: str) -> str:
@@ -497,7 +595,9 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 if prompt_tokens > 0:
                     LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
                 if candidates_tokens > 0:
-                    LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+                    LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
+                        candidates_tokens
+                    )
 
             candidates = res_json.get("candidates", [])
             if candidates:
@@ -512,7 +612,7 @@ async def _llm_generate(prompt: str, model: str) -> str:
                 "prompt": prompt,
                 "stream": False,
                 "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-                "options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))},
+                "options": {"num_ctx": _estimate_num_ctx(prompt)},
             }
             resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
             resp.raise_for_status()
@@ -522,7 +622,9 @@ async def _llm_generate(prompt: str, model: str) -> str:
             if prompt_tokens > 0:
                 LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
             if candidates_tokens > 0:
-                LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+                LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
+                    candidates_tokens
+                )
             return res_json.get("response", "")
 
 
@@ -551,15 +653,25 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                     data = json.loads(line[6:])
                 except json.JSONDecodeError:
                     continue
-                
+
                 usage = data.get("usageMetadata") or data.get("usage_metadata")
                 if usage:
-                    prompt_tokens = usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
-                    candidates_tokens = usage.get("candidatesTokenCount") or usage.get("candidates_token_count") or 0
+                    prompt_tokens = (
+                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
+                    )
+                    candidates_tokens = (
+                        usage.get("candidatesTokenCount")
+                        or usage.get("candidates_token_count")
+                        or 0
+                    )
                     if prompt_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(
+                            prompt_tokens
+                        )
                     if candidates_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
+                            candidates_tokens
+                        )
 
                 candidates = data.get("candidates", [])
                 if candidates:
@@ -575,7 +687,7 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
             "prompt": prompt,
             "stream": True,
             "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-            "options": {"num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "4096"))},
+            "options": {"num_ctx": _estimate_num_ctx(prompt)},
         }
         async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
             resp.raise_for_status()
@@ -591,9 +703,13 @@ async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
                     prompt_tokens = data.get("prompt_eval_count", 0)
                     candidates_tokens = data.get("eval_count", 0)
                     if prompt_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(
+                            prompt_tokens
+                        )
                     if candidates_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
+                            candidates_tokens
+                        )
                 done = bool(data.get("done", False))
                 yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
                 if done:
@@ -712,7 +828,9 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     if cached_resp is not None:
         logger.info("Serving query response from Redis cache: '%s'", req.question)
         QUERY_CACHE_HITS.inc()
-        QUERY_DURATION.labels(query_type=cached_resp.get("query_type", "general"), cache_status="hit").observe(time.perf_counter() - t0)
+        QUERY_DURATION.labels(
+            query_type=cached_resp.get("query_type", "general"), cache_status="hit"
+        ).observe(time.perf_counter() - t0)
         cached_resp["latency_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         return QueryResponse(**cached_resp)
 
@@ -766,6 +884,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
             prompt = _build_prompt(
                 req.question,
                 context_text,
+                model=req.llm_model,
                 is_global=(analysis.query_type == "global"),
             )
             sources = [
@@ -783,43 +902,67 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
             q_type = analysis.query_type
     else:
         is_viet = _is_vietnamese(req.question)
+        use_thinking = _is_reasoning_model(req.llm_model)
         if is_viet:
-            lang_instruction = (
-                "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
-                "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
-                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
-                "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
-            )
-            prompt = (
-                "You are an expert AI software developer and codebase assistant.\n"
-                f"{lang_instruction}\n\n"
-                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-                "and then write your final answer outside the tags. You must strictly follow this format:\n"
-                "<think>\n"
-                "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
-                "</think>\n\n"
-                "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
-                f"Question: {req.question}\n\n"
-                f"{lang_instruction}\n"
-                "Answer (in Vietnamese):"
-            )
+            if use_thinking:
+                lang_instruction = (
+                    "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+                    "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+                    "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+                    "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+                )
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant.\n"
+                    f"{lang_instruction}\n\n"
+                    "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                    "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                    "<think>\n"
+                    "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+                    "</think>\n\n"
+                    "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                    f"Question: {req.question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Answer (in Vietnamese):"
+                )
+            else:
+                lang_instruction = (
+                    "IMPORTANT: The user's question is in Vietnamese. You MUST answer in Vietnamese.\n"
+                    "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI trả lời bằng Tiếng Việt."
+                )
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant.\n"
+                    f"{lang_instruction}\n\n"
+                    f"Question: {req.question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Answer (in Vietnamese):"
+                )
         else:
-            prompt = (
-                "You are an expert AI software developer and codebase assistant. "
-                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
-                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
-                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-                "and then write your final answer outside the tags. You must strictly follow this format:\n"
-                "<think>\n"
-                "[Your thinking process]\n"
-                "</think>\n\n"
-                "[Your final answer]\n\n"
-                f"Question: {req.question}\n\n"
-                "Answer:"
-            )
+            if use_thinking:
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant. "
+                    "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                    "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
+                    "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                    "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                    "<think>\n"
+                    "[Your thinking process]\n"
+                    "</think>\n\n"
+                    "[Your final answer]\n\n"
+                    f"Question: {req.question}\n\n"
+                    "Answer:"
+                )
+            else:
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant. "
+                    "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                    "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
+                    f"Question: {req.question}\n\n"
+                    "Answer:"
+                )
         sources = []
         q_type = "general"
 
+    t_llm = time.perf_counter()
     try:
         # Concurrency Guard
         async with app.state.llm_semaphore:
@@ -830,7 +973,23 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     finally:
         gc.collect()
 
+    llm_ms = (time.perf_counter() - t_llm) * 1000
     latency_ms = (time.perf_counter() - t0) * 1000
+
+    timings = {}
+    if req.codebase_query:
+        timings = ctx.timings.copy()
+        timings["llm_ms"] = round(llm_ms, 2)
+        timings["total_ms"] = round(latency_ms, 2)
+    else:
+        timings = {
+            "parse_query_ms": 0.0,
+            "graph_search_ms": 0.0,
+            "vector_search_ms": 0.0,
+            "rrf_ms": 0.0,
+            "llm_ms": round(llm_ms, 2),
+            "total_ms": round(latency_ms, 2),
+        }
 
     response = QueryResponse(
         question=req.question,
@@ -838,6 +997,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         query_type=q_type,
         sources=sources,
         latency_ms=round(latency_ms, 2),
+        timings=timings,
     )
 
     QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
@@ -845,15 +1005,15 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     if req.codebase_query:
         try:
             import tiktoken
+
             try:
                 count_res = app.state.vector_store._client.count(
-                    collection_name=app.state.vector_store._collection,
-                    exact=True
+                    collection_name=app.state.vector_store._collection, exact=True
                 )
                 codebase_tokens = count_res.count * 300
             except Exception:
                 codebase_tokens = 160000
-            
+
             prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
             saved_tokens = max(0, codebase_tokens - prompt_tokens)
             RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
@@ -900,7 +1060,9 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             q_type = first_event.get("query_type", "general")
         except Exception:
             q_type = "general"
-        QUERY_DURATION.labels(query_type=q_type, cache_status="hit").observe(time.perf_counter() - t0)
+        QUERY_DURATION.labels(query_type=q_type, cache_status="hit").observe(
+            time.perf_counter() - t0
+        )
 
         async def _cached_stream() -> AsyncIterator[str]:
             for event in cached_events:
@@ -965,6 +1127,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             prompt = _build_prompt(
                 req.question,
                 context_text,
+                model=req.llm_model,
                 is_global=(analysis.query_type == "global"),
             )
 
@@ -983,40 +1146,63 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             q_type = analysis.query_type
     else:
         is_viet = _is_vietnamese(req.question)
+        use_thinking = _is_reasoning_model(req.llm_model)
         if is_viet:
-            lang_instruction = (
-                "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
-                "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
-                "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
-                "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
-            )
-            prompt = (
-                "You are an expert AI software developer and codebase assistant.\n"
-                f"{lang_instruction}\n\n"
-                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-                "and then write your final answer outside the tags. You must strictly follow this format:\n"
-                "<think>\n"
-                "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
-                "</think>\n\n"
-                "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
-                f"Question: {req.question}\n\n"
-                f"{lang_instruction}\n"
-                "Answer (in Vietnamese):"
-            )
+            if use_thinking:
+                lang_instruction = (
+                    "IMPORTANT: The user's question is in Vietnamese. You MUST think and answer in Vietnamese. "
+                    "Both the content inside <think>...</think> and the final answer MUST be written entirely in Vietnamese.\n"
+                    "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI suy nghĩ trong <think> và trả lời bằng Tiếng Việt. "
+                    "Tất cả nội dung suy nghĩ và câu trả lời cuối cùng đều phải viết bằng Tiếng Việt."
+                )
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant.\n"
+                    f"{lang_instruction}\n\n"
+                    "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                    "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                    "<think>\n"
+                    "[Viết quá trình suy nghĩ và phân tích của bạn tại đây bằng Tiếng Việt]\n"
+                    "</think>\n\n"
+                    "[Viết câu trả lời cuối cùng của bạn tại đây bằng Tiếng Việt]\n\n"
+                    f"Question: {req.question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Answer (in Vietnamese):"
+                )
+            else:
+                lang_instruction = (
+                    "IMPORTANT: The user's question is in Vietnamese. You MUST answer in Vietnamese.\n"
+                    "LƯU Ý QUAN TRỌNG: Câu hỏi của người dùng bằng Tiếng Việt. Bạn PHẢI trả lời bằng Tiếng Việt."
+                )
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant.\n"
+                    f"{lang_instruction}\n\n"
+                    f"Question: {req.question}\n\n"
+                    f"{lang_instruction}\n"
+                    "Answer (in Vietnamese):"
+                )
         else:
-            prompt = (
-                "You are an expert AI software developer and codebase assistant. "
-                "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
-                "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
-                "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
-                "and then write your final answer outside the tags. You must strictly follow this format:\n"
-                "<think>\n"
-                "[Your thinking process]\n"
-                "</think>\n\n"
-                "[Your final answer]\n\n"
-                f"Question: {req.question}\n\n"
-                "Answer:"
-            )
+            if use_thinking:
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant. "
+                    "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                    "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n"
+                    "CRITICAL: You MUST write your step-by-step thinking process and reasoning inside <think> and </think> tags FIRST, "
+                    "and then write your final answer outside the tags. You must strictly follow this format:\n"
+                    "<think>\n"
+                    "[Your thinking process]\n"
+                    "</think>\n\n"
+                    "[Your final answer]\n\n"
+                    f"Question: {req.question}\n\n"
+                    "Answer:"
+                )
+            else:
+                prompt = (
+                    "You are an expert AI software developer and codebase assistant. "
+                    "IMPORTANT: Always respond in the SAME LANGUAGE as the user's question. "
+                    "If the user asks in Vietnamese, respond in Vietnamese. If in English, respond in English.\n\n"
+                    f"Question: {req.question}\n\n"
+                    "Answer:"
+                )
         sources_payload = []
         q_type = "general"
 
@@ -1039,26 +1225,54 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             # Concurrency Guard
             async with app.state.llm_semaphore:
                 async for chunk in _llm_stream(prompt, req.llm_model):
+                    if chunk.startswith("data: "):
+                        try:
+                            data = json.loads(chunk[6:].strip())
+                            if data.get("done", False):
+                                t_total = (time.perf_counter() - t0) * 1000
+                                llm_ms = t_total - sum(ctx.timings.values()) if req.codebase_query else t_total
+                                timings = {}
+                                if req.codebase_query:
+                                    timings = ctx.timings.copy()
+                                    timings["llm_ms"] = round(max(0.0, llm_ms), 2)
+                                    timings["total_ms"] = round(t_total, 2)
+                                else:
+                                    timings = {
+                                        "parse_query_ms": 0.0,
+                                        "graph_search_ms": 0.0,
+                                        "vector_search_ms": 0.0,
+                                        "rrf_ms": 0.0,
+                                        "llm_ms": round(t_total, 2),
+                                        "total_ms": round(t_total, 2),
+                                    }
+                                data["timings"] = timings
+                                chunk = f"data: {json.dumps(data)}\n\n"
+                        except Exception as e:
+                            logger.warning("Failed to inject timings into SSE chunk: %s", e)
                     yield chunk
                     events_accumulated.append(chunk)
 
-            QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
+            QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(
+                time.perf_counter() - t0
+            )
 
             if req.codebase_query:
                 try:
                     import tiktoken
+
                     try:
                         count_res = app.state.vector_store._client.count(
-                            collection_name=app.state.vector_store._collection,
-                            exact=True
+                            collection_name=app.state.vector_store._collection, exact=True
                         )
                         codebase_tokens = count_res.count * 300
                     except Exception:
                         codebase_tokens = 160000
-                    
+
                     prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
                     saved_tokens = max(0, codebase_tokens - prompt_tokens)
-                    RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
+                    RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(
+                        saved_tokens
+                    )
                 except Exception as e:
                     logger.warning("Failed to count RAG tokens saved: %s", e)
 

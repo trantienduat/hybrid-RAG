@@ -25,16 +25,18 @@ def test_community_builder_partition_and_writeback(active_graph_store, monkeypat
     # 1. Ingest a mock codebase with two disconnected/tightly-clustered modules
     # Cluster 1: Database Operations
     db_nodes = [
-        NodeData(label="Module", id="app.db", properties={"name": "db", "file_path": "app/db.py"}),
+        NodeData(
+            label="Module", id="app.db", properties={"name": "db", "file_path": "app/db/db.py"}
+        ),
         NodeData(
             label="Class",
             id="app.db.Database",
-            properties={"name": "Database", "file_path": "app/db.py"},
+            properties={"name": "Database", "file_path": "app/db/db.py"},
         ),
         NodeData(
             label="Function",
             id="app.db.Database.connect",
-            properties={"name": "connect", "file_path": "app/db.py"},
+            properties={"name": "connect", "file_path": "app/db/db.py"},
         ),
     ]
     db_edges = [
@@ -44,16 +46,18 @@ def test_community_builder_partition_and_writeback(active_graph_store, monkeypat
 
     # Cluster 2: UI Router
     ui_nodes = [
-        NodeData(label="Module", id="app.ui", properties={"name": "ui", "file_path": "app/ui.py"}),
+        NodeData(
+            label="Module", id="app.ui", properties={"name": "ui", "file_path": "app/ui/ui.py"}
+        ),
         NodeData(
             label="Class",
             id="app.ui.Router",
-            properties={"name": "Router", "file_path": "app/ui.py"},
+            properties={"name": "Router", "file_path": "app/ui/ui.py"},
         ),
         NodeData(
             label="Function",
             id="app.ui.Router.render",
-            properties={"name": "render", "file_path": "app/ui.py"},
+            properties={"name": "render", "file_path": "app/ui/ui.py"},
         ),
     ]
     ui_edges = [
@@ -85,11 +89,11 @@ def test_community_builder_partition_and_writeback(active_graph_store, monkeypat
 
     monkeypatch.setattr(CommunityBuilder, "_generate_community_report", mock_generate_report)
 
-    # 3. Build Communities using Louvain
+    # 3. Build Communities using directory structure partitioning
     builder = CommunityBuilder(graph_store=active_graph_store)
     count = builder.build_communities(resolution=0.5)
 
-    # Assert that Louvain successfully partitioned the nodes into 2 main communities
+    # Assert that it successfully partitioned the nodes into 2 main communities (by directory path)
     assert count == 2
 
     # 4. Verify Communities in FalkorDB

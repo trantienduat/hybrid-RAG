@@ -164,50 +164,6 @@ def index(
     console.rule(f"[bold green]Done in {elapsed:.1f}s[/]")
 
 
-@app.command("install-hooks")
-def install_hooks(
-    repo: Path = typer.Argument(..., help="Path to repository root where hooks will be installed."),
-) -> None:
-    """Install automatic Git hooks (post-merge, post-checkout) for incremental indexing."""
-    repo = repo.resolve()
-    git_dir = repo / ".git"
-    if not git_dir.is_dir():
-        err_console.print(f"[ERROR] Not a Git repository: {repo}")
-        raise typer.Exit(1)
-
-    hooks_dir = git_dir / "hooks"
-    hooks_dir.mkdir(parents=True, exist_ok=True)
-
-    post_merge = hooks_dir / "post-merge"
-    post_checkout = hooks_dir / "post-checkout"
-
-    # Shell script templates that run the CLI tool
-    hook_script = f"""#!/bin/sh
-# Automatically sync changes in hybrid-RAG
-echo "Triggering hybrid-rag incremental indexing..."
-hybrid-rag index "{repo}" --incremental
-"""
-
-    try:
-        post_merge.write_text(hook_script, encoding="utf-8")
-        post_checkout.write_text(hook_script, encoding="utf-8")
-
-        # Make them executable (chmod +x)
-        import stat
-
-        for p in (post_merge, post_checkout):
-            st = p.stat()
-            p.chmod(st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-
-        console.print(f"[green]✓[/] Installed Git hooks to {hooks_dir}")
-        console.print("  - post-merge (runs on git pull/merge)")
-        console.print("  - post-checkout (runs on git checkout/switch)")
-        console.print("[dim]Tip: Ensure 'hybrid-rag' is available in your system PATH.[/]")
-    except Exception as exc:
-        err_console.print(f"[ERROR] Failed to install hooks: {exc}")
-        raise typer.Exit(1) from exc
-
-
 # ── community-build command ───────────────────────────────────────────────────
 
 
@@ -439,8 +395,8 @@ def eval(
     ),
     top_k: int = typer.Option(10, help="Candidates to retrieve per query."),
     rrf_k: int = typer.Option(60, help="RRF k parameter."),
-    rrf_structural_weight: float = typer.Option(3.0, help="Graph weight for structural queries."),
-    rrf_hybrid_weight: float = typer.Option(1.5, help="Graph weight for hybrid queries."),
+    rrf_structural_weight: float = typer.Option(1.5, help="Unified graph weight for RRF fusion."),
+    rrf_hybrid_weight: float = typer.Option(1.5, help="Graph weight for hybrid queries (unused)."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),

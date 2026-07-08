@@ -63,11 +63,11 @@ class GraphRetriever:
                     seen_ids.add(nid)
                     results.append(_node_to_result(node))
 
-        # For structural / hybrid queries expand direct neighbors of seed nodes.
+        # For non-global (local) queries, expand direct neighbors of seed nodes.
         # Query in-bound and out-bound separately so each direction gets its own
         # slot budget — prevents outgoing DEFINES edges (methods) from drowning
         # out incoming INHERITS edges (subclasses / callers) when limit is shared.
-        if analysis.query_type in ("structural", "hybrid"):
+        if analysis.query_type != "global":
             seed_ids = [r["node_id"] for r in results[:_NEIGHBOR_SEEDS]]
             for seed_id in seed_ids:
                 if len(results) >= top_k * 4:

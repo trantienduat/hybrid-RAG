@@ -23,7 +23,7 @@ Expose the following Python functions decorated as MCP tools:
 *   `list_repositories() -> list[str]`: Queries FalkorDB for unique repository namespaces.
 *   `search_ast_nodes(query: str, repository: str = None) -> str`: Performs text lookup for classes or functions matching the prefix query.
 *   `get_ast_neighbors(node_id: str) -> str`: Returns direct structural links (callers, overrides) for the target node ID.
-*   `get_community_report(repository: str) -> str`: Fetches Louvain community report partition summaries.
+*   `get_community_report(repository: str) -> str`: Fetches Directory-based community report partition summaries.
 
 ### 3. Exposed Resources & Prompts
 *   Expose the graph schema as a resource: `schema://graph` (yielding node types and Cypher relation schema).

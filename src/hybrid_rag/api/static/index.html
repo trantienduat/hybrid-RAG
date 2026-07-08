@@ -1868,10 +1868,10 @@ async function selectNode(nodeId, label, name) {
       repoName = relation.src_id === nodeId ? relation.dst_repository : relation.dst_repository;
     }
 
-    // Default summaries for louvain communities
+    // Default summaries for directory communities
     let summary = '';
     if (label === 'Community') {
-      summary = `Architectural projection representing community group cluster derived from Louvain community detection.`;
+      summary = `Architectural projection representing codebase module directory community.`;
     }
 
     // Open Floating Inspector Panel
@@ -1903,7 +1903,7 @@ function showNodeInspector(nodeId, label, name, filePath, repository, summaryTex
 
   if (label === 'Community') {
     summaryEl.style.display = 'block';
-    summaryEl.innerHTML = `<label>Louvain Projection Info</label>
+    summaryEl.innerHTML = `<label>Directory Community Info</label>
       <div style="margin-top:4px;color:var(--text);font-size:11px;line-height:1.45;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px;border:1px solid rgba(255,255,255,0.05);">${summaryText}</div>`;
   } else {
     summaryEl.style.display = 'none';
@@ -2120,9 +2120,10 @@ new ResizeObserver(() => {
 
 // ── RAG Chat & SSE Streaming ─────────────────────────────────────────────────
 
-function pushMessage(role, text, sources = [], latency = null, streaming = false) {
+function pushMessage(role, text, sources = [], latency = null, streaming = false, timings = null) {
   const id = ++msgIdCounter;
-  messages.push({ id, role, text, sources, latency, streaming });
+  const modelName = role === 'assistant' ? (llmModelSelect.value || 'LLM') : null;
+  messages.push({ id, role, text, sources, latency, streaming, llm_model: modelName, timings });
   renderMessages();
   return id;
 }
@@ -2189,9 +2190,10 @@ function renderMessage(m) {
     let thinkingHtml = '';
     if (parsed.thinking) {
       const openAttr = m.streaming ? 'open' : '';
+      const modelName = m.llm_model || (llmModelSelect && llmModelSelect.value) || 'LLM';
       thinkingHtml = `
         <details class="thinking-box" ${openAttr}>
-          <summary>▼ ${escHtml(llmModelSelect.value || 'LLM')} Thinking Process</summary>
+          <summary>▼ ${escHtml(modelName)} Thinking Process</summary>
           <div class="thinking-content">${renderMarkdown(parsed.thinking)}</div>
         </details>
       `;
@@ -2212,7 +2214,29 @@ function renderMessage(m) {
   }
 
   const sources = (!isUser && m.sources && m.sources.length) ? renderCitations(m.id, m.sources) : '';
-  const latency = m.latency ? `<div class="msg-meta">Latency: ${m.latency}s</div>` : '';
+  let latencyStr = '';
+  if (m.latency) {
+    latencyStr += `<span style="margin-right:8px;">Latency: ${m.latency}s</span>`;
+    if (m.timings && Object.keys(m.timings).length) {
+      const t = m.timings;
+      const parse = typeof t.parse_query_ms === 'number' ? t.parse_query_ms : 0;
+      const graph = typeof t.graph_search_ms === 'number' ? t.graph_search_ms : 0;
+      const vec = typeof t.vector_search_ms === 'number' ? t.vector_search_ms : 0;
+      const rrf = typeof t.rrf_ms === 'number' ? t.rrf_ms : 0;
+      const llm = typeof t.llm_ms === 'number' ? t.llm_ms : 0;
+      
+      latencyStr += `
+        <span class="timing-badges" style="font-size:10px; opacity:0.8; display:inline-flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+          <span class="timing-badge" style="background:rgba(255,255,255,0.06); padding:2px 4px; border-radius:3px; border:1px solid rgba(255,255,255,0.03);">parse: ${parse.toFixed(0)}ms</span>
+          <span class="timing-badge" style="background:rgba(255,255,255,0.06); padding:2px 4px; border-radius:3px; border:1px solid rgba(255,255,255,0.03);">graph: ${graph.toFixed(0)}ms</span>
+          <span class="timing-badge" style="background:rgba(255,255,255,0.06); padding:2px 4px; border-radius:3px; border:1px solid rgba(255,255,255,0.03);">vector: ${vec.toFixed(0)}ms</span>
+          <span class="timing-badge" style="background:rgba(255,255,255,0.06); padding:2px 4px; border-radius:3px; border:1px solid rgba(255,255,255,0.03);">rrf: ${rrf.toFixed(0)}ms</span>
+          <span class="timing-badge" style="background:rgba(255,255,255,0.06); padding:2px 4px; border-radius:3px; border:1px solid rgba(255,255,255,0.03);">llm: ${llm.toFixed(0)}ms</span>
+        </span>
+      `;
+    }
+  }
+  const latency = m.latency ? `<div class="msg-meta" style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">${latencyStr}</div>` : '';
   return `
     <div class="msg msg-${m.role}" id="msg-${m.id}">
       <div class="msg-role">${isUser ? 'You' : 'Assistant'}</div>
@@ -2301,6 +2325,8 @@ async function doAsk() {
   
   if (!q) return;
 
+  const selectedModel = llmModelSelect.value;
+
   currentAsk = new AbortController();
   askBtn.textContent = 'Stop';
   askBtn.classList.add('btn-stop');
@@ -2313,7 +2339,7 @@ async function doAsk() {
   saveCurrentChat();
 
   const assistantId = ++msgIdCounter;
-  messages.push({ id: assistantId, role: 'assistant', text: '', sources: [], latency: null, streaming: true });
+  messages.push({ id: assistantId, role: 'assistant', text: '', sources: [], latency: null, streaming: true, llm_model: selectedModel });
   renderMessages();
 
   const t0 = performance.now();
@@ -2331,7 +2357,6 @@ async function doAsk() {
     if (activeRepo) {
       body.repository = activeRepo;
     }
-    const selectedModel = llmModelSelect.value;
     if (selectedModel) {
       body.llm_model = selectedModel;
     }
@@ -2415,9 +2440,11 @@ async function doAsk() {
             const parsed = parseThinkingAndResponse(streamBuf);
             let thinkingHtml = '';
             if (parsed.thinking) {
+              const activeMsg = messages.find(x => x.id === assistantId);
+              const modelName = (activeMsg && activeMsg.llm_model) || (llmModelSelect && llmModelSelect.value) || 'LLM';
               thinkingHtml = `
                 <details class="thinking-box" open>
-                  <summary>▼ ${escHtml(llmModelSelect.value || 'LLM')} Thinking Process</summary>
+                  <summary>▼ ${escHtml(modelName)} Thinking Process</summary>
                   <div class="thinking-content">${escHtml(parsed.thinking)}</div>
                 </details>
               `;
@@ -2445,6 +2472,7 @@ async function doAsk() {
             if (entry) {
               Object.assign(entry, {
                 text: streamBuf, sources: capturedSources, latency, streaming: false,
+                timings: ev.timings || null,
               });
             }
             renderMessages();
@@ -2452,6 +2480,19 @@ async function doAsk() {
           }
         } catch (_) {}
       }
+    }
+
+    const entry = messages.find(x => x.id === assistantId);
+    if (entry && entry.streaming) {
+      const latency = ((performance.now() - t0) / 1000).toFixed(2);
+      Object.assign(entry, {
+        text: streamBuf || entry.text || "No response received.",
+        sources: capturedSources,
+        latency,
+        streaming: false,
+      });
+      renderMessages();
+      saveCurrentChat();
     }
   } catch (err) {
     if (err.name !== 'AbortError') {

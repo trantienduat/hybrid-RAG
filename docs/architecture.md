@@ -179,7 +179,7 @@ graph LR
 ## 🏛️ Global GraphRAG & Community Detection
 
 To solve repository-wide architectural queries (Global Search), the system implements Microsoft's GraphRAG Option A:
-1. **Community detection:** Louvain clustering (`networkx`) partitions the codebase into functional modules.
+1. **Community detection:** Directory structure partitioning groups code nodes by their parent folders into functional modules.
 2. **Community summaries:** Ollama compiles structural summaries describing the responsibilities and boundaries of each partition.
 3. **Synthesis:** When a `"global"` query is detected, all community summaries are retrieved from FalkorDB and synthesized in a single LLM pass.
 
@@ -253,3 +253,60 @@ The codebase strictly enforces local data sovereignty:
 *   **Offline Operation:** No external network requests are made. External API calls to non-localhost loops are explicitly prohibited.
 *   **Docker Containerization:** Storage engines (FalkorDB, Qdrant) run on local loopback ports (`127.0.0.1`) only, preventing any external ingress or egress.
 *   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`qwen2.5-coder:7b`) are hosted entirely offline.
+
+---
+
+## 📊 Telemetry & Observability Pipeline
+
+The system incorporates a standardized OpenTelemetry (OTel) observability pipeline to monitor both system health and LLM response qualities in a unified, modular architecture.
+
+### Observability Architecture Design
+
+```mermaid
+graph TD
+    %% Styling
+    classDef default fill:#111216,stroke:#3b3f4c,stroke-width:1px,color:#d1d5db;
+    classDef component fill:#1f2937,stroke:#6366f1,stroke-dasharray: 5 5,stroke-width:2px,color:#f3f4f6;
+    classDef storage fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#e0e7ff;
+    classDef collector fill:#312e81,stroke:#a78bfa,stroke-width:2px,color:#ddd6fe;
+
+    subgraph App ["Application (Python)"]
+        API["hybrid-rag-api"]
+    end
+
+    subgraph Hub ["Telemetry Gateway"]
+        Collector["OTel Collector (port 4317/4318)"]
+    end
+
+    subgraph Storage ["Observability Backends"]
+        Prometheus[("Prometheus (Metrics)")];
+        Tempo[("Grafana Tempo (Traces)")];
+        Loki[("Grafana Loki (Logs)")];
+        Phoenix[("Arize Phoenix (LLM Tracing)")];
+    end
+
+    subgraph Visualization ["Single Pane of Glass"]
+        Grafana["Grafana UI (port 3010)"]
+    end
+
+    %% Flow
+    API --> |OTLP Traces, Logs, Metrics| Collector
+    
+    Collector --> |OTLP Metrics| Prometheus
+    Collector --> |OTLP Traces| Tempo
+    Collector --> |OTLP Traces| Phoenix
+    Collector --> |OTLP Logs| Loki
+
+    Prometheus --> Grafana
+    Tempo --> Grafana
+    Loki --> Grafana
+    
+    class API component;
+    class Collector collector;
+    class Prometheus,Tempo,Loki,Phoenix storage;
+```
+
+Key features:
+1. **Trace-to-Log Correlation:** All console and Loki log records automatically contain the active `trace_id` and `span_id` dynamically injected on execution.
+2. **Unified Grafana Interface:** System metrics (Prometheus), logs (Loki), and traces (Tempo) are queried and correlated inside a single dashboard.
+3. **Specialized LLM APM:** Dedicated LLM spans (containing prompt texts, parameters, token usages, and costs) are routed by the OTel Collector to Arize Phoenix.

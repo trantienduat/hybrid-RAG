@@ -30,9 +30,9 @@ def _should_launch_server() -> bool:
 
 def _get_otlp_endpoint() -> str:
     return (
-        os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
-        or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-        or "http://localhost:6006/v1/traces"
+        os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        or os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        or "http://localhost:4317"
     )
 
 
@@ -129,6 +129,56 @@ def initialize_tracing() -> None:
         trace.set_tracer_provider(_provider)
         _tracer = trace.get_tracer("hybrid-rag")
         logger.info("OpenTelemetry tracing initialized successfully.")
+
+        # Initialize OTel Logging Provider
+        try:
+            from opentelemetry._logs import set_logger_provider
+            from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+            from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+            # Import the correct log exporter based on endpoint type
+            if "4317" in otlp_endpoint or not otlp_endpoint.startswith("http"):
+                from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+            else:
+                from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+
+            log_provider = LoggerProvider(resource=resource)
+            set_logger_provider(log_provider)
+
+            log_exporter = OTLPLogExporter(endpoint=otlp_endpoint)
+            log_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+
+            # Add OTel log handler to Python root logger
+            handler = LoggingHandler(level=logging.INFO, logger_provider=log_provider)
+            logging.getLogger().addHandler(handler)
+            logger.info("OpenTelemetry logging handler initialized successfully.")
+        except Exception as log_exc:
+            logger.warning("Failed to initialize OpenTelemetry logging SDK: %s", log_exc)
+
+        # Configure console formatter to print trace_id and span_id
+        try:
+            class OTelConsoleFormatter(logging.Formatter):
+                def format(self, record):
+                    span_ctx = trace.get_current_span().get_span_context()
+                    if span_ctx and span_ctx.is_valid:
+                        record.trace_id = trace.format_trace_id(span_ctx.trace_id)
+                        record.span_id = trace.format_span_id(span_ctx.span_id)
+                    else:
+                        record.trace_id = "0"
+                        record.span_id = "0"
+                    return super().format(record)
+
+            fmt = OTelConsoleFormatter(
+                "[%(asctime)s] %(levelname)s [%(name)s] [trace_id=%(trace_id)s span_id=%(span_id)s] - %(message)s"
+            )
+            # Apply to all StreamHandlers on the root logger and uvicorn loggers
+            for log_name in ("", "uvicorn", "uvicorn.error", "uvicorn.access"):
+                for h in logging.getLogger(log_name).handlers:
+                    if isinstance(h, logging.StreamHandler):
+                        h.setFormatter(fmt)
+            logger.info("Console trace log formatter configured successfully.")
+        except Exception as fmt_exc:
+            logger.warning("Failed to configure console trace log formatter: %s", fmt_exc)
 
     except Exception as exc:
         logger.warning(

@@ -101,3 +101,11 @@ An offline builder runs via the CLI:
 
 ### Cons
 *   **One-time CPU Overhead:** The community build process is computationally heavy because it calls the LLM once per community. However, this is done once after indexing and can be cached.
+
+---
+
+## Update: July 2026 (Refactored to Directory Tree Partitioning)
+
+During project finalization, Louvain modularity clustering was replaced with **Directory Tree partitioning**.
+* **Reasoning**: Louvain clustering on large graphs is computationally heavy, and mathematically derived clusters often grouped unrelated utilities together. Directory structures represent human-designed modules, making directory tóm tắt far more intuitive and lightweight to compute and update.
+* **Status**: Implemented and fully integrated into `CommunityBuilder`.

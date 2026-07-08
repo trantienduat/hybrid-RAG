@@ -141,3 +141,7 @@ PR checklist:
 ## Future Enhancements & Backlog
 
 - `[ ]` Leverage the advanced reasoning, multimodal, and structured output capabilities of the new Google Gemma 4 12B local model to optimize codebase relations extraction, agentic tool-use loops, and visual architecture diagram understanding.
+- `[ ]` **Embedded Serverless Storage (LanceDB)**: Migrate metadata, lexical index, and vector embeddings from SQLite/Qdrant to LanceDB. This will allow the entire hybrid-RAG system to run completely embedded and serverless without requiring external Docker Compose containers.
+- `[ ]` **Advanced Static Call Resolver**: Implement a multi-step static call resolution pipeline (similar to `code-graph-rag`'s `CallResolver`) including import mapping and sibling/self method tracing to raise graph relation fidelity to 100%.
+- `[ ]` **Detailed Query Latency Profiling**: Add a detailed timing breakdown (`embed_ms`, `vector_search_ms`, `graph_neighbors_ms`, `rrf_ms`, `llm_generation_ms`) in query responses and render it in the UI trace panel.
+- `[ ]` **Adaptive RRF Weights**: Dynamically adjust dense vector vs graph lexical search weights based on query type (up-weight dense search for natural language queries, balance weights for structural code symbol queries).

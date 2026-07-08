@@ -39,6 +39,7 @@ def resolve(result: ParseResult) -> ParseResult:
     # Separate real vs stub nodes
     real_modules: dict[str, str] = {}  # stem → real node id
     real_classes: dict[str, str] = {}  # simple name → real node id
+    real_functions: dict[str, list[str]] = {}  # simple name → list of FQNs
     stub_ids: set[str] = set()
 
     for node in result.nodes:
@@ -59,6 +60,9 @@ def resolve(result: ParseResult) -> ParseResult:
             simple_name = node.properties.get("name", class_nid)
             # First definition wins (avoids ambiguity in large repos)
             real_classes.setdefault(simple_name, node.id)
+        elif node.label == "Function":
+            simple_name = node.properties.get("name", node.id.split(".")[-1])
+            real_functions.setdefault(simple_name, []).append(node.id)
 
     # Build redirect map: stub_id → real_id
     redirect: dict[str, str] = {}
@@ -77,6 +81,75 @@ def resolve(result: ParseResult) -> ParseResult:
         elif stem in real_classes:
             redirect[stub_id] = real_classes[stem]
 
+    # Resolve __call__ stubs in CALLS edges
+    module_imports: dict[str, set[str]] = {}
+    for edge in result.edges:
+        if edge.rel == "IMPORTS":
+            module_imports.setdefault(edge.src_id, set()).add(edge.dst_id.split(".")[-1])
+
+    for edge in result.edges:
+        if edge.rel == "CALLS" and edge.dst_id.startswith("__call__"):
+            stub_id = edge.dst_id
+            callee_name = stub_id[len("__call__") :]
+            caller_id = edge.src_id
+            parts = caller_id.split(".")
+            resolved_id = None
+
+            # A. Sibling method in class context
+            if len(parts) >= 3:
+                class_fqn = ".".join(parts[:-1])
+                target_method_fqn = f"{class_fqn}.{callee_name}"
+                if any(n.id == target_method_fqn and n.label == "Function" for n in result.nodes):
+                    resolved_id = target_method_fqn
+
+            # B. Same module resolution
+            if not resolved_id:
+                module_fqn = None
+                for m_id in real_modules.values():
+                    if caller_id.startswith(m_id):
+                        if module_fqn is None or len(m_id) > len(module_fqn):
+                            module_fqn = m_id
+                if module_fqn:
+                    target_func_fqn = f"{module_fqn}.{callee_name}"
+                    if any(n.id == target_func_fqn and n.label == "Function" for n in result.nodes):
+                        resolved_id = target_func_fqn
+
+            # C. Import-based resolution
+            if not resolved_id and module_fqn:
+                callee_expr = edge.properties.get("callee_expr", "")
+                imports = module_imports.get(module_fqn, set())
+                if callee_name in imports:
+                    candidates = real_functions.get(callee_name, [])
+                    if len(candidates) == 1:
+                        resolved_id = candidates[0]
+                    elif len(candidates) > 1:
+                        matching_candidates = []
+                        for cand in candidates:
+                            cand_parts = cand.split(".")
+                            for imp in imports:
+                                if imp in cand_parts:
+                                    matching_candidates.append(cand)
+                                    break
+                        if len(matching_candidates) == 1:
+                            resolved_id = matching_candidates[0]
+                elif "." in callee_expr:
+                    prefix = callee_expr.split(".")[0]
+                    if prefix in imports:
+                        candidates = real_functions.get(callee_name, [])
+                        for cand in candidates:
+                            if cand.endswith(f".{prefix}.{callee_name}") or cand.endswith(f"{prefix}.{callee_name}"):
+                                resolved_id = cand
+                                break
+
+            # D. Global fallback (only if unique)
+            if not resolved_id:
+                candidates = real_functions.get(callee_name, [])
+                if len(candidates) == 1:
+                    resolved_id = candidates[0]
+
+            if resolved_id:
+                redirect[stub_id] = resolved_id
+
     if not redirect:
         return result  # nothing to resolve, return unchanged
 
@@ -91,7 +164,14 @@ def resolve(result: ParseResult) -> ParseResult:
     resolved.nodes = [
         n
         for n in resolved.nodes
-        if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
+        if not (
+            n.id in redirect
+            and (
+                (n.label == "Module" and n.properties.get("type") == "external")
+                or (n.label == "Function" and n.properties.get("type") == "external")
+                or n.id.startswith("__call__")
+            )
+        )
     ]
 
     # Rewrite edges

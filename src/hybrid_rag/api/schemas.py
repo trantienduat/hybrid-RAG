@@ -66,6 +66,7 @@ class QueryResponse(BaseModel):
     query_type: str  # structural | semantic | hybrid | global
     sources: list[SourceChunk]
     latency_ms: float
+    timings: dict[str, float] | None = None
 
 
 class StreamToken(BaseModel):

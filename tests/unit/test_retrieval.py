@@ -19,21 +19,23 @@ from hybrid_rag.retrieval.vector_retriever import VectorRetriever, _base_node_id
 
 
 class TestQueryAnalyzer:
-    def test_structural_query(self):
-        a = analyze("which classes inherit from BaseEmbedder?")
-        assert a.query_type == "structural"
+    def test_local_queries(self):
+        # All local codebase queries should resolve to "local" query type
+        assert analyze("which classes inherit from BaseEmbedder?").query_type == "local"
+        assert analyze("explain how the embedding pipeline works").query_type == "local"
+        assert analyze("explain how FalkorDB stores the inheritance graph").query_type == "local"
+        assert analyze("codebase structure overview").query_type == "local"
+        assert analyze("which functions call parse_repo?").query_type == "local"
+        assert analyze("what does GraphStore import?").query_type == "local"
+        assert analyze("describe how chunking works").query_type == "local"
 
-    def test_semantic_query(self):
-        a = analyze("explain how the embedding pipeline works")
-        assert a.query_type == "semantic"
-
-    def test_hybrid_when_both_signals(self):
-        a = analyze("explain how FalkorDB stores the inheritance graph")
-        assert a.query_type == "hybrid"
-
-    def test_hybrid_when_no_signal(self):
-        a = analyze("codebase structure overview")
-        assert a.query_type == "hybrid"
+    def test_global_queries(self):
+        # Global architecture queries should resolve to "global" query type
+        assert analyze("summarize the codebase").query_type == "global"
+        assert analyze("repository summary").query_type == "global"
+        assert analyze("architecture design").query_type == "global"
+        assert analyze("tổng quan kiến trúc dự án").query_type == "global"
+        assert analyze("tóm tắt cấu trúc codebase").query_type == "global"
 
     def test_entity_extraction_pascal(self):
         a = analyze("what does BaseEmbedder do?")
@@ -70,23 +72,9 @@ class TestQueryAnalyzer:
         for kw in a.keywords:
             assert kw not in stop
 
-    def test_calls_structural(self):
-        a = analyze("which functions call parse_repo?")
-        assert a.query_type == "structural"
-
-    def test_imports_structural(self):
-        # "what does ... import?" has both semantic ("what does") and structural
-        # ("import") signals → correctly classified as hybrid
-        a = analyze("what does GraphStore import?")
-        assert a.query_type in ("structural", "hybrid")
-
-    def test_explain_semantic(self):
-        a = analyze("describe how chunking works")
-        assert a.query_type == "semantic"
-
     def test_vietnamese_query_analysis(self):
         a = analyze("mô tả về luồng của graph db đi")
-        assert a.query_type == "hybrid"
+        assert a.query_type == "local"
         assert "luồng" in a.keywords
         assert "graph" in a.keywords
         assert "db" in a.keywords
@@ -95,8 +83,8 @@ class TestQueryAnalyzer:
         assert "mô" not in a.keywords
 
     def test_query_analysis_repr(self):
-        a = QueryAnalysis(query_type="hybrid", entities=["Foo"], keywords=["bar"])
-        assert "hybrid" in repr(a)
+        a = QueryAnalysis(query_type="local", entities=["Foo"], keywords=["bar"])
+        assert "local" in repr(a)
         assert "Foo" in repr(a)
 
 
@@ -302,9 +290,9 @@ class TestGraphRetriever:
         assert "n1" in ids
         assert "n2" in ids
 
-    def test_no_neighbor_expansion_for_semantic(self):
+    def test_no_neighbor_expansion_for_global(self):
         store = self._store(nodes=[self._node("n1")])
-        GraphRetriever(store).retrieve(self._analysis(query_type="semantic", entities=["Foo"]))
+        GraphRetriever(store).retrieve(self._analysis(query_type="global", entities=["Foo"]))
         store.find_neighbors.assert_not_called()
 
     def test_deduplicates_across_terms(self):
@@ -513,3 +501,13 @@ class TestHybridRetriever:
         assert _is_vietnamese("mo ta luong graph va cach tong hop") is True
         assert _is_vietnamese("how does the graph database work?") is False
         assert _is_vietnamese("explain this code") is False
+
+    def test_timings_populated(self):
+        retriever = self._retriever(vector_hits=[self._hit("n1::0")])
+        ctx = retriever.retrieve_with_context("how does parse_repo work?")
+        assert "parse_query_ms" in ctx.timings
+        assert "graph_search_ms" in ctx.timings
+        assert "vector_search_ms" in ctx.timings
+        assert "rrf_ms" in ctx.timings
+        assert ctx.timings["parse_query_ms"] >= 0.0
+

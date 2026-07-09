@@ -44,7 +44,6 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
-      - LLM_MODEL=qwen2.5-coder:7b
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
@@ -78,7 +77,6 @@ services:
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - FALKORDB_GRAPH=$FALKORDB_GRAPH
-      - LLM_MODEL=qwen2.5-coder:7b
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317

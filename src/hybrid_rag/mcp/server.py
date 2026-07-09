@@ -32,19 +32,22 @@ async def health_check(request: Request) -> Response:
     return JSONResponse({"status": "ok"})
 
 
-# ── Configuration from environment (aligned with REST API) ────────────────────
+# ── Configuration from environment/config file ──────────────────────────────────
 
-_FALKORDB_HOST = os.environ.get("FALKORDB_HOST") or "localhost"
-_FALKORDB_PORT = int(os.environ.get("FALKORDB_PORT") or 6379)
-_FALKORDB_GRAPH = os.environ.get("FALKORDB_GRAPH") or "codebase"
-_QDRANT_HOST = os.environ.get("QDRANT_HOST") or "localhost"
-_QDRANT_PORT = int(os.environ.get("QDRANT_PORT") or 6333)
-_QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
-_OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
-_EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
-_RRF_K = int(os.environ.get("RRF_K", 60))
-_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 1.5))
-_RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
+from hybrid_rag.config import app_config
+
+_FALKORDB_HOST = app_config.falkordb_host
+_FALKORDB_PORT = app_config.falkordb_port
+_FALKORDB_GRAPH = app_config.falkordb_graph
+_QDRANT_HOST = app_config.qdrant_host
+_QDRANT_PORT = app_config.qdrant_port
+_QDRANT_COLLECTION = app_config.qdrant_collection
+_OLLAMA_URL = app_config.ollama_url
+_EMBED_MODEL = app_config.embed_model
+_RRF_K = app_config.rrf_k
+_RRF_STRUCTURAL_W = app_config.rrf_structural_weight
+_RRF_HYBRID_W = app_config.rrf_hybrid_weight
+
 
 # Global caches for lazy initialization
 _graph_store: FalkorDBStore | None = None

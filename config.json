@@ -1,0 +1,32 @@
+{
+  "repositories": [
+    {
+      "name": "hybrid-RAG",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG"
+    }
+  ],
+  "falkordb": {
+    "host": "localhost",
+    "port": 6379,
+    "graph": "codebase"
+  },
+  "qdrant": {
+    "host": "localhost",
+    "port": 6333,
+    "collection": "code_chunks"
+  },
+  "ollama": {
+    "base_url": "http://localhost:11434"
+  },
+  "llm": {
+    "model": "gemma4:12b"
+  },
+  "embedding": {
+    "model": "nomic-embed-text"
+  },
+  "rrf": {
+    "k": 60,
+    "structural_weight": 3.0,
+    "hybrid_weight": 1.5
+  }
+}

@@ -56,7 +56,18 @@
   .sidebar {
     width: 250px; background: var(--surface2); border-right: 1px solid var(--line-soft);
     display: flex; flex-direction: column; padding: 24px 16px; gap: 20px; flex: none;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease, opacity 0.2s ease, border-right-width 0.25s ease;
+    overflow: hidden;
   }
+  .sidebar.collapsed {
+    width: 0px; padding-left: 0; padding-right: 0; opacity: 0; border-right-width: 0;
+  }
+  .sidebar-toggle {
+    font-size: 15px; background: transparent; border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--muted);
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+  }
+  .sidebar-toggle:hover { color: var(--ink); border-color: var(--muted); }
   .sidebar-title {
     font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
     text-transform: uppercase; color: var(--muted); margin-bottom: 8px; padding-left: 12px;
@@ -167,6 +178,7 @@
 <body>
 
 <div class="bar">
+  <button id="sidebarToggle" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
   <div>
     <h1>Hybrid RAG — System Flows</h1>
     <div class="sub">AST parsing · local databases · reciprocal rank fusion · openTelemetry</div>
@@ -561,6 +573,15 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   document.documentElement.classList.toggle('dark', dark);
   localStorage.setItem('theme', dark ? 'dark' : 'light');
 });
+
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  const sb = document.querySelector('.sidebar');
+  sb.classList.toggle('collapsed');
+  localStorage.setItem('sidebar-collapsed', sb.classList.contains('collapsed'));
+});
+if (localStorage.getItem('sidebar-collapsed') === 'true') {
+  document.querySelector('.sidebar').classList.add('collapsed');
+}
 </script>
 </body>
 </html>

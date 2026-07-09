@@ -96,19 +96,22 @@ def _is_gemini_provider(model: str, provider_env_var: str | None = None) -> bool
     return False
 
 
-# ── Configuration from environment ────────────────────────────────────────────
+# ── Configuration from environment/config file ──────────────────────────────────
 
-_FALKORDB_HOST = os.environ.get("FALKORDB_HOST") or "localhost"
-_FALKORDB_PORT = int(os.environ.get("FALKORDB_PORT") or 6379)
-_FALKORDB_GRAPH = os.environ.get("FALKORDB_GRAPH") or "codebase"
-_QDRANT_HOST = os.environ.get("QDRANT_HOST") or "localhost"
-_QDRANT_PORT = int(os.environ.get("QDRANT_PORT") or 6333)
-_QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION") or "code_chunks"
-_OLLAMA_URL = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
-_EMBED_MODEL = os.environ.get("EMBED_MODEL") or DEFAULT_EMBED_MODEL
-_RRF_K = int(os.environ.get("RRF_K", 60))
-_RRF_STRUCTURAL_W = float(os.environ.get("RRF_STRUCTURAL_WEIGHT", 1.5))
-_RRF_HYBRID_W = float(os.environ.get("RRF_HYBRID_WEIGHT", 1.5))
+from hybrid_rag.config import app_config
+
+_FALKORDB_HOST = app_config.falkordb_host
+_FALKORDB_PORT = app_config.falkordb_port
+_FALKORDB_GRAPH = app_config.falkordb_graph
+_QDRANT_HOST = app_config.qdrant_host
+_QDRANT_PORT = app_config.qdrant_port
+_QDRANT_COLLECTION = app_config.qdrant_collection
+_OLLAMA_URL = app_config.ollama_url
+_EMBED_MODEL = app_config.embed_model
+_RRF_K = app_config.rrf_k
+_RRF_STRUCTURAL_W = app_config.rrf_structural_weight
+_RRF_HYBRID_W = app_config.rrf_hybrid_weight
+
 
 
 async def _run_periodic_sync(app_state: Any) -> None:
@@ -127,31 +130,33 @@ async def _run_periodic_sync(app_state: Any) -> None:
     while True:
         try:
             logger.info("Running scheduled repository synchronization check...")
-            repos = app_state.graph_store.list_repositories()
+            db_repos = []
+            try:
+                db_repos = app_state.graph_store.list_repositories()
+            except Exception:
+                pass
+            config_repos = [r["name"] for r in app_config.repositories]
+            repos = sorted(list(set(db_repos + config_repos)))
+
             for repo_name in repos:
                 metadata = None
                 try:
                     metadata = app_state.graph_store.get_repository_metadata(repo_name)
                 except Exception:
+                    pass
+
+                repo_path = metadata.get("repo_path") if metadata else None
+                config_path = app_config.get_repo_path(repo_name)
+                if config_path:
+                    repo_path = config_path
+
+                if not repo_path:
                     continue
 
-                if not metadata or not metadata.get("repo_path"):
-                    continue
-
-                repo_path = metadata["repo_path"]
-                last_commit = metadata.get("last_indexed_commit")
+                last_commit = metadata.get("last_indexed_commit") if metadata else None
 
                 # Resolve effective path in container
                 effective_path = repo_path
-                if not os.path.isdir(repo_path):
-                    fallback_1 = os.path.join("/codebases", repo_name)
-                    if os.path.isdir(fallback_1):
-                        effective_path = fallback_1
-                    else:
-                        dir_name = os.path.basename(repo_path)
-                        fallback_2 = os.path.join("/codebases", dir_name)
-                        if os.path.isdir(fallback_2):
-                            effective_path = fallback_2
 
                 # Verify directory exists and is a git repository
                 if not os.path.isdir(effective_path) or not os.path.isdir(
@@ -1298,23 +1303,26 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     )
 
 
-# ── GET /graph/repositories ───────────────────────────────────────────────────
-
-
 @app.get("/graph/repositories")
 async def list_repositories() -> list[str]:
-    """Return all unique repository namespaces present in the graph database."""
+    """Return all unique repository namespaces present in the config or database."""
+    from hybrid_rag.config import app_config
+    configured = [r["name"] for r in app_config.repositories]
+
     store: FalkorDBStore = app.state.graph_store
+    db_repos = []
     try:
-        return store.list_repositories()
+        db_repos = store.list_repositories()
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to list repositories: %s", exc)
-        return []
+        logger.warning("Failed to list repositories from database: %s", exc)
+
+    return sorted(list(set(configured + db_repos)))
 
 
 @app.get("/graph/repositories/{repo_name}/status")
 async def get_repository_status(repo_name: str) -> dict[str, Any]:
     """Retrieve indexing sync status and active background tasks for a repository."""
+    from hybrid_rag.config import app_config
     store: FalkorDBStore = app.state.graph_store
 
     metadata = None
@@ -1327,6 +1335,11 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
     repo_path = metadata.get("repo_path") if metadata else None
     updated_at = metadata.get("updated_at") if metadata else None
 
+    # Priority check: configuration overrides / specifies path
+    config_path = app_config.get_repo_path(repo_name)
+    if config_path:
+        repo_path = config_path
+
     last_synced = None
     if updated_at:
         try:
@@ -1335,28 +1348,6 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
             pass
 
     effective_path = repo_path
-
-    # New Auto-scan logic if repo_path is not set in DB or not found
-    if (not effective_path or not os.path.isdir(effective_path)) and os.path.isdir("/codebases"):
-        try:
-            repo_words = set(repo_name.lower().replace("-", " ").replace("_", " ").split())
-            repo_words -= {"app", "core", "repo", "repository"}
-
-            for entry in os.listdir("/codebases"):
-                entry_path = os.path.join("/codebases", entry)
-                if os.path.isdir(entry_path):
-                    entry_words = set(entry.lower().replace("-", " ").replace("_", " ").split())
-                    # Match if exact case-insensitive match OR shares a significant word
-                    if entry.lower() == repo_name.lower() or (repo_words & entry_words):
-                        effective_path = entry_path
-                        repo_path = entry_path
-                        # Automatically save this path to FalkorDB so we don't have to scan again
-                        store.set_repository_commit(
-                            repo_name, last_commit or "", repo_path=entry_path
-                        )
-                        break
-        except Exception:
-            pass
 
     # Check path accessibility status
     path_status = "valid"

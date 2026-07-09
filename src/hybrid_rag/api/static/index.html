@@ -1551,15 +1551,15 @@ async function checkRepoSyncStatus(repoName) {
       if (data.path_status && data.path_status !== 'valid') {
         let warningText = '';
         if (data.path_status === 'not_found') {
-          warningText = '⚠️ Path not found inside Docker container. Ensure workspace is mounted to /codebases.';
+          warningText = '⚠️ Path not found. Ensure the directory exists and check your config.json settings / Docker volume mounts.';
         } else if (data.path_status === 'empty') {
-          warningText = '⚠️ Directory is empty inside Docker. Check your volume mount mapping.';
+          warningText = '⚠️ Directory is empty. Check your config.json path or volume mounts.';
         } else if (data.path_status === 'not_a_git_repo') {
-          warningText = '⚠️ Directory is not a Git repository. Git sync requires git initialized.';
+          warningText = '⚠️ Directory is not a Git repository. Ensure Git is initialized in the path specified in config.json.';
         } else if (data.path_status === 'inaccessible') {
-          warningText = '⚠️ Directory is inaccessible inside Docker. Check permissions.';
+          warningText = '⚠️ Directory is inaccessible. Check file system permissions or config.json path.';
         } else if (data.path_status === 'not_provided') {
-          warningText = '⚠️ No path stored in DB. Syncing will prompt for path.';
+          warningText = '⚠️ No path stored in DB or config.json. Syncing will prompt for path.';
         }
         
         if (warningText) {

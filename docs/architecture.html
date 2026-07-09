@@ -47,13 +47,33 @@
   }
   .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
   .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
-  .nav-tabs { display: flex; gap: 4px; margin-left: 20px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface2); }
-  .nav-tab {
-    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
-    padding: 4px 10px; border-radius: 4px; text-decoration: none; color: var(--muted); transition: all 0.15s;
+  /* ── main container layout ──────────────── */
+  .main-container {
+    display: flex; flex: 1; min-height: 0; position: relative;
   }
-  .nav-tab:hover { color: var(--ink); }
-  .nav-tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+  /* ── sidebar ────────────────────────────── */
+  .sidebar {
+    width: 250px; background: var(--surface2); border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; padding: 24px 16px; gap: 20px; flex: none;
+  }
+  .sidebar-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px; padding-left: 12px;
+  }
+  .sidebar-menu {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .sidebar-link {
+    font-family: var(--sans); font-size: 13.5px; font-weight: 500;
+    padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--body);
+    transition: all 0.15s; border-left: 3px solid transparent;
+  }
+  .sidebar-link:hover { background: var(--surface); color: var(--ink); }
+  .sidebar-link.active {
+    background: var(--surface); color: var(--clay);
+    border-left-color: var(--clay); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
   .spacer { flex: 1; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
@@ -151,10 +171,6 @@
     <h1>Hybrid RAG — System Flows</h1>
     <div class="sub">AST parsing · local databases · reciprocal rank fusion · openTelemetry</div>
   </div>
-  <div class="nav-tabs">
-    <a href="architecture.html" class="nav-tab active">Architecture</a>
-    <a href="benchmark_flow.html" class="nav-tab">Benchmark Flow</a>
-  </div>
   <div class="spacer"></div>
   <div class="chips" id="chips">
     <button class="chip on" data-flow="all">Full Stack</button>
@@ -166,7 +182,16 @@
   <button id="themeToggle">Theme</button>
 </div>
 
-<div class="stage" id="stage">
+<div class="main-container">
+  <div class="sidebar">
+    <div class="sidebar-title">Codebase Explorer</div>
+    <div class="sidebar-menu">
+      <a href="architecture.html" class="sidebar-link active">System Architecture</a>
+      <a href="benchmark_flow.html" class="sidebar-link">Benchmark Flow</a>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
 <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hybrid RAG Architecture and flow diagram">
   <defs>
     <marker id="a-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
@@ -417,6 +442,7 @@
     <div class="meta" id="d-meta">hybrid RAG flow details</div>
     <p id="d-body">Explore the stack! Click on any node to view descriptions, or select individual flows at the top to highlight active requests path.</p>
   </div>
+</div>
 </div>
 
 <script>

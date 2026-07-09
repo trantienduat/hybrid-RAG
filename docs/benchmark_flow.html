@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hybrid RAG — Token Savings Benchmark Flow</title>
+<title>Hybrid RAG — Evaluation & Benchmark Portal</title>
 <script>
   (function () {
     const saved = localStorage.getItem('theme');
@@ -47,11 +47,28 @@
   }
   .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
   .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--muted); }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  #themeToggle {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
+
   /* ── main container layout ──────────────── */
   .main-container {
     display: flex; flex: 1; min-height: 0; position: relative;
   }
 
+  /* ── sidebar ────────────────────────────── */
   .sidebar {
     width: 250px; background: var(--surface2); border-right: 1px solid var(--line-soft);
     display: flex; flex-direction: column; padding: 24px 16px; gap: 20px; flex: none;
@@ -84,21 +101,6 @@
     background: var(--surface); color: var(--clay);
     border-left-color: var(--clay); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   }
-  .spacer { flex: 1; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
-    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
-    background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease;
-  }
-  .chip:hover { color: var(--ink); border-color: var(--muted); }
-  .chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-  #themeToggle {
-    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
-    padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
-    background: transparent; color: var(--muted); cursor: pointer;
-  }
-  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
 
   /* ── stage ───────────────────────────────── */
   .stage { flex: 1; position: relative; min-height: 0; }
@@ -173,15 +175,16 @@
 <div class="bar">
   <button id="sidebarToggle" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
   <div>
-    <h1>Hybrid RAG — Token Savings</h1>
-    <div class="sub">tiktoken calculation · zip downloader · cost estimations</div>
+    <h1>Hybrid RAG — Benchmark & Evaluations</h1>
+    <div class="sub">tiktoken cost savings · repoqa accuracy · ragas quality assessment</div>
   </div>
   <div class="spacer"></div>
   <div class="chips" id="chips">
-    <button class="chip on" data-flow="all">Full Script</button>
-    <button class="chip" data-flow="local">1. Local Scanning</button>
-    <button class="chip" data-flow="remote">2. Remote ZIP Loading</button>
-    <button class="chip" data-flow="analysis">3. Cost Analysis</button>
+    <button class="chip on" data-flow="all">Full Stack</button>
+    <button class="chip" data-flow="local">1. Local Savings</button>
+    <button class="chip" data-flow="remote">2. Remote Savings</button>
+    <button class="chip" data-flow="repoqa">3. RepoQA Benchmarking</button>
+    <button class="chip" data-flow="ragas">4. RAGAS Assessment</button>
   </div>
   <button id="themeToggle">Theme</button>
 </div>
@@ -196,7 +199,7 @@
   </div>
 
   <div class="stage" id="stage">
-<svg viewBox="0 0 1400 850" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Token Savings Benchmark Flow Diagram">
+<svg viewBox="0 0 1400 950" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Token Savings and RAGAS/RepoQA Evaluation Flow Diagram">
   <defs>
     <marker id="a-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
@@ -208,9 +211,9 @@
 
   <!-- ── zones ─────────────────────────────── -->
   <g class="zone" id="z-inputs">
-    <rect x="40" y="80" width="220" height="690"/>
+    <rect x="40" y="80" width="220" height="820"/>
     <text class="ztitle" x="60" y="115">Inputs</text>
-    <text class="zsub" x="60" y="133">target resolution paths</text>
+    <text class="zsub" x="60" y="133">target paths & sets</text>
   </g>
   <g class="zone" id="z-scanner">
     <rect x="290" y="80" width="450" height="420"/>
@@ -223,9 +226,14 @@
     <text class="zsub" x="790" y="133">tiktoken footprint tally</text>
   </g>
   <g class="zone" id="z-analysis">
-    <rect x="290" y="520" width="1070" height="250"/>
-    <text class="ztitle" x="310" y="555">Cost & Savings analysis</text>
+    <rect x="290" y="520" width="480" height="380"/>
+    <text class="ztitle" x="310" y="555">Cost & Savings Analysis</text>
     <text class="zsub" x="310" y="573">formula-driven math metrics</text>
+  </g>
+  <g class="zone" id="z-accuracy">
+    <rect x="790" y="520" width="570" height="380"/>
+    <text class="ztitle" x="810" y="555">Accuracy & Quality Evals</text>
+    <text class="zsub" x="810" y="573">RepoQA & Ragas scoring</text>
   </g>
 
   <!-- ── edges ─────────────────────────────── -->
@@ -244,10 +252,18 @@
   <path class="edge" id="e-read-tok" d="M960,200 L1010,200"/>
 
   <!-- Cost processing -->
-  <path class="edge" id="e-tok-base" d="M1090,240 C 1090,440 600,480 600,560"/>
-  <path class="edge" id="e-base-calc" d="M690,600 L760,600"/>
-  <path class="edge" id="e-rag-calc" d="M690,690 L760,630"/>
-  <path class="edge" id="e-calc-out" d="M930,600 L1010,600"/>
+  <path class="edge" id="e-tok-base" d="M1090,240 C 1090,440 400,480 400,560"/>
+  <path class="edge" id="e-base-calc" d="M490,600 L560,600"/>
+  <path class="edge" id="e-rag-calc" d="M490,690 L560,630"/>
+  <path class="edge" id="e-calc-out" d="M730,600 L1010,600"/>
+
+  <!-- RepoQA & Ragas Evaluation Flows -->
+  <path class="edge" id="e-ds-run" d="M220,620 L810,620"/>
+  <path class="edge" id="e-run-judge" d="M980,620 L1060,620"/>
+  <path class="edge" id="e-run-eval" d="M895,660 L895,730"/>
+  <path class="edge" id="e-ds-eval" d="M140,665 C 140,820 780,820 780,770"/>
+  <path class="edge" id="e-judge-out" d="M1145,660 L1145,730"/>
+  <path class="edge" id="e-eval-out" d="M980,770 L1060,770"/>
 
   <!-- Edge Labels -->
   <text class="elbl" data-e="e-loc-scan" x="265" y="170" text-anchor="middle">sys.argv[1]</text>
@@ -256,8 +272,11 @@
   <text class="elbl" data-e="e-filt-read" x="730" y="200" text-anchor="middle">matching files</text>
   <text class="elbl" data-e="e-read-tok" x="985" y="190" text-anchor="middle">utf-8 bytes</text>
   <text class="elbl" data-e="e-tok-base" x="1100" y="340">total tokens</text>
-  <text class="elbl" data-e="e-base-calc" x="725" y="590" text-anchor="middle">input size</text>
-  <text class="elbl" data-e="e-calc-out" x="970" y="590" text-anchor="middle">rich print</text>
+  <text class="elbl" data-e="e-base-calc" x="525" y="590" text-anchor="middle">input size</text>
+  <text class="elbl" data-e="e-calc-out" x="870" y="490" text-anchor="middle">rich print</text>
+  <text class="elbl" data-e="e-ds-run" x="515" y="610" text-anchor="middle">batch query</text>
+  <text class="elbl" data-e="e-run-judge" x="1020" y="610" text-anchor="middle">send context</text>
+  <text class="elbl" data-e="e-ds-eval" x="460" y="805" text-anchor="middle">ground truth needles</text>
 
   <!-- ── nodes: inputs ────────────────────── -->
   <g class="node" data-k="local_path">
@@ -277,6 +296,13 @@
     <text class="t" x="75" y="388">Direct ZIP URL</text>
     <text class="m" x="75" y="408">HTTP archive URL</text>
     <text class="m" x="75" y="420">pulls source files</text>
+  </g>
+  <g class="node store" data-k="repoqa_dataset">
+    <rect x="60" y="580" width="160" height="85"/>
+    <text class="t" x="75" y="608">RepoQA Dataset</text>
+    <text class="k" x="75" y="626">repoqa_real.json</text>
+    <text class="m" x="75" y="642">test questions</text>
+    <text class="m" x="75" y="654">expected needles</text>
   </g>
 
   <!-- ── nodes: scanner ───────────────────── -->
@@ -319,34 +345,61 @@
     <text class="m" x="1025" y="226">fast rust library</text>
   </g>
 
-  <!-- ── nodes: analysis ──────────────────── -->
+  <!-- ── nodes: cost analysis ─────────────── -->
   <g class="node" data-k="baseline_footprint">
-    <rect x="520" y="560" width="170" height="80"/>
-    <text class="t" x="535" y="592">Baseline Footprint</text>
-    <text class="m" x="535" y="612">full codebase tokens</text>
-    <text class="m" x="535" y="626">naive input parameter</text>
+    <rect x="320" y="560" width="170" height="80"/>
+    <text class="t" x="335" y="592">Baseline Footprint</text>
+    <text class="m" x="335" y="612">full codebase tokens</text>
+    <text class="m" x="335" y="626">naive input parameter</text>
   </g>
   <g class="node store" data-k="rag_size">
-    <rect x="520" y="660" width="170" height="70"/>
-    <text class="t" x="535" y="692">RAG Prompt size</text>
-    <text class="m" x="535" y="712">default: 3000 tokens</text>
+    <rect x="320" y="660" width="170" height="70"/>
+    <text class="t" x="335" y="692">RAG Prompt size</text>
+    <text class="m" x="335" y="712">default: 3000 tokens</text>
   </g>
   <g class="node gate" data-k="savings_calculator">
-    <rect x="760" y="560" width="170" height="90"/>
-    <text class="t" x="775" y="592">Savings Calculator</text>
-    <text class="k" x="775" y="610">Formula Engine</text>
-    <text class="m" x="775" y="624">percentage difference</text>
-    <text class="m" x="775" y="638">cost per 1k queries</text>
+    <rect x="560" y="560" width="170" height="90"/>
+    <text class="t" x="575" y="592">Savings Calculator</text>
+    <text class="k" x="575" y="610">Formula Engine</text>
+    <text class="m" x="575" y="624">percentage difference</text>
+    <text class="m" x="575" y="638">cost per 1k queries</text>
   </g>
   <g class="node" data-k="console_output">
-    <rect x="1010" y="560" width="170" height="80"/>
-    <text class="t" x="1025" y="592">CLI Output</text>
-    <text class="m" x="1025" y="612">pretty formatted report</text>
-    <text class="m" x="1025" y="626">summary statistics</text>
+    <rect x="320" y="780" width="410" height="80"/>
+    <text class="t" x="335" y="812">CLI Output (Console Savings)</text>
+    <text class="m" x="335" y="832">pretty formatted cost comparisons</text>
+    <text class="m" x="335" y="846">prints savings table to stdout</text>
+  </g>
+
+  <!-- ── nodes: accuracy/quality evals ────── -->
+  <g class="node do" data-k="rag_pipeline">
+    <rect x="810" y="580" width="170" height="80"/>
+    <text class="t" x="825" y="612">RAG Active Search</text>
+    <text class="m" x="825" y="632">retrieves context</text>
+    <text class="m" x="825" y="646">generates LLM response</text>
+  </g>
+  <g class="node gate" data-k="ragas_judge">
+    <rect x="1060" y="580" width="170" height="80"/>
+    <text class="t" x="1075" y="612">Ragas Judge (LLM)</text>
+    <text class="k" x="1075" y="630">LLM-as-a-Judge</text>
+    <text class="m" x="1075" y="646">scores relevance/truth</text>
+  </g>
+  <g class="node gate" data-k="repoqa_evaluator">
+    <rect x="810" y="730" width="170" height="80"/>
+    <text class="t" x="825" y="762">RepoQA Evaluator</text>
+    <text class="k" x="825" y="780">HitRate Engine</text>
+    <text class="m" x="825" y="794">compares file needles</text>
+  </g>
+  <g class="node" data-k="quality_metrics">
+    <rect x="1060" y="730" width="170" height="110"/>
+    <text class="t" x="1075" y="762">Evaluation Report</text>
+    <text class="m" x="1075" y="782">Faithfulness score</text>
+    <text class="m" x="1075" y="796">Context Precision</text>
+    <text class="m" x="1075" y="810">RepoQA HitRate %</text>
   </g>
 </svg>
 
-  <div class="src">scripts/benchmark_token_savings.py v1.0</div>
+  <div class="src">evals: ragas_evaluator.py · repoqa_real.json</div>
 
   <div class="card" id="flowcap">
     <div class="fname" id="f-name"></div>
@@ -356,9 +409,8 @@
   <div class="card" id="detail">
     <h3 id="d-title">Click a node</h3>
     <div class="meta" id="d-meta">benchmark details</div>
-    <p id="d-body">Select a flow at the top to highlight the benchmark steps (Local Scan, Remote scan, Cost analysis), or click any node to read detailed explanations.</p>
+    <p id="d-body">Select a flow at the top to highlight the benchmark steps (Local Savings, Remote Savings, RepoQA Benchmarking, or RAGAS Evaluation), or click any node to read detailed explanations.</p>
   </div>
-</div>
 </div>
 
 <script>
@@ -366,6 +418,7 @@ const DETAIL = {
   local_path: { t:"Local Directory", m:"Input", b:"Points to a folder on your local machine. Checked by <code>os.path.isdir()</code> to ensure it is a directory before scanning recursively." },
   github_shorthand: { t:"Git Shorthand", m:"Input", b:"Accepts shorthand in <code>owner/repo</code> format. Automatically translates to a GitHub master/main branch ZIP archive URL." },
   zip_url: { t:"Direct ZIP URL", m:"Input", b:"Accepts direct ZIP URLs. Enables benchmarking of specific tags, releases, or private repositories using raw download links." },
+  repoqa_dataset: { t:"RepoQA Dataset", m:"Input Dataset", b:"Contains a collection of test query targets and expected codebase source files (needles) to retrieve. Standardized under <code>fixtures/repoqa_real.json</code>." },
   local_scanner: { t:"Local Walk", m:"Scanner Engine", b:"Iterates directories recursively using python <code>os.walk()</code>. Skips files/folders located inside excluded directories (like <code>.venv</code>, <code>.git</code>)." },
   zip_downloader: { t:"ZIP Downloader", m:"Scanner Engine", b:"Downloads target archive using HTTPX. Streams bytes directly to an in-memory <code>io.BytesIO</code> buffer to avoid writing temporary files to disk." },
   zip_extractor: { t:"ZIP Extractor", m:"Scanner Engine", b:"Parses ZIP data directly from the in-memory bytes buffer on-the-fly using <code>zipfile.ZipFile</code>. Extremely fast and memory efficient." },
@@ -375,7 +428,11 @@ const DETAIL = {
   baseline_footprint: { t:"Baseline Footprint", m:"Cost Analyzer", b:"The total token footprint of the codebase. Represents the naive input parameter (loading all code into LLM context window at once)." },
   rag_size: { t:"RAG Prompt Size", m:"Cost Analyzer", b:"Configures target RAG prompt size (defaults to `3000` tokens, which includes 5 retrieved chunks, system prompt, and active query)." },
   savings_calculator: { t:"Savings Calculator", m:"Cost Analyzer", b:"Computes financial metrics (cost savings per 1k queries @ configured token pricing rates) and token compression rate formulas." },
-  console_output: { t:"CLI Output", m:"Report Presenter", b:"Renders a tabular command line report showing scanned files count, token saving percentages, and financial comparison breakdowns." }
+  console_output: { t:"CLI Output (Console)", m:"Report Presenter", b:"Renders a tabular command line report showing scanned files count, token saving percentages, and financial comparison breakdowns." },
+  rag_pipeline: { t:"RAG Active Search", m:"RAG Execution Pipeline", b:"Runs the query through Vector (Qdrant) and Graph (FalkorDB) retrievers, fuses them using RRF, and generates a response using the local model." },
+  ragas_judge: { t:"Ragas Judge (LLM)", m:"Accuracy Evaluator", b:"Utilizes a powerful LLM-as-a-Judge API to score generated RAG responses against ground truth facts for faithfulness and answer relevancy." },
+  repoqa_evaluator: { t:"RepoQA Evaluator", m:"Accuracy Evaluator", b:"Calculates precision metrics (HitRate @ top-K) by matching the exact file paths of retrieved source code chunks against expected ground truth needles." },
+  quality_metrics: { t:"Evaluation Report", m:"Result Summary", b:"Collates the overall accuracy results: Faithfulness, Answer Relevancy, Context Recall (from RAGAS) alongside HitRate metrics (from RepoQA)." }
 };
 
 const FLOWS = {
@@ -405,16 +462,28 @@ const FLOWS = {
       "Savings calculator computes net compression and prints console report."
     ]
   },
-  analysis: {
-    name: "Cost & Savings Analysis",
-    edges: ["e-base-calc","e-rag-calc","e-calc-out"],
-    nodes: ["baseline_footprint","rag_size","savings_calculator","console_output"],
+  repoqa: {
+    name: "RepoQA Accuracy Benchmarking",
+    edges: ["e-ds-run","e-run-eval","e-ds-eval","e-eval-out"],
+    nodes: ["repoqa_dataset","rag_pipeline","repoqa_evaluator","quality_metrics"],
     steps: [
-      "Total codebase tokens supplied to calculation engine.",
-      "Estimated RAG prompt size (3,000 tokens default) loaded.",
-      "Calculates token saving rate percentage.",
-      "Computes API input costs for 1,000 queries using the configured cost rates.",
-      "Renders comparison table to CLI stdout."
+      "Load RepoQA query dataset from <code>fixtures/repoqa_real.json</code>.",
+      "Feed test queries to the active <b>RAG Active Search</b> pipeline.",
+      "Pipeline searches vector indices (Qdrant) and graph relations (FalkorDB).",
+      "<b>RepoQA Evaluator</b> matches retrieved code locations against expected needles.",
+      "Computes target <b>HitRate %</b> and saves findings to evaluation report."
+    ]
+  },
+  ragas: {
+    name: "RAGAS Quality Assessment",
+    edges: ["e-ds-run","e-run-judge","e-judge-out"],
+    nodes: ["repoqa_dataset","rag_pipeline","ragas_judge","quality_metrics"],
+    steps: [
+      "System queries RAG pipeline with evaluation question sets.",
+      "Active search pipeline compiles context chunks and synthesizes answer.",
+      "Generated answer and context are submitted to the **Ragas Judge (LLM)**.",
+      "Judge scores response accuracy, faithfulness, and semantic relevance.",
+      "Results appended to the final <b>Evaluation Report</b>."
     ]
   }
 };

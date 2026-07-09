@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid RAG — Token Savings Benchmark Flow</title>
+<script>
+  (function () {
+    const saved = localStorage.getItem('theme');
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', dark);
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAF9F5; --surface: #FFFFFF; --surface2: #F0EEE6;
+    --ink: #141413; --body: #3D3D3A; --muted: #87867F;
+    --line: #D1CFC5; --line-soft: #E6E3DA;
+    --clay: #D97757; --clay-soft: rgba(217,119,87,0.10);
+    --olive: #788C5D; --olive-soft: rgba(120,140,93,0.12);
+    --gold: #C9A45C; --blue: #5B7E96; --blue-soft: rgba(91,126,150,0.10);
+    --zone: rgba(20,20,19,0.025); --zone-line: #D1CFC5;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  html.dark {
+    --bg: #141413; --surface: #1F1F1D; --surface2: #2A2A28;
+    --ink: #FAF9F5; --body: #D1CFC5; --muted: #87867F;
+    --line: #3D3D3A; --line-soft: #2A2A28;
+    --clay: #E48A6E; --clay-soft: rgba(228,138,110,0.14);
+    --olive: #9DB07C; --olive-soft: rgba(157,176,124,0.16);
+    --gold: #D4B36F; --blue: #7FA3BC; --blue-soft: rgba(127,163,188,0.14);
+    --zone: rgba(250,249,245,0.03); --zone-line: #3D3D3A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--body); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── top bar ─────────────────────────────── */
+  .bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line-soft); flex: none;
+  }
+  .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
+  .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .nav-tabs { display: flex; gap: 4px; margin-left: 20px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface2); }
+  .nav-tab {
+    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+    padding: 4px 10px; border-radius: 4px; text-decoration: none; color: var(--muted); transition: all 0.15s;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--muted); }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  #themeToggle {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* ── stage ───────────────────────────────── */
+  .stage { flex: 1; position: relative; min-height: 0; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* zones */
+  .zone rect { fill: var(--zone); stroke: var(--zone-line); stroke-width: 1; stroke-dasharray: 5 5; rx: 16; }
+  .zone .ztitle { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+  .zone .zsub { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); opacity: 0.75; }
+
+  /* nodes */
+  .node { cursor: pointer; }
+  .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 10; transition: stroke .15s ease, filter .15s ease; }
+  .node:hover rect { stroke: var(--muted); }
+  .node.sel rect { stroke: var(--clay) !important; stroke-width: 2; }
+  .node .t  { font-family: var(--sans); font-size: 13px; font-weight: 600; fill: var(--ink); pointer-events: none; }
+  .node .m  { font-family: var(--mono); font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .node .k  { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--clay); pointer-events: none; }
+  .node.gate rect { fill: var(--clay-soft); stroke: var(--clay); }
+  .node.store rect { fill: var(--surface2); }
+  .node.do rect { fill: var(--olive-soft); stroke: var(--olive); }
+  .node.ext rect { stroke-dasharray: 6 3; }
+  .node.otel rect { fill: var(--blue-soft); stroke: var(--blue); }
+
+  /* edges */
+  .edge { stroke: var(--muted); stroke-width: 1.6; fill: none; marker-end: url(#a-mut); transition: opacity .2s ease, stroke .2s ease; }
+  .edge.dash { stroke-dasharray: 5 4; }
+  .elbl { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); transition: opacity .2s ease; }
+
+  /* flow highlighting */
+  .stage.flowing .edge { opacity: 0.13; }
+  .stage.flowing .elbl { opacity: 0.13; }
+  .stage.flowing .node { opacity: 0.30; }
+  .stage.flowing .zone { opacity: 0.45; }
+  .stage.flowing .edge.lit {
+    opacity: 1; stroke: var(--clay); marker-end: url(#a-clay);
+    stroke-dasharray: 7 5; animation: march 0.9s linear infinite;
+  }
+  .stage.flowing .elbl.lit { opacity: 1; fill: var(--clay); }
+  .stage.flowing .node.lit { opacity: 1; }
+  .stage.flowing .node.lit rect { stroke: var(--clay); }
+  @keyframes march { to { stroke-dashoffset: -12; } }
+  @media (prefers-reduced-motion: reduce) { .stage.flowing .edge.lit { animation: none; } }
+
+  /* ── floating cards ──────────────────────── */
+  .card {
+    position: absolute; max-width: 360px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+  }
+  #detail { right: 16px; bottom: 16px; width: 340px; }
+  #detail h3 { font-family: var(--serif); font-weight: 500; font-size: 17px; color: var(--ink); margin-bottom: 2px; }
+  #detail .meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-bottom: 8px; }
+  #detail p { font-size: 12.5px; line-height: 1.55; }
+  #detail p code, #flowcap code { font-family: var(--mono); font-size: 11px; color: var(--clay); }
+  #flowcap { left: 16px; bottom: 16px; max-width: 480px; display: none; }
+  #flowcap.show { display: block; }
+  #flowcap .fname { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 6px; }
+  #flowcap ol { margin-left: 18px; }
+  #flowcap li { font-size: 12.5px; line-height: 1.55; }
+  .src { position: absolute; top: 10px; right: 16px; font-family: var(--mono); font-size: 10px; color: var(--muted); opacity: 0.8; }
+  @media (max-width: 880px) {
+    body { overflow: auto; }
+    .stage { min-height: 75vh; }
+    #detail { position: static; width: auto; margin: 10px 16px; }
+    #flowcap { position: static; margin: 0 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div>
+    <h1>Hybrid RAG — Token Savings</h1>
+    <div class="sub">tiktoken calculation · zip downloader · cost estimations</div>
+  </div>
+  <div class="nav-tabs">
+    <a href="architecture.html" class="nav-tab">Architecture</a>
+    <a href="benchmark_flow.html" class="nav-tab active">Benchmark Flow</a>
+  </div>
+  <div class="spacer"></div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-flow="all">Full Script</button>
+    <button class="chip" data-flow="local">1. Local Scanning</button>
+    <button class="chip" data-flow="remote">2. Remote ZIP Loading</button>
+    <button class="chip" data-flow="analysis">3. Cost Analysis</button>
+  </div>
+  <button id="themeToggle">Theme</button>
+</div>
+
+<div class="stage" id="stage">
+<svg viewBox="0 0 1400 850" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Token Savings Benchmark Flow Diagram">
+  <defs>
+    <marker id="a-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+    </marker>
+    <marker id="a-clay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill: var(--clay)"/>
+    </marker>
+  </defs>
+
+  <!-- ── zones ─────────────────────────────── -->
+  <g class="zone" id="z-inputs">
+    <rect x="40" y="80" width="220" height="690"/>
+    <text class="ztitle" x="60" y="115">Inputs</text>
+    <text class="zsub" x="60" y="133">target resolution paths</text>
+  </g>
+  <g class="zone" id="z-scanner">
+    <rect x="290" y="80" width="450" height="420"/>
+    <text class="ztitle" x="310" y="115">Extraction & Scanning</text>
+    <text class="zsub" x="310" y="133">recursive file checks</text>
+  </g>
+  <g class="zone" id="z-tally">
+    <rect x="770" y="80" width="590" height="420"/>
+    <text class="ztitle" x="790" y="115">Tokenizer Pipeline</text>
+    <text class="zsub" x="790" y="133">tiktoken footprint tally</text>
+  </g>
+  <g class="zone" id="z-analysis">
+    <rect x="290" y="520" width="1070" height="250"/>
+    <text class="ztitle" x="310" y="555">Cost & Savings analysis</text>
+    <text class="zsub" x="310" y="573">formula-driven math metrics</text>
+  </g>
+
+  <!-- ── edges ─────────────────────────────── -->
+  <!-- Local flow -->
+  <path class="edge" id="e-loc-scan" d="M220,180 L310,180"/>
+  <path class="edge" id="e-scan-filt" d="M470,180 L520,225"/>
+
+  <!-- Remote flow -->
+  <path class="edge" id="e-shorthand-down" d="M220,290 L310,340"/>
+  <path class="edge" id="e-url-down" d="M220,400 L310,360"/>
+  <path class="edge" id="e-down-zip" d="M470,350 L520,350"/>
+  <path class="edge" id="e-zip-filt" d="M620,310 L590,260"/>
+
+  <!-- Tokenizer processing -->
+  <path class="edge" id="e-filt-read" d="M670,225 L790,200"/>
+  <path class="edge" id="e-read-tok" d="M960,200 L1010,200"/>
+
+  <!-- Cost processing -->
+  <path class="edge" id="e-tok-base" d="M1090,240 C 1090,440 600,480 600,560"/>
+  <path class="edge" id="e-base-calc" d="M690,600 L760,600"/>
+  <path class="edge" id="e-rag-calc" d="M690,690 L760,630"/>
+  <path class="edge" id="e-calc-out" d="M930,600 L1010,600"/>
+
+  <!-- Edge Labels -->
+  <text class="elbl" data-e="e-loc-scan" x="265" y="170" text-anchor="middle">sys.argv[1]</text>
+  <text class="elbl" data-e="e-shorthand-down" x="265" y="300" text-anchor="middle">resolve zip</text>
+  <text class="elbl" data-e="e-down-zip" x="495" y="340" text-anchor="middle">HTTP GET</text>
+  <text class="elbl" data-e="e-filt-read" x="730" y="200" text-anchor="middle">matching files</text>
+  <text class="elbl" data-e="e-read-tok" x="985" y="190" text-anchor="middle">utf-8 bytes</text>
+  <text class="elbl" data-e="e-tok-base" x="1100" y="340">total tokens</text>
+  <text class="elbl" data-e="e-base-calc" x="725" y="590" text-anchor="middle">input size</text>
+  <text class="elbl" data-e="e-calc-out" x="970" y="590" text-anchor="middle">rich print</text>
+
+  <!-- ── nodes: inputs ────────────────────── -->
+  <g class="node" data-k="local_path">
+    <rect x="60" y="140" width="160" height="70"/>
+    <text class="t" x="75" y="168">Local Directory</text>
+    <text class="m" x="75" y="188">e.g. '.' or './src'</text>
+    <text class="m" x="75" y="200">scans filesystem</text>
+  </g>
+  <g class="node" data-k="github_shorthand">
+    <rect x="60" y="250" width="160" height="70"/>
+    <text class="t" x="75" y="278">Git Shorthand</text>
+    <text class="m" x="75" y="298">owner/repo string</text>
+    <text class="m" x="75" y="310">resolves master.zip</text>
+  </g>
+  <g class="node" data-k="zip_url">
+    <rect x="60" y="360" width="160" height="70"/>
+    <text class="t" x="75" y="388">Direct ZIP URL</text>
+    <text class="m" x="75" y="408">HTTP archive URL</text>
+    <text class="m" x="75" y="420">pulls source files</text>
+  </g>
+
+  <!-- ── nodes: scanner ───────────────────── -->
+  <g class="node" data-k="local_scanner">
+    <rect x="310" y="140" width="160" height="80"/>
+    <text class="t" x="325" y="172">Local Directory Walk</text>
+    <text class="m" x="325" y="192">os.walk() loop</text>
+    <text class="m" x="325" y="206">skips EXCLUDE_DIRS</text>
+  </g>
+  <g class="node" data-k="zip_downloader">
+    <rect x="310" y="310" width="160" height="80"/>
+    <text class="t" x="325" y="342">ZIP Downloader</text>
+    <text class="m" x="325" y="362">httpx in-memory stream</text>
+    <text class="m" x="325" y="376">io.BytesIO buffer</text>
+  </g>
+  <g class="node" data-k="zip_extractor">
+    <rect x="520" y="310" width="170" height="80"/>
+    <text class="t" x="535" y="342">ZIP Extractor</text>
+    <text class="m" x="535" y="362">zipfile.ZipFile class</text>
+    <text class="m" x="535" y="376">extracts on-the-fly</text>
+  </g>
+  <g class="node gate" data-k="file_filter">
+    <rect x="520" y="180" width="170" height="80"/>
+    <text class="t" x="535" y="208">Filter & Ignored Dirs</text>
+    <text class="k" x="535" y="226">EXCLUDE_DIRS</text>
+    <text class="m" x="535" y="242">extensions mismatch</text>
+  </g>
+
+  <!-- ── nodes: tally ─────────────────────── -->
+  <g class="node" data-k="file_reader">
+    <rect x="790" y="160" width="170" height="80"/>
+    <text class="t" x="805" y="192">File Decoder</text>
+    <text class="m" x="805" y="212">reads utf-8 ignore err</text>
+    <text class="m" x="805" y="226">skips binary types</text>
+  </g>
+  <g class="node gate" data-k="tokenizer">
+    <rect x="1010" y="160" width="170" height="80"/>
+    <text class="t" x="1025" y="192">tiktoken Tokenizer</text>
+    <text class="k" x="1025" y="210">gpt-4 cl100k_base</text>
+    <text class="m" x="1025" y="226">fast rust library</text>
+  </g>
+
+  <!-- ── nodes: analysis ──────────────────── -->
+  <g class="node" data-k="baseline_footprint">
+    <rect x="520" y="560" width="170" height="80"/>
+    <text class="t" x="535" y="592">Baseline Footprint</text>
+    <text class="m" x="535" y="612">full codebase tokens</text>
+    <text class="m" x="535" y="626">naive input parameter</text>
+  </g>
+  <g class="node store" data-k="rag_size">
+    <rect x="520" y="660" width="170" height="70"/>
+    <text class="t" x="535" y="692">RAG Prompt size</text>
+    <text class="m" x="535" y="712">default: 3000 tokens</text>
+  </g>
+  <g class="node gate" data-k="savings_calculator">
+    <rect x="760" y="560" width="170" height="90"/>
+    <text class="t" x="775" y="592">Savings Calculator</text>
+    <text class="k" x="775" y="610">Formula Engine</text>
+    <text class="m" x="775" y="624">percentage difference</text>
+    <text class="m" x="775" y="638">cost per 1k queries</text>
+  </g>
+  <g class="node" data-k="console_output">
+    <rect x="1010" y="560" width="170" height="80"/>
+    <text class="t" x="1025" y="592">CLI Output</text>
+    <text class="m" x="1025" y="612">pretty formatted report</text>
+    <text class="m" x="1025" y="626">summary statistics</text>
+  </g>
+</svg>
+
+  <div class="src">scripts/benchmark_token_savings.py v1.0</div>
+
+  <div class="card" id="flowcap">
+    <div class="fname" id="f-name"></div>
+    <ol id="f-steps"></ol>
+  </div>
+
+  <div class="card" id="detail">
+    <h3 id="d-title">Click a node</h3>
+    <div class="meta" id="d-meta">benchmark details</div>
+    <p id="d-body">Select a flow at the top to highlight the benchmark steps (Local Scan, Remote scan, Cost analysis), or click any node to read detailed explanations.</p>
+  </div>
+</div>
+
+<script>
+const DETAIL = {
+  local_path: { t:"Local Directory", m:"Input", b:"Points to a folder on your local machine. Checked by <code>os.path.isdir()</code> to ensure it is a directory before scanning recursively." },
+  github_shorthand: { t:"Git Shorthand", m:"Input", b:"Accepts shorthand in <code>owner/repo</code> format. Automatically translates to a GitHub master/main branch ZIP archive URL." },
+  zip_url: { t:"Direct ZIP URL", m:"Input", b:"Accepts direct ZIP URLs. Enables benchmarking of specific tags, releases, or private repositories using raw download links." },
+  local_scanner: { t:"Local Walk", m:"Scanner Engine", b:"Iterates directories recursively using python <code>os.walk()</code>. Skips files/folders located inside excluded directories (like <code>.venv</code>, <code>.git</code>)." },
+  zip_downloader: { t:"ZIP Downloader", m:"Scanner Engine", b:"Downloads target archive using HTTPX. Streams bytes directly to an in-memory <code>io.BytesIO</code> buffer to avoid writing temporary files to disk." },
+  zip_extractor: { t:"ZIP Extractor", m:"Scanner Engine", b:"Parses ZIP data directly from the in-memory bytes buffer on-the-fly using <code>zipfile.ZipFile</code>. Extremely fast and memory efficient." },
+  file_filter: { t:"Filter & Ignored Dirs", m:"Scanner Engine", b:"Applies exclusion filters: skips folders matching <code>EXCLUDE_DIRS</code> (e.g. <code>__pycache__</code>, <code>node_modules</code>) and skips files with extensions that are not in the target list." },
+  file_reader: { t:"File Decoder", m:"Tokenizer Pipeline", b:"Loads file text contents using UTF-8 decoding, gracefully ignoring decoding errors. Ensures binary files are safely skipped during counting." },
+  tokenizer: { t:"tiktoken Tokenizer", m:"Tokenizer Pipeline", b:"Encodes text using OpenAI's high-speed <code>tiktoken</code> BPE library (defaults to <code>gpt-4</code> / <code>cl100k_base</code> encoding) to tally exact token footprints." },
+  baseline_footprint: { t:"Baseline Footprint", m:"Cost Analyzer", b:"The total token footprint of the codebase. Represents the naive input parameter (loading all code into LLM context window at once)." },
+  rag_size: { t:"RAG Prompt Size", m:"Cost Analyzer", b:"Configures target RAG prompt size (defaults to `3000` tokens, which includes 5 retrieved chunks, system prompt, and active query)." },
+  savings_calculator: { t:"Savings Calculator", m:"Cost Analyzer", b:"Computes financial metrics (cost savings per 1k queries @ configured token pricing rates) and token compression rate formulas." },
+  console_output: { t:"CLI Output", m:"Report Presenter", b:"Renders a tabular command line report showing scanned files count, token saving percentages, and financial comparison breakdowns." }
+};
+
+const FLOWS = {
+  local: {
+    name: "Local Scanning Flow",
+    edges: ["e-loc-scan","e-scan-filt","e-filt-read","e-read-tok","e-tok-base","e-base-calc","e-calc-out"],
+    nodes: ["local_path","local_scanner","file_filter","file_reader","tokenizer","baseline_footprint","savings_calculator","console_output"],
+    steps: [
+      "Target local path verified by script.",
+      "<code>os.walk()</code> runs recursively on target directory.",
+      "Filter excludes dependencies (e.g. <code>.venv</code>, <code>.git</code>) and non-matching extensions.",
+      "UTF-8 file decoder reads matching text files.",
+      "<b>tiktoken</b> encodes characters into tokens.",
+      "Calculates baseline token footprint and compares against RAG prompt limits."
+    ]
+  },
+  remote: {
+    name: "Remote GitHub ZIP Flow",
+    edges: ["e-shorthand-down","e-url-down","e-down-zip","e-zip-filt","e-filt-read","e-read-tok","e-tok-base","e-base-calc","e-calc-out"],
+    nodes: ["github_shorthand","zip_url","zip_downloader","zip_extractor","file_filter","file_reader","tokenizer","baseline_footprint","savings_calculator","console_output"],
+    steps: [
+      "Remote GitHub owner/repo shorthand or ZIP URL provided.",
+      "<b>ZIP Downloader</b> downloads archive in-memory using HTTPX.",
+      "<b>ZIP Extractor</b> parses archive files from byte stream.",
+      "Filter applies exclusions to paths (skipping caches, docs, build outputs).",
+      "Decodes matching files and counts tokens via <b>tiktoken</b>.",
+      "Savings calculator computes net compression and prints console report."
+    ]
+  },
+  analysis: {
+    name: "Cost & Savings Analysis",
+    edges: ["e-base-calc","e-rag-calc","e-calc-out"],
+    nodes: ["baseline_footprint","rag_size","savings_calculator","console_output"],
+    steps: [
+      "Total codebase tokens supplied to calculation engine.",
+      "Estimated RAG prompt size (3,000 tokens default) loaded.",
+      "Calculates token saving rate percentage.",
+      "Computes API input costs for 1,000 queries using the configured cost rates.",
+      "Renders comparison table to CLI stdout."
+    ]
+  }
+};
+
+const stage = document.getElementById('stage');
+const nodes = document.querySelectorAll('.node');
+const edges = document.querySelectorAll('.edge');
+const elbls = document.querySelectorAll('.elbl');
+const chips = document.querySelectorAll('.chip');
+const fcap = document.getElementById('flowcap');
+
+function setFlow(key) {
+  chips.forEach(c => c.classList.toggle('on', c.dataset.flow === key));
+  edges.forEach(e => e.classList.remove('lit'));
+  elbls.forEach(l => l.classList.remove('lit'));
+  nodes.forEach(n => n.classList.remove('lit'));
+  if (key === 'all') { stage.classList.remove('flowing'); fcap.classList.remove('show'); return; }
+  const f = FLOWS[key];
+  stage.classList.add('flowing');
+  f.edges.forEach(id => document.getElementById(id)?.classList.add('lit'));
+  elbls.forEach(l => { if (f.edges.includes(l.dataset.e)) l.classList.add('lit'); });
+  f.nodes.forEach(k => document.querySelector(`.node[data-k="${k}"]`)?.classList.add('lit'));
+  document.getElementById('f-name').textContent = f.name;
+  document.getElementById('f-steps').innerHTML = f.steps.map(s => `<li>${s}</li>`).join('');
+  fcap.classList.add('show');
+}
+chips.forEach(c => c.addEventListener('click', () => setFlow(c.dataset.flow)));
+
+nodes.forEach(n => n.addEventListener('click', () => {
+  nodes.forEach(x => x.classList.remove('sel'));
+  n.classList.add('sel');
+  const d = DETAIL[n.dataset.k];
+  if (!d) return;
+  document.getElementById('d-title').textContent = d.t;
+  document.getElementById('d-meta').textContent = d.m;
+  document.getElementById('d-body').innerHTML = d.b;
+}));
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+});
+</script>
+</body>
+</html>

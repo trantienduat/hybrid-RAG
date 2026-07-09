@@ -47,6 +47,13 @@
   }
   .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
   .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .nav-tabs { display: flex; gap: 4px; margin-left: 20px; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: var(--surface2); }
+  .nav-tab {
+    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+    padding: 4px 10px; border-radius: 4px; text-decoration: none; color: var(--muted); transition: all 0.15s;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .spacer { flex: 1; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
@@ -143,6 +150,10 @@
   <div>
     <h1>Hybrid RAG — System Flows</h1>
     <div class="sub">AST parsing · local databases · reciprocal rank fusion · openTelemetry</div>
+  </div>
+  <div class="nav-tabs">
+    <a href="architecture.html" class="nav-tab active">Architecture</a>
+    <a href="benchmark_flow.html" class="nav-tab">Benchmark Flow</a>
   </div>
   <div class="spacer"></div>
   <div class="chips" id="chips">

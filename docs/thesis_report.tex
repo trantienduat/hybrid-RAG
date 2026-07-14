@@ -380,30 +380,12 @@ Hệ thống triển khai 2 thuật toán quan trọng nhằm đảm bảo tính
 
 \subsection{Thuật toán giải quyết thực thể toàn cục (Global Entity Resolution)}
 \label{sec:entity_resolution}
-Khi phân tích mã nguồn lớn, các dòng lệnh gọi hàm đích thường chỉ lưu vết dưới dạng stub tạm thời (ví dụ \texttt{\_\_call\_\_foo}). Thuật toán trong Mã nguồn~\ref{alg:entity_resolution} giải quyết vấn đề này bằng cách quét toàn bộ \gls{fqn} thực tế của hàm đích để ánh xạ lại cạnh \texttt{CALLS} chính xác.
-
-\begin{lstlisting}[language=Python, caption=Thuật toán giải quyết call stubs tĩnh, label=alg:entity_resolution]
-# Pseudocode logic cho Entity Resolver
-def resolve_call_stubs(real_fqns, call_stubs):
-    resolved_edges = []
-    for stub in call_stubs:
-        # 1. Kiem tra phuong thuc cung Class (Sibling)
-        sibling_match = find_sibling_method(stub.class_context, stub.target_name, real_fqns)
-        if sibling_match:
-            resolved_edges.append((stub.caller, sibling_match))
-            continue
-        # 2. Kiem tra pham vi Module (Same Module)
-        module_match = find_module_function(stub.module_context, stub.target_name, real_fqns)
-        if module_match:
-            resolved_edges.append((stub.caller, module_match))
-            continue
-        # 3. Quet duy nhat toan cuc (Global Unique Fallback)
-        global_match = find_globally_unique(stub.target_name, real_fqns)
-        if global_match:
-            resolved_edges.append((stub.caller, global_match))
-
-    return resolved_edges
-\end{lstlisting}
+Khi phân tích mã nguồn lớn, các dòng lệnh gọi hàm đích thường chỉ lưu vết dưới dạng stub tạm thời (ví dụ \texttt{\_\_call\_\_foo}). Hệ thống giải quyết vấn đề này bằng bộ giải quyết thực thể toàn cục (Global Entity Resolver) hoạt động theo các bước sau:
+\begin{enumerate}
+    \item \textbf{Kiểm tra phương thức cùng lớp (Sibling method):} Đối với mỗi thực thể chưa được giải quyết trong ngữ cảnh lớp, hệ thống tìm kiếm phương thức có tên tương ứng được định nghĩa trong cùng một lớp hoặc các lớp cha thuộc cây thừa kế. Nếu tìm thấy thực thể khớp, thiết lập liên kết trực tiếp giữa nút gọi và nút định nghĩa phương thức đó.
+    \item \textbf{Kiểm tra phạm vi Module (Same Module):} Nếu bước 1 không khớp, hệ thống tìm kiếm thực thể khớp tên trong cùng tệp tin (module) hiện tại.
+    \item \textbf{Quét duy nhất toàn cục (Global Unique Fallback):} Nếu bước 2 không khớp, hệ thống quét trên toàn bộ các tên thực thể trong đồ thị cơ sở dữ liệu. Nếu tên thực thể đó là độc bản trên toàn dự án, hệ thống tự động thiết lập liên kết trực tiếp.
+\end{enumerate}
 
 \subsection{Thuật toán xếp hạng trộn lai Reciprocal Rank Fusion (RRF)}
 Sau khi truy xuất song song từ Qdrant ($D_{vector}$) và FalkorDB ($D_{graph}$), thuật toán \gls{rrf} \cite{cormack2009rrf} tính toán lại điểm xếp hạng tích hợp theo công thức:
@@ -413,21 +395,13 @@ Sau khi truy xuất song song từ Qdrant ($D_{vector}$) và FalkorDB ($D_{graph
     \label{eq:rrf}
 \end{equation}
 
-trong đó $k = 60$ là hằng số cân bằng, $W_r$ là trọng số cho mỗi nguồn truy xuất ($W_{graph} = 3.0$ cho truy vấn cấu trúc, $W_{vector} = 1.5$ cho truy vấn ngữ nghĩa). Chi tiết mã giả được trình bày trong Mã nguồn~\ref{alg:rrf}.
-
-\begin{lstlisting}[language=Python, caption=Thuật toán trộn thứ hạng RRF, label=alg:rrf]
-def reciprocal_rank_fusion(graph_results, vector_results, k=60, w_graph=3.0, w_vector=1.5):
-    scores = {}
-    # Cong diem tu Graph
-    for rank, doc in enumerate(graph_results):
-        scores[doc.id] = scores.get(doc.id, 0.0) + w_graph / (k + rank + 1)
-    # Cong diem tu Vector
-    for rank, doc in enumerate(vector_results):
-        scores[doc.id] = scores.get(doc.id, 0.0) + w_vector / (k + rank + 1)
-
-    # Sap xep va tra ve danh sach theo diem so giam dan
-    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
-\end{lstlisting}
+trong đó $k = 60$ là hằng số cân bằng, $W_r$ là trọng số cho mỗi nguồn truy xuất ($W_{graph} = 3.0$ cho truy vấn cấu trúc, $W_{vector} = 1.5$ cho truy vấn ngữ nghĩa). Thuật toán RRF tính toán lại điểm xếp hạng tích hợp theo quy trình sau:
+\begin{enumerate}
+    \item \textbf{Khởi tạo bảng điểm tổng hợp:} Tạo một cấu trúc dữ liệu lưu điểm rỗng cho tất cả các tài liệu / phân mảnh mã nguồn xuất hiện trong kết quả tìm kiếm đồ thị hoặc vector.
+    \item \textbf{Tích hợp kết quả từ Đồ thị:} Duyệt qua các phân mảnh trả về từ FalkorDB. Với mỗi phân mảnh thứ $i$ (xếp hạng 0-indexed), cộng vào điểm của phân mảnh đó một giá trị bằng $W_{graph} / (k + i + 1)$.
+    \item \textbf{Tích hợp kết quả từ Vector:} Duyệt qua các phân mảnh trả về từ Qdrant. Với mỗi phân mảnh thứ $j$, cộng vào điểm của phân mảnh đó một giá trị bằng $W_{vector} / (k + j + 1)$.
+    \item \textbf{Sắp xếp và lọc kết quả:} Sắp xếp lại danh sách các phân mảnh theo thứ tự điểm số giảm dần và trả về danh sách phân mảnh có điểm số cao nhất cho pha lắp ghép prompt.
+\end{enumerate}
 
 \section{Kiểm thử phần mềm (Software Testing)}
 Hệ thống được kiểm thử với bộ 191 test cases tự động hóa bao phủ các tầng: unit test cho parser và extractor, integration test cho đường ống nạp dữ liệu end-to-end, và functional test cho \gls{api} truy vấn. Bộ kiểm thử được chạy tự động qua lệnh \texttt{make test} và kiểm tra lint qua \texttt{make lint}.
@@ -531,13 +505,8 @@ Số liệu tại Bảng~\ref{tab:latency_breakdown} chứng minh thời gian ph
     \item \textbf{Phân tích từ khóa:} Mô hình trích xuất ra thực thể hạt giống: \texttt{AutoMergingRetriever} và các tín hiệu quan hệ cần mở rộng: \texttt{INHERITS}, \texttt{CALLS}.
     \item \textbf{Truy xuất lai song song:}
     \begin{itemize}
-        \item FalkorDB thực hiện truy vấn Cypher mở rộng từ seed node:
-        \begin{lstlisting}[language=SQL, numbers=none, basicstyle=\ttfamily\scriptsize]
-MATCH (n:Class {name:"AutoMergingRetriever"})-[:INHERITS]->(parent)
-RETURN parent.name
--- Result: BaseRetriever (score: 0.049 via RRF)
-        \end{lstlisting}
-        \item Qdrant đồng thời truy xuất 3 chunk code tương đồng ngữ nghĩa (cosine similarity $> 0.72$).
+        \item FalkorDB thực hiện truy xuất tìm kiếm các lớp cha mà lớp `AutoMergingRetriever` kế thừa trực tiếp (truy vấn quan hệ cạnh kiểu \texttt{INHERITS}). Kết quả trả về thực thể lớp \texttt{BaseRetriever} (có điểm RRF là $0.049$).
+        \item Qdrant đồng thời truy xuất 3 chunk code tương đồng ngữ nghĩa bằng thuật toán k-NN (cosine similarity $> 0.72$).
     \end{itemize}
     \item \textbf{RRF Ranking:} Bảng~\ref{tab:case_study_rrf} trình bày điểm RRF tính toán cho top-5 kết quả.
     \item \textbf{Token Budget:} Context assembler đóng gói 4/5 chunk vào prompt (2,847 / 4,096 max tokens sử dụng).

@@ -83,8 +83,7 @@
 \newacronym{rrf}{RRF}{Reciprocal Rank Fusion}
 \newacronym{fqn}{FQN}{Fully Qualified Name}
 \newacronym{kg}{KG}{Knowledge Graph}
-\newacronym{otel}{OTel}{OpenTelemetry}
-\newacronym{otlp}{OTLP}{OpenTelemetry Protocol}
+
 \newacronym{sla}{SLA}{Service Level Agreement}
 \newacronym{dod}{DOD}{Definition of Done}
 \newacronym{api}{API}{Application Programming Interface}
@@ -137,13 +136,13 @@
 \addcontentsline{toc}{chapter}{Tóm tắt Luận văn}
 Truy vấn mã nguồn là một bài toán phức tạp do mã nguồn chứa cả thông tin cấu trúc tĩnh (mối quan hệ gọi hàm, kế thừa lớp, định nghĩa module) và thông tin ngữ nghĩa. Các hệ thống \gls{rag} truyền thống dựa hoàn toàn vào vector (Vector-only RAG) thường bỏ qua cấu trúc cú pháp của mã nguồn, dẫn đến hiệu năng kém khi xử lý các câu hỏi liên kết nhiều bước (multi-hop queries) \cite{lewis2020rag}.
 
-Luận văn này nghiên cứu và đề xuất kiến trúc \textbf{Hybrid-RAG} kết hợp \gls{kg} (sử dụng FalkorDB) và Cơ sở dữ liệu Vector (sử dụng Qdrant) nhằm tối ưu hóa hiệu năng truy xuất mã nguồn. Hệ thống sử dụng thư viện Tree-Sitter \cite{treesitter} để phân tích cú pháp \gls{ast} tĩnh, kết hợp thuật toán \gls{rrf} \cite{cormack2009rrf} để trộn kết quả tìm kiếm cấu trúc và tìm kiếm ngữ nghĩa dưới một giới hạn token (Token-budget) chặt chẽ. Thêm vào đó, hệ thống tích hợp chuẩn \gls{otel} (OTel Collector, Grafana Loki, Tempo, Arize Phoenix) giúp theo dõi và đánh giá toàn diện hành vi truy xuất \cite{opentelemetry2024}. Kết quả thực nghiệm trên kho mã nguồn LlamaIndex cho thấy kiến trúc Hybrid-RAG đề xuất cải thiện đáng kể chỉ số Hit Rate @5 từ 0.308 (của Vector RAG) lên \textbf{0.615} (+0.308) tổng thể và lên \textbf{0.800} (+0.400) cho các câu hỏi phức tạp sâu 3 bước (3-hop). Hệ thống đạt chỉ số Faithfulness 0.86 và Answer Relevancy 0.78 theo khung đánh giá RAGAS \cite{shahul2023ragas}. Đồng thời, hệ thống đảm bảo tính riêng tư dữ liệu tuyệt đối thông qua việc vận hành hoàn toàn offline trong môi trường nội bộ.
+Luận văn này nghiên cứu và đề xuất kiến trúc \textbf{Hybrid-RAG} kết hợp \gls{kg} (sử dụng FalkorDB) và Cơ sở dữ liệu Vector (sử dụng Qdrant) nhằm tối ưu hóa hiệu năng truy xuất mã nguồn. Hệ thống sử dụng thư viện Tree-Sitter \cite{treesitter} để phân tích cú pháp \gls{ast} tĩnh, kết hợp thuật toán \gls{rrf} \cite{cormack2009rrf} để trộn kết quả tìm kiếm cấu trúc và tìm kiếm ngữ nghĩa dưới một giới hạn token (Token-budget) chặt chẽ. Kết quả thực nghiệm trên kho mã nguồn LlamaIndex cho thấy kiến trúc Hybrid-RAG đề xuất cải thiện đáng kể chỉ số Hit Rate @5 từ 0.308 (của Vector RAG) lên \textbf{0.615} (+0.308) tổng thể và lên \textbf{0.800} (+0.400) cho các câu hỏi phức tạp sâu 3 bước (3-hop). Hệ thống đạt chỉ số Faithfulness 0.86 và Answer Relevancy 0.78 theo khung đánh giá RAGAS \cite{shahul2023ragas}. Đồng thời, hệ thống đảm bảo tính riêng tư dữ liệu tuyệt đối thông qua việc vận hành hoàn toàn offline trong môi trường nội bộ.
 
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 Code querying is a complex problem because source code contains both static structural information (function call relationships, class inheritance, module definitions) and semantic information. Traditional \gls{rag} systems relying solely on vector databases (Vector-only RAG) often ignore the syntactic structure of source code, leading to poor performance on multi-hop queries \cite{lewis2020rag}.
 
-This thesis investigates and proposes a \textbf{Hybrid-RAG} architecture combining a \gls{kg} (using FalkorDB) and a Vector Database (using Qdrant) to optimize code retrieval performance. The system employs the Tree-Sitter library \cite{treesitter} for static \gls{ast} parsing, combined with the \gls{rrf} algorithm \cite{cormack2009rrf} to merge structural and semantic search results under a strict token budget. Additionally, the system integrates the \gls{otel} standard for comprehensive retrieval behavior monitoring \cite{opentelemetry2024}. Experimental results on the LlamaIndex codebase demonstrate that the proposed Hybrid-RAG architecture significantly improves the Hit Rate @5 metric from 0.308 (Vector RAG) to \textbf{0.615} (+0.308) overall and to \textbf{0.800} (+0.400) for complex 3-hop queries. The system achieves a Faithfulness score of 0.86 and Answer Relevancy of 0.78 on the RAGAS evaluation framework \cite{shahul2023ragas}. Furthermore, the system ensures absolute data privacy through fully offline operation within a local environment.
+This thesis investigates and proposes a \textbf{Hybrid-RAG} architecture combining a \gls{kg} (using FalkorDB) and a Vector Database (using Qdrant) to optimize code retrieval performance. The system employs the Tree-Sitter library \cite{treesitter} for static \gls{ast} parsing, combined with the \gls{rrf} algorithm \cite{cormack2009rrf} to merge structural and semantic search results under a strict token budget. Experimental results on the LlamaIndex codebase demonstrate that the proposed Hybrid-RAG architecture significantly improves the Hit Rate @5 metric from 0.308 (Vector RAG) to \textbf{0.615} (+0.308) overall and to \textbf{0.800} (+0.400) for complex 3-hop queries. The system achieves a Faithfulness score of 0.86 and Answer Relevancy of 0.78 on the RAGAS evaluation framework \cite{shahul2023ragas}. Furthermore, the system ensures absolute data privacy through fully offline operation within a local environment.
 
 \newpage
 
@@ -178,8 +177,6 @@ Các hệ thống hỗ trợ lập trình hiện tại chủ yếu sử dụng V
             3-hop: 0.400 \\
             \textbf{Tổng: 0.308}
         \end{tabular} \\
-        \midrule
-        Thiếu kiểm soát thời gian (Observability Gap) & Khả năng phân rã latency theo pha & Không có --- chỉ đo được tổng thời gian phản hồi end-to-end, không bóc tách được từng pha xử lý \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -190,8 +187,6 @@ Phân tích chi tiết từng điểm nghẽn:
     \item \textbf{Mất thông tin cấu trúc (Data Silos):} Vector database biểu diễn mã nguồn dưới dạng các đoạn văn bản (chunks) rời rạc, làm đứt gãy hoàn toàn các quan hệ phụ thuộc như chuỗi gọi hàm (\textit{call chain}) và kế thừa lớp (\textit{class inheritance}) \cite{guo2024graphcodebert}. Cụ thể, trong kho mã nguồn LlamaIndex, 1.411 cạnh quan hệ cấu trúc (\texttt{DEFINES}, \texttt{CALLS}, \texttt{INHERITS}, \texttt{IMPORTS}) hoàn toàn bị mất khi chuyển đổi thành vector chunks --- tức tỷ lệ mất thông tin cấu trúc là \textbf{100\%}.
 
     \item \textbf{Lỗi truy xuất đa bước (Multi-hop Failure):} Kết quả thí nghiệm cho thấy Vector-only RAG đạt Hit Rate @5 tổng thể chỉ \textbf{0.308} (6/20 câu hỏi). Đặc biệt, ở các truy vấn 2-hop (quan hệ bắc cầu, ví dụ: ``\textit{Tìm tất cả lớp con kế thừa từ lớp cha $X$ đang gọi hàm $Y$}''), tỷ lệ chỉ đạt \textbf{0.308} --- tức gần 70\% câu hỏi cấu trúc không tìm được kết quả liên quan trong top-5. Theo Liu và cộng sự \cite{liu2023lost}, khi ngữ cảnh thiếu thông tin liên kết, \gls{llm} có xu hướng sinh ra thông tin ảo tưởng (hallucination) thay vì từ chối trả lời.
-
-    \item \textbf{Độ trễ cao và Thiếu kiểm soát (Latency \& Observability):} Trong các hệ thống RAG hiện tại, thời gian phản hồi thường chỉ được đo dưới dạng tổng end-to-end mà không bóc tách được từng pha xử lý (embedding, tìm kiếm, sinh câu trả lời). Theo khảo sát của OpenTelemetry \cite{opentelemetry2024}, 78\% các hệ thống \gls{llm} production thiếu distributed tracing, khiến việc tối ưu hóa hiệu năng trở nên mù mờ. Việc thiếu một kiến trúc giám sát chuẩn hóa khiến lập trình viên không thể đo đạc chính xác thời gian xử lý cục bộ giữa các pha tìm kiếm cấu trúc, tìm kiếm ngữ nghĩa và suy luận \gls{llm}.
 \end{itemize}
 
 \section{Đánh giá các giải pháp hiện hành (Related Works)}
@@ -227,11 +222,10 @@ So với các giải pháp Fine-tuned CodeLLMs \cite{feng2020codebert,li2023star
 Chúng tôi đề xuất giải pháp Hybrid-RAG kết hợp song song cả tìm kiếm cấu trúc \gls{kg} tĩnh của mã nguồn (sử dụng FalkorDB \cite{falkordb2024}) và tìm kiếm ngữ nghĩa của các phân mảnh code (sử dụng Qdrant \cite{qdrant2024}), được điều phối và trộn thứ hạng bằng thuật toán \gls{rrf} \cite{cormack2009rrf}. Mô hình hóa cấp cao được trình bày tại Chương~2 (xem Hình~\ref{fig:architecture_overview}).
 
 \section{Mục tiêu và Tiêu chí hoàn thành (Objectives \& Scope)}
-Mục tiêu nghiên cứu bao gồm hiện thực hóa công cụ phân tích cú pháp \gls{ast} tĩnh cho Python/Java, xây dựng bộ giải quyết thực thể toàn cục (Global Entity Resolver) để giải quyết các import chéo repository, và chuẩn hóa giám sát đo lường. Tiêu chí hoàn thành (\gls{dod}) của hệ thống:
+Mục tiêu nghiên cứu bao gồm hiện thực hóa công cụ phân tích cú pháp \gls{ast} tĩnh cho Python/Java, và xây dựng bộ giải quyết thực thể toàn cục (Global Entity Resolver) để giải quyết các import chéo repository. Tiêu chí hoàn thành (\gls{dod}) của hệ thống:
 \begin{enumerate}
     \item Đạt chỉ số Hit Rate @5 tổng thể tối thiểu trên 0.60.
     \item Độ trễ tìm kiếm (Retrieval Latency) trung bình dưới 1.0 giây.
-    \item Đầy đủ hệ thống giám sát \gls{otel} tích hợp Grafana xem được cả Metric, Log, Trace đồng bộ.
     \item Đạt chỉ số Faithfulness $\ge 0.80$ và Answer Relevancy $\ge 0.75$ theo khung đánh giá RAGAS \cite{shahul2023ragas}.
 \end{enumerate}
 
@@ -352,42 +346,6 @@ Khi nhận truy vấn từ người dùng, hệ thống thực hiện truy xuấ
     \label{fig:retrieval_flow}
 \end{figure}
 
-\section{Kiến trúc đường ống giám sát chuẩn hóa (Telemetry Pipeline)}
-Điểm cải tiến cốt lõi về mặt vận hành của hệ thống là việc tích hợp đường ống giám sát \gls{otel} thống nhất (OTel Collector) \cite{opentelemetry2024}, giúp định tuyến tất cả dữ liệu đo lường hệ thống (xem Hình~\ref{fig:observability_architecture}).
-
-\begin{figure}[H]
-    \centering
-    \begin{tikzpicture}[node distance=0.8cm and 1cm, font=\small]
-        % App
-        \node[component, minimum width=6cm] (app) {hybrid-rag-api (App)};
-
-        % Collector
-        \node[component, below=1.2cm of app, minimum width=6cm, fill=yellow!10] (collector) {OTel Collector (4317/4318)};
-
-        % Backends
-        \node[storage, below left=1.5cm and 2cm of collector] (prom) {Prometheus};
-        \node[storage, below=1.5cm of collector] (tempo) {Tempo / Phoenix};
-        \node[storage, below right=1.5cm and 2cm of collector] (loki) {Loki};
-
-        % Grafana
-        \node[component, below=4cm of collector, minimum width=4cm, fill=orange!10] (grafana) {Grafana UI (3010)};
-
-        % Arrows
-        \draw[arrow] (app) -- node[right, font=\scriptsize] {\gls{otlp}} (collector);
-        \draw[arrow] (collector) -- node[left, font=\scriptsize] {Metrics} (prom);
-        \draw[arrow] (collector) -- node[right, font=\scriptsize] {Traces} (tempo);
-        \draw[arrow] (collector) -- node[right, font=\scriptsize] {Logs} (loki);
-        \draw[arrow] (prom) -- (grafana);
-        \draw[arrow] (tempo) -- (grafana);
-        \draw[arrow] (loki) -- (grafana);
-    \end{tikzpicture}
-    \caption{Sơ đồ kiến trúc đường ống giám sát chuẩn hóa OpenTelemetry}
-    \label{fig:observability_architecture}
-\end{figure}
-
-Đường ống này tự động phân định luồng dữ liệu telemetry: các metric hệ thống được gom qua Prometheus, logs hệ thống đẩy về Loki, traces hệ thống chuyển về Tempo, và các trace chuyên biệt cho \gls{llm} (Prompts, Token Cost) được chuyển tới Arize Phoenix \cite{phoenix2024} phục vụ đánh giá chất lượng phản hồi. Tất cả bản ghi log tự động chứa \texttt{trace\_id} và \texttt{span\_id} được tiêm động (Trace-to-Log Correlation), cho phép tra cứu chéo giữa log và trace trên Grafana.
-
-\newpage
 
 % ──────────────────────────────────────────────────────────────────────────────
 % CHƯƠNG 3: THIẾT KẾ CHI TIẾT
@@ -543,8 +501,8 @@ Chúng tôi đánh giá hiệu năng truy xuất thông qua chỉ số Hit Rate 
 
 Kết quả cho thấy Hybrid-RAG đạt Faithfulness 0.86 (vượt chỉ tiêu \gls{dod} $\ge 0.80$) và Answer Relevancy 0.78 (vượt chỉ tiêu $\ge 0.75$). Sự cải thiện đáng kể về Faithfulness (+0.14) chứng minh rằng ngữ cảnh cấu trúc từ \gls{kg} giúp giảm thiểu hiện tượng ảo tưởng (hallucination) của \gls{llm} \cite{liu2023lost}.
 
-\section{Kết quả đo lường thời gian chi tiết qua OpenTelemetry}
-Thông qua hệ thống \gls{otel} được chuẩn hóa (xem mô tả tại Mục~2.5), thời gian xử lý chi tiết (Latency Breakdown) của hệ thống được bóc tách và giám sát theo thời gian thực (xem Bảng~\ref{tab:latency_breakdown}).
+\section{Đo lường thời gian xử lý chi tiết (Latency Breakdown)}
+Thời gian xử lý chi tiết (Latency Breakdown) của hệ thống được bóc tách và thống kê (xem Bảng~\ref{tab:latency_breakdown}).
 
 \begin{table}[H]
     \centering
@@ -616,7 +574,6 @@ RETURN parent.name
 \begin{enumerate}
     \item Hệ thống Hybrid-RAG đề xuất đạt chỉ số Hit Rate @5 tổng thể là \textbf{0.615} (vượt chỉ tiêu \gls{dod} $\ge 0.60$).
     \item Tổng thời gian tìm kiếm thực tế đạt \textbf{23 ms} và tổng thời gian phản hồi trung bình đạt \textbf{817 ms} (vượt chỉ tiêu \gls{dod} $< 1.0$ giây).
-    \item Thiết lập thành công đường ống telemetry đồng bộ qua OTel Collector hiển thị đồng thời cả Metrics, Logs và Traces trên Grafana và Phoenix.
     \item Hệ thống đạt Faithfulness \textbf{0.86} (vượt chỉ tiêu $\ge 0.80$) và Answer Relevancy \textbf{0.78} (vượt chỉ tiêu $\ge 0.75$) theo RAGAS.
 \end{enumerate}
 
@@ -681,8 +638,7 @@ D.~Guo, S.~Ren, S.~Lu, Z.~Feng, D.~Tang, S.~Liu, L.~Zhou, N.~Duan, A.~Svyatkovsk
 \bibitem{cockburn2005hexagonal}
 A.~Cockburn, ``Hexagonal architecture,'' 2005. [Online]. Available: \url{https://alistair.cockburn.us/hexagonal-architecture/}
 
-\bibitem{opentelemetry2024}
-OpenTelemetry Authors, ``OpenTelemetry specification,'' Cloud Native Computing Foundation, 2024. [Online]. Available: \url{https://opentelemetry.io/docs/specs/}
+
 
 \bibitem{falkordb2024}
 FalkorDB Contributors, ``FalkorDB: Ultra-fast graph database,'' 2024. [Online]. Available: \url{https://www.falkordb.com/}
@@ -696,8 +652,7 @@ Z.~Nussbaum, J.~Morris, B.~Duderstadt, and A.~Mulyar, ``Nomic Embed: Training a 
 \bibitem{ollama2024}
 Ollama Contributors, ``Ollama: Run large language models locally,'' 2024. [Online]. Available: \url{https://ollama.com/}
 
-\bibitem{phoenix2024}
-Arize AI, ``Phoenix: AI observability \& evaluation,'' 2024. [Online]. Available: \url{https://phoenix.arize.com/}
+
 
 \bibitem{llamaindex2024}
 J.~Liu, ``LlamaIndex: Data framework for LLM applications,'' 2024. [Online]. Available: \url{https://www.llamaindex.ai/}

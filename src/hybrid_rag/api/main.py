@@ -859,6 +859,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                             max_chars=None,
                             context_n=req.context_n,
                             repository=req.repository,
+                            skip_graph=(req.mode == "vector"),
                         )
                     else:
                         ctx = retriever.retrieve_with_context(
@@ -867,6 +868,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                             max_tokens=req.max_tokens,
                             max_chars=req.max_chars,
                             repository=req.repository,
+                            skip_graph=(req.mode == "vector"),
                         )
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Retrieval failed")
@@ -1103,6 +1105,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                             max_chars=None,
                             context_n=req.context_n,
                             repository=req.repository,
+                            skip_graph=(req.mode == "vector"),
                         )
                     else:
                         ctx = retriever.retrieve_with_context(
@@ -1111,6 +1114,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                             max_tokens=req.max_tokens,
                             max_chars=req.max_chars,
                             repository=req.repository,
+                            skip_graph=(req.mode == "vector"),
                         )
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc

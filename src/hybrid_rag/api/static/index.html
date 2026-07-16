@@ -1255,6 +1255,10 @@
           <input type="checkbox" id="codebaseQueryToggle" checked style="accent-color: var(--accent); cursor: pointer; transform: scale(1.05); margin: 0;" />
           Codebase RAG
         </label>
+        <select id="retrievalModeSelect" style="background: rgba(30, 41, 59, 0.45); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; outline: none; cursor: pointer; max-width: 110px; font-family: inherit; transition: border-color 0.2s, background-color 0.2s;" onmouseover="this.style.background='rgba(30, 41, 59, 0.65)'" onmouseout="this.style.background='rgba(30, 41, 59, 0.45)'" title="Retrieval Mode">
+          <option value="hybrid">Hybrid RAG</option>
+          <option value="vector">Vector Only</option>
+        </select>
         <select id="llmModelSelect" style="background: rgba(30, 41, 59, 0.45); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; outline: none; cursor: pointer; max-width: 170px; font-family: inherit; transition: border-color 0.2s, background-color 0.2s;" onmouseover="this.style.background='rgba(30, 41, 59, 0.65)'" onmouseout="this.style.background='rgba(30, 41, 59, 0.45)'">
           <option value="">Loading models...</option>
         </select>
@@ -1337,6 +1341,7 @@ const nodeInspector = document.getElementById('nodeInspector');
 const closeInspectorBtn = document.getElementById('closeInspectorBtn');
 const statusBar     = document.getElementById('statusBar');
 const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
+const retrievalModeSelect = document.getElementById('retrievalModeSelect');
 const llmModelSelect = document.getElementById('llmModelSelect');
 const newChatBtn    = document.getElementById('newChatBtn');
 const conversationList = document.getElementById('conversationList');
@@ -1354,6 +1359,14 @@ window.addEventListener('DOMContentLoaded', () => {
   llmModelSelect.addEventListener('change', () => {
     localStorage.setItem('hybrid_rag_selected_model', llmModelSelect.value);
   });
+
+  retrievalModeSelect.addEventListener('change', () => {
+    localStorage.setItem('hybrid_rag_selected_mode', retrievalModeSelect.value);
+  });
+  const savedMode = localStorage.getItem('hybrid_rag_selected_mode');
+  if (savedMode) {
+    retrievalModeSelect.value = savedMode;
+  }
 });
 
 function populatePrompt(text) {
@@ -2352,7 +2365,8 @@ async function doAsk() {
       top_k: 20,
       context_n: 5,
       stream: true,
-      codebase_query: codebaseQueryToggle.checked
+      codebase_query: codebaseQueryToggle.checked,
+      mode: retrievalModeSelect.value
     };
     if (activeRepo) {
       body.repository = activeRepo;
@@ -2691,6 +2705,11 @@ function selectConversation(chatId) {
     codebaseQueryToggle.checked = chat.codebase_query !== false;
     codebaseQueryToggle.dispatchEvent(new Event('change'));
 
+    if (chat.retrieval_mode && retrievalModeSelect) {
+      retrievalModeSelect.value = chat.retrieval_mode;
+      localStorage.setItem('hybrid_rag_selected_mode', chat.retrieval_mode);
+    }
+
     if (chat.llm_model) {
       llmModelSelect.value = chat.llm_model;
       localStorage.setItem('hybrid_rag_selected_model', chat.llm_model);
@@ -2731,7 +2750,8 @@ function saveCurrentChat() {
       messages: [...messages],
       repository: activeRepo,
       codebase_query: codebaseQueryToggle.checked,
-      llm_model: llmModelSelect.value
+      llm_model: llmModelSelect.value,
+      retrieval_mode: retrievalModeSelect.value
     });
   } else {
     const index = chats.findIndex(c => c.id === currentChatId);
@@ -2740,6 +2760,7 @@ function saveCurrentChat() {
       chats[index].repository = activeRepo;
       chats[index].codebase_query = codebaseQueryToggle.checked;
       chats[index].llm_model = llmModelSelect.value;
+      chats[index].retrieval_mode = retrievalModeSelect.value;
       const [currChat] = chats.splice(index, 1);
       chats.unshift(currChat);
     } else {
@@ -2749,7 +2770,8 @@ function saveCurrentChat() {
         messages: [...messages],
         repository: activeRepo,
         codebase_query: codebaseQueryToggle.checked,
-        llm_model: llmModelSelect.value
+        llm_model: llmModelSelect.value,
+        retrieval_mode: retrievalModeSelect.value
       });
     }
   }

@@ -38,6 +38,10 @@ class QueryRequest(BaseModel):
         True,
         description="Enable codebase context search (RAG) and constraint. Set to False for normal LLM conversation.",
     )
+    mode: str = Field(
+        "hybrid",
+        description="Retrieval mode: 'hybrid' (default graph+vector) or 'vector' (vector-only baseline).",
+    )
 
 
 # ── Source chunk ───────────────────────────────────────────────────────────────

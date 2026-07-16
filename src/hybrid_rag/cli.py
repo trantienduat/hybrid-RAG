@@ -279,8 +279,8 @@ def query(
     question: str = typer.Argument(..., help="Natural language question about the codebase."),
     top_k: int = typer.Option(20, help="Total candidates to retrieve before context assembly."),
     context_n: int = typer.Option(5, help="Legacy top results limit fallback."),
-    max_tokens: int = typer.Option(None, help="Maximum tokens for dynamic context budget."),
-    max_chars: int = typer.Option(None, help="Maximum characters for dynamic context budget."),
+    max_tokens: int | None = typer.Option(None, help="Maximum tokens for dynamic context budget."),
+    max_chars: int | None = typer.Option(None, help="Maximum characters for dynamic context budget."),
     repo_name: str = typer.Option(
         None, help="Scope query search to a specific repository namespace."
     ),
@@ -293,6 +293,10 @@ def query(
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     rrf_k: int = typer.Option(60, help="RRF k parameter (default: 60)."),
+    mode: str = typer.Option(
+        "hybrid",
+        help="Retrieval mode: 'hybrid' (default graph+vector) or 'vector' (vector-only baseline).",
+    ),
 ) -> None:
     """Query the indexed codebase using hybrid graph + vector retrieval."""
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
@@ -329,6 +333,7 @@ def query(
                     max_chars=None,
                     context_n=context_n,
                     repository=repo_name,
+                    skip_graph=(mode == "vector"),
                 )
             else:
                 ctx = retriever.retrieve_with_context(
@@ -337,6 +342,7 @@ def query(
                     max_tokens=max_tokens,
                     max_chars=max_chars,
                     repository=repo_name,
+                    skip_graph=(mode == "vector"),
                 )
 
         if ctx.metadata.get("use_budget"):

@@ -166,9 +166,10 @@ class HybridRetriever(BaseRetriever):
         max_chars: int | None = None,
         context_n: int | None = None,
         repository: str | None = None,
+        skip_graph: bool = False,
     ) -> RetrievalContext:
         """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
-        results = self.retrieve(query, top_k=top_k, repository=repository)
+        results = self.retrieve(query, top_k=top_k, repository=repository, skip_graph=skip_graph)
 
         # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
         if max_tokens is None and max_chars is None and context_n is not None:

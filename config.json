@@ -17,16 +17,20 @@
       "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/transformers"
     },
     {
-      "name": "auth-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/auth"
+      "name": "db-models",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/db-models"
     },
     {
-      "name": "order-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/order"
+      "name": "db-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/db-service"
     },
     {
-      "name": "gateway-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/gateway"
+      "name": "pokemon-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/pokemon-service"
+    },
+    {
+      "name": "team-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/team-service"
     }
   ],
   "falkordb": {

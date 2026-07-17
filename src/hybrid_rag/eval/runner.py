@@ -89,6 +89,7 @@ class EvalRunner:
         self,
         cases: list[QueryCase],
         top_k: int = 10,
+        repository: str | None = None,
     ) -> EvalReport:
         """
         Run evaluation across *cases*.
@@ -107,12 +108,14 @@ class EvalRunner:
             logger.debug("%s ground truth (%d items): %s", case.id, len(gt), list(gt)[:5])
 
             # Hybrid mode
-            hybrid_results = self._hybrid_retriever.retrieve(case.question, top_k=top_k)
+            hybrid_results = self._hybrid_retriever.retrieve(
+                case.question, top_k=top_k, repository=repository
+            )
             hybrid_names = _extract_names(hybrid_results)
 
             # Vector-only mode (skip graph retrieval)
             vector_results = self._hybrid_retriever.retrieve(
-                case.question, top_k=top_k, skip_graph=True
+                case.question, top_k=top_k, skip_graph=True, repository=repository
             )
             vector_names = _extract_names(vector_results)
 

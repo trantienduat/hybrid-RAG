@@ -406,6 +406,11 @@ def eval(
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON results to stdout."),
+    repo_name: str = typer.Option(
+        None,
+        "--repo-name",
+        help="Scope evaluation queries to a specific repository namespace.",
+    ),
 ) -> None:
     """Run codebase evaluation (diagnostic structural/hybrid or RepoQA Searching Needle Function)."""
     import json as _json
@@ -582,7 +587,7 @@ def eval(
                 console=console,
             ) as progress:
                 task = progress.add_task(f"Running {len(corpus)} queries…", total=None)
-                report = runner.run(corpus, top_k=top_k)
+                report = runner.run(corpus, top_k=top_k, repository=repo_name)
                 progress.update(task, description="Done")
 
     except Exception as exc:  # noqa: BLE001

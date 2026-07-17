@@ -5,6 +5,10 @@
       "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG"
     },
     {
+      "name": "llama-core",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/.venv/lib/python3.12/site-packages/llama_index/core"
+    },
+    {
       "name": "langchain-core",
       "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/langchain/libs/core"
     },

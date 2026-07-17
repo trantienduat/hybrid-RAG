@@ -6,15 +6,27 @@
     },
     {
       "name": "langchain-core",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/forked-repos/langchain-core"
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/langchain/libs/core"
     },
     {
       "name": "langchain-community",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/forked-repos/langchain-community"
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/langchain/libs/community"
     },
     {
       "name": "transformers",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/forked-repos/transformers"
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/transformers"
+    },
+    {
+      "name": "auth-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/auth"
+    },
+    {
+      "name": "order-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/order"
+    },
+    {
+      "name": "gateway-service",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/gateway"
     }
   ],
   "falkordb": {

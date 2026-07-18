@@ -102,3 +102,52 @@ def test_context_assembler_custom_token_estimator(sample_results):
     # The custom estimator should be recorded and applied correctly
     assert ctx.metadata["total_tokens"] <= 25
     assert ctx.metadata["chunks_included_count"] >= 1
+
+
+def test_context_assembler_skeletonized(tmp_path, monkeypatch):
+    from hybrid_rag.config import app_config
+
+    # Write a dummy python file
+    code = """
+class TargetClass:
+    def target_method(self):
+        return 42
+
+    def sibling_method(self):
+        return 24
+"""
+    repo_dir = tmp_path / "my_repo"
+    repo_dir.mkdir()
+    file_path = "src/math_utils.py"
+    abs_file_path = repo_dir / file_path
+    abs_file_path.parent.mkdir(parents=True, exist_ok=True)
+    abs_file_path.write_text(code, encoding="utf-8")
+
+    # Mock config repo path
+    monkeypatch.setattr(app_config, "get_repo_path", lambda repo: str(repo_dir) if repo == "my_repo" else None)
+
+    assembler = ContextAssembler()
+    results = [
+        {
+            "node_id": "module.math_utils.TargetClass.target_method",
+            "name": "target_method",
+            "label": "Function",
+            "file_path": file_path,
+            "text": "def target_method(self):\n    return 42",
+            "source": "vector",
+            "repository": "my_repo",
+            "rrf_score": 0.05,
+        }
+    ]
+
+    ctx = assembler.assemble(results, top_n=5, query="test query")
+
+    # Sibling method should be skeletonized/collapsed
+    assert "[Skeletonized]" in ctx.text
+    assert "def sibling_method(self):" in ctx.text
+    assert "..." in ctx.text
+    assert "return 24" not in ctx.text
+
+    # Target method should be fully intact
+    assert "def target_method(self):" in ctx.text
+    assert "return 42" in ctx.text

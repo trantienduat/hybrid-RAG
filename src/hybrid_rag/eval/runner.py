@@ -175,7 +175,12 @@ class RepoQAEvalRunner:
             item_file = item.get("file_path", "") or ""
             file_match = False
             if item_file:
-                file_match = item_file.lower().endswith(target_file.lower())
+                item_parts = [p for p in item_file.lower().replace("\\", "/").split("/") if p]
+                target_parts = [p for p in target_file.lower().replace("\\", "/").split("/") if p]
+                if len(item_parts) >= 2 and len(target_parts) >= 2:
+                    file_match = item_parts[-2:] == target_parts[-2:]
+                else:
+                    file_match = item_parts[-1] == target_parts[-1]
 
             # 2. Match function/entity name
             item_name = item.get("name", "") or ""
@@ -203,6 +208,7 @@ class RepoQAEvalRunner:
         self,
         cases: list[RepoQACase],
         top_k: int = 10,
+        repository: str | None = None,
     ) -> RepoQAEvalReport:
         """
         Run evaluation across RepoQA *cases*.
@@ -218,12 +224,14 @@ class RepoQAEvalRunner:
             logger.info("Evaluating RepoQA %s: %s", case.id, case.question[:60])
 
             # Hybrid mode retrieval
-            hybrid_results = self._hybrid_retriever.retrieve(case.question, top_k=top_k)
+            hybrid_results = self._hybrid_retriever.retrieve(
+                case.question, top_k=top_k, repository=repository
+            )
             rank_hybrid = self._find_target_rank(hybrid_results, case)
 
             # Vector-only mode retrieval
             vector_results = self._hybrid_retriever.retrieve(
-                case.question, top_k=top_k, skip_graph=True
+                case.question, top_k=top_k, skip_graph=True, repository=repository
             )
             rank_vector = self._find_target_rank(vector_results, case)
 

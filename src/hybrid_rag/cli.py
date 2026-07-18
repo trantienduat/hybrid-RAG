@@ -463,7 +463,7 @@ def eval(
                     console=console,
                 ) as progress:
                     task = progress.add_task(f"Running {len(corpus)} RepoQA queries…", total=None)
-                    report = runner.run(corpus, top_k=top_k)
+                    report = runner.run(corpus, top_k=top_k, repository=repo_name)
                     progress.update(task, description="Done")
 
         except Exception as exc:

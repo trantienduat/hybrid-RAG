@@ -175,7 +175,7 @@ def test_repoqa_runner_run(mock_retriever_class):
 
     # Hybrid returns math_utils.py::add_numbers
     # Vector returns other_file.py::other
-    mock_retriever.retrieve.side_effect = lambda q, top_k, skip_graph=False: (
+    mock_retriever.retrieve.side_effect = lambda q, top_k, skip_graph=False, **kwargs: (
         [
             {"name": "other_func", "file_path": "math_utils.py"},
             {"name": "add_numbers", "file_path": "math_utils.py"},

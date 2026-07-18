@@ -81,12 +81,7 @@ def test_falkordb_store_commit_metadata():
             {"repo": "repo123", "commit_hash": "commit456"},
         )
 
-        # Test set_repository_commit with path
-        store.set_repository_commit("repo123", "commit456", "/path/to/repo")
-        mock_graph.query.assert_called_with(
-            "MERGE (r:RepositoryMetadata {id: $repo}) SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()",
-            {"repo": "repo123", "commit_hash": "commit456", "repo_path": "/path/to/repo"},
-        )
+
 
         # Test get_repository_commit
         mock_result = MagicMock()
@@ -102,17 +97,17 @@ def test_falkordb_store_commit_metadata():
 
         # Test get_repository_metadata
         mock_meta_res = MagicMock()
-        mock_meta_res.result_set = [["commit456", "/path/to/repo", 1700000000000]]
+        mock_meta_res.result_set = [["commit456", 1700000000000]]
         mock_graph.query.return_value = mock_meta_res
 
         meta = store.get_repository_metadata("repo123")
         assert meta == {
             "last_indexed_commit": "commit456",
-            "repo_path": "/path/to/repo",
+            "repo_path": None,
             "updated_at": 1700000000000,
         }
         mock_graph.query.assert_called_with(
-            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.repo_path AS path, r.updated_at AS updated_at",
+            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.updated_at AS updated_at",
             {"repo": "repo123"},
         )
 
@@ -214,7 +209,6 @@ def test_incremental_indexing_pipeline_run(
         # Assert only src/a.py was parsed
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
-        # Assert commit was updated to HEAD (commit456)
         mock_graph.set_repository_commit.assert_called_with(
-            "myrepo", "commit456", repo_path=str(tmp_path)
+            "myrepo", "commit456"
         )

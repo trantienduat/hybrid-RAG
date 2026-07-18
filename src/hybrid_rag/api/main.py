@@ -1605,12 +1605,14 @@ async def trigger_index(
 ) -> IndexTaskResponse:
     """Queue a repository to be indexed in the background (serialized FIFO)."""
     # Verify path
-    path = Path(req.repo_path)
+    translated = translate_path_for_docker(req.repo_path)
+    path = Path(translated)
     if not path.is_dir():
         raise HTTPException(
             status_code=400,
             detail=f"Provided repo_path does not exist or is not a directory: {req.repo_path}",
         )
+    req.repo_path = translated
 
     task_id = str(uuid.uuid4())
     repo_name = req.repo_name or path.name

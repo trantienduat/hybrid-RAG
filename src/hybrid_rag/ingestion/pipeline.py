@@ -216,7 +216,7 @@ def run_indexing_pipeline(
         if not modified_files and not deleted_files:
             listener.on_step("complete", "Index is already up to date.", 1.0)
             if head_commit:
-                graph_store.set_repository_commit(repo_name, head_commit, repo_path=str(repo))
+                graph_store.set_repository_commit(repo_name, head_commit)
             return {
                 "elapsed_seconds": time.perf_counter() - t_start,
                 "nodes_parsed": 0,
@@ -457,7 +457,7 @@ def run_indexing_pipeline(
     # Save HEAD commit state to FalkorDB for next incremental sync
     if head_commit:
         try:
-            graph_store.set_repository_commit(repo_name, head_commit, repo_path=str(repo))
+            graph_store.set_repository_commit(repo_name, head_commit)
             logger.info("Saved last indexed commit %s to graph store metadata", head_commit)
         except Exception as exc:
             logger.debug("Failed to save commit state to graph store: %s", exc)

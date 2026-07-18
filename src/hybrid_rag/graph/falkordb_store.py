@@ -207,36 +207,27 @@ class FalkorDBStore(GraphStore):
         return None
 
     def set_repository_commit(
-        self, repository: str, commit_hash: str, repo_path: str | None = None
+        self, repository: str, commit_hash: str
     ) -> None:
         """Save the last indexed commit hash for a repository."""
-        if repo_path:
-            cypher = (
-                "MERGE (r:RepositoryMetadata {id: $repo}) "
-                "SET r.last_indexed_commit = $commit_hash, r.repo_path = $repo_path, r.updated_at = timestamp()"
-            )
-            self._graph.query(
-                cypher, {"repo": repository, "commit_hash": commit_hash, "repo_path": repo_path}
-            )
-        else:
-            cypher = (
-                "MERGE (r:RepositoryMetadata {id: $repo}) "
-                "SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()"
-            )
-            self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
+        cypher = (
+            "MERGE (r:RepositoryMetadata {id: $repo}) "
+            "SET r.last_indexed_commit = $commit_hash, r.updated_at = timestamp()"
+        )
+        self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
 
     def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
         """Retrieve repository metadata including last indexed commit, path, and last synced time."""
         cypher = (
             "MATCH (r:RepositoryMetadata {id: $repo}) "
-            "RETURN r.last_indexed_commit AS commit, r.repo_path AS path, r.updated_at AS updated_at"
+            "RETURN r.last_indexed_commit AS commit, r.updated_at AS updated_at"
         )
         res = self._graph.query(cypher, {"repo": repository})
         if res.result_set:
             return {
                 "last_indexed_commit": res.result_set[0][0],
-                "repo_path": res.result_set[0][1],
-                "updated_at": res.result_set[0][2],
+                "repo_path": None,
+                "updated_at": res.result_set[0][1],
             }
         return None
 

@@ -84,7 +84,7 @@ class GraphStore(ABC):
 
     @abstractmethod
     def set_repository_commit(
-        self, repository: str, commit_hash: str, repo_path: str | None = None
+        self, repository: str, commit_hash: str
     ) -> None:
         """Save the last indexed commit hash for a repository."""
 

@@ -154,11 +154,7 @@ async def _run_periodic_sync(app_state: Any) -> None:
                 except Exception:
                     pass
 
-                repo_path = metadata.get("repo_path") if metadata else None
-                config_path = app_config.get_repo_path(repo_name)
-                if config_path:
-                    repo_path = config_path
-
+                repo_path = app_config.get_repo_path(repo_name)
                 if not repo_path:
                     continue
 
@@ -1341,13 +1337,8 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         logger.warning("Failed to get repository metadata: %s", exc)
 
     last_commit = metadata.get("last_indexed_commit") if metadata else None
-    repo_path = metadata.get("repo_path") if metadata else None
     updated_at = metadata.get("updated_at") if metadata else None
-
-    # Priority check: configuration overrides / specifies path
-    config_path = app_config.get_repo_path(repo_name)
-    if config_path:
-        repo_path = config_path
+    repo_path = app_config.get_repo_path(repo_name)
 
     last_synced = None
     if updated_at:

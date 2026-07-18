@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from pathlib import Path
+from hybrid_rag.config import app_config, translate_path_for_docker
+from hybrid_rag.retrieval.skeletonizer import skeletonize_file
 
 
 @dataclass
@@ -65,15 +68,45 @@ class ContextAssembler:
         current_tokens = query_overhead_tokens
         current_chars = query_overhead_len
 
+        # Pre-group focus names by file path to support skeletonization consolidation
+        file_focus_names: dict[str, list[str]] = {}
+        for item in results:
+            fp = item.get("file_path", "")
+            name = item.get("name", "")
+            if fp and name:
+                if fp not in file_focus_names:
+                    file_focus_names[fp] = []
+                file_focus_names[fp].append(name)
+
+        processed_files: set[str] = set()
         chunks_included: list[dict[str, Any]] = []
         chunks_excluded: list[dict[str, Any]] = []
         sources_seen: set[str] = set()
 
         for i, item in enumerate(results, start=1):
+            file_path = item.get("file_path", "")
+            repo_name = item.get("repository", "")
+
+            # Check if we should skeletonize this file
+            skeletonized_text = None
+            if file_path and repo_name:
+                if file_path in processed_files:
+                    # Skip duplicate class/file blocks to save space and avoid redundancy
+                    continue
+                processed_files.add(file_path)
+
+                config_path = app_config.get_repo_path(repo_name)
+                if config_path:
+                    effective_repo_path = translate_path_for_docker(config_path)
+                    abs_file_path = Path(effective_repo_path) / file_path
+                    focus_names = file_focus_names.get(file_path, [])
+                    ext = abs_file_path.suffix.lower()
+                    lang = "python" if ext == ".py" else ("java" if ext == ".java" else "python")
+                    skeletonized_text = skeletonize_file(abs_file_path, focus_names, language=lang)
+
             label = item.get("label", "")
             name = item.get("name", "") or item.get("node_id", "")
-            file_path = item.get("file_path", "")
-            text = item.get("text", "")
+            text = skeletonized_text if skeletonized_text else item.get("text", "")
             rel = item.get("rel", "")
             source = item.get("source", "")
             score = item.get("rrf_score") or item.get("score") or 0.0
@@ -86,6 +119,8 @@ class ContextAssembler:
                 header_parts.append(name)
             if file_path:
                 header_parts.append(f"({file_path})")
+            if skeletonized_text:
+                header_parts.append("[Skeletonized]")
             if rel:
                 header_parts.append(f"via {rel}")
             header_parts.append(f"[score={score:.4f}, src={source}]")

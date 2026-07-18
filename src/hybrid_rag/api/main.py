@@ -55,13 +55,7 @@ from hybrid_rag.api.schemas import (
 )
 
 
-def translate_path_for_docker(path: str | None) -> str | None:
-    if not path:
-        return path
-    if not os.path.exists("/Volumes/Kioxia_SSD") and os.path.isdir("/codebases"):
-        if path.startswith("/Volumes/Kioxia_SSD/SSD_workspace/Personal"):
-            return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal", "/codebases")
-    return path
+from hybrid_rag.config import translate_path_for_docker
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder

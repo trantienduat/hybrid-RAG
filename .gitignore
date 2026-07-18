@@ -219,3 +219,12 @@ __marimo__/
 
 # Sample cloned fixtures
 fixtures/
+
+# AI Coding Agent local stores
+.agent/
+.agentMemory/
+.agents/
+.clinerules/
+.kilocode/
+.roo/
+

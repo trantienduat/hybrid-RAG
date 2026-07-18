@@ -53,6 +53,15 @@ from hybrid_rag.api.schemas import (
     QueryResponse,
     SourceChunk,
 )
+
+
+def translate_path_for_docker(path: str | None) -> str | None:
+    if not path:
+        return path
+    if not os.path.exists("/Volumes/Kioxia_SSD") and os.path.isdir("/codebases"):
+        if path.startswith("/Volumes/Kioxia_SSD/SSD_workspace/Personal"):
+            return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal", "/codebases")
+    return path
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
@@ -156,7 +165,7 @@ async def _run_periodic_sync(app_state: Any) -> None:
                 last_commit = metadata.get("last_indexed_commit") if metadata else None
 
                 # Resolve effective path in container
-                effective_path = repo_path
+                effective_path = translate_path_for_docker(repo_path)
 
                 # Verify directory exists and is a git repository
                 if not os.path.isdir(effective_path) or not os.path.isdir(
@@ -1347,7 +1356,7 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
         except Exception:
             pass
 
-    effective_path = repo_path
+    effective_path = translate_path_for_docker(repo_path)
 
     # Check path accessibility status
     path_status = "valid"

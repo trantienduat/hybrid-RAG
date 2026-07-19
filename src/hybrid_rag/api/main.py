@@ -158,9 +158,18 @@ async def _run_periodic_sync(app_state: Any) -> None:
                 effective_path = translate_path_for_docker(repo_path)
 
                 # Verify directory exists and is a git repository
-                if not os.path.isdir(effective_path) or not os.path.isdir(
-                    os.path.join(effective_path, ".git")
-                ):
+                if not os.path.isdir(effective_path):
+                    continue
+                curr = Path(effective_path)
+                is_git = False
+                while True:
+                    if (curr / ".git").is_dir():
+                        is_git = True
+                        break
+                    if curr == curr.parent:
+                        break
+                    curr = curr.parent
+                if not is_git:
                     continue
 
                 # Run fast Git check (rev-parse HEAD) to see if we actually need to sync
@@ -1354,8 +1363,18 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
             files = os.listdir(effective_path)
             if not files:
                 path_status = "empty"
-            elif not os.path.isdir(os.path.join(effective_path, ".git")):
-                path_status = "not_a_git_repo"
+            else:
+                curr = Path(effective_path)
+                is_git = False
+                while True:
+                    if (curr / ".git").is_dir():
+                        is_git = True
+                        break
+                    if curr == curr.parent:
+                        break
+                    curr = curr.parent
+                if not is_git:
+                    path_status = "not_a_git_repo"
         except Exception:
             path_status = "inaccessible"
 
@@ -1372,7 +1391,8 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
                 check=True,
             )
             head_commit = res_head.stdout.strip()
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to run git rev-parse HEAD in %s: %s", effective_path, exc, exc_info=True)
             path_status = "inaccessible"
 
     is_sync = (

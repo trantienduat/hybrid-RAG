@@ -35,6 +35,18 @@
     {
       "name": "team-service",
       "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/team-service"
+    },
+    {
+      "name": "code-graph-rag",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/code-graph-rag"
+    },
+    {
+      "name": "CodeGraph",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/CodeGraph"
+    },
+    {
+      "name": "clangd-graph-rag",
+      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/clangd-graph-rag"
     }
   ],
   "falkordb": {

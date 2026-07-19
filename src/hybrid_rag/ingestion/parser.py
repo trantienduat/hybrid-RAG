@@ -269,7 +269,23 @@ def parse_repo(
     exclude_set = (
         set(excludes)
         if excludes is not None
-        else {".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"}
+        else {
+            ".venv",
+            "venv",
+            "fixtures",
+            "experiments",
+            "dist",
+            "build",
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".agents",
+            ".gemini",
+            ".pytest_cache",
+            ".ruff_cache",
+            ".roo",
+            ".clinerules",
+        }
     )
 
     import os

@@ -1502,9 +1502,8 @@ async function loadRepoCommunityGraph(repoName) {
     resetMasterGraphBtn.style.display = 'inline-flex';
 
     if (!data.nodes || data.nodes.length === 0) {
-      showStatus(`No community summaries generated for ${repoName}. Run 'hybrid-rag community-build' first.`);
-      if (graphInstance) graphInstance.graphData({ nodes: [], links: [] });
-      if (cyInstance) cyInstance.remove(cyInstance.elements());
+      // Fallback: show directory tree for this repo from master graph
+      await loadRepoDirectoryFallback(repoName);
       return;
     }
 
@@ -1518,6 +1517,43 @@ async function loadRepoCommunityGraph(repoName) {
     showStatus(`Loaded community graph for ${repoName} (${data.nodes.length} communities) · Click to inspect`);
   } catch (err) {
     showStatus(`Error loading community graph: ${err.message}`);
+  }
+}
+
+async function loadRepoDirectoryFallback(repoName) {
+  showStatus(`No community graph for "${repoName}" — loading directory structure...`);
+  try {
+    const r = await fetch(`${API}/graph/master`);
+    if (!r.ok) throw new Error("Failed to load master graph for fallback");
+    const data = await r.json();
+
+    // Filter to only this repo's nodes
+    const repoNodes = data.nodes.filter(n =>
+      n.repository === repoName || (n.label === 'RepositoryMetadata' && (n.id === repoName || n.name === repoName))
+    );
+    const repoNodeIds = new Set(repoNodes.map(n => n.id));
+    const repoLinks = data.links.filter(l => {
+      const src = typeof l.source === 'object' ? l.source.id : l.source;
+      const dst = typeof l.target === 'object' ? l.target.id : l.target;
+      return repoNodeIds.has(src) && repoNodeIds.has(dst);
+    });
+
+    if (repoNodes.length === 0) {
+      showStatus(`No data found for "${repoName}". Please index the repository first.`);
+      return;
+    }
+
+    currentGraphParams = {
+      isMaster: false,
+      isCommunity: false,
+      isDirectoryFallback: true,
+      nodes: repoNodes,
+      links: repoLinks
+    };
+    drawGraph();
+    showStatus(`"${repoName}" — directory structure (no community graph yet · re-index to auto-generate)`);
+  } catch (err) {
+    showStatus(`Error loading directory fallback: ${err.message}`);
   }
 }
 
@@ -2071,7 +2107,7 @@ function drawGraph() {
   viewToggleBtn.style.display = 'flex';
 
   let gData;
-  if (currentGraphParams.isMaster || currentGraphParams.isCommunity) {
+  if (currentGraphParams.isMaster || currentGraphParams.isCommunity || currentGraphParams.isDirectoryFallback) {
     gData = {
       nodes: currentGraphParams.nodes.map(n => ({
         id: n.id,

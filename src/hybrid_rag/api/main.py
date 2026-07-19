@@ -1717,6 +1717,26 @@ async def process_indexing_task(
                 add_log("Indexing completed but was flagged as aborted.")
                 return
 
+            # ── Auto community-build post-processing ─────────────────────────
+            add_log("Starting automatic community-build post-processing...")
+            app_state.indexing_tasks[task_id]["current_step"] = "community_build"
+            app_state.indexing_tasks[task_id]["current_message"] = "Running community detection..."
+            app_state.indexing_tasks[task_id]["progress"] = 1.0
+
+            try:
+                from hybrid_rag.graph.community_builder import CommunityBuilder
+
+                community_builder = CommunityBuilder(
+                    graph_store=app_state.graph_store,
+                    ollama_url=_OLLAMA_URL,
+                    llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
+                )
+                n_communities = await asyncio.to_thread(community_builder.build_communities)
+                add_log(f"Community build completed: {n_communities} communities generated.")
+            except Exception as community_exc:
+                add_log(f"Community build failed (non-fatal): {community_exc}")
+                logger.warning("Auto community-build failed for task %s: %s", task_id, community_exc)
+
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()
             add_log(

@@ -92,6 +92,85 @@ class HybridRetriever(BaseRetriever):
         self._last_timings["parse_query_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
+        # ── Vector Routing (Layer 2) ──
+        import os
+        vector_routing_env = os.environ.get("VECTOR_ROUTING", "false").lower() == "true"
+        routing_fallback_env = os.environ.get("ROUTING_FALLBACK", "true").lower() == "true"
+        routing_threshold_env = float(os.environ.get("ROUTING_THRESHOLD", "0.70"))
+        routing_anchors_env = int(os.environ.get("ROUTING_ANCHORS", "6"))
+
+        if not skip_graph and analysis.query_type == "local" and vector_routing_env:
+            t_vector = time.perf_counter()
+            filter_payload = {"repository": repository} if repository else None
+            vector_results = self._vector_retriever.retrieve(
+                query, top_k=top_k * 2, filter_payload=filter_payload
+            )
+            self._last_timings["vector_search_ms"] = round((time.perf_counter() - t_vector) * 1000, 2)
+
+            best_score = vector_results[0].get("score", 0.0) if vector_results else 0.0
+            if routing_fallback_env and best_score < routing_threshold_env:
+                logger.debug(
+                    "Vector Routing similarity %.3f below threshold %.3f. Falling back to Parallel.",
+                    best_score,
+                    routing_threshold_env,
+                )
+            else:
+                t_graph = time.perf_counter()
+                anchors = vector_results[:routing_anchors_env]
+                seen_ids = set()
+                results = []
+
+                # Add anchor nodes themselves
+                for anchor in anchors:
+                    bid = anchor.get("base_node_id", "")
+                    if bid and bid not in seen_ids:
+                        seen_ids.add(bid)
+                        results.append({
+                            "node_id": bid,
+                            "base_node_id": bid,
+                            "name": anchor.get("name") or bid.split("::")[-1],
+                            "label": anchor.get("label", "Unknown"),
+                            "file_path": anchor.get("file_path", ""),
+                            "repository": anchor.get("repository", ""),
+                            "rel": "",
+                            "text": anchor.get("text", ""),
+                            "source": "vector",
+                            "rrf_score": anchor.get("score", 1.0),
+                        })
+
+                # Expand structural neighbors
+                for anchor in list(results):
+                    seed_id = anchor["node_id"]
+                    for direction in ("in", "out"):
+                        try:
+                            neighbors = self._graph_store.find_neighbors(
+                                seed_id, direction=direction, max_hops=1, limit=10
+                            )
+                            for nb in neighbors:
+                                if repository and nb.get("dst_repository") != repository:
+                                    continue
+                                nid = nb.get("dst_id", "")
+                                if nid and nid not in seen_ids:
+                                    seen_ids.add(nid)
+                                    results.append({
+                                        "node_id": nid,
+                                        "base_node_id": nid,
+                                        "name": nb.get("dst_name", ""),
+                                        "label": nb.get("dst_label", ""),
+                                        "file_path": nb.get("dst_file_path", ""),
+                                        "repository": nb.get("dst_repository", ""),
+                                        "rel": nb.get("rel", ""),
+                                        "text": "",
+                                        "source": "graph",
+                                        "rrf_score": anchor["rrf_score"] * 0.9,
+                                    })
+                        except Exception as exc:
+                            logger.warning("Vector Routing neighbor expansion failed for %s: %s", seed_id, exc)
+
+                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
+                results.sort(key=lambda x: x.get("rrf_score", 0.0), reverse=True)
+                return results[:top_k]
+
         if not skip_graph and analysis.query_type == "global":
             # Global query: fetch all communities and their summaries
             t_graph = time.perf_counter()

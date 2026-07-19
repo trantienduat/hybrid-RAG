@@ -25,7 +25,7 @@ _DEFAULT_MAX_TOKENS: int = 512
 _DEFAULT_OVERLAP_TOKENS: int = 64
 
 # Node labels to produce code chunks for (Module = whole-file header only)
-_CHUNK_LABELS: frozenset[str] = frozenset({"Function", "Class", "Module"})
+_CHUNK_LABELS: frozenset[str] = frozenset({"Function", "Class", "Module", "Document", "Configuration"})
 
 
 @dataclass

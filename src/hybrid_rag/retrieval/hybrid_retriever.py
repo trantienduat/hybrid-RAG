@@ -92,8 +92,18 @@ class HybridRetriever(BaseRetriever):
         self._last_timings["parse_query_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
-        # ── Vector Routing (Layer 2) ──
+        # ── Query Routing (Milestone 3.3) ──
         import os
+        query_routing_env = os.environ.get("QUERY_ROUTING", "false").lower() == "true"
+        filter_payload = {}
+        if repository:
+            filter_payload["repository"] = repository
+        if query_routing_env:
+            non_code_keywords = {"docker", "yaml", "yml", "readme", "config", "compose", "port", "host", "k8s", "deploy", "setup", "install"}
+            is_non_code_query = any(kw in query.lower() for kw in non_code_keywords)
+            filter_payload["file_type"] = "non_code" if is_non_code_query else "code"
+
+        # ── Vector Routing (Layer 2) ──
         vector_routing_env = os.environ.get("VECTOR_ROUTING", "false").lower() == "true"
         routing_fallback_env = os.environ.get("ROUTING_FALLBACK", "true").lower() == "true"
         routing_threshold_env = float(os.environ.get("ROUTING_THRESHOLD", "0.70"))
@@ -101,7 +111,6 @@ class HybridRetriever(BaseRetriever):
 
         if not skip_graph and analysis.query_type == "local" and vector_routing_env:
             t_vector = time.perf_counter()
-            filter_payload = {"repository": repository} if repository else None
             vector_results = self._vector_retriever.retrieve(
                 query, top_k=top_k * 2, filter_payload=filter_payload
             )
@@ -213,7 +222,6 @@ class HybridRetriever(BaseRetriever):
             logger.debug("Graph results: %d nodes", len(graph_results))
 
         t_vector = time.perf_counter()
-        filter_payload = {"repository": repository} if repository else None
         vector_results = self._vector_retriever.retrieve(
             query, top_k=top_k * 2, filter_payload=filter_payload
         )

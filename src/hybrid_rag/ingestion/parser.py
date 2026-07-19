@@ -131,6 +131,98 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
         A ParseResult containing the extracted nodes, edges, and any errors.
     """
     ext = file_path.suffix.lower()
+    if file_path.name == "Dockerfile":
+        ext = "Dockerfile"
+
+    # Non-code configuration and document files handling
+    if ext in (".yaml", ".yml", ".md", "Dockerfile"):
+        rel_path = str(file_path.relative_to(repo_root))
+        label = "Document" if ext == ".md" else "Configuration"
+        node_id = f"{repo_name}::{rel_path}"
+
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            return ParseResult(errors=[f"Cannot read {file_path}: {e}"])
+
+        node = NodeData(
+            label=label,
+            id=node_id,
+            properties={
+                "name": file_path.name,
+                "file_path": rel_path,
+                "repository": repo_name,
+                "text": content,
+            }
+        )
+
+        parent_dir = str(file_path.parent.relative_to(repo_root))
+        if parent_dir == ".":
+            dst_id = repo_name
+            dst_label = "RepositoryMetadata"
+        else:
+            dst_id = f"{repo_name}::dir::{parent_dir}"
+            dst_label = "Directory"
+
+        edge = EdgeData(
+            src_id=node_id,
+            rel="WEAK_LINK",
+            dst_id=dst_id,
+            properties={"repository": repo_name}
+        )
+
+        nodes_to_add = [node]
+        edges_to_add = [edge]
+
+        if dst_label == "Directory":
+            dir_node = NodeData(
+                label="Directory",
+                id=dst_id,
+                properties={
+                    "name": file_path.parent.name,
+                    "path": parent_dir,
+                    "repository": repo_name
+                }
+            )
+            nodes_to_add.append(dir_node)
+
+            current_path = Path(parent_dir)
+            while current_path.parent != Path("."):
+                curr_dir_id = f"{repo_name}::dir::{current_path}"
+                parent_dir_path = current_path.parent
+                parent_dir_id = f"{repo_name}::dir::{parent_dir_path}"
+
+                p_dir_node = NodeData(
+                    label="Directory",
+                    id=parent_dir_id,
+                    properties={
+                        "name": parent_dir_path.name,
+                        "path": str(parent_dir_path),
+                        "repository": repo_name
+                    }
+                )
+                nodes_to_add.append(p_dir_node)
+
+                p_edge = EdgeData(
+                    src_id=curr_dir_id,
+                    rel="WEAK_LINK",
+                    dst_id=parent_dir_id,
+                    properties={"repository": repo_name}
+                )
+                edges_to_add.append(p_edge)
+                current_path = parent_dir_path
+
+            top_dir_id = f"{repo_name}::dir::{current_path}"
+            root_edge = EdgeData(
+                src_id=top_dir_id,
+                rel="WEAK_LINK",
+                dst_id=repo_name,
+                properties={"repository": repo_name}
+            )
+            edges_to_add.append(root_edge)
+
+        return ParseResult(nodes=nodes_to_add, edges=edges_to_add)
+
     language = LANGUAGE_BY_EXT.get(ext)
     if language is None:
         return ParseResult(errors=[f"Unsupported extension: {ext}"])
@@ -180,10 +272,14 @@ def parse_repo(
         else {".venv", "venv", "fixtures", "experiments", "dist", "build", ".git", "__pycache__"}
     )
 
+    import os
+    non_code_exts = set()
+    if os.environ.get("NON_CODE_INGESTION", "false").lower() == "true":
+        non_code_exts = {".yaml", ".yml", ".md", "Dockerfile"}
+
     combined = ParseResult()
     for ext in exts:
         for fpath in sorted(repo_root.rglob(f"*{ext}")):
-            # Check if file path parts match any exclude patterns
             try:
                 rel_parts = fpath.relative_to(repo_root).parts
             except ValueError:
@@ -196,6 +292,23 @@ def parse_repo(
             combined.nodes.extend(result.nodes)
             combined.edges.extend(result.edges)
             combined.errors.extend(result.errors)
+
+    for ext in non_code_exts:
+        pattern = "Dockerfile" if ext == "Dockerfile" else f"*{ext}"
+        for fpath in sorted(repo_root.rglob(pattern)):
+            try:
+                rel_parts = fpath.relative_to(repo_root).parts
+            except ValueError:
+                rel_parts = fpath.parts
+
+            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
+                continue
+
+            result = parse_file(fpath, repo_root, repo_name=repo_name)
+            combined.nodes.extend(result.nodes)
+            combined.edges.extend(result.edges)
+            combined.errors.extend(result.errors)
+
     return combined
 
 

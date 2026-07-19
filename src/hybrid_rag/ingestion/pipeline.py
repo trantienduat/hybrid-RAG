@@ -94,7 +94,11 @@ def _detect_git_changes(
                 modified_files.add(line[3:])
 
         # Filtering logic
+        import os
         exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
+        if os.environ.get("NON_CODE_INGESTION", "false").lower() == "true":
+            exts.update({".yaml", ".yml", ".md", "Dockerfile"})
+
         exclude_set = (
             set(excludes)
             if excludes is not None
@@ -112,7 +116,10 @@ def _detect_git_changes(
 
         def is_valid(fpath_str: str) -> bool:
             path = Path(fpath_str)
-            if path.suffix.lower() not in exts:
+            ext = path.suffix.lower()
+            if path.name == "Dockerfile":
+                ext = "Dockerfile"
+            if ext not in exts:
                 return False
             if any(p in exclude_set or p.startswith(".venv") for p in path.parts):
                 return False
@@ -419,14 +426,17 @@ def run_indexing_pipeline(
 
                     batch_payload = []
                     for ch, emb in zip(batch, embeddings):
+                        label = ch.label
+                        file_type = "non_code" if label in ("Document", "Configuration", "Directory") else "code"
                         batch_payload.append(
                             {
                                 "node_id": f"{ch.node_id}::{ch.chunk_index}",
-                                "label": ch.label,
+                                "label": label,
                                 "file_path": ch.file_path,
                                 "text": ch.text,
                                 "embedding": emb,
                                 "repository": repo_name,
+                                "file_type": file_type,
                             }
                         )
 

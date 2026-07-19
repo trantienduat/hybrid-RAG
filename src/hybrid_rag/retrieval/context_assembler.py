@@ -77,6 +77,10 @@ class ContextAssembler:
                 if fp not in file_focus_names:
                     file_focus_names[fp] = []
                 file_focus_names[fp].append(name)
+                # Append called siblings if present
+                called_siblings = item.get("called_siblings", [])
+                for sib in called_siblings:
+                    file_focus_names[fp].append(sib)
 
         processed_files: set[str] = set()
         chunks_included: list[dict[str, Any]] = []

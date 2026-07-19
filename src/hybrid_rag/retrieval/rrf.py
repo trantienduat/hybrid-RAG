@@ -81,6 +81,9 @@ def reciprocal_rank_fusion(
                 # Prefer first non-empty file_path
                 if not existing.get("file_path") and item.get("file_path"):
                     existing["file_path"] = item["file_path"]
+                # Prefer first non-empty repository
+                if not existing.get("repository") and item.get("repository"):
+                    existing["repository"] = item["repository"]
 
     for doc_id, item in merged.items():
         item["rrf_score"] = scores[doc_id]

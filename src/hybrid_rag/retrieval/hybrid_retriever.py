@@ -170,6 +170,15 @@ class HybridRetriever(BaseRetriever):
         """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
         results = self.retrieve(query, top_k=top_k, repository=repository)
 
+        # Retrieve called sibling functions to prevent sibling body loss during skeletonization
+        for item in results:
+            label = item.get("label", "")
+            node_id = item.get("node_id", "")
+            if label == "Function" and node_id:
+                siblings = self._get_called_siblings(node_id)
+                if siblings:
+                    item["called_siblings"] = siblings
+
         # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
         if max_tokens is None and max_chars is None and context_n is not None:
             ctx = self._assembler.assemble(results, top_n=context_n, query=query)
@@ -183,3 +192,22 @@ class HybridRetriever(BaseRetriever):
             )
         ctx.timings = self._last_timings.copy()
         return ctx
+
+    def _get_called_siblings(self, node_id: str) -> list[str]:
+        """Fetch the names of sibling functions in the same file that are called by node_id."""
+        if not node_id:
+            return []
+        cypher = (
+            "MATCH (f:Function {id: $id})-[:CALLS]->(sibling:Function) "
+            "WHERE sibling.file_path = f.file_path "
+            "RETURN sibling.name AS name"
+        )
+        try:
+            res = self._graph_store.query(cypher, {"id": node_id})
+            siblings = []
+            for row in res.result_set or []:
+                siblings.append(str(row[0]))
+            return siblings
+        except Exception as exc:
+            logger.warning("Failed to fetch called siblings for %s: %s", node_id, exc)
+            return []

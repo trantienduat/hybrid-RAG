@@ -178,6 +178,12 @@ hybrid-rag index . --rebuild
 # Run incremental indexing compared to a specific past commit
 hybrid-rag index . --from-commit a1b2c3d4
 ```
+
+### Mono-repo & Subdirectories Support
+For enterprise monorepos or multi-package projects, you can configure repository paths in `config.json` targeting nested directories or packages (e.g., `/path/to/monorepo/libs/core`).
+*   **Recursive Git Root Discovery**: The system automatically and recursively searches upward from the configured subdirectory path to find the parent `.git` folder.
+*   **Automatic Incremental Sync**: Thanks to this upward search, the background sync worker and CLI can correctly run incremental indexing (`git diff`) on monorepo subdirectories without requiring separate Git initializations for each package.
+
 ---
 
 

@@ -111,6 +111,13 @@ def _detect_git_changes(
                 "build",
                 ".git",
                 "__pycache__",
+                "node_modules",
+                ".agents",
+                ".gemini",
+                ".pytest_cache",
+                ".ruff_cache",
+                ".roo",
+                ".clinerules",
             }
         )
 

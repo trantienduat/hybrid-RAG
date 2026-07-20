@@ -271,7 +271,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         rrf_hybrid_weight=_RRF_HYBRID_W,
     )
     app.state.indexing_tasks = {}
-    app.state.indexing_lock = asyncio.Lock()
+    app.state.indexing_lock = asyncio.Semaphore(3)
 
     # Initialize global HTTP client
     app.state.http_client = httpx.AsyncClient(timeout=300.0)
@@ -1311,6 +1311,76 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     )
 
 
+@app.get("/graph/master")
+async def get_master_graph() -> dict[str, Any]:
+    """Retrieve high-level RepositoryMetadata and Directory nodes and their relationships for global visualization."""
+    store: FalkorDBStore = app.state.graph_store
+    nodes = []
+    links = []
+
+    try:
+        # 1. Fetch RepositoryMetadata nodes
+        res_repos = store.query("MATCH (r:RepositoryMetadata) RETURN r")
+        for row in res_repos.result_set or []:
+            r_node = row[0]
+            r_props = getattr(r_node, "properties", {})
+            nodes.append({
+                "id": r_props.get("id", ""),
+                "label": "RepositoryMetadata",
+                "name": r_props.get("id", ""),
+                "repository": r_props.get("id", ""),
+            })
+
+        # 2. Fetch Directory nodes — exclude stale/noise folders
+        _NOISE_PATTERNS = [
+            "node_modules", ".agents", ".gemini", ".venv", "venv",
+            "__pycache__", ".git", ".pytest_cache", ".ruff_cache",
+            "dist", "build", ".roo", ".clinerules", "fixtures", "experiments",
+        ]
+        _path_filter = " AND ".join(
+            f"NOT (d.path CONTAINS '/{ex}' OR d.path STARTS WITH '{ex}' OR d.name = '{ex}')"
+            for ex in _NOISE_PATTERNS
+        )
+        res_dirs = store.query(f"MATCH (d:Directory) WHERE {_path_filter} RETURN d")
+        valid_dir_ids = set()
+        for row in res_dirs.result_set or []:
+            d_node = row[0]
+            d_props = getattr(d_node, "properties", {})
+            d_id = d_props.get("id", "")
+            valid_dir_ids.add(d_id)
+            nodes.append({
+                "id": d_id,
+                "label": "Directory",
+                "name": d_props.get("name", ""),
+                "repository": d_props.get("repository", ""),
+                "path": d_props.get("path", ""),
+            })
+
+        # 3. Fetch WEAK_LINKs between Directory and RepositoryMetadata
+        res_links_repo = store.query("MATCH (d:Directory)-[r:WEAK_LINK]->(m:RepositoryMetadata) RETURN d.id, m.id")
+        for row in res_links_repo.result_set or []:
+            if row[0] in valid_dir_ids:
+                links.append({
+                    "source": row[0],
+                    "target": row[1],
+                    "rel": "WEAK_LINK"
+                })
+
+        # 4. Fetch WEAK_LINKs between Directory and Directory
+        res_links_dir = store.query("MATCH (d1:Directory)-[r:WEAK_LINK]->(d2:Directory) RETURN d1.id, d2.id")
+        for row in res_links_dir.result_set or []:
+            if row[0] in valid_dir_ids and row[1] in valid_dir_ids:
+                links.append({
+                    "source": row[0],
+                    "target": row[1],
+                    "rel": "WEAK_LINK"
+                })
+    except Exception as exc:
+        logger.error("Failed to build master graph: %s", exc)
+
+    return {"nodes": nodes, "links": links}
+
+
 @app.get("/graph/repositories")
 async def list_repositories() -> list[str]:
     """Return all unique repository namespaces present in the config or database."""
@@ -1325,6 +1395,57 @@ async def list_repositories() -> list[str]:
         logger.warning("Failed to list repositories from database: %s", exc)
 
     return sorted(list(set(configured + db_repos)))
+
+
+@app.get("/graph/repositories/{repo_name}/community")
+async def get_repo_community_graph(repo_name: str) -> dict[str, Any]:
+    """Retrieve community nodes and their dependencies for a specific repository."""
+    store: FalkorDBStore = app.state.graph_store
+    nodes = []
+    links = []
+
+    try:
+        # Find all communities that have member nodes belonging to this repository
+        cypher_nodes = (
+            "MATCH (n)-[:IN_COMMUNITY]->(c:Community) "
+            "WHERE n.repository = $repo_name "
+            "RETURN DISTINCT c"
+        )
+        res_nodes = store.query(cypher_nodes, {"repo_name": repo_name})
+        comm_ids = set()
+        for row in res_nodes.result_set or []:
+            c_node = row[0]
+            c_props = getattr(c_node, "properties", {})
+            c_id = c_props.get("id", "")
+            if c_id and c_id not in comm_ids:
+                comm_ids.add(c_id)
+                nodes.append({
+                    "id": c_id,
+                    "label": "Community",
+                    "name": c_props.get("name", f"Community {c_id}"),
+                    "summary": c_props.get("summary", ""),
+                    "repository": repo_name,
+                })
+
+        # Find relationships between these communities
+        if comm_ids:
+            cypher_links = (
+                "MATCH (c1:Community)-[r:COMMUNITY_DEPENDS]->(c2:Community) "
+                "RETURN c1.id, c2.id, r.weight"
+            )
+            res_links = store.query(cypher_links)
+            for row in res_links.result_set or []:
+                src_id, dst_id, weight = row[0], row[1], row[2]
+                if src_id in comm_ids and dst_id in comm_ids:
+                    links.append({
+                        "source": src_id,
+                        "target": dst_id,
+                        "rel": f"COMMUNITY_DEPENDS (weight: {weight})",
+                    })
+    except Exception as exc:
+        logger.error("Failed to build repository community graph: %s", exc)
+
+    return {"nodes": nodes, "links": links}
 
 
 @app.get("/graph/repositories/{repo_name}/status")
@@ -1367,7 +1488,7 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
                 curr = Path(effective_path)
                 is_git = False
                 while True:
-                    if (curr / ".git").is_dir():
+                    if os.path.isdir(curr / ".git"):
                         is_git = True
                         break
                     if curr == curr.parent:
@@ -1441,10 +1562,29 @@ async def graph_neighbors(
     if "." in simple_name:
         simple_name = simple_name.rsplit(".", 1)[-1]
 
-    nodes = store.find_nodes(simple_name, limit=5)
-    anchor = next((n for n in nodes if n.get("node_id") == node_id), None)
-    label = anchor.get("label", "") if anchor else ""
-    name = anchor.get("name", simple_name) if anchor else node_id
+    label = ""
+    name = simple_name
+    try:
+        res = store.query(
+            "MATCH (n) WHERE n.id = $id RETURN labels(n)[0] AS label, n.name AS name",
+            {"id": node_id}
+        )
+        if res.result_set:
+            row = res.result_set[0]
+            label = row[0] or ""
+            name = row[1] or simple_name
+    except Exception as exc:
+        logger.warning("Exact lookup failed for %s: %s", node_id, exc)
+
+    if not label:
+        try:
+            nodes = store.find_nodes(simple_name, limit=5)
+            anchor = next((n for n in nodes if n.get("node_id") == node_id), None)
+            if anchor:
+                label = anchor.get("label", "")
+                name = anchor.get("name", simple_name)
+        except Exception:
+            pass
 
     directions = ["in", "out"] if direction == "both" else [direction]
     seen: set[str] = set()
@@ -1590,6 +1730,26 @@ async def process_indexing_task(
             if task.get("status") == "aborted":
                 add_log("Indexing completed but was flagged as aborted.")
                 return
+
+            # ── Auto community-build post-processing ─────────────────────────
+            add_log("Starting automatic community-build post-processing...")
+            app_state.indexing_tasks[task_id]["current_step"] = "community_build"
+            app_state.indexing_tasks[task_id]["current_message"] = "Running community detection..."
+            app_state.indexing_tasks[task_id]["progress"] = 1.0
+
+            try:
+                from hybrid_rag.graph.community_builder import CommunityBuilder
+
+                community_builder = CommunityBuilder(
+                    graph_store=app_state.graph_store,
+                    ollama_url=_OLLAMA_URL,
+                    llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
+                )
+                n_communities = await asyncio.to_thread(community_builder.build_communities)
+                add_log(f"Community build completed: {n_communities} communities generated.")
+            except Exception as community_exc:
+                add_log(f"Community build failed (non-fatal): {community_exc}")
+                logger.warning("Auto community-build failed for task %s: %s", task_id, community_exc)
 
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()

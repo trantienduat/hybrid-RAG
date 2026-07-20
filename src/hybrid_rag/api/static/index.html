@@ -318,6 +318,8 @@
     .label-Module { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
     .label-Variable { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
     .label-Community { background: rgba(236,72,153,0.15); color: #f472b6; border: 1px solid rgba(236,72,153,0.4); }
+    .label-RepositoryMetadata { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+    .label-Directory { background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
 
     /* ── Graph Canvas Area ── */
     .canvas-wrap {
@@ -353,6 +355,64 @@
       border-color: var(--accent);
       box-shadow: 0 0 10px var(--accent-glow);
     }
+    .btn-reset-graph {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 100;
+      background: rgba(15, 18, 25, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+    }
+    .btn-reset-graph:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Breadcrumb Nav */
+    .breadcrumb-bar {
+      position: absolute;
+      top: 50px;
+      left: 14px;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      max-width: calc(100% - 200px);
+      background: rgba(15, 18, 25, 0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      box-shadow: var(--shadow);
+    }
+    .breadcrumb-item {
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.15s;
+      white-space: nowrap;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .breadcrumb-item:hover { color: var(--accent); }
+    .breadcrumb-item.current { color: var(--text); cursor: default; }
+    .breadcrumb-sep { color: rgba(255,255,255,0.2); }
 
     /* Floating Legend */
     .legend {
@@ -1065,27 +1125,36 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      padding-right: 20px;
+      padding-right: 42px;
     }
-    .btn-delete-chat {
+    .chat-actions {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .conversation-item:hover .chat-actions {
+      opacity: 1;
+    }
+    .btn-delete-chat, .btn-rename-chat {
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 10px;
+      font-size: 11px;
       cursor: pointer;
-      opacity: 0;
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      transition: opacity 0.2s, color 0.2s;
-    }
-    .conversation-item:hover .btn-delete-chat {
-      opacity: 0.8;
+      padding: 2px;
+      line-height: 1;
+      transition: color 0.2s, opacity 0.2s;
     }
     .btn-delete-chat:hover {
       color: var(--red) !important;
-      opacity: 1 !important;
+    }
+    .btn-rename-chat:hover {
+      color: var(--accent) !important;
     }
   </style>
 </head>
@@ -1143,7 +1212,7 @@
       <!-- Global Active Tasks Panel -->
       <div id="globalTasksPanel" style="display: none; margin-top: 8px; padding: 10px; border-radius: 6px; background: rgba(30,35,55,0.4); border: 1px solid var(--border); font-size: 11px;">
         <label style="font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Active Sync Tasks</label>
-        <div id="globalTasksList" style="display: flex; flex-direction: column; gap: 8px;">
+        <div id="globalTasksList" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding-right: 4px;">
           <!-- Renders running/pending tasks with progress bars and abort buttons -->
         </div>
       </div>
@@ -1189,6 +1258,14 @@
   <div class="canvas-wrap" id="canvasWrap">
     <div id="graph-3d"></div>
     <div id="graph-2d" style="width: 100%; height: 100%; display: none;"></div>
+
+    <!-- Floating Reset Graph Button -->
+    <button id="resetMasterGraphBtn" class="btn-reset-graph" type="button" style="display: none;">
+      Reset to Master Graph
+    </button>
+
+    <!-- Breadcrumb Navigation -->
+    <div class="breadcrumb-bar" id="breadcrumbBar"></div>
 
     <!-- Floating View Switcher Slider -->
     <button id="viewToggleBtn" class="btn-toggle-view" type="button" style="display: none;">
@@ -1236,6 +1313,8 @@
 
     <!-- Custom Colored Legend -->
     <div class="legend">
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(168,85,247,0.95)"></div>Repo</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(234,179,8,0.95)"></div>Directory</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(99,102,241,0.95)"></div>Class</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(34,211,238,0.95)"></div>Function</div>
       <div class="legend-row"><div class="legend-dot" style="background:rgba(52,211,153,0.95)"></div>Module</div>
@@ -1299,11 +1378,13 @@
 const API = '';  // Relative FastAPI serving path
 
 const LABEL_COLORS = {
-  Class:     'rgba(99,102,241,0.9)',
-  Function:  'rgba(34,211,238,0.9)',
-  Module:    'rgba(52,211,153,0.9)',
-  Variable:  'rgba(251,191,36,0.9)',
-  Community: 'rgba(236,72,153,0.95)',
+  Class:              'rgba(99,102,241,0.9)',
+  Function:           'rgba(34,211,238,0.9)',
+  Module:             'rgba(52,211,153,0.9)',
+  Variable:           'rgba(251,191,36,0.9)',
+  Community:          'rgba(236,72,153,0.95)',
+  RepositoryMetadata: 'rgba(168,85,247,0.9)',
+  Directory:          'rgba(234,179,8,0.9)',
 };
 
 // ── Application State ──────────────────────────────────────────────────────────
@@ -1340,6 +1421,68 @@ const codebaseQueryToggle = document.getElementById('codebaseQueryToggle');
 const llmModelSelect = document.getElementById('llmModelSelect');
 const newChatBtn    = document.getElementById('newChatBtn');
 const conversationList = document.getElementById('conversationList');
+const resetMasterGraphBtn = document.getElementById('resetMasterGraphBtn');
+const breadcrumbBar = document.getElementById('breadcrumbBar');
+
+// Navigation stack for breadcrumb
+let navStack = [];
+
+function pushNav(label, name, action) {
+  navStack.push({ label, name, action });
+  renderBreadcrumb();
+}
+
+function popNavTo(index) {
+  navStack = navStack.slice(0, index + 1);
+  renderBreadcrumb();
+}
+
+function resetNav() {
+  navStack = [];
+  breadcrumbBar.style.display = 'none';
+}
+
+function renderBreadcrumb() {
+  if (navStack.length === 0) {
+    breadcrumbBar.style.display = 'none';
+    return;
+  }
+  breadcrumbBar.style.display = 'flex';
+  breadcrumbBar.innerHTML = '';
+
+  // Static root
+  const root = document.createElement('span');
+  root.className = 'breadcrumb-item';
+  root.textContent = 'Master';
+  root.title = 'Back to Master Graph';
+  root.onclick = () => {
+    resetNav();
+    isMasterView = true;
+    resetMasterGraphBtn.style.display = 'none';
+    loadMasterGraph();
+  };
+  breadcrumbBar.appendChild(root);
+
+  navStack.forEach((item, i) => {
+    const sep = document.createElement('span');
+    sep.className = 'breadcrumb-sep';
+    sep.textContent = ' › ';
+    breadcrumbBar.appendChild(sep);
+
+    const crumb = document.createElement('span');
+    crumb.className = 'breadcrumb-item' + (i === navStack.length - 1 ? ' current' : '');
+    crumb.textContent = item.name || item.label;
+    crumb.title = item.name || item.label;
+    if (i < navStack.length - 1) {
+      crumb.onclick = () => {
+        popNavTo(i);
+        item.action && item.action();
+      };
+    }
+    breadcrumbBar.appendChild(crumb);
+  });
+}
+let isMasterView = true;
 
 // ── Page Initialization ────────────────────────────────────────────────────────
 
@@ -1350,6 +1493,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderSearchSuggestions();
   loadConversations();
   updateGlobalTasks();
+  loadMasterGraph();
 
   llmModelSelect.addEventListener('change', () => {
     localStorage.setItem('hybrid_rag_selected_model', llmModelSelect.value);
@@ -1419,6 +1563,95 @@ async function loadLLMModels() {
   } catch (err) {
     console.warn("Failed to fetch LLM models:", err);
     llmModelSelect.innerHTML = '<option value="">Ollama Offline</option>';
+  }
+}
+
+async function loadMasterGraph() {
+  showStatus("Loading global master graph...");
+  try {
+    const r = await fetch(`${API}/graph/master`);
+    if (!r.ok) throw new Error("Failed to load master graph");
+    const data = await r.json();
+
+    isMasterView = true;
+    resetMasterGraphBtn.style.display = 'none';
+    resetNav();
+
+    currentGraphParams = {
+      isMaster: true,
+      nodes: data.nodes,
+      links: data.links
+    };
+    drawGraph();
+    showStatus(`Loaded Master Graph · Click directory to expand · Click repo to focus`);
+  } catch (err) {
+    showStatus(`Error loading master graph: ${err.message}`);
+  }
+}
+
+async function loadRepoCommunityGraph(repoName) {
+  showStatus(`Loading community graph for ${repoName}...`);
+  try {
+    const r = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/community`);
+    if (!r.ok) throw new Error(`Failed to load community graph for ${repoName}`);
+    const data = await r.json();
+
+    isMasterView = false;
+    resetMasterGraphBtn.style.display = 'inline-flex';
+
+    if (!data.nodes || data.nodes.length === 0) {
+      // Fallback: show directory tree for this repo from master graph
+      await loadRepoDirectoryFallback(repoName);
+      return;
+    }
+
+    currentGraphParams = {
+      isMaster: false,
+      isCommunity: true,
+      nodes: data.nodes,
+      links: data.links
+    };
+    drawGraph();
+    showStatus(`Loaded community graph for ${repoName} (${data.nodes.length} communities) · Click to inspect`);
+  } catch (err) {
+    showStatus(`Error loading community graph: ${err.message}`);
+  }
+}
+
+async function loadRepoDirectoryFallback(repoName) {
+  showStatus(`No community graph for "${repoName}" — loading directory structure...`);
+  try {
+    const r = await fetch(`${API}/graph/master`);
+    if (!r.ok) throw new Error("Failed to load master graph for fallback");
+    const data = await r.json();
+
+    // Filter to only this repo's nodes
+    const repoNodes = data.nodes.filter(n =>
+      n.repository === repoName || (n.label === 'RepositoryMetadata' && (n.id === repoName || n.name === repoName))
+    );
+    const repoNodeIds = new Set(repoNodes.map(n => n.id));
+    const repoLinks = data.links.filter(l => {
+      const src = typeof l.source === 'object' ? l.source.id : l.source;
+      const dst = typeof l.target === 'object' ? l.target.id : l.target;
+      return repoNodeIds.has(src) && repoNodeIds.has(dst);
+    });
+
+    if (repoNodes.length === 0) {
+      showStatus(`No data found for "${repoName}". Please index the repository first.`);
+      return;
+    }
+
+    currentGraphParams = {
+      isMaster: false,
+      isCommunity: false,
+      isDirectoryFallback: true,
+      nodes: repoNodes,
+      links: repoLinks
+    };
+    drawGraph();
+    showStatus(`"${repoName}" — directory structure (no community graph yet · re-index to auto-generate)`);
+  } catch (err) {
+    showStatus(`Error loading directory fallback: ${err.message}`);
   }
 }
 
@@ -1738,8 +1971,19 @@ searchInput.addEventListener('input', () => {
 });
 repoSelect.addEventListener('change', () => {
   activeRepo = repoSelect.value;
-  doSearch();
+  if (activeRepo === '') {
+    loadMasterGraph();
+  } else {
+    loadRepoCommunityGraph(activeRepo);
+  }
   checkRepoSyncStatus(activeRepo);
+});
+
+resetMasterGraphBtn.addEventListener('click', () => {
+  repoSelect.value = '';
+  activeRepo = '';
+  loadMasterGraph();
+  checkRepoSyncStatus('');
 });
 
 document.getElementById('syncRepoBtn').addEventListener('click', () => {
@@ -1878,6 +2122,8 @@ async function selectNode(nodeId, label, name) {
     showNodeInspector(nodeId, label, name, filePath, repoName, summary);
 
     // Save and render
+    isMasterView = false;
+    resetMasterGraphBtn.style.display = 'inline-flex';
     renderGraph(nodeId, label, name, data.neighbors);
     showStatus(`Loaded ${data.neighbors.length} neighbors · Click node to inspect`);
   } catch (err) {
@@ -1956,24 +2202,46 @@ function renderGraph(anchorId, anchorLabel, anchorName, edges) {
 
 function drawGraph() {
   if (!currentGraphParams) return;
-  const { anchorId, anchorLabel, anchorName, edges } = currentGraphParams;
+  viewToggleBtn.style.display = 'flex';
 
-  const nodeMap = new Map();
-  const addNode = (id, lbl, nm, fp, repo, isAnchor) => {
-    if (!nodeMap.has(id)) {
-      nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', repository: repo || '', isAnchor });
+  let gData;
+  if (currentGraphParams.isMaster || currentGraphParams.isCommunity || currentGraphParams.isDirectoryFallback) {
+    gData = {
+      nodes: currentGraphParams.nodes.map(n => ({
+        id: n.id,
+        label: n.label,
+        name: n.name,
+        file_path: n.path || n.file_path || '',
+        repository: n.repository || '',
+        isAnchor: false
+      })),
+      links: currentGraphParams.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        rel: l.rel
+      }))
+    };
+  } else {
+    const { anchorId, anchorLabel, anchorName, edges } = currentGraphParams;
+    const nodeMap = new Map();
+    const addNode = (id, lbl, nm, fp, repo, isAnchor) => {
+      if (!nodeMap.has(id)) {
+        nodeMap.set(id, { id, label: lbl, name: nm, file_path: fp || '', repository: repo || '', isAnchor });
+      }
+    };
+
+    if (anchorId) {
+      addNode(anchorId, anchorLabel, anchorName, '', '', true);
     }
-  };
+    edges.forEach(e => {
+      addNode(e.dst_id, e.dst_label, e.dst_name, e.dst_file_path, e.dst_repository, false);
+    });
 
-  addNode(anchorId, anchorLabel, anchorName, '', '', true);
-  edges.forEach(e => {
-    addNode(e.dst_id, e.dst_label, e.dst_name, e.dst_file_path, e.dst_repository, false);
-  });
-
-  const gData = {
-    nodes: [...nodeMap.values()],
-    links: edges.map(e => ({ source: e.src_id, target: e.dst_id, rel: e.rel })),
-  };
+    gData = {
+      nodes: [...nodeMap.values()],
+      links: edges.map(e => ({ source: e.src_id, target: e.dst_id, rel: e.rel })),
+    };
+  }
 
   const container3d = document.getElementById('graph-3d');
   const container2d = document.getElementById('graph-2d');
@@ -2071,6 +2339,7 @@ function drawGraph() {
       const nData = gData.nodes.find(n => n.id === nId);
       if (nData) {
         showNodeInspector(nData.id, nData.label, nData.name, nData.file_path, nData.repository);
+        handleGraphNodeInteraction(nData.id, nData.label, nData.name, nData.repository);
       }
     });
   } else {
@@ -2090,21 +2359,116 @@ function drawGraph() {
         .nodeColor(n  => LABEL_COLORS[n.label] || '#8892a4')
         .nodeVal(n    => n.isAnchor ? 7 : 2.5)
         .nodeOpacity(0.95)
-        .linkColor(()  => 'rgba(99, 102, 241, 0.35)')
+        .linkColor(()  => 'rgba(200, 210, 255, 0.92)')
         .linkLabel(l   => l.rel)
-        .linkWidth(1.2)
-        .linkDirectionalArrowLength(4)
+        .linkWidth(2.5)
+        .linkDirectionalArrowLength(9)
         .linkDirectionalArrowRelPos(1)
-        .linkDirectionalParticles(1)
-        .linkDirectionalParticleWidth(1.2)
+        .linkDirectionalArrowColor(() => '#c8d2ff')
+        .linkDirectionalParticles(3)
+        .linkDirectionalParticleWidth(3)
+        .linkDirectionalParticleColor(() => '#e0e7ff')
         .width(wrap.clientWidth)
         .height(wrap.clientHeight)
         .onNodeClick(n => {
           showNodeInspector(n.id, n.label, n.name, n.file_path, n.repository);
+          handleGraphNodeInteraction(n.id, n.label, n.name, n.repository);
         });
     }
 
     graphInstance.graphData(gData);
+  }
+}
+
+async function handleGraphNodeInteraction(nodeId, label, name, repository) {
+  if (isMasterView) {
+    // ── Master View: expand dirs, drill into repos ────────────────────────
+    if (label === 'Directory') {
+      await expandDirectoryInMasterGraph(nodeId);
+    } else if (label === 'RepositoryMetadata') {
+      const repoName = repository || name || nodeId;
+      repoSelect.value = repoName;
+      activeRepo = repoName;
+      pushNav('RepositoryMetadata', repoName, () => {
+        repoSelect.value = repoName;
+        activeRepo = repoName;
+        loadRepoCommunityGraph(repoName);
+      });
+      await loadRepoCommunityGraph(activeRepo);
+      checkRepoSyncStatus(activeRepo);
+    }
+  } else if (currentGraphParams && currentGraphParams.isCommunity) {
+    // ── Community View: drill into Community members ──────────────────────
+    if (label === 'Community') {
+      pushNav('Community', name, () => selectNode(nodeId, label, name));
+      await selectNode(nodeId, label, name);
+    }
+  } else {
+    // ── Node-neighbor View: drill into any code node ──────────────────────
+    const drillableLabels = ['Module', 'Class', 'Function', 'Method', 'Community'];
+    if (drillableLabels.includes(label)) {
+      pushNav(label, name, () => selectNode(nodeId, label, name));
+      await selectNode(nodeId, label, name);
+    }
+  }
+}
+
+async function expandDirectoryInMasterGraph(nodeId) {
+  showStatus(`Expanding directory: ${nodeId}...`);
+  try {
+    const r = await fetch(`${API}/graph/neighbors/${encodeURIComponent(nodeId)}?direction=both&limit=100`);
+    if (!r.ok) throw new Error("Failed to fetch directory neighbors");
+    const data = await r.json();
+
+    const filteredNeighbors = data.neighbors.filter(nb => 
+      nb.dst_label === 'Directory' || nb.dst_label === 'RepositoryMetadata'
+    );
+
+    if (filteredNeighbors.length === 0) {
+      showStatus("Directory has no subdirectories or linked repository metadata.");
+      return;
+    }
+
+    if (currentGraphParams && currentGraphParams.isMaster) {
+      const nodeMap = new Map();
+      currentGraphParams.nodes.forEach(n => nodeMap.set(n.id, n));
+
+      filteredNeighbors.forEach(nb => {
+        if (!nodeMap.has(nb.dst_id)) {
+          nodeMap.set(nb.dst_id, {
+            id: nb.dst_id,
+            label: nb.dst_label,
+            name: nb.dst_name,
+            repository: nb.dst_repository,
+            path: nb.dst_file_path
+          });
+        }
+      });
+
+      const linkKeys = new Set();
+      currentGraphParams.links.forEach(l => {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const dst = typeof l.target === 'object' ? l.target.id : l.target;
+        linkKeys.add(`${src}->${dst}`);
+      });
+
+      filteredNeighbors.forEach(nb => {
+        const key = `${nb.src_id}->${nb.dst_id}`;
+        if (!linkKeys.has(key)) {
+          currentGraphParams.links.push({
+            source: nb.src_id,
+            target: nb.dst_id,
+            rel: nb.rel
+          });
+        }
+      });
+
+      currentGraphParams.nodes = Array.from(nodeMap.values());
+      drawGraph();
+      showStatus(`Expanded directory. Added ${filteredNeighbors.length} connections.`);
+    }
+  } catch (err) {
+    showStatus(`Error expanding directory: ${err.message}`);
   }
 }
 
@@ -2643,7 +3007,10 @@ function loadConversations() {
     return `
       <div class="conversation-item ${activeClass}" onclick="selectConversation('${chat.id}')">
         <span class="title" title="${escHtml(chat.title)}">${escHtml(chat.title)}</span>
-        <button class="btn-delete-chat" onclick="deleteConversation('${chat.id}', event)" title="Delete conversation">✕</button>
+        <div class="chat-actions">
+          <button class="btn-rename-chat" onclick="renameConversation('${chat.id}', event)" title="Rename conversation">✎</button>
+          <button class="btn-delete-chat" onclick="deleteConversation('${chat.id}', event)" title="Delete conversation">✕</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -2784,8 +3151,31 @@ function deleteConversation(chatId, event) {
   loadConversations();
 }
 
+function renameConversation(chatId, event) {
+  if (event) event.stopPropagation();
+
+  let chats = [];
+  try {
+    chats = JSON.parse(localStorage.getItem('hybrid_rag_chats')) || [];
+  } catch (_) {}
+  if (!Array.isArray(chats)) chats = [];
+
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return;
+
+  const newTitle = prompt("Enter a new title for this conversation:", chat.title);
+  if (newTitle === null) return;
+  const trimmed = newTitle.trim();
+  if (trimmed === "") return;
+
+  chat.title = trimmed;
+  localStorage.setItem('hybrid_rag_chats', JSON.stringify(chats));
+  loadConversations();
+}
+
 window.selectConversation = selectConversation;
 window.deleteConversation = deleteConversation;
+window.renameConversation = renameConversation;
 
 const CORE_SUGGESTIONS = ['main', 'HybridRetriever', 'FalkorDBStore', 'QdrantStore', 'OllamaEmbedder'];
 

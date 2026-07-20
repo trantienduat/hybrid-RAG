@@ -325,6 +325,63 @@ def parse_repo(
             combined.edges.extend(result.edges)
             combined.errors.extend(result.errors)
 
+    # ── Build Directory nodes from all parsed code file paths ─────────────────
+    # Collect unique directory paths from every parsed code file so that
+    # repos with only Python files (no yaml/md) still appear in master graph.
+    seen_dirs: set[str] = set()
+    dir_nodes: list[NodeData] = []
+    dir_edges: list[EdgeData] = []
+
+    for ext in exts:
+        for fpath in sorted(repo_root.rglob(f"*{ext}")):
+            try:
+                rel_parts = fpath.relative_to(repo_root).parts
+            except ValueError:
+                continue
+            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
+                continue
+
+            # Walk up the directory hierarchy for this file
+            current = Path(*rel_parts[:-1]) if len(rel_parts) > 1 else None
+            while current and str(current) != ".":
+                dir_str = str(current)
+                if dir_str in seen_dirs:
+                    break
+                seen_dirs.add(dir_str)
+
+                dir_id = f"{repo_name}::dir::{dir_str}"
+                dir_nodes.append(NodeData(
+                    label="Directory",
+                    id=dir_id,
+                    properties={
+                        "name": current.name,
+                        "path": dir_str,
+                        "repository": repo_name,
+                    }
+                ))
+
+                parent = current.parent
+                if str(parent) == ".":
+                    # Link top-level dir to RepositoryMetadata
+                    dir_edges.append(EdgeData(
+                        src_id=dir_id,
+                        rel="WEAK_LINK",
+                        dst_id=repo_name,
+                        properties={"repository": repo_name},
+                    ))
+                else:
+                    parent_id = f"{repo_name}::dir::{parent}"
+                    dir_edges.append(EdgeData(
+                        src_id=dir_id,
+                        rel="WEAK_LINK",
+                        dst_id=parent_id,
+                        properties={"repository": repo_name},
+                    ))
+                current = parent if str(parent) != "." else None
+
+    combined.nodes.extend(dir_nodes)
+    combined.edges.extend(dir_edges)
+
     return combined
 
 

@@ -1338,7 +1338,7 @@ async def get_master_graph() -> dict[str, Any]:
             "dist", "build", ".roo", ".clinerules", "fixtures", "experiments",
         ]
         _path_filter = " AND ".join(
-            f"NOT (d.path CONTAINS '/{ex}' OR d.name = '{ex}')"
+            f"NOT (d.path CONTAINS '/{ex}' OR d.path STARTS WITH '{ex}' OR d.name = '{ex}')"
             for ex in _NOISE_PATTERNS
         )
         res_dirs = store.query(f"MATCH (d:Directory) WHERE {_path_filter} RETURN d")

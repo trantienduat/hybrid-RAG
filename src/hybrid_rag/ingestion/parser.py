@@ -394,6 +394,33 @@ def parse_repo(
     combined.nodes.extend(dir_nodes)
     combined.edges.extend(dir_edges)
 
+    # ── Link Directory → Module via DEFINES edges ──────────────────────────────
+    # _extract_python creates Module nodes but doesn't wire them to Directory nodes.
+    # We do it here, post-parse, based on each Module's file_path property.
+    for node in combined.nodes:
+        if node.label != "Module":
+            continue
+        file_path_str = node.properties.get("file_path", "")
+        if not file_path_str:
+            continue
+        parent_dir = str(Path(file_path_str).parent)
+        if parent_dir == ".":
+            # Top-level file: link to RepositoryMetadata
+            combined.edges.append(EdgeData(
+                src_id=repo_name,
+                rel="DEFINES",
+                dst_id=node.id,
+                properties={"repository": repo_name},
+            ))
+        else:
+            dir_id = f"{repo_name}::dir::{parent_dir}"
+            combined.edges.append(EdgeData(
+                src_id=dir_id,
+                rel="DEFINES",
+                dst_id=node.id,
+                properties={"repository": repo_name},
+            ))
+
     return combined
 
 

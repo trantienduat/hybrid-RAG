@@ -380,6 +380,40 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
+    /* Breadcrumb Nav */
+    .breadcrumb-bar {
+      position: absolute;
+      top: 50px;
+      left: 14px;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      max-width: calc(100% - 200px);
+      background: rgba(15, 18, 25, 0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      box-shadow: var(--shadow);
+    }
+    .breadcrumb-item {
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.15s;
+      white-space: nowrap;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .breadcrumb-item:hover { color: var(--accent); }
+    .breadcrumb-item.current { color: var(--text); cursor: default; }
+    .breadcrumb-sep { color: rgba(255,255,255,0.2); }
+
     /* Floating Legend */
     .legend {
       position: absolute;
@@ -1230,6 +1264,9 @@
       Reset to Master Graph
     </button>
 
+    <!-- Breadcrumb Navigation -->
+    <div class="breadcrumb-bar" id="breadcrumbBar"></div>
+
     <!-- Floating View Switcher Slider -->
     <button id="viewToggleBtn" class="btn-toggle-view" type="button" style="display: none;">
       Switch to 2D Hierarchical
@@ -1385,6 +1422,66 @@ const llmModelSelect = document.getElementById('llmModelSelect');
 const newChatBtn    = document.getElementById('newChatBtn');
 const conversationList = document.getElementById('conversationList');
 const resetMasterGraphBtn = document.getElementById('resetMasterGraphBtn');
+const breadcrumbBar = document.getElementById('breadcrumbBar');
+
+// Navigation stack for breadcrumb
+let navStack = [];
+
+function pushNav(label, name, action) {
+  navStack.push({ label, name, action });
+  renderBreadcrumb();
+}
+
+function popNavTo(index) {
+  navStack = navStack.slice(0, index + 1);
+  renderBreadcrumb();
+}
+
+function resetNav() {
+  navStack = [];
+  breadcrumbBar.style.display = 'none';
+}
+
+function renderBreadcrumb() {
+  if (navStack.length === 0) {
+    breadcrumbBar.style.display = 'none';
+    return;
+  }
+  breadcrumbBar.style.display = 'flex';
+  breadcrumbBar.innerHTML = '';
+
+  // Static root
+  const root = document.createElement('span');
+  root.className = 'breadcrumb-item';
+  root.textContent = 'Master';
+  root.title = 'Back to Master Graph';
+  root.onclick = () => {
+    resetNav();
+    isMasterView = true;
+    resetMasterGraphBtn.style.display = 'none';
+    loadMasterGraph();
+  };
+  breadcrumbBar.appendChild(root);
+
+  navStack.forEach((item, i) => {
+    const sep = document.createElement('span');
+    sep.className = 'breadcrumb-sep';
+    sep.textContent = ' › ';
+    breadcrumbBar.appendChild(sep);
+
+    const crumb = document.createElement('span');
+    crumb.className = 'breadcrumb-item' + (i === navStack.length - 1 ? ' current' : '');
+    crumb.textContent = item.name || item.label;
+    crumb.title = item.name || item.label;
+    if (i < navStack.length - 1) {
+      crumb.onclick = () => {
+        popNavTo(i);
+        item.action && item.action();
+      };
+    }
+    breadcrumbBar.appendChild(crumb);
+  });
+}
 let isMasterView = true;
 
 // ── Page Initialization ────────────────────────────────────────────────────────
@@ -1478,6 +1575,7 @@ async function loadMasterGraph() {
 
     isMasterView = true;
     resetMasterGraphBtn.style.display = 'none';
+    resetNav();
 
     currentGraphParams = {
       isMaster: true,
@@ -2282,13 +2380,33 @@ function drawGraph() {
 
 async function handleGraphNodeInteraction(nodeId, label, name, repository) {
   if (isMasterView) {
+    // ── Master View: expand dirs, drill into repos ────────────────────────
     if (label === 'Directory') {
       await expandDirectoryInMasterGraph(nodeId);
     } else if (label === 'RepositoryMetadata') {
-      repoSelect.value = repository || name || nodeId;
-      activeRepo = repoSelect.value;
+      const repoName = repository || name || nodeId;
+      repoSelect.value = repoName;
+      activeRepo = repoName;
+      pushNav('RepositoryMetadata', repoName, () => {
+        repoSelect.value = repoName;
+        activeRepo = repoName;
+        loadRepoCommunityGraph(repoName);
+      });
       await loadRepoCommunityGraph(activeRepo);
       checkRepoSyncStatus(activeRepo);
+    }
+  } else if (currentGraphParams && currentGraphParams.isCommunity) {
+    // ── Community View: drill into Community members ──────────────────────
+    if (label === 'Community') {
+      pushNav('Community', name, () => selectNode(nodeId, label, name));
+      await selectNode(nodeId, label, name);
+    }
+  } else {
+    // ── Node-neighbor View: drill into any code node ──────────────────────
+    const drillableLabels = ['Module', 'Class', 'Function', 'Method', 'Community'];
+    if (drillableLabels.includes(label)) {
+      pushNav(label, name, () => selectNode(nodeId, label, name));
+      await selectNode(nodeId, label, name);
     }
   }
 }

@@ -1331,13 +1331,25 @@ async def get_master_graph() -> dict[str, Any]:
                 "repository": r_props.get("id", ""),
             })
 
-        # 2. Fetch Directory nodes
-        res_dirs = store.query("MATCH (d:Directory) RETURN d")
+        # 2. Fetch Directory nodes — exclude stale/noise folders
+        _NOISE_PATTERNS = [
+            "node_modules", ".agents", ".gemini", ".venv", "venv",
+            "__pycache__", ".git", ".pytest_cache", ".ruff_cache",
+            "dist", "build", ".roo", ".clinerules", "fixtures", "experiments",
+        ]
+        _path_filter = " AND ".join(
+            f"NOT (d.path CONTAINS '/{ex}' OR d.name = '{ex}')"
+            for ex in _NOISE_PATTERNS
+        )
+        res_dirs = store.query(f"MATCH (d:Directory) WHERE {_path_filter} RETURN d")
+        valid_dir_ids = set()
         for row in res_dirs.result_set or []:
             d_node = row[0]
             d_props = getattr(d_node, "properties", {})
+            d_id = d_props.get("id", "")
+            valid_dir_ids.add(d_id)
             nodes.append({
-                "id": d_props.get("id", ""),
+                "id": d_id,
                 "label": "Directory",
                 "name": d_props.get("name", ""),
                 "repository": d_props.get("repository", ""),
@@ -1347,20 +1359,22 @@ async def get_master_graph() -> dict[str, Any]:
         # 3. Fetch WEAK_LINKs between Directory and RepositoryMetadata
         res_links_repo = store.query("MATCH (d:Directory)-[r:WEAK_LINK]->(m:RepositoryMetadata) RETURN d.id, m.id")
         for row in res_links_repo.result_set or []:
-            links.append({
-                "source": row[0],
-                "target": row[1],
-                "rel": "WEAK_LINK"
-            })
+            if row[0] in valid_dir_ids:
+                links.append({
+                    "source": row[0],
+                    "target": row[1],
+                    "rel": "WEAK_LINK"
+                })
 
         # 4. Fetch WEAK_LINKs between Directory and Directory
         res_links_dir = store.query("MATCH (d1:Directory)-[r:WEAK_LINK]->(d2:Directory) RETURN d1.id, d2.id")
         for row in res_links_dir.result_set or []:
-            links.append({
-                "source": row[0],
-                "target": row[1],
-                "rel": "WEAK_LINK"
-            })
+            if row[0] in valid_dir_ids and row[1] in valid_dir_ids:
+                links.append({
+                    "source": row[0],
+                    "target": row[1],
+                    "rel": "WEAK_LINK"
+                })
     except Exception as exc:
         logger.error("Failed to build master graph: %s", exc)
 

@@ -271,7 +271,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         rrf_hybrid_weight=_RRF_HYBRID_W,
     )
     app.state.indexing_tasks = {}
-    app.state.indexing_lock = asyncio.Lock()
+    app.state.indexing_lock = asyncio.Semaphore(3)
 
     # Initialize global HTTP client
     app.state.http_client = httpx.AsyncClient(timeout=300.0)

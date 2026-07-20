@@ -293,92 +293,104 @@ def parse_repo(
     if os.environ.get("NON_CODE_INGESTION", "false").lower() == "true":
         non_code_exts = {".yaml", ".yml", ".md", "Dockerfile"}
 
-    combined = ParseResult()
-    for ext in exts:
-        for fpath in sorted(repo_root.rglob(f"*{ext}")):
-            try:
-                rel_parts = fpath.relative_to(repo_root).parts
-            except ValueError:
-                rel_parts = fpath.parts
-
-            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
-                continue
-
-            result = parse_file(fpath, repo_root, repo_name=repo_name)
-            combined.nodes.extend(result.nodes)
-            combined.edges.extend(result.edges)
-            combined.errors.extend(result.errors)
-
-    for ext in non_code_exts:
-        pattern = "Dockerfile" if ext == "Dockerfile" else f"*{ext}"
-        for fpath in sorted(repo_root.rglob(pattern)):
-            try:
-                rel_parts = fpath.relative_to(repo_root).parts
-            except ValueError:
-                rel_parts = fpath.parts
-
-            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
-                continue
-
-            result = parse_file(fpath, repo_root, repo_name=repo_name)
-            combined.nodes.extend(result.nodes)
-            combined.edges.extend(result.edges)
-            combined.errors.extend(result.errors)
-
-    # ── Build Directory nodes from all parsed code file paths ─────────────────
-    # Collect unique directory paths from every parsed code file so that
-    # repos with only Python files (no yaml/md) still appear in master graph.
+    # 1. Collect all valid files to parse
+    files_to_parse: list[tuple[Path, str]] = []
+    
+    # Track directories to build structure
     seen_dirs: set[str] = set()
     dir_nodes: list[NodeData] = []
     dir_edges: list[EdgeData] = []
 
+    def process_fpath_dirs(fpath: Path):
+        try:
+            rel_parts = fpath.relative_to(repo_root).parts
+        except ValueError:
+            return
+        
+        # Walk up the directory hierarchy for this file
+        current = Path(*rel_parts[:-1]) if len(rel_parts) > 1 else None
+        while current and str(current) != ".":
+            dir_str = str(current)
+            if dir_str in seen_dirs:
+                break
+            seen_dirs.add(dir_str)
+
+            dir_id = f"{repo_name}::dir::{dir_str}"
+            dir_nodes.append(NodeData(
+                label="Directory",
+                id=dir_id,
+                properties={
+                    "name": current.name,
+                    "path": dir_str,
+                    "repository": repo_name,
+                }
+            ))
+
+            parent = current.parent
+            if str(parent) == ".":
+                dir_edges.append(EdgeData(
+                    src_id=dir_id,
+                    rel="WEAK_LINK",
+                    dst_id=repo_name,
+                    properties={"repository": repo_name},
+                ))
+            else:
+                parent_id = f"{repo_name}::dir::{parent}"
+                dir_edges.append(EdgeData(
+                    src_id=dir_id,
+                    rel="WEAK_LINK",
+                    dst_id=parent_id,
+                    properties={"repository": repo_name},
+                ))
+            current = parent if str(parent) != "." else None
+
+    # Code files
     for ext in exts:
-        for fpath in sorted(repo_root.rglob(f"*{ext}")):
+        for fpath in repo_root.rglob(f"*{ext}"):
             try:
                 rel_parts = fpath.relative_to(repo_root).parts
             except ValueError:
                 continue
             if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
                 continue
+            files_to_parse.append((fpath, repo_name))
+            process_fpath_dirs(fpath)
 
-            # Walk up the directory hierarchy for this file
-            current = Path(*rel_parts[:-1]) if len(rel_parts) > 1 else None
-            while current and str(current) != ".":
-                dir_str = str(current)
-                if dir_str in seen_dirs:
-                    break
-                seen_dirs.add(dir_str)
+    # Non-code files
+    for ext in non_code_exts:
+        pattern = "Dockerfile" if ext == "Dockerfile" else f"*{ext}"
+        for fpath in repo_root.rglob(pattern):
+            try:
+                rel_parts = fpath.relative_to(repo_root).parts
+            except ValueError:
+                continue
+            if any(p in exclude_set or p.startswith(".venv") for p in rel_parts):
+                continue
+            files_to_parse.append((fpath, repo_name))
+            process_fpath_dirs(fpath)
 
-                dir_id = f"{repo_name}::dir::{dir_str}"
-                dir_nodes.append(NodeData(
-                    label="Directory",
-                    id=dir_id,
-                    properties={
-                        "name": current.name,
-                        "path": dir_str,
-                        "repository": repo_name,
-                    }
-                ))
+    # Sort to keep order deterministic
+    files_to_parse.sort(key=lambda x: x[0])
 
-                parent = current.parent
-                if str(parent) == ".":
-                    # Link top-level dir to RepositoryMetadata
-                    dir_edges.append(EdgeData(
-                        src_id=dir_id,
-                        rel="WEAK_LINK",
-                        dst_id=repo_name,
-                        properties={"repository": repo_name},
-                    ))
-                else:
-                    parent_id = f"{repo_name}::dir::{parent}"
-                    dir_edges.append(EdgeData(
-                        src_id=dir_id,
-                        rel="WEAK_LINK",
-                        dst_id=parent_id,
-                        properties={"repository": repo_name},
-                    ))
-                current = parent if str(parent) != "." else None
+    combined = ParseResult()
 
+    # 2. Parse files concurrently using ThreadPoolExecutor
+    # tree-sitter C bindings release the GIL, and most time is spent in IO and tree-sitter parsing
+    from concurrent.futures import ThreadPoolExecutor
+    max_workers = min(32, (os.cpu_count() or 4) * 2)
+    
+    def parse_single_file(arg: tuple[Path, str]) -> ParseResult:
+        fpath, rname = arg
+        return parse_file(fpath, repo_root, repo_name=rname)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = executor.map(parse_single_file, files_to_parse)
+        for res in results:
+            combined.nodes.extend(res.nodes)
+            combined.edges.extend(res.edges)
+            combined.errors.extend(res.errors)
+
+    # Add directory nodes and edges
     combined.nodes.extend(dir_nodes)
     combined.edges.extend(dir_edges)
 

@@ -271,7 +271,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         rrf_hybrid_weight=_RRF_HYBRID_W,
     )
     app.state.indexing_tasks = {}
-    app.state.indexing_lock = asyncio.Semaphore(3)
+    indexing_concurrency = max(1, int(os.environ.get("INDEXING_CONCURRENCY", "3")))
+    app.state.indexing_lock = asyncio.Semaphore(indexing_concurrency)
 
     # Initialize global HTTP client
     app.state.http_client = httpx.AsyncClient(timeout=300.0)
@@ -1777,7 +1778,7 @@ async def trigger_index(
     req: IndexRequest,
     background_tasks: BackgroundTasks,
 ) -> IndexTaskResponse:
-    """Queue a repository to be indexed in the background (serialized FIFO)."""
+    """Queue a repository for bounded-concurrency background indexing."""
     # Verify path
     translated = translate_path_for_docker(req.repo_path)
     path = Path(translated)

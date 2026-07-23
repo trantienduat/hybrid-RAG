@@ -21,6 +21,7 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from hybrid_rag.config import app_config
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 
 app = typer.Typer(name="hybrid-rag", help="Privacy-preserving Graph-Hybrid RAG for codebases.")
@@ -169,9 +170,6 @@ def index(
 
 @app.command("community-build")
 def community_build(
-    resolution: float = typer.Option(
-        1.0, help="Louvain clustering resolution (higher = more smaller communities)."
-    ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -199,7 +197,7 @@ def community_build(
                 ollama_url=ollama_url,
                 llm_model=llm_model,
             )
-            count = builder.build_communities(resolution=resolution)
+            count = builder.build_communities()
             progress.update(task, description=f"Done — compiled {count} communities!")
 
         console.print(
@@ -293,6 +291,10 @@ def query(
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
     rrf_k: int = typer.Option(60, help="RRF k parameter (default: 60)."),
+    rrf_graph_weight: float = typer.Option(
+        app_config.rrf_structural_weight,
+        help="Graph-list weight for local RRF fusion.",
+    ),
 ) -> None:
     """Query the indexed codebase using hybrid graph + vector retrieval."""
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
@@ -319,6 +321,7 @@ def query(
                 vector_store=vector_store,
                 embedder=embedder,
                 rrf_k=rrf_k,
+                rrf_structural_weight=rrf_graph_weight,
             )
             # Route dynamic vs legacy parameters with repository scoping
             if max_tokens is None and max_chars is None:

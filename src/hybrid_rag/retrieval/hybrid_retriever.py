@@ -181,13 +181,22 @@ class HybridRetriever(BaseRetriever):
                 return results[:top_k]
 
         if not skip_graph and analysis.query_type == "global":
-            # Global query: fetch all communities and their summaries
+            # Global query: fetch community summaries, optionally scoped by repository.
             t_graph = time.perf_counter()
             try:
-                cypher = (
-                    "MATCH (c:Community) RETURN c.id AS id, c.name AS name, c.summary AS summary"
-                )
-                res = self._graph_store.query(cypher)
+                if repository:
+                    cypher = (
+                        "MATCH (c:Community)<-[:IN_COMMUNITY]-(n) "
+                        "WHERE n.repository = $repository "
+                        "RETURN DISTINCT c.id AS id, c.name AS name, c.summary AS summary"
+                    )
+                    res = self._graph_store.query(cypher, {"repository": repository})
+                else:
+                    cypher = (
+                        "MATCH (c:Community) "
+                        "RETURN c.id AS id, c.name AS name, c.summary AS summary"
+                    )
+                    res = self._graph_store.query(cypher)
                 global_results = []
                 for row in res.result_set or []:
                     comm_id, name, summary = row[0], row[1], row[2]

@@ -76,13 +76,13 @@ class CommunityBuilder:
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
 
-    def build_communities(self, resolution: float = 1.0) -> int:
+    def build_communities(self) -> int:
         """
         Partition the graph, generate summaries via Ollama, and writeback to FalkorDB.
 
         Returns the number of communities created.
         """
-        logger.info("Starting community building pipeline (resolution=%f)", resolution)
+        logger.info("Starting directory-based community building pipeline")
 
         # ── 1. Fetch entire graph from FalkorDB ──────────────────────────────
         nodes = self._fetch_all_nodes()

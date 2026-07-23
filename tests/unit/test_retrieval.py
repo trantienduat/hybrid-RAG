@@ -430,6 +430,27 @@ class TestHybridRetriever:
         retriever = self._retriever(vector_hits=hits)
         assert len(retriever.retrieve("foo", top_k=5)) <= 5
 
+    def test_global_query_scopes_communities_by_repository(self):
+        graph_store = MagicMock()
+        graph_store.query.return_value.result_set = [
+            ["community-1", "Core", "Core summary"]
+        ]
+        retriever = HybridRetriever(
+            graph_store=graph_store,
+            vector_store=MagicMock(),
+            embedder=MagicMock(),
+        )
+
+        results = retriever.retrieve(
+            "summarize the codebase",
+            repository="sample-repo",
+        )
+
+        cypher, params = graph_store.query.call_args.args
+        assert "n.repository = $repository" in cypher
+        assert params == {"repository": "sample-repo"}
+        assert results[0]["name"] == "Core"
+
     def test_retrieve_with_context_type(self):
         retriever = self._retriever(vector_hits=[self._hit("n1::0")])
         ctx = retriever.retrieve_with_context("how does parse_repo work?")
@@ -510,4 +531,3 @@ class TestHybridRetriever:
         assert "vector_search_ms" in ctx.timings
         assert "rrf_ms" in ctx.timings
         assert ctx.timings["parse_query_ms"] >= 0.0
-

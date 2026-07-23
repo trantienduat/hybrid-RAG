@@ -91,7 +91,7 @@ def test_community_builder_partition_and_writeback(active_graph_store, monkeypat
 
     # 3. Build Communities using directory structure partitioning
     builder = CommunityBuilder(graph_store=active_graph_store)
-    count = builder.build_communities(resolution=0.5)
+    count = builder.build_communities()
 
     # Assert that it successfully partitioned the nodes into 2 main communities (by directory path)
     assert count == 2

@@ -55,7 +55,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /Volumes/Kioxia_SSD/SSD_workspace/Personal:/codebases
+      - ${CODEBASES_PATH:-.}:/codebases
       - ./config.json:/app/config.json
     restart: unless-stopped
     healthcheck:
@@ -89,7 +89,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /Volumes/Kioxia_SSD/SSD_workspace/Personal:/codebases
+      - ${CODEBASES_PATH:-.}:/codebases
       - ./config.json:/app/config.json
     restart: unless-stopped
     healthcheck:
@@ -188,4 +188,3 @@ volumes:
   grafana_data:
   loki_data:
   tempo_data:
-

@@ -8,7 +8,10 @@ The Hybrid-RAG system is designed with a modular, **Ports and Adapters** (Hexago
 
 ## High-Level Architecture Overview
 
-All computations, embedding operations, and database storages remain strictly within the **local environment**. No data ever leaves the user's local boundary.
+The default Ollama deployment keeps parsing, embedding, retrieval, and
+generation local. When Gemini is selected through `LLM_PROVIDER`,
+`EMBED_PROVIDER`, or a Gemini model name, source snippets, queries, embeddings,
+or assembled context are sent to Google's API.
 
 ```mermaid
 graph TD
@@ -44,7 +47,7 @@ graph TD
     end
 
     subgraph Inference ["4. Inference Layer"]
-        OllamaLLM["Ollama Local LLM (qwen2.5-coder:7b)"]
+        OllamaLLM["Ollama Local LLM (gemma4:12b)"]
     end
 
     %% Flow links
@@ -145,7 +148,7 @@ graph LR
 
     Query["User Query"] --> Analyzer["Query Analyzer"]
     
-    subgraph ParallelPath ["Parallel Execution Path"]
+    subgraph RetrievalPath ["Local Retrieval Path"]
         Analyzer --> |Structural query| GraphPath["Graph Path"]
         Analyzer --> |Semantic query| VectorPath["Vector Path"]
         
@@ -161,9 +164,9 @@ graph LR
     
     RRF --> |RRF Ranked Candidates| BudgetAssembler["Token-Budget Context Assembler"]
     BudgetAssembler --> |Filter out over-budget chunks| PackedContext["Context Packed Prompt"]
-    PackedContext --> LLM["Local LLM (qwen2.5-coder:7b)"]
+    PackedContext --> LLM["Local LLM (gemma4:12b)"]
 
-    class ParallelPath pipeline;
+    class RetrievalPath pipeline;
 ```
 
 ### Key Engineering Features in Retrieval
@@ -249,10 +252,18 @@ Vectors are partitioned using payload metadata to support fast, targeted scoping
 
 ## 🔒 Privacy Boundary Enforcement
 
-The codebase strictly enforces local data sovereignty:
-*   **Offline Operation:** No external network requests are made. External API calls to non-localhost loops are explicitly prohibited.
-*   **Docker Containerization:** Storage engines (FalkorDB, Qdrant) run on local loopback ports (`127.0.0.1`) only, preventing any external ingress or egress.
-*   **Ollama Hosting:** Local embedding (`nomic-embed-text`) and inference (`qwen2.5-coder:7b`) are hosted entirely offline.
+The default provider path is local:
+*   **Ollama:** Local embedding (`nomic-embed-text`) and inference (`gemma4:12b`).
+*   **Storage:** FalkorDB and Qdrant run in the local Docker stack.
+*   **Gemini opt-in:** Gemini adapters are cloud integrations and require a
+    `GEMINI_API_KEY`; selecting them moves relevant request data outside the
+    local boundary.
+
+Observability services are optional. Start them with the Compose
+`observability` profile; plain `docker compose up` starts the core stack only.
+
+Context assembly can skeletonize source files around retrieved symbols and
+expand directly called sibling functions. See ADR-006 for the detailed policy.
 
 ---
 

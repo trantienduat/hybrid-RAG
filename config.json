@@ -2,51 +2,7 @@
   "repositories": [
     {
       "name": "hybrid-RAG",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG"
-    },
-    {
-      "name": "llama-core",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/.venv/lib/python3.12/site-packages/llama_index/core"
-    },
-    {
-      "name": "langchain-core",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/langchain/libs/core"
-    },
-    {
-      "name": "langchain-community",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/langchain/libs/langchain"
-    },
-    {
-      "name": "transformers",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/transformers"
-    },
-    {
-      "name": "db-models",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/db-models"
-    },
-    {
-      "name": "db-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/db-service"
-    },
-    {
-      "name": "pokemon-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/pokemon-service"
-    },
-    {
-      "name": "team-service",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/fastapi-microservices/team-service"
-    },
-    {
-      "name": "code-graph-rag",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/code-graph-rag"
-    },
-    {
-      "name": "CodeGraph",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/CodeGraph"
-    },
-    {
-      "name": "clangd-graph-rag",
-      "path": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/forked-repos/clangd-graph-rag"
+      "path": "."
     }
   ],
   "falkordb": {

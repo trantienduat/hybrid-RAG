@@ -797,7 +797,7 @@ async def list_models() -> list[LLMModelResponse]:
                 continue
             details = m.get("details", {})
 
-            # Match either exact name or base name (e.g. qwen2.5-coder:7b vs qwen2.5-coder:latest)
+            # Match either exact name or base name (e.g. gemma4:12b vs gemma4:latest)
             is_default = (
                 name == DEFAULT_LLM_MODEL or name.split(":")[0] == DEFAULT_LLM_MODEL.split(":")[0]
             )

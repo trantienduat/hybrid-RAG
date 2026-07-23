@@ -81,8 +81,6 @@ def test_falkordb_store_commit_metadata():
             {"repo": "repo123", "commit_hash": "commit456"},
         )
 
-
-
         # Test get_repository_commit
         mock_result = MagicMock()
         mock_result.result_set = [["commit456"]]
@@ -209,6 +207,4 @@ def test_incremental_indexing_pipeline_run(
         # Assert only src/a.py was parsed
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
-        mock_graph.set_repository_commit.assert_called_with(
-            "myrepo", "commit456"
-        )
+        mock_graph.set_repository_commit.assert_called_with("myrepo", "commit456")

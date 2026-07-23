@@ -153,7 +153,7 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
                 "file_path": rel_path,
                 "repository": repo_name,
                 "text": content,
-            }
+            },
         )
 
         parent_dir = str(file_path.parent.relative_to(repo_root))
@@ -165,10 +165,7 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
             dst_label = "Directory"
 
         edge = EdgeData(
-            src_id=node_id,
-            rel="WEAK_LINK",
-            dst_id=dst_id,
-            properties={"repository": repo_name}
+            src_id=node_id, rel="WEAK_LINK", dst_id=dst_id, properties={"repository": repo_name}
         )
 
         nodes_to_add = [node]
@@ -181,8 +178,8 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
                 properties={
                     "name": file_path.parent.name,
                     "path": parent_dir,
-                    "repository": repo_name
-                }
+                    "repository": repo_name,
+                },
             )
             nodes_to_add.append(dir_node)
 
@@ -198,8 +195,8 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
                     properties={
                         "name": parent_dir_path.name,
                         "path": str(parent_dir_path),
-                        "repository": repo_name
-                    }
+                        "repository": repo_name,
+                    },
                 )
                 nodes_to_add.append(p_dir_node)
 
@@ -207,7 +204,7 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
                     src_id=curr_dir_id,
                     rel="WEAK_LINK",
                     dst_id=parent_dir_id,
-                    properties={"repository": repo_name}
+                    properties={"repository": repo_name},
                 )
                 edges_to_add.append(p_edge)
                 current_path = parent_dir_path
@@ -217,7 +214,7 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
                 src_id=top_dir_id,
                 rel="WEAK_LINK",
                 dst_id=repo_name,
-                properties={"repository": repo_name}
+                properties={"repository": repo_name},
             )
             edges_to_add.append(root_edge)
 
@@ -289,13 +286,14 @@ def parse_repo(
     )
 
     import os
+
     non_code_exts = set()
     if os.environ.get("NON_CODE_INGESTION", "false").lower() == "true":
         non_code_exts = {".yaml", ".yml", ".md", "Dockerfile"}
 
     # 1. Collect all valid files to parse
     files_to_parse: list[tuple[Path, str]] = []
-    
+
     # Track directories to build structure
     seen_dirs: set[str] = set()
     dir_nodes: list[NodeData] = []
@@ -306,7 +304,7 @@ def parse_repo(
             rel_parts = fpath.relative_to(repo_root).parts
         except ValueError:
             return
-        
+
         # Walk up the directory hierarchy for this file
         current = Path(*rel_parts[:-1]) if len(rel_parts) > 1 else None
         while current and str(current) != ".":
@@ -316,32 +314,38 @@ def parse_repo(
             seen_dirs.add(dir_str)
 
             dir_id = f"{repo_name}::dir::{dir_str}"
-            dir_nodes.append(NodeData(
-                label="Directory",
-                id=dir_id,
-                properties={
-                    "name": current.name,
-                    "path": dir_str,
-                    "repository": repo_name,
-                }
-            ))
+            dir_nodes.append(
+                NodeData(
+                    label="Directory",
+                    id=dir_id,
+                    properties={
+                        "name": current.name,
+                        "path": dir_str,
+                        "repository": repo_name,
+                    },
+                )
+            )
 
             parent = current.parent
             if str(parent) == ".":
-                dir_edges.append(EdgeData(
-                    src_id=dir_id,
-                    rel="WEAK_LINK",
-                    dst_id=repo_name,
-                    properties={"repository": repo_name},
-                ))
+                dir_edges.append(
+                    EdgeData(
+                        src_id=dir_id,
+                        rel="WEAK_LINK",
+                        dst_id=repo_name,
+                        properties={"repository": repo_name},
+                    )
+                )
             else:
                 parent_id = f"{repo_name}::dir::{parent}"
-                dir_edges.append(EdgeData(
-                    src_id=dir_id,
-                    rel="WEAK_LINK",
-                    dst_id=parent_id,
-                    properties={"repository": repo_name},
-                ))
+                dir_edges.append(
+                    EdgeData(
+                        src_id=dir_id,
+                        rel="WEAK_LINK",
+                        dst_id=parent_id,
+                        properties={"repository": repo_name},
+                    )
+                )
             current = parent if str(parent) != "." else None
 
     # Code files
@@ -377,8 +381,9 @@ def parse_repo(
     # 2. Parse files concurrently using ThreadPoolExecutor
     # tree-sitter C bindings release the GIL, and most time is spent in IO and tree-sitter parsing
     from concurrent.futures import ThreadPoolExecutor
+
     max_workers = min(32, (os.cpu_count() or 4) * 2)
-    
+
     def parse_single_file(arg: tuple[Path, str]) -> ParseResult:
         fpath, rname = arg
         return parse_file(fpath, repo_root, repo_name=rname)
@@ -406,20 +411,24 @@ def parse_repo(
         parent_dir = str(Path(file_path_str).parent)
         if parent_dir == ".":
             # Top-level file: link to RepositoryMetadata
-            combined.edges.append(EdgeData(
-                src_id=repo_name,
-                rel="DEFINES",
-                dst_id=node.id,
-                properties={"repository": repo_name},
-            ))
+            combined.edges.append(
+                EdgeData(
+                    src_id=repo_name,
+                    rel="DEFINES",
+                    dst_id=node.id,
+                    properties={"repository": repo_name},
+                )
+            )
         else:
             dir_id = f"{repo_name}::dir::{parent_dir}"
-            combined.edges.append(EdgeData(
-                src_id=dir_id,
-                rel="DEFINES",
-                dst_id=node.id,
-                properties={"repository": repo_name},
-            ))
+            combined.edges.append(
+                EdgeData(
+                    src_id=dir_id,
+                    rel="DEFINES",
+                    dst_id=node.id,
+                    properties={"repository": repo_name},
+                )
+            )
 
     return combined
 

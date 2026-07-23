@@ -432,9 +432,7 @@ class TestHybridRetriever:
 
     def test_global_query_scopes_communities_by_repository(self):
         graph_store = MagicMock()
-        graph_store.query.return_value.result_set = [
-            ["community-1", "Core", "Core summary"]
-        ]
+        graph_store.query.return_value.result_set = [["community-1", "Core", "Core summary"]]
         retriever = HybridRetriever(
             graph_store=graph_store,
             vector_store=MagicMock(),

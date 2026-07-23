@@ -95,6 +95,7 @@ def _detect_git_changes(
 
         # Filtering logic
         import os
+
         exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
         if os.environ.get("NON_CODE_INGESTION", "false").lower() == "true":
             exts.update({".yaml", ".yml", ".md", "Dockerfile"})
@@ -434,7 +435,11 @@ def run_indexing_pipeline(
                     batch_payload = []
                     for ch, emb in zip(batch, embeddings):
                         label = ch.label
-                        file_type = "non_code" if label in ("Document", "Configuration", "Directory") else "code"
+                        file_type = (
+                            "non_code"
+                            if label in ("Document", "Configuration", "Directory")
+                            else "code"
+                        )
                         batch_payload.append(
                             {
                                 "node_id": f"{ch.node_id}::{ch.chunk_index}",

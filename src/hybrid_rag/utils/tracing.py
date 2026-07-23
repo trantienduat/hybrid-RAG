@@ -157,6 +157,7 @@ def initialize_tracing() -> None:
 
         # Configure console formatter to print trace_id and span_id
         try:
+
             class OTelConsoleFormatter(logging.Formatter):
                 def format(self, record):
                     span_ctx = trace.get_current_span().get_span_context()

@@ -1,6 +1,5 @@
-import pytest
-from pathlib import Path
 from hybrid_rag.retrieval.skeletonizer import skeletonize_file
+
 
 def test_skeletonize_python(tmp_path):
     code = """
@@ -27,6 +26,7 @@ class Calculator:
     assert "return a - b" not in res
     assert "..." in res
 
+
 def test_skeletonize_python_no_match(tmp_path):
     code = """
 def standalone():
@@ -36,5 +36,5 @@ def standalone():
     fpath.write_text(code, encoding="utf-8")
 
     res = skeletonize_file(fpath, focus_names=["other"], language="python")
-    assert "print(\"hello\")" not in res
+    assert 'print("hello")' not in res
     assert "..." in res

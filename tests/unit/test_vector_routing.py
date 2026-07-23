@@ -1,6 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
+
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
+
 
 def test_vector_routing_active(monkeypatch):
     monkeypatch.setenv("VECTOR_ROUTING", "true")
@@ -15,7 +16,7 @@ def test_vector_routing_active(monkeypatch):
             "dst_label": "Function",
             "dst_file_path": "src/neighbor.py",
             "dst_repository": "my_repo",
-            "rel": "CALLS"
+            "rel": "CALLS",
         }
     ]
 
@@ -23,9 +24,7 @@ def test_vector_routing_active(monkeypatch):
     embedder = MagicMock()
 
     retriever = HybridRetriever(
-        graph_store=graph_store,
-        vector_store=vector_store,
-        embedder=embedder
+        graph_store=graph_store, vector_store=vector_store, embedder=embedder
     )
 
     monkeypatch.setattr(
@@ -41,9 +40,9 @@ def test_vector_routing_active(monkeypatch):
                 "repository": "my_repo",
                 "text": "def anchor(): pass",
                 "score": 0.85,
-                "source": "vector"
+                "source": "vector",
             }
-        ]
+        ],
     )
 
     results = retriever.retrieve("test query")
@@ -52,6 +51,7 @@ def test_vector_routing_active(monkeypatch):
     assert results[1]["node_id"] == "neighbor_node"
     graph_store.find_neighbors.assert_any_call("anchor_node", direction="in", max_hops=1, limit=10)
     graph_store.find_neighbors.assert_any_call("anchor_node", direction="out", max_hops=1, limit=10)
+
 
 def test_vector_routing_fallback(monkeypatch):
     monkeypatch.setenv("VECTOR_ROUTING", "true")
@@ -63,9 +63,7 @@ def test_vector_routing_fallback(monkeypatch):
     embedder = MagicMock()
 
     retriever = HybridRetriever(
-        graph_store=graph_store,
-        vector_store=vector_store,
-        embedder=embedder
+        graph_store=graph_store, vector_store=vector_store, embedder=embedder
     )
 
     monkeypatch.setattr(
@@ -81,9 +79,9 @@ def test_vector_routing_fallback(monkeypatch):
                 "repository": "my_repo",
                 "text": "def anchor(): pass",
                 "score": 0.80,
-                "source": "vector"
+                "source": "vector",
             }
-        ]
+        ],
     )
 
     monkeypatch.setattr(
@@ -97,9 +95,9 @@ def test_vector_routing_fallback(monkeypatch):
                 "label": "Function",
                 "file_path": "src/fallback.py",
                 "repository": "my_repo",
-                "source": "graph"
+                "source": "graph",
             }
-        ]
+        ],
     )
 
     results = retriever.retrieve("test query")

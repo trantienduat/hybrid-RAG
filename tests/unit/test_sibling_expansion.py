@@ -1,7 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
+
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
-from hybrid_rag.retrieval.context_assembler import ContextAssembler
+
 
 def test_get_called_siblings():
     graph_store = MagicMock()
@@ -10,9 +10,7 @@ def test_get_called_siblings():
     graph_store.query.return_value = mock_res
 
     retriever = HybridRetriever(
-        graph_store=graph_store,
-        vector_store=MagicMock(),
-        embedder=MagicMock()
+        graph_store=graph_store, vector_store=MagicMock(), embedder=MagicMock()
     )
 
     siblings = retriever._get_called_siblings("module.Class.method")
@@ -21,6 +19,7 @@ def test_get_called_siblings():
     cypher_called = graph_store.query.call_args[0][0]
     assert "CALLS" in cypher_called
 
+
 def test_retrieve_with_context_attaches_siblings(monkeypatch):
     graph_store = MagicMock()
     mock_res = MagicMock()
@@ -28,9 +27,7 @@ def test_retrieve_with_context_attaches_siblings(monkeypatch):
     graph_store.query.return_value = mock_res
 
     retriever = HybridRetriever(
-        graph_store=graph_store,
-        vector_store=MagicMock(),
-        embedder=MagicMock()
+        graph_store=graph_store, vector_store=MagicMock(), embedder=MagicMock()
     )
 
     # Mock retrieve to return a single function result
@@ -46,7 +43,7 @@ def test_retrieve_with_context_attaches_siblings(monkeypatch):
                 "repository": "my_repo",
                 "source": "graph",
             }
-        ]
+        ],
     )
 
     # Mock ContextAssembler assemble method

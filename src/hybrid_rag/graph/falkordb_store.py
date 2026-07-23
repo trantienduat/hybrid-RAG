@@ -206,9 +206,7 @@ class FalkorDBStore(GraphStore):
             return res.result_set[0][0]
         return None
 
-    def set_repository_commit(
-        self, repository: str, commit_hash: str
-    ) -> None:
+    def set_repository_commit(self, repository: str, commit_hash: str) -> None:
         """Save the last indexed commit hash for a repository."""
         cypher = (
             "MERGE (r:RepositoryMetadata {id: $repo}) "

@@ -228,4 +228,3 @@ class TestASTCallResolver:
         resolved = resolve(result)
         call_edge = resolved.edges[0]
         assert call_edge.dst_id == "b.py.unique_func"
-

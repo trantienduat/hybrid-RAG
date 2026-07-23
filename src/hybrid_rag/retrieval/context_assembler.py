@@ -8,8 +8,9 @@ LLM-readable) context block, with metadata for downstream consumers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 from pathlib import Path
+from typing import Any
+
 from hybrid_rag.config import app_config, translate_path_for_docker
 from hybrid_rag.retrieval.skeletonizer import skeletonize_file
 

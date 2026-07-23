@@ -137,7 +137,9 @@ def resolve(result: ParseResult) -> ParseResult:
                     if prefix in imports:
                         candidates = real_functions.get(callee_name, [])
                         for cand in candidates:
-                            if cand.endswith(f".{prefix}.{callee_name}") or cand.endswith(f"{prefix}.{callee_name}"):
+                            if cand.endswith(f".{prefix}.{callee_name}") or cand.endswith(
+                                f"{prefix}.{callee_name}"
+                            ):
                                 resolved_id = cand
                                 break
 

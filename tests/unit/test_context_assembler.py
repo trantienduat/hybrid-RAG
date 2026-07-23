@@ -124,7 +124,9 @@ class TargetClass:
     abs_file_path.write_text(code, encoding="utf-8")
 
     # Mock config repo path
-    monkeypatch.setattr(app_config, "get_repo_path", lambda repo: str(repo_dir) if repo == "my_repo" else None)
+    monkeypatch.setattr(
+        app_config, "get_repo_path", lambda repo: str(repo_dir) if repo == "my_repo" else None
+    )
 
     assembler = ContextAssembler()
     results = [

@@ -53,10 +53,8 @@ from hybrid_rag.api.schemas import (
     QueryResponse,
     SourceChunk,
 )
-
-
-from hybrid_rag.config import translate_path_for_docker
-from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
+from hybrid_rag.config import app_config, translate_path_for_docker
+from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
@@ -101,8 +99,6 @@ def _is_gemini_provider(model: str, provider_env_var: str | None = None) -> bool
 
 # ── Configuration from environment/config file ──────────────────────────────────
 
-from hybrid_rag.config import app_config
-
 _FALKORDB_HOST = app_config.falkordb_host
 _FALKORDB_PORT = app_config.falkordb_port
 _FALKORDB_GRAPH = app_config.falkordb_graph
@@ -114,7 +110,6 @@ _EMBED_MODEL = app_config.embed_model
 _RRF_K = app_config.rrf_k
 _RRF_STRUCTURAL_W = app_config.rrf_structural_weight
 _RRF_HYBRID_W = app_config.rrf_hybrid_weight
-
 
 
 async def _run_periodic_sync(app_state: Any) -> None:
@@ -1244,7 +1239,11 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                             data = json.loads(chunk[6:].strip())
                             if data.get("done", False):
                                 t_total = (time.perf_counter() - t0) * 1000
-                                llm_ms = t_total - sum(ctx.timings.values()) if req.codebase_query else t_total
+                                llm_ms = (
+                                    t_total - sum(ctx.timings.values())
+                                    if req.codebase_query
+                                    else t_total
+                                )
                                 timings = {}
                                 if req.codebase_query:
                                     timings = ctx.timings.copy()
@@ -1325,18 +1324,32 @@ async def get_master_graph() -> dict[str, Any]:
         for row in res_repos.result_set or []:
             r_node = row[0]
             r_props = getattr(r_node, "properties", {})
-            nodes.append({
-                "id": r_props.get("id", ""),
-                "label": "RepositoryMetadata",
-                "name": r_props.get("id", ""),
-                "repository": r_props.get("id", ""),
-            })
+            nodes.append(
+                {
+                    "id": r_props.get("id", ""),
+                    "label": "RepositoryMetadata",
+                    "name": r_props.get("id", ""),
+                    "repository": r_props.get("id", ""),
+                }
+            )
 
         # 2. Fetch Directory nodes — exclude stale/noise folders
         _NOISE_PATTERNS = [
-            "node_modules", ".agents", ".gemini", ".venv", "venv",
-            "__pycache__", ".git", ".pytest_cache", ".ruff_cache",
-            "dist", "build", ".roo", ".clinerules", "fixtures", "experiments",
+            "node_modules",
+            ".agents",
+            ".gemini",
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".git",
+            ".pytest_cache",
+            ".ruff_cache",
+            "dist",
+            "build",
+            ".roo",
+            ".clinerules",
+            "fixtures",
+            "experiments",
         ]
         _path_filter = " AND ".join(
             f"NOT (d.path CONTAINS '/{ex}' OR d.path STARTS WITH '{ex}' OR d.name = '{ex}')"
@@ -1349,33 +1362,31 @@ async def get_master_graph() -> dict[str, Any]:
             d_props = getattr(d_node, "properties", {})
             d_id = d_props.get("id", "")
             valid_dir_ids.add(d_id)
-            nodes.append({
-                "id": d_id,
-                "label": "Directory",
-                "name": d_props.get("name", ""),
-                "repository": d_props.get("repository", ""),
-                "path": d_props.get("path", ""),
-            })
+            nodes.append(
+                {
+                    "id": d_id,
+                    "label": "Directory",
+                    "name": d_props.get("name", ""),
+                    "repository": d_props.get("repository", ""),
+                    "path": d_props.get("path", ""),
+                }
+            )
 
         # 3. Fetch WEAK_LINKs between Directory and RepositoryMetadata
-        res_links_repo = store.query("MATCH (d:Directory)-[r:WEAK_LINK]->(m:RepositoryMetadata) RETURN d.id, m.id")
+        res_links_repo = store.query(
+            "MATCH (d:Directory)-[r:WEAK_LINK]->(m:RepositoryMetadata) RETURN d.id, m.id"
+        )
         for row in res_links_repo.result_set or []:
             if row[0] in valid_dir_ids:
-                links.append({
-                    "source": row[0],
-                    "target": row[1],
-                    "rel": "WEAK_LINK"
-                })
+                links.append({"source": row[0], "target": row[1], "rel": "WEAK_LINK"})
 
         # 4. Fetch WEAK_LINKs between Directory and Directory
-        res_links_dir = store.query("MATCH (d1:Directory)-[r:WEAK_LINK]->(d2:Directory) RETURN d1.id, d2.id")
+        res_links_dir = store.query(
+            "MATCH (d1:Directory)-[r:WEAK_LINK]->(d2:Directory) RETURN d1.id, d2.id"
+        )
         for row in res_links_dir.result_set or []:
             if row[0] in valid_dir_ids and row[1] in valid_dir_ids:
-                links.append({
-                    "source": row[0],
-                    "target": row[1],
-                    "rel": "WEAK_LINK"
-                })
+                links.append({"source": row[0], "target": row[1], "rel": "WEAK_LINK"})
     except Exception as exc:
         logger.error("Failed to build master graph: %s", exc)
 
@@ -1386,6 +1397,7 @@ async def get_master_graph() -> dict[str, Any]:
 async def list_repositories() -> list[str]:
     """Return all unique repository namespaces present in the config or database."""
     from hybrid_rag.config import app_config
+
     configured = [r["name"] for r in app_config.repositories]
 
     store: FalkorDBStore = app.state.graph_store
@@ -1420,13 +1432,15 @@ async def get_repo_community_graph(repo_name: str) -> dict[str, Any]:
             c_id = c_props.get("id", "")
             if c_id and c_id not in comm_ids:
                 comm_ids.add(c_id)
-                nodes.append({
-                    "id": c_id,
-                    "label": "Community",
-                    "name": c_props.get("name", f"Community {c_id}"),
-                    "summary": c_props.get("summary", ""),
-                    "repository": repo_name,
-                })
+                nodes.append(
+                    {
+                        "id": c_id,
+                        "label": "Community",
+                        "name": c_props.get("name", f"Community {c_id}"),
+                        "summary": c_props.get("summary", ""),
+                        "repository": repo_name,
+                    }
+                )
 
         # Find relationships between these communities
         if comm_ids:
@@ -1438,11 +1452,13 @@ async def get_repo_community_graph(repo_name: str) -> dict[str, Any]:
             for row in res_links.result_set or []:
                 src_id, dst_id, weight = row[0], row[1], row[2]
                 if src_id in comm_ids and dst_id in comm_ids:
-                    links.append({
-                        "source": src_id,
-                        "target": dst_id,
-                        "rel": f"COMMUNITY_DEPENDS (weight: {weight})",
-                    })
+                    links.append(
+                        {
+                            "source": src_id,
+                            "target": dst_id,
+                            "rel": f"COMMUNITY_DEPENDS (weight: {weight})",
+                        }
+                    )
     except Exception as exc:
         logger.error("Failed to build repository community graph: %s", exc)
 
@@ -1453,6 +1469,7 @@ async def get_repo_community_graph(repo_name: str) -> dict[str, Any]:
 async def get_repository_status(repo_name: str) -> dict[str, Any]:
     """Retrieve indexing sync status and active background tasks for a repository."""
     from hybrid_rag.config import app_config
+
     store: FalkorDBStore = app.state.graph_store
 
     metadata = None
@@ -1514,7 +1531,9 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
             )
             head_commit = res_head.stdout.strip()
         except Exception as exc:
-            logger.warning("Failed to run git rev-parse HEAD in %s: %s", effective_path, exc, exc_info=True)
+            logger.warning(
+                "Failed to run git rev-parse HEAD in %s: %s", effective_path, exc, exc_info=True
+            )
             path_status = "inaccessible"
 
     is_sync = (
@@ -1568,7 +1587,7 @@ async def graph_neighbors(
     try:
         res = store.query(
             "MATCH (n) WHERE n.id = $id RETURN labels(n)[0] AS label, n.name AS name",
-            {"id": node_id}
+            {"id": node_id},
         )
         if res.result_set:
             row = res.result_set[0]
@@ -1750,7 +1769,9 @@ async def process_indexing_task(
                 add_log(f"Community build completed: {n_communities} communities generated.")
             except Exception as community_exc:
                 add_log(f"Community build failed (non-fatal): {community_exc}")
-                logger.warning("Auto community-build failed for task %s: %s", task_id, community_exc)
+                logger.warning(
+                    "Auto community-build failed for task %s: %s", task_id, community_exc
+                )
 
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()

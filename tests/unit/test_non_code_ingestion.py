@@ -1,10 +1,9 @@
-import os
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock
-from hybrid_rag.ingestion.parser import parse_file, parse_repo
+
 from hybrid_rag.ingestion.chunker import chunk_file
+from hybrid_rag.ingestion.parser import parse_file
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
+
 
 def test_parse_non_code_file(tmp_path):
     yaml_file = tmp_path / "docker-compose.yml"
@@ -22,6 +21,7 @@ def test_parse_non_code_file(tmp_path):
     assert res.edges[0].src_id == "test_repo::docker-compose.yml"
     assert res.edges[0].dst_id == "test_repo"
 
+
 def test_chunk_non_code_file(tmp_path):
     yaml_file = tmp_path / "docker-compose.yml"
     yaml_file.write_text("version: '3'\nservices:\n  web:\n    image: nginx", encoding="utf-8")
@@ -32,6 +32,7 @@ def test_chunk_non_code_file(tmp_path):
     assert "nginx" in chunks[0].text
     assert "docker-compose.yml" in chunks[0].text
 
+
 def test_query_routing_activation(monkeypatch):
     monkeypatch.setenv("QUERY_ROUTING", "true")
 
@@ -40,9 +41,7 @@ def test_query_routing_activation(monkeypatch):
     embedder = MagicMock()
 
     retriever = HybridRetriever(
-        graph_store=graph_store,
-        vector_store=vector_store,
-        embedder=embedder
+        graph_store=graph_store, vector_store=vector_store, embedder=embedder
     )
 
     mock_retrieve = MagicMock(return_value=[])

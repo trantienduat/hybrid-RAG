@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
+
 import tree_sitter_java as tsjava
 import tree_sitter_python as tspython
-from tree_sitter import Language, Parser, Node
+from tree_sitter import Language, Node, Parser
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +19,11 @@ _PARSERS: dict[str, Parser] = {
     "java": Parser(_JAVA_LANG),
 }
 
+
 def _text(node: Node, src: bytes) -> str:
     """Helper to extract and decode text from a tree-sitter node."""
     return src[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
+
 
 def _docstring(node: Node, src: bytes, language: str) -> str | None:
     """Extract docstring/javadoc comment for a python/java definition node."""
@@ -39,15 +42,14 @@ def _docstring(node: Node, src: bytes, language: str) -> str | None:
             idx = node.sibling_index
             if idx is not None and idx > 0:
                 prev_sibling = parent.children[idx - 1]
-                if prev_sibling.type == "block_comment" and _text(prev_sibling, src).startswith("/**"):
+                if prev_sibling.type == "block_comment" and _text(prev_sibling, src).startswith(
+                    "/**"
+                ):
                     return _text(prev_sibling, src).strip()
     return None
 
-def skeletonize_file(
-    file_path: Path,
-    focus_names: list[str],
-    language: str = "python"
-) -> str:
+
+def skeletonize_file(file_path: Path, focus_names: list[str], language: str = "python") -> str:
     """
     Read file_path, parse AST, and return a skeletonized code representation.
     The focus_names are preserved in full, while all other methods/functions
@@ -89,7 +91,9 @@ def skeletonize_file(
                     if focus == func_name:
                         is_focus = True
                         break
-                    if in_class_name and (focus == f"{in_class_name}.{func_name}" or focus == func_name):
+                    if in_class_name and (
+                        focus == f"{in_class_name}.{func_name}" or focus == func_name
+                    ):
                         is_focus = True
                         break
 
@@ -97,7 +101,11 @@ def skeletonize_file(
                     body_node = node.child_by_field_name("body")
                     if body_node:
                         # Extract signature (everything up to body block)
-                        sig_text = src[node.start_byte : body_node.start_byte].decode("utf-8", errors="replace").rstrip()
+                        sig_text = (
+                            src[node.start_byte : body_node.start_byte]
+                            .decode("utf-8", errors="replace")
+                            .rstrip()
+                        )
                         doc = _docstring(node, src, "python")
 
                         # Determine indentation of body
@@ -133,7 +141,9 @@ def skeletonize_file(
                     if focus == method_name:
                         is_focus = True
                         break
-                    if in_class_name and (focus == f"{in_class_name}.{method_name}" or focus == method_name):
+                    if in_class_name and (
+                        focus == f"{in_class_name}.{method_name}" or focus == method_name
+                    ):
                         is_focus = True
                         break
 
@@ -141,7 +151,11 @@ def skeletonize_file(
                     body_node = node.child_by_field_name("body")
                     if body_node:
                         # Signature (everything up to body block)
-                        sig_text = src[node.start_byte : body_node.start_byte].decode("utf-8", errors="replace").rstrip()
+                        sig_text = (
+                            src[node.start_byte : body_node.start_byte]
+                            .decode("utf-8", errors="replace")
+                            .rstrip()
+                        )
                         doc = _docstring(node, src, "java")
 
                         # Indentation

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class Config:
     """Centralized configuration manager supporting config.json and env overrides."""
 
     def __init__(self, config_path: str | None = None) -> None:
-        self.config_data: Dict[str, Any] = {}
+        self.config_data: dict[str, Any] = {}
         self.config_file_path = self._resolve_config_path(config_path)
         self.load_config()
 
@@ -65,7 +65,7 @@ class Config:
             return
 
         try:
-            with open(self.config_file_path, "r", encoding="utf-8") as f:
+            with open(self.config_file_path, encoding="utf-8") as f:
                 self.config_data = json.load(f)
             logger.info(f"Loaded configuration from {self.config_file_path}")
         except Exception as exc:
@@ -88,7 +88,11 @@ class Config:
     # Resolved settings (Env var > config.json > Default)
     @property
     def falkordb_host(self) -> str:
-        return os.environ.get("FALKORDB_HOST") or self.get_val("falkordb.host") or DEFAULT_FALKORDB_HOST
+        return (
+            os.environ.get("FALKORDB_HOST")
+            or self.get_val("falkordb.host")
+            or DEFAULT_FALKORDB_HOST
+        )
 
     @property
     def falkordb_port(self) -> int:
@@ -100,7 +104,11 @@ class Config:
 
     @property
     def falkordb_graph(self) -> str:
-        return os.environ.get("FALKORDB_GRAPH") or self.get_val("falkordb.graph") or DEFAULT_FALKORDB_GRAPH
+        return (
+            os.environ.get("FALKORDB_GRAPH")
+            or self.get_val("falkordb.graph")
+            or DEFAULT_FALKORDB_GRAPH
+        )
 
     @property
     def qdrant_host(self) -> str:
@@ -116,11 +124,19 @@ class Config:
 
     @property
     def qdrant_collection(self) -> str:
-        return os.environ.get("QDRANT_COLLECTION") or self.get_val("qdrant.collection") or DEFAULT_QDRANT_COLLECTION
+        return (
+            os.environ.get("QDRANT_COLLECTION")
+            or self.get_val("qdrant.collection")
+            or DEFAULT_QDRANT_COLLECTION
+        )
 
     @property
     def ollama_url(self) -> str:
-        return os.environ.get("OLLAMA_BASE_URL") or self.get_val("ollama.base_url") or DEFAULT_OLLAMA_URL
+        return (
+            os.environ.get("OLLAMA_BASE_URL")
+            or self.get_val("ollama.base_url")
+            or DEFAULT_OLLAMA_URL
+        )
 
     @property
     def llm_model(self) -> str:
@@ -128,7 +144,9 @@ class Config:
 
     @property
     def embed_model(self) -> str:
-        return os.environ.get("EMBED_MODEL") or self.get_val("embedding.model") or DEFAULT_EMBED_MODEL
+        return (
+            os.environ.get("EMBED_MODEL") or self.get_val("embedding.model") or DEFAULT_EMBED_MODEL
+        )
 
     @property
     def rrf_k(self) -> int:
@@ -155,20 +173,19 @@ class Config:
             return DEFAULT_RRF_HYBRID_W
 
     @property
-    def repositories(self) -> List[Dict[str, str]]:
+    def repositories(self) -> list[dict[str, str]]:
         """Get defined repositories list from config.json."""
         repos = self.get_val("repositories", [])
         if not isinstance(repos, list):
-            logger.warning("Config value 'repositories' is not a list. Fail-open: using empty list.")
+            logger.warning(
+                "Config value 'repositories' is not a list. Fail-open: using empty list."
+            )
             return []
-        
+
         parsed_repos = []
         for r in repos:
             if isinstance(r, dict) and "name" in r and "path" in r:
-                parsed_repos.append({
-                    "name": str(r["name"]),
-                    "path": str(r["path"])
-                })
+                parsed_repos.append({"name": str(r["name"]), "path": str(r["path"])})
         return parsed_repos
 
     def get_repo_path(self, repo_name: str) -> str | None:
@@ -191,4 +208,3 @@ def translate_path_for_docker(path: str | None) -> str | None:
         if path.startswith("/Volumes/Kioxia_SSD/SSD_workspace/Personal"):
             return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal", "/codebases")
     return path
-

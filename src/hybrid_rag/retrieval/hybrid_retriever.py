@@ -94,12 +94,26 @@ class HybridRetriever(BaseRetriever):
 
         # ── Query Routing (Milestone 3.3) ──
         import os
+
         query_routing_env = os.environ.get("QUERY_ROUTING", "false").lower() == "true"
         filter_payload = {}
         if repository:
             filter_payload["repository"] = repository
         if query_routing_env:
-            non_code_keywords = {"docker", "yaml", "yml", "readme", "config", "compose", "port", "host", "k8s", "deploy", "setup", "install"}
+            non_code_keywords = {
+                "docker",
+                "yaml",
+                "yml",
+                "readme",
+                "config",
+                "compose",
+                "port",
+                "host",
+                "k8s",
+                "deploy",
+                "setup",
+                "install",
+            }
             is_non_code_query = any(kw in query.lower() for kw in non_code_keywords)
             filter_payload["file_type"] = "non_code" if is_non_code_query else "code"
 
@@ -114,7 +128,9 @@ class HybridRetriever(BaseRetriever):
             vector_results = self._vector_retriever.retrieve(
                 query, top_k=top_k * 2, filter_payload=filter_payload
             )
-            self._last_timings["vector_search_ms"] = round((time.perf_counter() - t_vector) * 1000, 2)
+            self._last_timings["vector_search_ms"] = round(
+                (time.perf_counter() - t_vector) * 1000, 2
+            )
 
             best_score = vector_results[0].get("score", 0.0) if vector_results else 0.0
             if routing_fallback_env and best_score < routing_threshold_env:
@@ -134,18 +150,20 @@ class HybridRetriever(BaseRetriever):
                     bid = anchor.get("base_node_id", "")
                     if bid and bid not in seen_ids:
                         seen_ids.add(bid)
-                        results.append({
-                            "node_id": bid,
-                            "base_node_id": bid,
-                            "name": anchor.get("name") or bid.split("::")[-1],
-                            "label": anchor.get("label", "Unknown"),
-                            "file_path": anchor.get("file_path", ""),
-                            "repository": anchor.get("repository", ""),
-                            "rel": "",
-                            "text": anchor.get("text", ""),
-                            "source": "vector",
-                            "rrf_score": anchor.get("score", 1.0),
-                        })
+                        results.append(
+                            {
+                                "node_id": bid,
+                                "base_node_id": bid,
+                                "name": anchor.get("name") or bid.split("::")[-1],
+                                "label": anchor.get("label", "Unknown"),
+                                "file_path": anchor.get("file_path", ""),
+                                "repository": anchor.get("repository", ""),
+                                "rel": "",
+                                "text": anchor.get("text", ""),
+                                "source": "vector",
+                                "rrf_score": anchor.get("score", 1.0),
+                            }
+                        )
 
                 # Expand structural neighbors
                 for anchor in list(results):
@@ -161,22 +179,28 @@ class HybridRetriever(BaseRetriever):
                                 nid = nb.get("dst_id", "")
                                 if nid and nid not in seen_ids:
                                     seen_ids.add(nid)
-                                    results.append({
-                                        "node_id": nid,
-                                        "base_node_id": nid,
-                                        "name": nb.get("dst_name", ""),
-                                        "label": nb.get("dst_label", ""),
-                                        "file_path": nb.get("dst_file_path", ""),
-                                        "repository": nb.get("dst_repository", ""),
-                                        "rel": nb.get("rel", ""),
-                                        "text": "",
-                                        "source": "graph",
-                                        "rrf_score": anchor["rrf_score"] * 0.9,
-                                    })
+                                    results.append(
+                                        {
+                                            "node_id": nid,
+                                            "base_node_id": nid,
+                                            "name": nb.get("dst_name", ""),
+                                            "label": nb.get("dst_label", ""),
+                                            "file_path": nb.get("dst_file_path", ""),
+                                            "repository": nb.get("dst_repository", ""),
+                                            "rel": nb.get("rel", ""),
+                                            "text": "",
+                                            "source": "graph",
+                                            "rrf_score": anchor["rrf_score"] * 0.9,
+                                        }
+                                    )
                         except Exception as exc:
-                            logger.warning("Vector Routing neighbor expansion failed for %s: %s", seed_id, exc)
+                            logger.warning(
+                                "Vector Routing neighbor expansion failed for %s: %s", seed_id, exc
+                            )
 
-                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
+                self._last_timings["graph_search_ms"] = round(
+                    (time.perf_counter() - t_graph) * 1000, 2
+                )
                 results.sort(key=lambda x: x.get("rrf_score", 0.0), reverse=True)
                 return results[:top_k]
 
@@ -213,12 +237,16 @@ class HybridRetriever(BaseRetriever):
                             "rrf_score": 1.0,
                         }
                     )
-                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
+                self._last_timings["graph_search_ms"] = round(
+                    (time.perf_counter() - t_graph) * 1000, 2
+                )
                 logger.debug("Retrieved %d communities for global query", len(global_results))
                 if global_results:
                     return global_results
             except Exception as exc:
-                self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
+                self._last_timings["graph_search_ms"] = round(
+                    (time.perf_counter() - t_graph) * 1000, 2
+                )
                 logger.error("Failed to retrieve communities for global query: %s", exc)
 
         graph_results: list[dict[str, Any]] = []

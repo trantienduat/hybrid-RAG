@@ -37,6 +37,11 @@ jobs:
         run: |
           pytest tests/ -v -m "not integration"
 
+      - name: Run Ruff
+        run: |
+          ruff check src/ tests/
+          ruff format --check src/ tests/
+
   build-and-publish:
     name: Build & Publish Docker Image
     needs: test

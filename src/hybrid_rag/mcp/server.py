@@ -7,14 +7,13 @@ Exposes tools to query codebase, find entities, and trace relationships.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from hybrid_rag.constants import DEFAULT_EMBED_MODEL
+from hybrid_rag.config import app_config
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
@@ -33,8 +32,6 @@ async def health_check(request: Request) -> Response:
 
 
 # ── Configuration from environment/config file ──────────────────────────────────
-
-from hybrid_rag.config import app_config
 
 _FALKORDB_HOST = app_config.falkordb_host
 _FALKORDB_PORT = app_config.falkordb_port

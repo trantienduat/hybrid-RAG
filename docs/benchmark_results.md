@@ -1,5 +1,8 @@
 # Codebase RAG Benchmark & Evaluation Report
 
+> Historical benchmark snapshot. Use `results/evaluation_report.md` as the
+> latest generated evaluation run.
+
 ## 1. Environment & Setup
 *   **Vector Database**: Qdrant (`localhost:6333`, collection: `code_chunks`)
 *   **Graph Database**: FalkorDB (`localhost:6379`, graph: `codebase`)

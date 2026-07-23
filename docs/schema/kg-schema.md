@@ -1,6 +1,6 @@
 # Knowledge Graph Schema
 
-Version: 0.1 — derived from evaluation.md query requirements.
+Version: 0.2 — synchronized with the current Python parser and graph writers.
 
 **Rule:** If a query in evaluation.md cannot be answered with this schema, schema must be updated first.
 
@@ -13,10 +13,10 @@ Represents a Python file (`.py`).
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `id` | string | ✓ | Unique: `{file_path}` |
+| `id` | string | ✓ | Dotted module FQN, such as `hybrid_rag.api.main` |
 | `name` | string | ✓ | Module name (e.g., `retriever_query_engine`) |
 | `file_path` | string | ✓ | Repo-relative path (e.g., `llama_index/core/query_engine/retriever_query_engine.py`) |
-| `language` | string | ✓ | `python` \| `java` |
+| `language` | string | ✓ | Currently `python`; Java extraction is not implemented |
 | `type` | string | ✓ | `source` \| `test` \| `init` |
 | `line_count` | int | — | Total lines |
 
@@ -25,7 +25,7 @@ Represents a class definition.
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `id` | string | ✓ | Unique: `{file_path}::{class_name}` |
+| `id` | string | ✓ | Dotted FQN, such as `hybrid_rag.api.schemas.QueryRequest` |
 | `name` | string | ✓ | Class name (e.g., `BaseRetriever`) |
 | `file_path` | string | ✓ | Source file |
 | `line_start` | int | ✓ | Start line in file |
@@ -38,7 +38,7 @@ Represents a function or method definition.
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `id` | string | ✓ | Unique: `{file_path}::{class_name}::{fn_name}` or `{file_path}::{fn_name}` for module-level |
+| `id` | string | ✓ | Dotted function or method FQN |
 | `name` | string | ✓ | Function name |
 | `file_path` | string | ✓ | Source file |
 | `class_name` | string | — | Parent class name (null for module-level fns) |
@@ -50,16 +50,18 @@ Represents a function or method definition.
 | `is_abstract` | bool | — | Decorated with `@abstractmethod` |
 | `is_property` | bool | — | Decorated with `@property` |
 
-### `:Variable`
-Represents a significant variable (parameters, class attributes, module-level constants).
+### Additional node types
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `id` | string | ✓ | Unique: `{file_path}::{scope}::{var_name}` |
-| `name` | string | ✓ | Variable name |
-| `type_hint` | string | — | Type annotation if present |
-| `scope` | string | ✓ | `parameter` \| `class_attr` \| `local` \| `module` |
-| `file_path` | string | ✓ | Source file |
+| Label | Purpose |
+|-------|---------|
+| `Directory` | Repository directory hierarchy derived from parsed file paths |
+| `Document` | Markdown files when `NON_CODE_INGESTION=true` |
+| `Configuration` | YAML and Dockerfile content when non-code ingestion is enabled |
+| `Community` | Directory-based architectural summary |
+| `RepositoryMetadata` | Last indexed Git commit and synchronization timestamp |
+
+`Variable` remains a reserved relationship target label for compatibility with
+LLM-extracted `USES` edges. The current AST parser does not emit Variable nodes.
 
 ---
 
@@ -84,7 +86,8 @@ Module/Class defines a Class/Function.
 (:Module)-[:DEFINES]->(:Class)
 (:Module)-[:DEFINES]->(:Function)
 (:Class)-[:DEFINES]->(:Function)
-(:Class)-[:DEFINES]->(:Variable)
+(:Directory)-[:DEFINES]->(:Directory)
+(:Directory)-[:DEFINES]->(:Module)
 ```
 
 No properties.
@@ -113,11 +116,10 @@ Function calls another function.
 | `callee_expr` | Full call expression text (e.g. `self.retrieve`) |
 
 ### `[:USES]`
-Function uses a variable or references a user-defined class via type annotation.
+Function references a user-defined class or optional LLM-extracted target.
 
 ```
-(:Function)-[:USES]->(:Variable)
-(:Function)-[:USES]->(:Class)   # from LLM-assisted extraction (type annotations)
+(:Function)-[:USES]->(:Class)
 ```
 
 No properties.
@@ -141,7 +143,6 @@ Module ──[:IMPORTS]───────────────────
   │                                           │
   └──[:DEFINES]──► Class ──[:DEFINES]──► Function ──[:CALLS]──► Function
                      │         │                │
-                     │         └──[:DEFINES]──► Variable ◄──[:USES]──┘
                      │
                      └──[:INHERITS]──► Class
                      │
@@ -156,10 +157,10 @@ Deduplication key per node type:
 
 | Node | Key | Rule |
 |------|-----|------|
-| Module | `file_path` | Exact match |
-| Class | `file_path + "::" + class_name` | Exact match |
-| Function | `file_path + "::" + class_name + "::" + fn_name` | Exact match; class_name = "" for module-level |
-| Variable | `file_path + "::" + scope_id + "::" + var_name` | Exact match |
+| Module | dotted module FQN | Exact match |
+| Class | dotted class FQN | Exact match |
+| Function | dotted function or method FQN | Exact match |
+| Directory | repository-relative directory path | Exact match |
 
 **Cross-file class resolution:** When `[:INHERITS]` target is from external import, resolve via `[:IMPORTS]` chain to find actual `file_path`. If unresolvable (stdlib/third-party), create stub node with `type: external`.
 
@@ -168,8 +169,10 @@ Deduplication key per node type:
 ## Scope Boundaries
 
 **In scope for extraction:**
-- All `.py` files in target repo
+- All `.py` files in the target repository
+- Markdown, YAML, and Dockerfiles when non-code ingestion is enabled
 - Third-party classes appear as stub nodes `{type: "external"}` — no properties beyond name
+- Java files are detected but currently return an implementation error
 
 **Out of scope:**
 - Runtime dynamic attributes (`setattr`, `__dict__`)
@@ -183,3 +186,4 @@ Deduplication key per node type:
 | Version | Change |
 |---------|--------|
 | 0.1 | Initial schema derived from 20 test queries |
+| 0.2 | Document FQN IDs and current directory, document, community, and metadata nodes |

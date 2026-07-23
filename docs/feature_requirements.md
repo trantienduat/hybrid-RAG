@@ -56,7 +56,9 @@ This document defines the functional and non-functional requirements implemented
 ## ⚡ Non-Functional Requirements
 
 ### 1. Data Privacy & Sovereignty
-*   **Req 1.4:** No code, embeddings, queries, or LLM contexts may leave the local boundary. External network requests are prohibited.
+*   **Req 1.4:** The default Ollama configuration keeps code, embeddings,
+    queries, and LLM contexts local. Cloud providers such as Gemini must be
+    explicitly selected and documented as sending relevant data externally.
 *   **Req 1.5:** Databases and model servers must run offline within standard localhost Docker and process boundaries.
 
 ### 2. High-Performance Indexing and Querying

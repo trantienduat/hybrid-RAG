@@ -13,7 +13,7 @@ Usage::
     runner = RagasRunner(
         retriever=hybrid_retriever,
         ollama_url="http://localhost:11434",
-        llm_model="qwen2.5-coder:7b",
+        llm_model="gemma4:12b",
     )
     report = runner.run(EVAL_CORPUS[:5], top_k=20)
     print(report.summary())

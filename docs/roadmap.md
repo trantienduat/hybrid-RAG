@@ -4,7 +4,7 @@ Reflects thesis milestones. Updated as work progresses.
 
 ---
 
-## Current State — May 2026
+## Current State — July 2026
 
 | Item | Status |
 |------|--------|
@@ -80,6 +80,9 @@ Reflects thesis milestones. Updated as work progresses.
 - Hit@5 3-hop: Hybrid 0.800 vs Vector 0.400 (+0.400)
 - ΔHitRate 2-3hop = **+0.222** (target ≥ +0.20 ✓)
 
+These are historical tuning results. The latest generated run is
+`results/evaluation_report.md`; do not treat the figures above as current.
+
 ---
 
 ## M4 — API + Visualization + Evaluation `Weeks 9–12`
@@ -133,8 +136,13 @@ PR checklist:
 |----|----------|--------|
 | 001 | Graph store: FalkorDB | Accepted |
 | 002 | AST parser: tree-sitter | Accepted |
-| 003 | Embedding model: nomic-embed-text | Accepted |
-| 004 | LLM: gemma4:12b | Accepted |
+| 003 | Global GraphRAG community summaries | Accepted; directory partitioning update |
+| 004 | File-level incremental Git synchronization | Accepted |
+| 005 | Unified OpenTelemetry observability | Accepted |
+| 006 | Context skeletonization and sibling expansion | Accepted |
+| 007 | Multi-repository master graph | Accepted |
+| 008 | Concurrent indexing and parallel parsing | Accepted |
+| 009 | Directory nodes from code file paths | Accepted |
 
 ---
 

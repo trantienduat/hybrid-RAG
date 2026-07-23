@@ -13,7 +13,7 @@ Ensure Ollama is running locally on your host machine, and download the default 
 ollama pull nomic-embed-text
 
 # Pull the default coding LLM
-ollama pull qwen2.5-coder:7b
+ollama pull gemma4:12b
 ```
 
 ### Step B: Start the Service Stack (Docker)
@@ -22,6 +22,9 @@ From the project root directory, spin up the entire service stack:
 docker compose up -d --build
 ```
 *This spins up FalkorDB (graph DB), Qdrant (vector DB), the Visualizer Web UI (port `8000`), and the MCP Server (port `8001`).*
+
+Set `CODEBASES_PATH=/absolute/path/to/your/codebases` before starting Compose
+to expose additional host repositories under `/codebases`.
 
 ### Step C: Ingest & Index Your Codebases
 Since the codebase folders reside on the host filesystem, install the CLI locally on your host machine and run the indexing commands:
@@ -36,7 +39,6 @@ hybrid-rag index . --repo-name hybrid-rag
 # 3. Index all test fixtures (in dependency order for cross-repo entity resolution)
 hybrid-rag index ./fixtures/small_repo --repo-name small-app
 hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
-hybrid-rag index ./fixtures/llama_index_core --repo-name llama-core
 
 # 4. Build modular communities for global architectural search
 hybrid-rag community-build
@@ -44,14 +46,14 @@ hybrid-rag community-build
 
 ### Step D: Connect to Antigravity IDE (MCP Integration)
 To enable the IDE agent to use the hybrid RAG index, copy and paste the configuration block below into your Gemini Code Assist / Antigravity IDE configuration file:
-*   **Path (macOS / Linux):** `~/.gemini/config/mcp_config.json`
-*   **Path (Windows):** `C:\Users\[YourUsername]\.gemini\config\mcp_config.json`
+*   **Path (macOS / Linux):** `~/.gemini/settings.json`
+*   **Path (Windows):** `C:\Users\[YourUsername]\.gemini\settings.json`
 
 ```json
 {
   "mcpServers": {
     "hybrid-rag": {
-      "command": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/.venv/bin/hybrid-rag",
+      "command": "/absolute/path/to/hybrid-RAG/.venv/bin/hybrid-rag",
       "args": ["mcp", "--transport", "stdio"],
       "env": {
         "FALKORDB_HOST": "localhost",
@@ -84,7 +86,8 @@ To enable the IDE agent to use the hybrid RAG index, copy and paste the configur
 
 Instead of running the indexing synchronously via the CLI on your host, you can trigger repository indexing asynchronously using the REST API. This is especially useful for remote environments, headless servers, or Git Webhook integrations.
 
-Indexing tasks are queued in a **serialized FIFO queue** inside the running FastAPI container, ensuring that only one repository is processed at a time. This prevents database write locks in FalkorDB and local GPU/VRAM memory exhaustion in Ollama.
+Indexing runs in the background with bounded concurrency. Up to three tasks run
+at once by default; set `INDEXING_CONCURRENCY` to change the limit.
 
 #### 1. Trigger an Indexing Task
 Send a `POST` request to `/graph/index` with the absolute path of the repository:

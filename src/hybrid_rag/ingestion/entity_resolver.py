@@ -34,13 +34,12 @@ def resolve(result: ParseResult) -> ParseResult:
     2. Build map: class_simple_name → real Class node id  (cross-file class linking)
     3. Build map: function_simple_name → list of real Function node ids
     4. Resolve stub nodes (Module/Class stubs → real Module/Class nodes)
-    5. Resolve __call__ call-edge stubs via Tiers A–D:
+    5. Resolve __call__ call-edge stubs via Tiers A–C:
        - Tier A: Sibling method in class context
        - Tier B: Same module function resolution
        - Tier C: Import-based function resolution
-       - Tier D: Global unique function fallback (heuristic for single-occurrence names)
-    6. Rewrite all edges src/dst referencing a stub → real id
-    7. Drop stub nodes that were fully resolved
+    6. Rewrite resolved call edges individually and other stub references globally
+    7. Drop only stub nodes that are no longer referenced
     """
     # Separate real vs stub nodes
     real_modules: dict[str, str] = {}  # stem → real node id
@@ -92,9 +91,9 @@ def resolve(result: ParseResult) -> ParseResult:
             redirect[stub_id] = real_classes[stem]
 
     # Resolve __call__ stubs in CALLS edges
-    _resolve_calls(result, real_modules, real_functions, redirect)
+    call_redirects = _resolve_calls(result, real_modules, real_functions)
 
-    if not redirect:
+    if not redirect and not call_redirects:
         return result  # nothing to resolve, return unchanged
 
     # Deep-copy so original is untouched
@@ -104,25 +103,34 @@ def resolve(result: ParseResult) -> ParseResult:
         errors=list(result.errors),
     )
 
-    # Drop resolved stubs from node list
-    resolved.nodes = [
-        n
-        for n in resolved.nodes
-        if not (
-            n.id in redirect
-            and (
-                n.properties.get("type") == "external"
-                or n.id.startswith("__call__")
-            )
-        )
-    ]
-
-    # Rewrite edges
+    # Rewrite module/class stub references globally.
     for edge in resolved.edges:
         if edge.src_id in redirect:
             edge.src_id = redirect[edge.src_id]
         if edge.dst_id in redirect:
             edge.dst_id = redirect[edge.dst_id]
+
+    # Call stubs are shared by simple name, so rewrite only the specific edge
+    # whose caller context established the target.
+    for edge_index, resolved_id in call_redirects.items():
+        resolved.edges[edge_index].dst_id = resolved_id
+
+    referenced_call_stubs = {
+        edge.dst_id for edge in resolved.edges if edge.dst_id.startswith("__call__")
+    }
+
+    # Drop globally resolved stubs and call stubs that are no longer referenced.
+    resolved.nodes = [
+        n
+        for n in resolved.nodes
+        if not (
+            (
+                n.id in redirect
+                and (n.properties.get("type") == "external" or n.id.startswith("__call__"))
+            )
+            or (n.id.startswith("__call__") and n.id not in referenced_call_stubs)
+        )
+    ]
 
     return resolved
 
@@ -131,44 +139,48 @@ def _resolve_calls(
     result: ParseResult,
     real_modules: dict[str, str],
     real_functions: dict[str, list[str]],
-    redirect: dict[str, str],
-) -> None:
-    """Helper to resolve __call__ stubs in CALLS edges across Tiers A–D."""
+) -> dict[int, str]:
+    """Return edge-index redirects for safely resolved calls across Tiers A–C."""
     module_imports: dict[str, set[str]] = {}
     for edge in result.edges:
         if edge.rel == "IMPORTS":
             module_imports.setdefault(edge.src_id, set()).add(edge.dst_id.split(".")[-1])
 
-    for edge in result.edges:
+    call_redirects: dict[int, str] = {}
+    for edge_index, edge in enumerate(result.edges):
         if edge.rel == "CALLS" and edge.dst_id.startswith("__call__"):
             stub_id = edge.dst_id
             callee_name = stub_id[len("__call__") :]
+            callee_expr = edge.properties.get("callee_expr", "")
             caller_id = edge.src_id
             parts = caller_id.split(".")
             resolved_id = None
+            module_fqn = None
+            is_bare_call = not callee_expr or callee_expr == callee_name
+            is_sibling_call = is_bare_call or callee_expr in {
+                f"self.{callee_name}",
+                f"cls.{callee_name}",
+            }
+            for m_id in real_modules.values():
+                if caller_id.startswith(m_id):
+                    if module_fqn is None or len(m_id) > len(module_fqn):
+                        module_fqn = m_id
 
             # Tier A. Sibling method in class context
-            if len(parts) >= 3:
+            if len(parts) >= 3 and is_sibling_call:
                 class_fqn = ".".join(parts[:-1])
                 target_method_fqn = f"{class_fqn}.{callee_name}"
                 if any(n.id == target_method_fqn and n.label == "Function" for n in result.nodes):
                     resolved_id = target_method_fqn
 
             # Tier B. Same module resolution
-            if not resolved_id:
-                module_fqn = None
-                for m_id in real_modules.values():
-                    if caller_id.startswith(m_id):
-                        if module_fqn is None or len(m_id) > len(module_fqn):
-                            module_fqn = m_id
-                if module_fqn:
-                    target_func_fqn = f"{module_fqn}.{callee_name}"
-                    if any(n.id == target_func_fqn and n.label == "Function" for n in result.nodes):
-                        resolved_id = target_func_fqn
+            if not resolved_id and is_bare_call and module_fqn:
+                target_func_fqn = f"{module_fqn}.{callee_name}"
+                if any(n.id == target_func_fqn and n.label == "Function" for n in result.nodes):
+                    resolved_id = target_func_fqn
 
             # Tier C. Import-based resolution
             if not resolved_id and module_fqn:
-                callee_expr = edge.properties.get("callee_expr", "")
                 imports = module_imports.get(module_fqn, set())
                 if callee_name in imports:
                     candidates = real_functions.get(callee_name, [])
@@ -195,14 +207,10 @@ def _resolve_calls(
                                 resolved_id = cand
                                 break
 
-            # Tier D. Global fallback (only if unique)
-            if not resolved_id:
-                candidates = real_functions.get(callee_name, [])
-                if len(candidates) == 1:
-                    resolved_id = candidates[0]
-
             if resolved_id:
-                redirect[stub_id] = resolved_id
+                call_redirects[edge_index] = resolved_id
+
+    return call_redirects
 
 
 def stub_count(result: ParseResult) -> int:

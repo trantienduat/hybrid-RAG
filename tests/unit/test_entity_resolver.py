@@ -175,6 +175,14 @@ def _function(node_id: str, name: str, file_path: str) -> NodeData:
     return NodeData(label="Function", id=node_id, properties={"name": name, "file_path": file_path})
 
 
+def _call_stub(name: str) -> NodeData:
+    return NodeData(
+        label="Function",
+        id=f"__call__{name}",
+        properties={"name": name, "file_path": "", "type": "external"},
+    )
+
+
 # ── AST Call Stub Resolution ──────────────────────────────────────────────────
 
 
@@ -212,22 +220,105 @@ class TestASTCallResolver:
         call_edge = resolved.edges[0]
         assert call_edge.dst_id == "a.py.helper"
 
-    def test_resolve_global_unique_fallback(self):
-        """__call__unique_func should resolve to unique global function."""
+    def test_global_unique_name_remains_unresolved(self):
+        """A unique simple name is insufficient evidence for cross-module resolution."""
         result = ParseResult(
             nodes=[
                 _module("a.py", "a", "a.py"),
                 _function("a.py.main", "main", "a.py"),
                 _module("b.py", "b", "b.py"),
                 _function("b.py.unique_func", "unique_func", "b.py"),
+                _call_stub("unique_func"),
             ],
             edges=[
-                _edge("a.py.main", "CALLS", "__call__unique_func"),
+                EdgeData(
+                    src_id="a.py.main",
+                    rel="CALLS",
+                    dst_id="__call__unique_func",
+                    properties={"callee_expr": "unique_func"},
+                ),
             ],
         )
         resolved = resolve(result)
         call_edge = resolved.edges[0]
-        assert call_edge.dst_id == "b.py.unique_func"
+        assert call_edge.dst_id == "__call__unique_func"
+        assert any(node.id == "__call__unique_func" for node in resolved.nodes)
+
+    def test_resolve_imported_function(self):
+        """An explicitly imported function should resolve through Tier C."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _function("a.py.main", "main", "a.py"),
+                _module("b.py", "b", "b.py"),
+                _function("b.py.helper", "helper", "b.py"),
+                _call_stub("helper"),
+            ],
+            edges=[
+                _edge("a.py", "IMPORTS", "helper"),
+                EdgeData(
+                    src_id="a.py.main",
+                    rel="CALLS",
+                    dst_id="__call__helper",
+                    properties={"callee_expr": "helper"},
+                ),
+            ],
+        )
+        resolved = resolve(result)
+        call_edge = next(edge for edge in resolved.edges if edge.rel == "CALLS")
+        assert call_edge.dst_id == "b.py.helper"
+
+    def test_receiver_qualified_call_does_not_resolve_by_simple_name(self):
+        """A receiver-qualified call must not bind to an unrelated same-name function."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _function("a.py.add", "add", "a.py"),
+                _function("a.py.main", "main", "a.py"),
+                _call_stub("add"),
+            ],
+            edges=[
+                EdgeData(
+                    src_id="a.py.main",
+                    rel="CALLS",
+                    dst_id="__call__add",
+                    properties={"callee_expr": "other.add"},
+                ),
+            ],
+        )
+        resolved = resolve(result)
+        assert resolved.edges[0].dst_id == "__call__add"
+
+    def test_call_resolution_is_edge_local(self):
+        """Resolving one call stub must not rewrite an ambiguous same-name call."""
+        result = ParseResult(
+            nodes=[
+                _module("a.py", "a", "a.py"),
+                _class("a.py::Calculator", "Calculator", "a.py"),
+                _function("a.py::Calculator.add", "add", "a.py"),
+                _function("a.py::Calculator.run", "run", "a.py"),
+                _function("a.py.main", "main", "a.py"),
+                _call_stub("add"),
+            ],
+            edges=[
+                EdgeData(
+                    src_id="a.py::Calculator.run",
+                    rel="CALLS",
+                    dst_id="__call__add",
+                    properties={"callee_expr": "self.add"},
+                ),
+                EdgeData(
+                    src_id="a.py.main",
+                    rel="CALLS",
+                    dst_id="__call__add",
+                    properties={"callee_expr": "other.add"},
+                ),
+            ],
+        )
+        resolved = resolve(result)
+        assert resolved.edges[0].dst_id == "a.py::Calculator.add"
+        assert resolved.edges[1].dst_id == "__call__add"
+        assert any(node.id == "__call__add" for node in resolved.nodes)
 
     def test_stub_count_includes_all_stubs(self):
         """stub_count should count external module, class, and __call__ stubs."""
@@ -244,6 +335,7 @@ class TestASTCallResolver:
     def test_resolve_global_batched_query(self):
         """resolve_global should execute a single batched Cypher query."""
         from unittest.mock import MagicMock
+
         from hybrid_rag.ingestion.entity_resolver import resolve_global
 
         result = ParseResult(

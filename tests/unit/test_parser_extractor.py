@@ -105,7 +105,7 @@ class TestParseFile:
 
     def test_function_node_has_line_numbers(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)
-        fns = [n for n in result.nodes if n.label == "Function"]
+        fns = [n for n in result.nodes if n.label == "Function" and n.properties.get("type") != "external"]
         for fn in fns:
             assert fn.properties.get("line_start", 0) > 0
             assert fn.properties.get("line_end", 0) >= fn.properties["line_start"]

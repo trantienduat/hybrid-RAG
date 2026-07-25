@@ -228,3 +228,40 @@ class TestASTCallResolver:
         resolved = resolve(result)
         call_edge = resolved.edges[0]
         assert call_edge.dst_id == "b.py.unique_func"
+
+    def test_stub_count_includes_all_stubs(self):
+        """stub_count should count external module, class, and __call__ stubs."""
+        result = ParseResult(
+            nodes=[
+                _stub("mod_stub"),
+                NodeData(label="Class", id="ClassStub", properties={"type": "external"}),
+                NodeData(label="Function", id="__call__func", properties={"type": "external"}),
+            ],
+            edges=[],
+        )
+        assert stub_count(result) == 3
+
+    def test_resolve_global_batched_query(self):
+        """resolve_global should execute a single batched Cypher query."""
+        from unittest.mock import MagicMock
+        from hybrid_rag.ingestion.entity_resolver import resolve_global
+
+        result = ParseResult(
+            nodes=[
+                _stub("ext_module"),
+                NodeData(label="Class", id="ExtClass", properties={"type": "external"}),
+            ],
+            edges=[],
+        )
+
+        mock_graph_store = MagicMock()
+        mock_result = MagicMock()
+        mock_result.result_set = [["ext_module", "real.ext_module"]]
+        mock_graph_store.query.return_value = mock_result
+
+        resolved = resolve_global(result, mock_graph_store)
+
+        assert mock_graph_store.query.call_count == 1
+        query_args = mock_graph_store.query.call_args[0]
+        assert "UNWIND $stubs AS stub" in query_args[0]
+        assert not any(n.id == "ext_module" for n in resolved.nodes)

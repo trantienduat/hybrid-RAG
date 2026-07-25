@@ -598,7 +598,7 @@ def _handle_class(
     # Inheritance edges (stub targets resolved later by entity resolver)
     for order, base in enumerate(bases, start=1):
         base_stub_id = base.split(".")[-1]  # use simple name as stub
-        _ensure_stub(base_stub_id, result)
+        _ensure_stub(base_stub_id, result, label="Class")
         result.edges.append(
             EdgeData(
                 src_id=class_id,
@@ -607,6 +607,7 @@ def _handle_class(
                 properties={"order": order},
             )
         )
+
 
     # Extract methods from class body
     body = node.child_by_field_name("body")
@@ -683,6 +684,7 @@ def _walk_calls(node: Node, src: bytes, caller_id: str, result: ParseResult) -> 
             # Simple name: `foo()` or `self.foo()` → use last segment as a stub ID
             callee_name = callee_text.split(".")[-1]
             stub_id = f"__call__{callee_name}"
+            _ensure_stub(stub_id, result, label="Function")
             result.edges.append(
                 EdgeData(
                     src_id=caller_id,
@@ -695,7 +697,7 @@ def _walk_calls(node: Node, src: bytes, caller_id: str, result: ParseResult) -> 
         _walk_calls(child, src, caller_id, result)
 
 
-def _ensure_stub(name: str, result: ParseResult) -> None:
+def _ensure_stub(name: str, result: ParseResult, label: str = "Module") -> None:
     """
     Ensure an external stub node exists in the result.
     Stubs are placeholders for entities defined outside the current file.
@@ -704,7 +706,7 @@ def _ensure_stub(name: str, result: ParseResult) -> None:
     if not any(n.id == stub_id for n in result.nodes):
         result.nodes.append(
             NodeData(
-                label="Module",
+                label=label,
                 id=stub_id,
                 properties={
                     "name": name,

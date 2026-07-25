@@ -27,14 +27,20 @@ from hybrid_rag.ingestion.parser import ParseResult
 
 def resolve(result: ParseResult) -> ParseResult:
     """
-    Merge external stub nodes into real nodes where possible.
+    Merge external stub nodes (Module, Class, Function) into real nodes where possible.
 
     Steps:
     1. Build map: module_stem → real Module node id
-    2. Build map: class_simple_name → real Class node id  (M2: cross-file class linking)
-    3. For stubs that match a real node, record a redirect
-    4. Rewrite all edges src/dst that reference a stub → real id
-    5. Drop stub nodes that were fully resolved
+    2. Build map: class_simple_name → real Class node id  (cross-file class linking)
+    3. Build map: function_simple_name → list of real Function node ids
+    4. Resolve stub nodes (Module/Class stubs → real Module/Class nodes)
+    5. Resolve __call__ call-edge stubs via Tiers A–D:
+       - Tier A: Sibling method in class context
+       - Tier B: Same module function resolution
+       - Tier C: Import-based function resolution
+       - Tier D: Global unique function fallback (heuristic for single-occurrence names)
+    6. Rewrite all edges src/dst referencing a stub → real id
+    7. Drop stub nodes that were fully resolved
     """
     # Separate real vs stub nodes
     real_modules: dict[str, str] = {}  # stem → real node id
@@ -54,34 +60,80 @@ def resolve(result: ParseResult) -> ParseResult:
                 name = node.properties.get("name", stem)
                 real_modules.setdefault(name, node.id)
         elif node.label == "Class":
-            class_nid = node.id.split("::")[-1]
-            if "." in class_nid:
-                class_nid = class_nid.split(".")[-1]
-            simple_name = node.properties.get("name", class_nid)
-            # First definition wins (avoids ambiguity in large repos)
-            real_classes.setdefault(simple_name, node.id)
+            if node.properties.get("type") == "external":
+                stub_ids.add(node.id)
+            else:
+                class_nid = node.id.split("::")[-1]
+                if "." in class_nid:
+                    class_nid = class_nid.split(".")[-1]
+                simple_name = node.properties.get("name", class_nid)
+                # First definition wins (avoids ambiguity in large repos)
+                real_classes.setdefault(simple_name, node.id)
         elif node.label == "Function":
-            simple_name = node.properties.get("name", node.id.split(".")[-1])
-            real_functions.setdefault(simple_name, []).append(node.id)
+            if node.properties.get("type") == "external":
+                stub_ids.add(node.id)
+            else:
+                simple_name = node.properties.get("name", node.id.split(".")[-1])
+                real_functions.setdefault(simple_name, []).append(node.id)
 
     # Build redirect map: stub_id → real_id
     redirect: dict[str, str] = {}
 
-    # Module stubs → real Module nodes (existing M1 behaviour)
+    # Module / Class stubs → real nodes
     for stub_id in stub_ids:
         stem = stub_id.split(".")[-1]
         if stem in real_modules:
             redirect[stub_id] = real_modules[stem]
         elif stub_id in real_modules:
             redirect[stub_id] = real_modules[stub_id]
-        # M2: class name stubs used in INHERITS/USES edges (stored as Module stubs
-        # because _ensure_stub always creates Module stubs)
         elif stub_id in real_classes:
             redirect[stub_id] = real_classes[stub_id]
         elif stem in real_classes:
             redirect[stub_id] = real_classes[stem]
 
     # Resolve __call__ stubs in CALLS edges
+    _resolve_calls(result, real_modules, real_functions, redirect)
+
+    if not redirect:
+        return result  # nothing to resolve, return unchanged
+
+    # Deep-copy so original is untouched
+    resolved = ParseResult(
+        nodes=copy.deepcopy(result.nodes),
+        edges=copy.deepcopy(result.edges),
+        errors=list(result.errors),
+    )
+
+    # Drop resolved stubs from node list
+    resolved.nodes = [
+        n
+        for n in resolved.nodes
+        if not (
+            n.id in redirect
+            and (
+                n.properties.get("type") == "external"
+                or n.id.startswith("__call__")
+            )
+        )
+    ]
+
+    # Rewrite edges
+    for edge in resolved.edges:
+        if edge.src_id in redirect:
+            edge.src_id = redirect[edge.src_id]
+        if edge.dst_id in redirect:
+            edge.dst_id = redirect[edge.dst_id]
+
+    return resolved
+
+
+def _resolve_calls(
+    result: ParseResult,
+    real_modules: dict[str, str],
+    real_functions: dict[str, list[str]],
+    redirect: dict[str, str],
+) -> None:
+    """Helper to resolve __call__ stubs in CALLS edges across Tiers A–D."""
     module_imports: dict[str, set[str]] = {}
     for edge in result.edges:
         if edge.rel == "IMPORTS":
@@ -95,14 +147,14 @@ def resolve(result: ParseResult) -> ParseResult:
             parts = caller_id.split(".")
             resolved_id = None
 
-            # A. Sibling method in class context
+            # Tier A. Sibling method in class context
             if len(parts) >= 3:
                 class_fqn = ".".join(parts[:-1])
                 target_method_fqn = f"{class_fqn}.{callee_name}"
                 if any(n.id == target_method_fqn and n.label == "Function" for n in result.nodes):
                     resolved_id = target_method_fqn
 
-            # B. Same module resolution
+            # Tier B. Same module resolution
             if not resolved_id:
                 module_fqn = None
                 for m_id in real_modules.values():
@@ -114,7 +166,7 @@ def resolve(result: ParseResult) -> ParseResult:
                     if any(n.id == target_func_fqn and n.label == "Function" for n in result.nodes):
                         resolved_id = target_func_fqn
 
-            # C. Import-based resolution
+            # Tier C. Import-based resolution
             if not resolved_id and module_fqn:
                 callee_expr = edge.properties.get("callee_expr", "")
                 imports = module_imports.get(module_fqn, set())
@@ -143,7 +195,7 @@ def resolve(result: ParseResult) -> ParseResult:
                                 resolved_id = cand
                                 break
 
-            # D. Global fallback (only if unique)
+            # Tier D. Global fallback (only if unique)
             if not resolved_id:
                 candidates = real_functions.get(callee_name, [])
                 if len(candidates) == 1:
@@ -152,44 +204,13 @@ def resolve(result: ParseResult) -> ParseResult:
             if resolved_id:
                 redirect[stub_id] = resolved_id
 
-    if not redirect:
-        return result  # nothing to resolve, return unchanged
-
-    # Deep-copy so original is untouched
-    resolved = ParseResult(
-        nodes=copy.deepcopy(result.nodes),
-        edges=copy.deepcopy(result.edges),
-        errors=list(result.errors),
-    )
-
-    # Drop resolved stubs from node list
-    resolved.nodes = [
-        n
-        for n in resolved.nodes
-        if not (
-            n.id in redirect
-            and (
-                (n.label == "Module" and n.properties.get("type") == "external")
-                or (n.label == "Function" and n.properties.get("type") == "external")
-                or n.id.startswith("__call__")
-            )
-        )
-    ]
-
-    # Rewrite edges
-    for edge in resolved.edges:
-        if edge.src_id in redirect:
-            edge.src_id = redirect[edge.src_id]
-        if edge.dst_id in redirect:
-            edge.dst_id = redirect[edge.dst_id]
-
-    return resolved
-
 
 def stub_count(result: ParseResult) -> int:
-    """Return number of unresolved external stub Module nodes."""
+    """Return number of unresolved external stub nodes (Module, Class, Function)."""
     return sum(
-        1 for n in result.nodes if n.label == "Module" and n.properties.get("type") == "external"
+        1
+        for n in result.nodes
+        if n.properties.get("type") == "external" or n.id.startswith("__call__")
     )
 
 
@@ -198,54 +219,53 @@ def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
     Query FalkorDB to resolve remaining external stubs against real nodes in previously indexed repositories.
 
     Enables Multi-Repo cross-linking: (RepoB.Class)-[:INHERITS/CALLS]->(RepoA.Class).
+    Uses a batched Cypher query to avoid N+1 query overhead.
     """
-    # 1. Gather unresolved external module stubs in the current parse results
     external_stubs = [
         node.id
         for node in result.nodes
-        if node.label == "Module" and node.properties.get("type") == "external"
+        if node.properties.get("type") == "external" or node.id.startswith("__call__")
     ]
     if not external_stubs:
         return result
 
     redirect: dict[str, str] = {}
 
-    # 2. Query FalkorDB to check if a real node matching that FQN ID already exists
-    for stub_id in external_stubs:
-        # Check if there is a real (non-external) node matching the stub's FQN ID in FalkorDB
-        query = (
-            "MATCH (n) WHERE (n.id = $stub_id OR n.name = $stub_id OR n.id ENDS WITH $ends_with) "
-            "AND (n.type IS NULL OR n.type <> 'external') RETURN n.id LIMIT 1"
-        )
-        ends_with = f".{stub_id}"
-        try:
-            res = graph_store.query(query, {"stub_id": stub_id, "ends_with": ends_with})
-            if res.result_set:
-                row = res.result_set[0]
-                real_id = row[0]
+    # Query FalkorDB in a single batched query
+    query = (
+        "UNWIND $stubs AS stub "
+        "MATCH (n) WHERE (n.id = stub OR n.name = stub OR n.id ENDS WITH '.' + stub) "
+        "AND (n.type IS NULL OR n.type <> 'external') "
+        "RETURN stub, n.id"
+    )
+    try:
+        res = graph_store.query(query, {"stubs": external_stubs})
+        if res.result_set:
+            for row in res.result_set:
+                stub_id, real_id = row[0], row[1]
                 redirect[stub_id] = real_id
-        except Exception:
-            # Skip gracefully if database isn't initialized or query fails
-            continue
+    except Exception:
+        # Skip gracefully if database isn't initialized or query fails
+        pass
 
     if not redirect:
         return result
 
-    # 3. Create a deep copy to avoid modifying original results in-place
     resolved = ParseResult(
         nodes=copy.deepcopy(result.nodes),
         edges=copy.deepcopy(result.edges),
         errors=list(result.errors),
     )
 
-    # 4. Remove resolved stubs from the node list
     resolved.nodes = [
         n
         for n in resolved.nodes
-        if not (n.label == "Module" and n.id in redirect and n.properties.get("type") == "external")
+        if not (
+            n.id in redirect
+            and (n.properties.get("type") == "external" or n.id.startswith("__call__"))
+        )
     ]
 
-    # 5. Rewrite all edges in-place
     for edge in resolved.edges:
         if edge.src_id in redirect:
             edge.src_id = redirect[edge.src_id]

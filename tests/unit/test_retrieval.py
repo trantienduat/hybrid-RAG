@@ -6,7 +6,11 @@ No external services required — all stores and embedders are mocked.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Event
 from unittest.mock import MagicMock
+
+import pytest
 
 from hybrid_rag.retrieval.context_assembler import ContextAssembler, RetrievalContext
 from hybrid_rag.retrieval.graph_retriever import GraphRetriever
@@ -702,6 +706,88 @@ class TestVectorRetriever:
         retriever.retrieve("same query")
 
         embedder.embed_query.assert_called_once_with("same query")
+
+    def test_coalesces_concurrent_identical_embedding_requests(self):
+        workers_ready = Barrier(3)
+        embedding_started = Event()
+        release_embedding = Event()
+        embedder = self._embedder()
+
+        def embed_query(_query):
+            embedding_started.set()
+            assert release_embedding.wait(timeout=1)
+            return [0.1] * 768
+
+        embedder.embed_query.side_effect = embed_query
+        retriever = VectorRetriever(self._store([]), embedder)
+
+        def retrieve():
+            workers_ready.wait()
+            return retriever.retrieve("same query")
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(retrieve) for _ in range(2)]
+            workers_ready.wait()
+            assert embedding_started.wait(timeout=1)
+            Event().wait(0.05)
+            release_embedding.set()
+            for future in futures:
+                assert future.result(timeout=1) == []
+
+        embedder.embed_query.assert_called_once_with("same query")
+
+    def test_embeds_different_queries_concurrently(self):
+        embedding_calls_ready = Barrier(2, timeout=1)
+        embedder = self._embedder()
+
+        def embed_query(_query):
+            embedding_calls_ready.wait()
+            return [0.1] * 768
+
+        embedder.embed_query.side_effect = embed_query
+        retriever = VectorRetriever(self._store([]), embedder)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [
+                executor.submit(retriever.retrieve, query)
+                for query in ("first query", "second query")
+            ]
+            for future in futures:
+                assert future.result(timeout=2) == []
+
+        assert embedder.embed_query.call_count == 2
+
+    def test_failed_shared_embedding_can_be_retried(self):
+        workers_ready = Barrier(3)
+        embedding_started = Event()
+        release_embedding = Event()
+        embedder = self._embedder()
+
+        def fail_embedding(_query):
+            embedding_started.set()
+            assert release_embedding.wait(timeout=1)
+            raise ValueError("embedding unavailable")
+
+        embedder.embed_query.side_effect = fail_embedding
+        retriever = VectorRetriever(self._store([]), embedder)
+
+        def retrieve():
+            workers_ready.wait()
+            return retriever.retrieve("same query")
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(retrieve) for _ in range(2)]
+            workers_ready.wait()
+            assert embedding_started.wait(timeout=1)
+            Event().wait(0.05)
+            release_embedding.set()
+            for future in futures:
+                with pytest.raises(ValueError, match="embedding unavailable"):
+                    future.result(timeout=1)
+
+        embedder.embed_query.side_effect = None
+        assert retriever.retrieve("same query") == []
+        assert embedder.embed_query.call_count == 2
 
 
 # ─── HybridRetriever ─────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
+from concurrent.futures import Future
 from threading import Lock
 from typing import Any
 
@@ -43,7 +44,40 @@ class VectorRetriever:
         self._store = vector_store
         self._embedder = embedder
         self._embedding_cache: OrderedDict[str, list[float]] = OrderedDict()
+        self._inflight_embeddings: dict[str, Future[list[float]]] = {}
         self._cache_lock = Lock()
+
+    def _embedding_for(self, query: str) -> list[float]:
+        with self._cache_lock:
+            embedding = self._embedding_cache.get(query)
+            if embedding is not None:
+                self._embedding_cache.move_to_end(query)
+                return embedding
+
+            future = self._inflight_embeddings.get(query)
+            owns_request = future is None
+            if future is None:
+                future = Future()
+                self._inflight_embeddings[query] = future
+
+        if not owns_request:
+            return future.result()
+
+        try:
+            embedding = self._embedder.embed_query(query)
+        except BaseException as exc:
+            with self._cache_lock:
+                self._inflight_embeddings.pop(query, None)
+            future.set_exception(exc)
+            raise
+
+        with self._cache_lock:
+            self._embedding_cache[query] = embedding
+            if len(self._embedding_cache) > 256:
+                self._embedding_cache.popitem(last=False)
+            self._inflight_embeddings.pop(query, None)
+        future.set_result(embedding)
+        return embedding
 
     def retrieve(
         self,
@@ -57,17 +91,7 @@ class VectorRetriever:
         Each result dict has:
           node_id, base_node_id, label, file_path, text, score, source.
         """
-        with self._cache_lock:
-            embedding = self._embedding_cache.get(query)
-        if embedding is None:
-            embedding = self._embedder.embed_query(query)
-            with self._cache_lock:
-                self._embedding_cache[query] = embedding
-                if len(self._embedding_cache) > 256:
-                    self._embedding_cache.popitem(last=False)
-        else:
-            with self._cache_lock:
-                self._embedding_cache.move_to_end(query)
+        embedding = self._embedding_for(query)
         hits = self._store.search(embedding, top_k=top_k, filter_payload=filter_payload)
         results: list[dict[str, Any]] = []
         for hit in hits:

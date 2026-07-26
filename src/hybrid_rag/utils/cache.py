@@ -92,11 +92,15 @@ class RedisQueryCache:
         llm_model: str,
         top_k: int,
         context_n: int,
+        max_tokens: int | None = None,
+        max_chars: int | None = None,
+        stream: bool = False,
     ) -> str:
         """Generate a stable, deterministic cache key from request parameters."""
         params_str = (
-            f"q:{question}|cq:{codebase_query}|repo:{repository or 'all'}|"
-            f"model:{llm_model}|top:{top_k}|n:{context_n}"
+            f"v2|q:{question}|cq:{codebase_query}|repo:{repository or 'all'}|"
+            f"model:{llm_model}|top:{top_k}|n:{context_n}|"
+            f"max_tokens:{max_tokens}|max_chars:{max_chars}|stream:{stream}"
         )
         sha = hashlib.sha256(params_str.encode("utf-8")).hexdigest()
         return f"hybrid_rag:query_cache:{sha}"

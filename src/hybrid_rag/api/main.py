@@ -831,6 +831,9 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         llm_model=req.llm_model,
         top_k=req.top_k,
         context_n=req.context_n,
+        max_tokens=req.max_tokens,
+        max_chars=req.max_chars,
+        stream=False,
     )
 
     cached_resp = await app.state.query_cache.get(cache_key)
@@ -1058,6 +1061,9 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         llm_model=req.llm_model,
         top_k=req.top_k,
         context_n=req.context_n,
+        max_tokens=req.max_tokens,
+        max_chars=req.max_chars,
+        stream=True,
     )
 
     cached_events = await app.state.query_cache.get(cache_key)

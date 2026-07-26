@@ -46,6 +46,13 @@ class TestQueryAnalyzer:
         assert "OllamaEmbedder" in a.entities
         assert "BaseEmbedder" in a.entities
 
+    def test_unquoted_short_acronym_is_not_an_exact_entity(self):
+        unquoted = analyze("Prepare an LLM conversation")
+        quoted = analyze("What does `LLM` define?")
+
+        assert "LLM" not in unquoted.entities
+        assert "LLM" in quoted.entities
+
     def test_entity_extraction_snake_case(self):
         a = analyze("show me parse_repo usage")
         assert "parse_repo" in a.entities
@@ -57,6 +64,10 @@ class TestQueryAnalyzer:
     def test_entity_extraction_quoted(self):
         a = analyze('where is "FalkorDBStore" defined?')
         assert "FalkorDBStore" in a.entities
+
+    def test_entity_extraction_callable(self):
+        a = analyze("Which functions directly call retrieve()?")
+        assert "retrieve" in a.entities
 
     def test_no_entities_returns_keywords(self):
         a = analyze("explain the embedding process in detail")
@@ -99,6 +110,46 @@ class TestQueryAnalyzer:
         assert (imports.relation, imports.direction) == ("IMPORTS", "out")
         assert (transitive.relation, transitive.max_hops) == ("IMPORTS", 3)
         assert (mro.relation, mro.direction, mro.max_hops) == ("INHERITS", "out", 3)
+
+    def test_bounded_reverse_call_intent(self):
+        analysis = analyze("Which functions can reach retrieve() within three calls?")
+
+        assert analysis.entities == ["retrieve"]
+        assert (analysis.relation, analysis.direction, analysis.max_hops) == ("CALLS", "in", 3)
+
+    def test_dependency_intent_uses_incoming_imports(self):
+        analysis = analyze("Which modules depend on StorageContext within two import hops?")
+
+        assert (analysis.relation, analysis.direction, analysis.max_hops) == ("IMPORTS", "in", 2)
+
+    def test_direct_invoke_intent_uses_incoming_calls(self):
+        analysis = analyze("Which functions directly invoke get_content()?")
+
+        assert (analysis.relation, analysis.direction) == ("CALLS", "in")
+
+    def test_ancestor_hierarchy_intent(self):
+        analysis = analyze("Trace the ancestor hierarchy of AgentWorkflow up to three levels.")
+
+        assert (analysis.relation, analysis.direction, analysis.max_hops) == ("INHERITS", "out", 3)
+
+    def test_passive_outgoing_call_intent(self):
+        reachable = analyze(
+            "Which functions are reachable from as_query_engine() within three calls?"
+        )
+        called = analyze("Which functions are called by query() within three calls?")
+
+        assert (reachable.relation, reachable.direction, reachable.max_hops) == ("CALLS", "out", 3)
+        assert (called.relation, called.direction, called.max_hops) == ("CALLS", "out", 3)
+
+    def test_call_noun_does_not_trigger_structural_routing(self):
+        analysis = analyze("Configure verbosity and parallel tool calls for an LLM conversation.")
+
+        assert analysis.relation is None
+
+    def test_what_does_entity_call_is_outgoing(self):
+        analysis = analyze("What does QueryEngine call?")
+
+        assert (analysis.relation, analysis.direction) == ("CALLS", "out")
 
 
 # ─── RRF ──────────────────────────────────────────────────────────────────────
@@ -349,6 +400,8 @@ class TestGraphRetriever:
         results = GraphRetriever(store).retrieve(analysis)
 
         assert [result["node_id"] for result in results[:2]] == ["method", "base"]
+        assert results[0]["result_role"] == "relation_target"
+        assert results[1]["result_role"] == "seed"
         store.find_neighbors.assert_called_once_with(
             "base",
             rel="DEFINES",
@@ -551,22 +604,53 @@ class TestHybridRetriever:
         assert isinstance(ctx, RetrievalContext)
         assert ctx.text
 
-    def test_graph_used_for_structural_query(self):
+    def test_seed_only_structural_result_falls_back_to_vector(self):
         graph_store = MagicMock()
         graph_store.find_nodes.return_value = [
             {"node_id": "n1", "name": "BaseEmbedder", "label": "Class", "file_path": "f.py"}
         ]
         graph_store.find_neighbors.return_value = []
         vector_store = MagicMock()
-        vector_store.search.return_value = []
+        vector_store.search.return_value = [self._hit("vector-answer::0")]
         embedder = MagicMock()
         embedder.embed_query.return_value = [0.0] * 768
         retriever = HybridRetriever(
             graph_store=graph_store, vector_store=vector_store, embedder=embedder
         )
-        retriever.retrieve("which classes inherit from BaseEmbedder?")
+        results = retriever.retrieve("which classes inherit from BaseEmbedder?")
+
         graph_store.find_nodes.assert_called()
-        embedder.embed_query.assert_not_called()
+        embedder.embed_query.assert_called_once()
+        assert any(result["base_node_id"] == "vector-answer" for result in results)
+
+    def test_unquoted_acronym_does_not_trigger_generic_graph_fusion(self):
+        graph_nodes = [
+            {"node_id": "graph-seed", "name": "LLM", "label": "Class", "file_path": "llm.py"}
+        ]
+        graph_neighbors = [
+            {
+                "rel": "DEFINES",
+                "dst_id": f"graph-{index}",
+                "dst_name": f"graph_{index}",
+                "dst_label": "Function",
+                "dst_file_path": "llm.py",
+            }
+            for index in range(5)
+        ]
+        vector_hits = [
+            self._hit(f"vector-{index}::0", score=1.0 - index / 10) for index in range(5)
+        ]
+        retriever = self._retriever(
+            graph_nodes=graph_nodes,
+            graph_neighbors=graph_neighbors,
+            vector_hits=vector_hits,
+        )
+
+        results = retriever.retrieve("Explain LLM behavior", top_k=5)
+
+        assert [result["base_node_id"] for result in results] == [
+            f"vector-{index}" for index in range(5)
+        ]
 
     def test_called_siblings_are_fetched_in_one_batch(self):
         graph_store = MagicMock()

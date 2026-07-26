@@ -2,7 +2,7 @@
 RAGAS evaluation runner — M4 #31.
 
 Measures generation quality (faithfulness, answer_relevancy) for the hybrid
-retrieval + Ollama LLM pipeline on the Q1-Q20 corpus.
+retrieval + Ollama LLM pipeline on the Q1-Q50 corpus.
 
 Requires the [eval] extras:  pip install 'hybrid-rag[eval]'
   ragas>=0.1.0
@@ -132,7 +132,7 @@ class RagasReport:
 
 class RagasRunner:
     """
-    Run RAGAS generation-quality evaluation on the Q1-Q20 corpus.
+    Run RAGAS generation-quality evaluation on the Q1-Q50 corpus.
 
     RAGAS metrics (ragas library):
       - faithfulness        : are claims in the answer grounded in the retrieved context?

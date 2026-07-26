@@ -1,5 +1,5 @@
 """
-Evaluation corpus — Q1-Q20 multi-hop queries for LlamaIndex codebase.
+Evaluation corpus — Q1-Q50 diagnostic queries for the LlamaIndex codebase.
 
 Each QueryCase defines:
   - question: natural language query
@@ -120,7 +120,7 @@ Q4 = QueryCase(
 
 Q5 = QueryCase(
     id="Q5",
-    question="Where is the similarity_top_k parameter used inside VectorIndexRetriever?",
+    question="Which methods are defined on VectorIndexRetriever, where similarity_top_k is configured?",
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
@@ -134,7 +134,7 @@ Q5 = QueryCase(
 
 Q6 = QueryCase(
     id="Q6",
-    question="What methods are available to all subclasses of BaseIndex through inheritance?",
+    question="What methods does BaseIndex define for its direct subclasses to inherit?",
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
@@ -147,7 +147,7 @@ Q6 = QueryCase(
 
 Q7 = QueryCase(
     id="Q7",
-    question="Which modules contain functions that call embed_model.get_text_embedding()?",
+    question="Which functions call embed_model.get_text_embedding()?",
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
@@ -161,7 +161,7 @@ Q7 = QueryCase(
 
 Q8 = QueryCase(
     id="Q8",
-    question="What does importing QueryEngine transitively bring into the namespace?",
+    question="What modules occur two import hops downstream of query_engine modules?",
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
@@ -188,7 +188,7 @@ Q9 = QueryCase(
 
 Q10 = QueryCase(
     id="Q10",
-    question="Which modules depend on StorageContext and what functions do they use from it?",
+    question="Which modules directly depend on `storage_context`?",
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
@@ -197,7 +197,7 @@ Q10 = QueryCase(
         "AND (sc.name CONTAINS 'storage_context' OR sc.file_path CONTAINS 'storage_context') "
         "RETURN m.name"
     ),
-    notes="2-hop IMPORTS; modules directly importing storage_context",
+    notes="Direct incoming IMPORTS edges for the storage_context module",
 )
 
 # ── Q11-Q15: 3-hop ────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ Q11 = QueryCase(
 
 Q12 = QueryCase(
     id="Q12",
-    question="Trace the full method resolution order (MRO) for RetrieverQueryEngine.",
+    question="Trace the ancestor hierarchy of RetrieverQueryEngine.",
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
@@ -244,7 +244,7 @@ Q13 = QueryCase(
 
 Q14 = QueryCase(
     id="Q14",
-    question="Trace all code paths from user calling index.as_query_engine() to when embeddings are generated.",
+    question="Which function is the entry-point anchor for index.as_query_engine()?",
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
@@ -255,7 +255,7 @@ Q14 = QueryCase(
 
 Q15 = QueryCase(
     id="Q15",
-    question="What is the blast radius of renaming the nodes parameter in NodeWithScore?",
+    question="Which NodeWithScore methods form the class-level refactoring surface?",
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
@@ -269,7 +269,7 @@ Q15 = QueryCase(
 
 Q16 = QueryCase(
     id="Q16",
-    question="Find all classes that implement a retry or fallback mechanism and show their inheritance hierarchy.",
+    question="Which classes have retry or fallback in their names?",
     hops=2,
     query_type="hybrid",
     ground_truth_cypher=(
@@ -284,7 +284,7 @@ Q16 = QueryCase(
 
 Q17 = QueryCase(
     id="Q17",
-    question="Which modules implement the observer pattern (event callbacks or hooks)?",
+    question="Which modules are named for events, callbacks, hooks, or dispatchers?",
     hops=2,
     query_type="hybrid",
     ground_truth_cypher=(
@@ -299,7 +299,7 @@ Q17 = QueryCase(
 
 Q18 = QueryCase(
     id="Q18",
-    question="Find all functions documented as async-safe and check if they share a common base class.",
+    question="Which async retrieve, query, embed, or generate functions use the conventional a-prefix?",
     hops=2,
     query_type="hybrid",
     ground_truth_cypher=(
@@ -309,12 +309,12 @@ Q18 = QueryCase(
         "OR f.name CONTAINS 'embed' OR f.name CONTAINS 'generate') "
         "RETURN f.name"
     ),
-    notes="Hybrid: async methods as proxy for async-safe documentation",
+    notes="Hybrid: explicitly measures the async naming convention",
 )
 
 Q19 = QueryCase(
     id="Q19",
-    question="Explain the data flow when a user submits a query: which classes are instantiated and in what order?",
+    question="Which core query-engine, retriever, and synthesizer classes participate in query flow?",
     hops=3,
     query_type="hybrid",
     ground_truth_cypher=(
@@ -324,12 +324,12 @@ Q19 = QueryCase(
         "'VectorIndexRetriever', 'BaseSynthesizer', 'ResponseSynthesizer'] "
         "RETURN c.name"
     ),
-    notes="Hybrid: query pipeline classes",
+    notes="Hybrid: unordered membership in the core query pipeline",
 )
 
 Q20 = QueryCase(
     id="Q20",
-    question="Which functions access the file system directly (open/read/write) and are they reachable from the public API?",
+    question="Which functions are named for reading, writing, loading, saving, or persistence?",
     hops=3,
     query_type="hybrid",
     ground_truth_cypher=(
@@ -341,6 +341,397 @@ Q20 = QueryCase(
         "RETURN f.name"
     ),
     notes="Hybrid: file I/O function names as proxy for FS access",
+)
+
+# ── Q21-Q25: additional 1-hop structural coverage ─────────────────────────────
+
+Q21 = QueryCase(
+    id="Q21",
+    question="List the methods defined directly by BaseEmbedding.",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'BaseEmbedding', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
+    ),
+    notes="Paraphrase coverage for direct DEFINES traversal",
+)
+
+Q22 = QueryCase(
+    id="Q22",
+    question="Which classes are immediate subclasses of BaseQueryEngine?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseQueryEngine', repository:$repository}) RETURN c.name"
+    ),
+    notes="Incoming one-hop INHERITS traversal",
+)
+
+Q23 = QueryCase(
+    id="Q23",
+    question="Which modules directly depend on `settings`?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS]->(d:Module) "
+        "WHERE m.repository = $repository AND d.name = 'settings' RETURN m.name"
+    ),
+    notes="Incoming one-hop IMPORTS traversal",
+)
+
+Q24 = QueryCase(
+    id="Q24",
+    question="Which functions directly invoke get_content()?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function)-[:CALLS]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'get_content' OR t.id = '__call__get_content') RETURN f.name"
+    ),
+    notes="Callable extraction and incoming one-hop CALLS traversal",
+)
+
+Q25 = QueryCase(
+    id="Q25",
+    question="What methods does SimpleDirectoryReader define directly?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'SimpleDirectoryReader', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
+    ),
+    notes="Second direct DEFINES paraphrase",
+)
+
+# ── Q26-Q35: additional 2-hop and composed structural coverage ────────────────
+
+Q26 = QueryCase(
+    id="Q26",
+    question="Which BaseQueryEngine subclasses define their own methods?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseQueryEngine', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function) RETURN DISTINCT c.name"
+    ),
+    notes="Composed INHERITS plus DEFINES traversal",
+)
+
+Q27 = QueryCase(
+    id="Q27",
+    question="Which subclasses of BaseNodePostprocessor override _postprocess_nodes()?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseNodePostprocessor', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function {name:'_postprocess_nodes'}) RETURN c.name"
+    ),
+    notes="Override query requiring INHERITS plus DEFINES",
+)
+
+Q28 = QueryCase(
+    id="Q28",
+    question="Which subclasses of BaseEmbedding implement _get_query_embedding()?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseEmbedding', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function {name:'_get_query_embedding'}) RETURN c.name"
+    ),
+    notes="Embedding override query requiring two relation types",
+)
+
+Q29 = QueryCase(
+    id="Q29",
+    question="Which subclasses of BaseRetriever provide _retrieve()?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseRetriever', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function {name:'_retrieve'}) RETURN c.name"
+    ),
+    notes="Paraphrase of override intent for robustness",
+)
+
+Q30 = QueryCase(
+    id="Q30",
+    question="Which BaseSynthesizer subclasses define synthesize()?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseSynthesizer', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function {name:'synthesize'}) RETURN c.name"
+    ),
+    notes="Synthesizer override query requiring two relation types",
+)
+
+Q31 = QueryCase(
+    id="Q31",
+    question="Which modules depend on `storage_context` within two import hops?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS*1..2]->(d:Module) "
+        "WHERE m.repository = $repository "
+        "AND (d.name CONTAINS 'storage_context' OR d.file_path CONTAINS 'storage_context') "
+        "RETURN m.name"
+    ),
+    notes="Bounded incoming transitive IMPORTS traversal",
+)
+
+Q32 = QueryCase(
+    id="Q32",
+    question="Which modules depend on base_query_engine within two import hops?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS*1..2]->(d:Module) "
+        "WHERE m.repository = $repository "
+        "AND (d.name = 'base_query_engine' OR d.file_path CONTAINS 'base_query_engine') "
+        "RETURN m.name"
+    ),
+    notes="Dependency wording with explicit two-hop bound",
+)
+
+Q33 = QueryCase(
+    id="Q33",
+    question="Which functions can reach get_content() within two calls?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function)-[:CALLS*1..2]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'get_content' OR t.id = '__call__get_content') RETURN f.name"
+    ),
+    notes="Bounded reverse CALLS traversal",
+)
+
+Q34 = QueryCase(
+    id="Q34",
+    question="What methods does VectorStoreIndex inherit from its direct base classes?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'VectorStoreIndex', repository:$repository})"
+        "-[:INHERITS]->(:Class)-[:DEFINES]->(f:Function) RETURN f.name"
+    ),
+    notes="Composed outgoing INHERITS plus DEFINES traversal",
+)
+
+Q35 = QueryCase(
+    id="Q35",
+    question="What modules are imported by retriever_query_engine.py within two import hops?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS]->(:Module)-[:IMPORTS]->(d:Module) "
+        "WHERE m.repository = $repository "
+        "AND m.file_path CONTAINS 'retriever_query_engine' RETURN d.name"
+    ),
+    notes="Exact two-hop outgoing IMPORTS traversal",
+)
+
+# ── Q36-Q40: additional 3-hop structural coverage ─────────────────────────────
+
+Q36 = QueryCase(
+    id="Q36",
+    question="Which functions can reach get_response() within three calls?",
+    hops=3,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function)-[:CALLS*1..3]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'get_response' OR t.id = '__call__get_response') RETURN f.name"
+    ),
+    notes="Second bounded reverse CALLS query",
+)
+
+Q37 = QueryCase(
+    id="Q37",
+    question="Trace the ancestor hierarchy of AgentWorkflow up to three levels.",
+    hops=3,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'AgentWorkflow', repository:$repository})"
+        "-[:INHERITS*1..3]->(b:Class) RETURN b.name"
+    ),
+    notes="Bounded multi-hop inheritance traversal",
+)
+
+Q38 = QueryCase(
+    id="Q38",
+    question="Which modules transitively depend on async_utils within three imports?",
+    hops=3,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS*1..3]->(d:Module) "
+        "WHERE m.repository = $repository "
+        "AND (d.name = 'async_utils' OR d.file_path CONTAINS 'async_utils') RETURN m.name"
+    ),
+    notes="Bounded incoming three-hop IMPORTS traversal",
+)
+
+Q39 = QueryCase(
+    id="Q39",
+    question="Which functions are reachable from as_query_engine() within three calls?",
+    hops=3,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function {name:'as_query_engine', repository:$repository})"
+        "-[:CALLS*1..3]->(t:Function) RETURN t.name"
+    ),
+    notes="Bounded outgoing CALLS traversal from a public entry point",
+)
+
+Q40 = QueryCase(
+    id="Q40",
+    question="Which functions are called by query() within three calls?",
+    hops=3,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function {name:'query', repository:$repository})"
+        "-[:CALLS*1..3]->(t:Function) RETURN t.name"
+    ),
+    notes="Ambiguous callable name with bounded outgoing traversal",
+)
+
+# ── Q41-Q45: additional semantic and hybrid coverage ──────────────────────────
+
+Q41 = QueryCase(
+    id="Q41",
+    question="Which classes represent streaming behavior?",
+    hops=1,
+    query_type="semantic",
+    ground_truth_cypher=(
+        "MATCH (c:Class) WHERE c.repository = $repository "
+        "AND (c.name CONTAINS 'Stream' OR c.name CONTAINS 'Streaming') RETURN c.name"
+    ),
+    notes="Semantic concept measured by explicit class names",
+)
+
+Q42 = QueryCase(
+    id="Q42",
+    question="Which functions implement retry or fallback behavior?",
+    hops=1,
+    query_type="hybrid",
+    ground_truth_cypher=(
+        "MATCH (f:Function) WHERE f.repository = $repository "
+        "AND (f.name CONTAINS 'retry' OR f.name CONTAINS 'fallback' "
+        "OR f.name CONTAINS 'Retry' OR f.name CONTAINS 'Fallback') RETURN f.name"
+    ),
+    notes="Hybrid concept lookup over function names",
+)
+
+Q43 = QueryCase(
+    id="Q43",
+    question="Which modules are named for callbacks, hooks, events, or dispatchers?",
+    hops=1,
+    query_type="semantic",
+    ground_truth_cypher=(
+        "MATCH (m:Module) WHERE m.repository = $repository "
+        "AND (m.name CONTAINS 'callback' OR m.name CONTAINS 'hook' "
+        "OR m.name CONTAINS 'event' OR m.name CONTAINS 'dispatcher') RETURN m.name"
+    ),
+    notes="Honest naming-based oracle for observer-related modules",
+)
+
+Q44 = QueryCase(
+    id="Q44",
+    question="Which a-prefixed functions perform asynchronous chat or completion work?",
+    hops=1,
+    query_type="semantic",
+    ground_truth_cypher=(
+        "MATCH (f:Function) WHERE f.repository = $repository AND f.name STARTS WITH 'a' "
+        "AND (f.name CONTAINS 'chat' OR f.name CONTAINS 'complete') RETURN f.name"
+    ),
+    notes="Async naming convention for chat and completion functions",
+)
+
+Q45 = QueryCase(
+    id="Q45",
+    question="Which functions are explicitly named for persistence or saving?",
+    hops=1,
+    query_type="semantic",
+    ground_truth_cypher=(
+        "MATCH (f:Function) WHERE f.repository = $repository "
+        "AND (f.name CONTAINS 'persist' OR f.name CONTAINS 'save') RETURN f.name"
+    ),
+    notes="Semantic file-persistence proxy with a precise oracle",
+)
+
+# ── Q46-Q50: ambiguity and repository-scoping coverage ────────────────────────
+
+Q46 = QueryCase(
+    id="Q46",
+    question="For the class BaseRetriever—not similarly named modules—which methods does it define?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'BaseRetriever', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
+    ),
+    notes="Entity-type disambiguation between classes and modules",
+)
+
+Q47 = QueryCase(
+    id="Q47",
+    question="Which direct subclasses of BaseRetriever override the private _retrieve method?",
+    hops=2,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseRetriever', repository:$repository}) "
+        "MATCH (c)-[:DEFINES]->(:Function {name:'_retrieve'}) RETURN c.name"
+    ),
+    notes="Public class versus private method disambiguation",
+)
+
+Q48 = QueryCase(
+    id="Q48",
+    question="Which methods are defined on the StorageContext class itself?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (c:Class {name:'StorageContext', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
+    ),
+    notes="Class versus storage_context module disambiguation",
+)
+
+Q49 = QueryCase(
+    id="Q49",
+    question="Which functions call either public retrieve() or private _retrieve() directly?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (f:Function)-[:CALLS]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name IN ['retrieve', '_retrieve'] "
+        "OR t.id IN ['__call__retrieve', '__call___retrieve']) RETURN f.name"
+    ),
+    notes="Disambiguates public and private callable spellings",
+)
+
+Q50 = QueryCase(
+    id="Q50",
+    question="Which modules in this repository directly depend on base_retriever?",
+    hops=1,
+    query_type="structural",
+    ground_truth_cypher=(
+        "MATCH (m:Module)-[:IMPORTS]->(d:Module) "
+        "WHERE m.repository = $repository "
+        "AND (d.name = 'base_retriever' OR d.file_path CONTAINS 'base_retriever') "
+        "RETURN m.name"
+    ),
+    notes="Repository-scoped module-name disambiguation",
 )
 
 
@@ -367,9 +758,40 @@ EVAL_CORPUS: list[QueryCase] = [
     Q18,
     Q19,
     Q20,
+    Q21,
+    Q22,
+    Q23,
+    Q24,
+    Q25,
+    Q26,
+    Q27,
+    Q28,
+    Q29,
+    Q30,
+    Q31,
+    Q32,
+    Q33,
+    Q34,
+    Q35,
+    Q36,
+    Q37,
+    Q38,
+    Q39,
+    Q40,
+    Q41,
+    Q42,
+    Q43,
+    Q44,
+    Q45,
+    Q46,
+    Q47,
+    Q48,
+    Q49,
+    Q50,
 ]
 
-ONE_HOP = [Q1, Q2, Q3, Q4, Q5]
-TWO_HOP = [Q6, Q7, Q8, Q9, Q10]
-THREE_HOP = [Q11, Q12, Q13, Q14, Q15]
-HYBRID = [Q16, Q17, Q18, Q19, Q20]
+ONE_HOP = [Q1, Q2, Q3, Q4, Q5, Q21, Q22, Q23, Q24, Q25]
+TWO_HOP = [Q6, Q7, Q8, Q9, Q10, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35]
+THREE_HOP = [Q11, Q12, Q13, Q14, Q15, Q36, Q37, Q38, Q39, Q40]
+HYBRID = [Q16, Q17, Q18, Q19, Q20, Q41, Q42, Q43, Q44, Q45]
+AMBIGUOUS = [Q46, Q47, Q48, Q49, Q50]

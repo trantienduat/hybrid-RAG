@@ -1,10 +1,9 @@
 """
-Query Analyzer — classify retrieval queries and extract code identifiers.
+Query Analyzer — route retrieval queries and extract code identifiers.
 
-Classifies queries as:
-  structural — asks about code structure (inheritance, imports, call graph, …)
-  semantic   — asks about meaning/behavior (explain, describe, how does X work)
-  hybrid     — both signals present, or neither (default)
+Routes queries as:
+  local  — entity, relationship, or behavior lookup (default)
+  global — repository-wide architecture or summary request
 
 Extracts:
   entities   — code identifiers (PascalCase, snake_case, backtick/quote delimited)
@@ -38,6 +37,12 @@ _RELATION_INTENTS: tuple[tuple[re.Pattern[str], str, RelationDirection, int], ..
         3,
     ),
     (
+        re.compile(r"\b(?:ancestors?|ancestor\s+hierarchy)\b", re.IGNORECASE),
+        "INHERITS",
+        "out",
+        1,
+    ),
+    (
         re.compile(r"\b(?:define[sd]?|methods?\s+(?:does|of|in))\b", re.IGNORECASE),
         "DEFINES",
         "out",
@@ -50,12 +55,47 @@ _RELATION_INTENTS: tuple[tuple[re.Pattern[str], str, RelationDirection, int], ..
         1,
     ),
     (
-        re.compile(r"\b(?:callers?\s+of|functions?\s+.*\bcall)\b", re.IGNORECASE),
+        re.compile(
+            r"\bfunctions?\s+(?:are\s+)?(?:reachable\s+from|called\s+by)\b",
+            re.IGNORECASE,
+        ),
+        "CALLS",
+        "out",
+        1,
+    ),
+    (
+        re.compile(
+            r"\b(?:functions?|methods?)\b.*\b(?:reach|lead\s+to)\b",
+            re.IGNORECASE,
+        ),
         "CALLS",
         "in",
         1,
     ),
-    (re.compile(r"\b(?:calls?|invokes?)\b", re.IGNORECASE), "CALLS", "out", 1),
+    (
+        re.compile(r"\b(?:depend(?:s|ed|ing)?\s+on|dependenc(?:y|ies)\s+of)\b", re.IGNORECASE),
+        "IMPORTS",
+        "in",
+        1,
+    ),
+    (
+        re.compile(
+            r"\b(?:callers?\s+of|functions?\s+.*\b(?:call|invoke))",
+            re.IGNORECASE,
+        ),
+        "CALLS",
+        "in",
+        1,
+    ),
+    (
+        re.compile(
+            r"\b(?:what|which)\b.*\b(?:does|do)\b.*\b(?:call|invoke)s?\b",
+            re.IGNORECASE,
+        ),
+        "CALLS",
+        "out",
+        1,
+    ),
     (re.compile(r"\bimport(?:s|ing|ed)?\b", re.IGNORECASE), "IMPORTS", "out", 1),
 )
 
@@ -65,6 +105,15 @@ _PASCAL_RE = re.compile(r"\b([A-Z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)\b")
 _SNAKE_RE = re.compile(r"\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b")
 # Backtick or double-quote delimited identifiers
 _QUOTED_RE = re.compile(r"`([^`]+)`|\"([A-Za-z_][A-Za-z0-9_]*)\"")
+# Function-call syntax: retrieve(), as_query_engine(), BaseRetriever.retrieve()
+_CALLABLE_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(\)")
+_HOP_COUNT_RE = re.compile(
+    r"\b(?:within|up\s+to|at\s+most)\s+"
+    r"(?P<count>\d+|one|two|three|four|five)\s+"
+    r"(?:(?:call|import|inheritance)\s+)?(?:calls?|hops?|levels?|steps?)\b",
+    re.IGNORECASE,
+)
+_NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
 
 _STOP_WORDS = frozenset(
     {
@@ -235,6 +284,9 @@ def analyze(query: str) -> QueryAnalysis:
             break
     if relation and re.search(r"\btransitiv(?:e|ely)\b", query, re.IGNORECASE):
         max_hops = 3
+    if relation and (hop_match := _HOP_COUNT_RE.search(query)):
+        raw_count = hop_match.group("count").lower()
+        max_hops = int(raw_count) if raw_count.isdigit() else _NUMBER_WORDS[raw_count]
 
     # ── entity extraction ──────────────────────────────────────────
     seen: set[str] = set()
@@ -248,8 +300,14 @@ def analyze(query: str) -> QueryAnalysis:
 
     for m in _QUOTED_RE.finditer(query):
         _add(m.group(1) or m.group(2) or "")
-    for m in _PASCAL_RE.finditer(query):
+    for m in _CALLABLE_RE.finditer(query):
         _add(m.group(1))
+    for m in _PASCAL_RE.finditer(query):
+        name = m.group(1)
+        # Short domain acronyms such as LLM and SQL are common prose, not
+        # reliable exact graph anchors unless the user quotes them.
+        if not (name.isupper() and len(name) <= 4):
+            _add(name)
     for m in _SNAKE_RE.finditer(query):
         _add(m.group(1))
 

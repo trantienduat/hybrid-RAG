@@ -261,7 +261,10 @@ class HybridRetriever(BaseRetriever):
             )
             self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
             logger.debug("Graph results: %d nodes", len(graph_results))
-            if graph_results:
+            has_relation_target = any(
+                result.get("result_role") == "relation_target" for result in graph_results
+            )
+            if has_relation_target:
                 t_rrf = time.perf_counter()
                 fused = reciprocal_rank_fusion(
                     graph_results,

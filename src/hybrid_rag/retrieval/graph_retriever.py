@@ -93,6 +93,7 @@ class GraphRetriever:
                                     "rel": nb.get("rel", ""),
                                     "text": "",
                                     "source": "graph",
+                                    "result_role": "relation_target",
                                 }
                             )
 
@@ -121,4 +122,5 @@ def _node_to_result(node: dict[str, Any]) -> dict[str, Any]:
         "rel": "",
         "text": "",
         "source": "graph",
+        "result_role": "seed",
     }

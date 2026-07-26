@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-07-26T05:20:07Z",
+  "timestamp": "2026-07-26T06:13:55Z",
   "config": {
     "repo": "llama-core-repair",
     "top_k": 20,
     "hit_at_k": 5,
     "dataset": "LlamaIndex core",
-    "n_queries": 20,
+    "n_queries": 50,
     "falkordb_graph": "llama_core_repair_20260726",
     "qdrant_collection": "llama_core_repair_20260726",
     "index_metadata": {
@@ -27,48 +27,48 @@
     "label": "Hybrid-RAG",
     "skipped_empty_ground_truth": 0,
     "overall": {
-      "hit_rate": 0.55,
-      "hits": 11,
-      "total": 20
+      "hit_rate": 0.86,
+      "hits": 43,
+      "total": 50
     },
     "1-hop": {
-      "hit_rate": 0.8,
-      "hits": 4,
-      "total": 5
+      "hit_rate": 0.9473684210526315,
+      "hits": 18,
+      "total": 19
     },
     "2-hop": {
-      "hit_rate": 0.375,
-      "hits": 3,
-      "total": 8
+      "hit_rate": 0.6842105263157895,
+      "hits": 13,
+      "total": 19
     },
     "3-hop": {
-      "hit_rate": 0.5714285714285714,
-      "hits": 4,
-      "total": 7
+      "hit_rate": 1.0,
+      "hits": 12,
+      "total": 12
     }
   },
   "vector_hit_rate": {
     "label": "Vector-only RAG",
     "skipped_empty_ground_truth": 0,
     "overall": {
-      "hit_rate": 0.5,
-      "hits": 10,
-      "total": 20
+      "hit_rate": 0.52,
+      "hits": 26,
+      "total": 50
     },
     "1-hop": {
-      "hit_rate": 0.4,
-      "hits": 2,
-      "total": 5
+      "hit_rate": 0.5789473684210527,
+      "hits": 11,
+      "total": 19
     },
     "2-hop": {
-      "hit_rate": 0.625,
-      "hits": 5,
-      "total": 8
+      "hit_rate": 0.3684210526315789,
+      "hits": 7,
+      "total": 19
     },
     "3-hop": {
-      "hit_rate": 0.42857142857142855,
-      "hits": 3,
-      "total": 7
+      "hit_rate": 0.6666666666666666,
+      "hits": 8,
+      "total": 12
     }
   },
   "hybrid_per_query": [
@@ -98,7 +98,7 @@
         "retrieve",
         "_ahandle_recursive_retrieval"
       ],
-      "latency_ms": 1.73
+      "latency_ms": 1.78
     },
     {
       "id": "Q2",
@@ -126,14 +126,14 @@
         "custom",
         "sql_query"
       ],
-      "latency_ms": 6.97
+      "latency_ms": 7.58
     },
     {
       "id": "Q3",
       "hops": 1,
       "query_type": "structural",
       "question": "Which functions directly call retrieve()?",
-      "hit": false,
+      "hit": true,
       "gt_count": 14,
       "gt_names": [
         "_aquery",
@@ -148,13 +148,13 @@
         "_run_sync_queries"
       ],
       "retrieved_names": [
-        "__call__retrieve",
-        "__call___retrieve_from_object",
-        "__call__with_retriever",
-        "__call___retrieve",
-        "__call__on_end"
+        "_query",
+        "_query",
+        "_query",
+        "retrieve",
+        "retrieve"
       ],
-      "latency_ms": 617.6
+      "latency_ms": 5.58
     },
     {
       "id": "Q4",
@@ -179,13 +179,13 @@
         "notext",
         "generation"
       ],
-      "latency_ms": 3.13
+      "latency_ms": 1.27
     },
     {
       "id": "Q5",
       "hops": 1,
       "query_type": "structural",
-      "question": "Where is the similarity_top_k parameter used inside VectorIndexRetriever?",
+      "question": "Which methods are defined on VectorIndexRetriever, where similarity_top_k is configured?",
       "hit": true,
       "gt_count": 11,
       "gt_names": [
@@ -201,20 +201,20 @@
         "_retrieve"
       ],
       "retrieved_names": [
-        "__call__vectorindexretriever",
-        "vectorindexretriever",
-        "vectorcontextretriever",
-        "retriever",
-        "similarity_top_k"
+        "_aget_nodes_with_embeddings",
+        "_get_nodes_with_embeddings",
+        "_convert_nodes_to_scored_nodes",
+        "_insert_fetched_nodes_into_query_result",
+        "_determine_nodes_to_fetch"
       ],
-      "latency_ms": 53.94
+      "latency_ms": 5.1
     },
     {
       "id": "Q6",
       "hops": 2,
       "query_type": "structural",
-      "question": "What methods are available to all subclasses of BaseIndex through inheritance?",
-      "hit": false,
+      "question": "What methods does BaseIndex define for its direct subclasses to inherit?",
+      "hit": true,
       "gt_count": 31,
       "gt_names": [
         "__init__",
@@ -229,19 +229,19 @@
         "as_chat_engine"
       ],
       "retrieved_names": [
-        "vectorstoreindex",
-        "treeindex",
-        "basestructstoreindex",
-        "propertygraphindex",
-        "basemanagedindex"
+        "as_chat_engine",
+        "as_query_engine",
+        "as_retriever",
+        "ref_doc_info",
+        "arefresh_ref_docs"
       ],
-      "latency_ms": 3.89
+      "latency_ms": 2.61
     },
     {
       "id": "Q7",
       "hops": 2,
       "query_type": "structural",
-      "question": "Which modules contain functions that call embed_model.get_text_embedding()?",
+      "question": "Which functions call embed_model.get_text_embedding()?",
       "hit": true,
       "gt_count": 7,
       "gt_names": [
@@ -254,20 +254,20 @@
         "upsert_triplet_and_node"
       ],
       "retrieved_names": [
-        "__init__",
-        "__init__",
-        "from_vector_store",
-        "__init__",
-        "_select"
+        "_select",
+        "_get_query_text_embedding_similarities",
+        "_get_embeddings",
+        "_retrieve",
+        "upsert_triplet_and_node"
       ],
-      "latency_ms": 9.58
+      "latency_ms": 7.1
     },
     {
       "id": "Q8",
       "hops": 2,
       "query_type": "structural",
-      "question": "What does importing QueryEngine transitively bring into the namespace?",
-      "hit": false,
+      "question": "What modules occur two import hops downstream of query_engine modules?",
+      "hit": true,
       "gt_count": 141,
       "gt_names": [
         "abc",
@@ -282,13 +282,13 @@
         "base_query_engine"
       ],
       "retrieved_names": [
-        "__call__retryqueryengine",
-        "__call__retrieverqueryengine",
-        "__call__retrysourcequeryengine",
-        "__call__nlstructstorequeryengine",
-        "__call__knowledgegraphqueryengine"
+        "base",
+        "multi_modal",
+        "jsonalyze",
+        "custom",
+        "sql_query"
       ],
-      "latency_ms": 7.55
+      "latency_ms": 6.14
     },
     {
       "id": "Q9",
@@ -316,14 +316,14 @@
         "queryfusionretriever",
         "automergingretriever"
       ],
-      "latency_ms": 2.21
+      "latency_ms": 1.43
     },
     {
       "id": "Q10",
       "hops": 2,
       "query_type": "structural",
-      "question": "Which modules depend on StorageContext and what functions do they use from it?",
-      "hit": false,
+      "question": "Which modules directly depend on `storage_context`?",
+      "hit": true,
       "gt_count": 11,
       "gt_names": [
         "__init__",
@@ -338,20 +338,20 @@
         "retrievers"
       ],
       "retrieved_names": [
-        "storage_context",
-        "simple_composable_memory",
-        "storagecontext",
-        "memory",
-        "from_dict"
+        "storage",
+        "auto_merging_retriever",
+        "knowledge_graph_query_engine",
+        "base_node_mapping",
+        "base"
       ],
-      "latency_ms": 51.24
+      "latency_ms": 1.86
     },
     {
       "id": "Q11",
       "hops": 3,
       "query_type": "structural",
       "question": "Which functions can reach retrieve() within three calls?",
-      "hit": false,
+      "hit": true,
       "gt_count": 26,
       "gt_names": [
         "__init__",
@@ -366,19 +366,19 @@
         "_query_index"
       ],
       "retrieved_names": [
-        "__call__retrieve",
-        "__call__client",
-        "__call___retrieve",
-        "__call__on_end",
-        "__call___retrieve_from_object"
+        "_query",
+        "_query",
+        "_query",
+        "retrieve",
+        "retrieve"
       ],
-      "latency_ms": 43.86
+      "latency_ms": 5.46
     },
     {
       "id": "Q12",
       "hops": 3,
       "query_type": "structural",
-      "question": "Trace the full method resolution order (MRO) for RetrieverQueryEngine.",
+      "question": "Trace the ancestor hierarchy of RetrieverQueryEngine.",
       "hit": true,
       "gt_count": 4,
       "gt_names": [
@@ -389,12 +389,12 @@
       ],
       "retrieved_names": [
         "basequeryengine",
-        "promptmixin",
-        "abc",
-        "dispatcherspanmixin",
-        "basesqltablequeryengine"
+        "basesqltablequeryengine",
+        "retrieverqueryengine",
+        "__call__retrieverqueryengine",
+        "sqltableretrieverqueryengine"
       ],
-      "latency_ms": 8.25
+      "latency_ms": 1.97
     },
     {
       "id": "Q13",
@@ -418,36 +418,36 @@
       "retrieved_names": [
         "multimodalvectorstoreindex",
         "vectorstoreindex",
-        "base",
         "vectorstoreindex",
-        "vector_store"
+        "base",
+        "vector_memory"
       ],
-      "latency_ms": 40.21
+      "latency_ms": 322.39
     },
     {
       "id": "Q14",
       "hops": 3,
       "query_type": "structural",
-      "question": "Trace all code paths from user calling index.as_query_engine() to when embeddings are generated.",
-      "hit": false,
+      "question": "Which function is the entry-point anchor for index.as_query_engine()?",
+      "hit": true,
       "gt_count": 1,
       "gt_names": [
         "as_query_engine"
       ],
       "retrieved_names": [
-        "__call___get_query_embedding",
-        "__call___get_text_embeddings_cached",
-        "__call___aget_text_embeddings_cached",
-        "__call___aget_query_embedding",
-        "__call__embeddingendevent"
+        "__call__as_query_engine",
+        "as_query_engine",
+        "as_query_engine",
+        "as_query_engine",
+        "as_query_engine"
       ],
-      "latency_ms": 38.86
+      "latency_ms": 44.68
     },
     {
       "id": "Q15",
       "hops": 3,
       "query_type": "structural",
-      "question": "What is the blast radius of renaming the nodes parameter in NodeWithScore?",
+      "question": "Which NodeWithScore methods form the class-level refactoring surface?",
       "hit": true,
       "gt_count": 11,
       "gt_names": [
@@ -464,18 +464,18 @@
       ],
       "retrieved_names": [
         "__call__nodewithscore",
+        "baseretriever",
+        "nodewithscore",
         "class_name",
-        "__call__int",
-        "__str__",
-        "metadata"
+        "__str__"
       ],
-      "latency_ms": 41.08
+      "latency_ms": 39.32
     },
     {
       "id": "Q16",
       "hops": 2,
       "query_type": "hybrid",
-      "question": "Find all classes that implement a retry or fallback mechanism and show their inheritance hierarchy.",
+      "question": "Which classes have retry or fallback in their names?",
       "hit": false,
       "gt_count": 4,
       "gt_names": [
@@ -486,18 +486,18 @@
       ],
       "retrieved_names": [
         "__call__retry_on_exceptions_with_backoff",
-        "__call__aretry_on_exceptions_with_backoff",
-        "__call__urlparse",
-        "__call__getattr",
-        "__call__raise_for_status"
+        "class_name",
+        "class_name",
+        "rerankendevent",
+        "class_name"
       ],
-      "latency_ms": 35.92
+      "latency_ms": 43.52
     },
     {
       "id": "Q17",
       "hops": 2,
       "query_type": "hybrid",
-      "question": "Which modules implement the observer pattern (event callbacks or hooks)?",
+      "question": "Which modules are named for events, callbacks, hooks, or dispatchers?",
       "hit": true,
       "gt_count": 5,
       "gt_names": [
@@ -509,18 +509,18 @@
       ],
       "retrieved_names": [
         "callbacks",
-        "llama_debug",
-        "token_counting",
         "llm",
-        "utils"
+        "llama_debug",
+        "utils",
+        "base"
       ],
-      "latency_ms": 41.28
+      "latency_ms": 44.78
     },
     {
       "id": "Q18",
       "hops": 2,
       "query_type": "hybrid",
-      "question": "Find all functions documented as async-safe and check if they share a common base class.",
+      "question": "Which async retrieve, query, embed, or generate functions use the conventional a-prefix?",
       "hit": false,
       "gt_count": 29,
       "gt_names": [
@@ -536,20 +536,20 @@
         "aget_image_embedding"
       ],
       "retrieved_names": [
-        "__call__func_async",
-        "asyncbasetool",
-        "__call__async_to_sync",
-        "__call__sync_to_async",
-        "__call__get_asyncio_module"
+        "__call__asynthesize",
+        "__call__async_acquire",
+        "__call__aselect",
+        "__call__as_retriever",
+        "_aquery"
       ],
-      "latency_ms": 34.51
+      "latency_ms": 44.31
     },
     {
       "id": "Q19",
       "hops": 3,
       "query_type": "hybrid",
-      "question": "Explain the data flow when a user submits a query: which classes are instantiated and in what order?",
-      "hit": false,
+      "question": "Which core query-engine, retriever, and synthesizer classes participate in query flow?",
+      "hit": true,
       "gt_count": 4,
       "gt_names": [
         "baseretriever",
@@ -558,19 +558,19 @@
         "vectorindexretriever"
       ],
       "retrieved_names": [
-        "basequerytransform",
-        "multistepqueryengine",
-        "__call__response",
-        "retryqueryengine",
-        "queryresponsedataset"
+        "retrieverqueryengine",
+        "retriever_query_engine",
+        "basesqltablequeryengine",
+        "retrieverrouterqueryengine",
+        "multistepqueryengine"
       ],
-      "latency_ms": 36.1
+      "latency_ms": 38.4
     },
     {
       "id": "Q20",
       "hops": 3,
       "query_type": "hybrid",
-      "question": "Which functions access the file system directly (open/read/write) and are they reachable from the public API?",
+      "question": "Which functions are named for reading, writing, loading, saving, or persistence?",
       "hit": true,
       "gt_count": 76,
       "gt_names": [
@@ -586,13 +586,818 @@
         "__call__load"
       ],
       "retrieved_names": [
-        "__call__read_file_content",
+        "__call__load",
         "__call__load_file",
         "__call__load_data",
-        "__call__localfilesystem",
-        "__call__run_jobs"
+        "__call__repeat",
+        "__call__persist"
       ],
-      "latency_ms": 36.74
+      "latency_ms": 39.06
+    },
+    {
+      "id": "Q21",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "List the methods defined directly by BaseEmbedding.",
+      "hit": true,
+      "gt_count": 21,
+      "gt_names": [
+        "__call__",
+        "_aget_query_embedding",
+        "_aget_text_embedding",
+        "_aget_text_embeddings",
+        "_aget_text_embeddings_cached",
+        "_aget_text_embeddings_rate_limited",
+        "_get_query_embedding",
+        "_get_text_embedding",
+        "_get_text_embeddings",
+        "_get_text_embeddings_cached"
+      ],
+      "retrieved_names": [
+        "acall",
+        "__call__",
+        "similarity",
+        "aget_text_embedding_batch",
+        "get_text_embedding_batch"
+      ],
+      "latency_ms": 6.56
+    },
+    {
+      "id": "Q22",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which classes are immediate subclasses of BaseQueryEngine?",
+      "hit": true,
+      "gt_count": 22,
+      "gt_names": [
+        "basesqltablequeryengine",
+        "citationqueryengine",
+        "cogniswitchqueryengine",
+        "composablegraphqueryengine",
+        "customqueryengine",
+        "flareinstructqueryengine",
+        "jsonqueryengine",
+        "knowledgegraphqueryengine",
+        "multistepqueryengine",
+        "nlstructstorequeryengine"
+      ],
+      "retrieved_names": [
+        "transformqueryengine",
+        "subquestionqueryengine",
+        "sqljoinqueryengine",
+        "toolretrieverrouterqueryengine",
+        "retrieverrouterqueryengine"
+      ],
+      "latency_ms": 6.23
+    },
+    {
+      "id": "Q23",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which modules directly depend on `settings`?",
+      "hit": true,
+      "gt_count": 60,
+      "gt_names": [
+        "__init__",
+        "answer_inserter",
+        "answer_relevancy",
+        "auto_retriever",
+        "base",
+        "base_agent",
+        "base_retriever",
+        "citation_query_engine",
+        "condense_plus_context",
+        "condense_question"
+      ],
+      "retrieved_names": [
+        "llm_selectors",
+        "embedding_selectors",
+        "router_retriever",
+        "fusion_retriever",
+        "factory"
+      ],
+      "latency_ms": 7.45
+    },
+    {
+      "id": "Q24",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which functions directly invoke get_content()?",
+      "hit": true,
+      "gt_count": 69,
+      "gt_names": [
+        "__call__",
+        "__str__",
+        "_acall_program",
+        "_add_nodes_to_index",
+        "_add_source_text",
+        "_aextract",
+        "_aextract_keywords_from_node",
+        "_aextract_questions_from_node",
+        "_agenerate_dataset",
+        "_agenerate_node_context"
+      ],
+      "retrieved_names": [
+        "get_text",
+        "__str__",
+        "acall",
+        "call",
+        "_parse_tool_output"
+      ],
+      "latency_ms": 16.98
+    },
+    {
+      "id": "Q25",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "What methods does SimpleDirectoryReader define directly?",
+      "hit": true,
+      "gt_count": 16,
+      "gt_names": [
+        "__init__",
+        "_add_files",
+        "_exclude_metadata",
+        "_is_directory",
+        "aload_data",
+        "aload_file",
+        "aload_resource",
+        "get_resource_info",
+        "is_empty_file",
+        "is_hidden"
+      ],
+      "retrieved_names": [
+        "iter_data",
+        "aload_data",
+        "load_data",
+        "aload_file",
+        "load_file"
+      ],
+      "latency_ms": 3.31
+    },
+    {
+      "id": "Q26",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which BaseQueryEngine subclasses define their own methods?",
+      "hit": false,
+      "gt_count": 22,
+      "gt_names": [
+        "basesqltablequeryengine",
+        "citationqueryengine",
+        "cogniswitchqueryengine",
+        "composablegraphqueryengine",
+        "customqueryengine",
+        "flareinstructqueryengine",
+        "jsonqueryengine",
+        "knowledgegraphqueryengine",
+        "multistepqueryengine",
+        "nlstructstorequeryengine"
+      ],
+      "retrieved_names": [
+        "_aquery",
+        "_query",
+        "asynthesize",
+        "synthesize",
+        "retrieve"
+      ],
+      "latency_ms": 2.98
+    },
+    {
+      "id": "Q27",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which subclasses of BaseNodePostprocessor override _postprocess_nodes()?",
+      "hit": false,
+      "gt_count": 16,
+      "gt_names": [
+        "autoprevnextnodepostprocessor",
+        "embeddingrecencypostprocessor",
+        "fixedrecencypostprocessor",
+        "keywordnodepostprocessor",
+        "llmrerank",
+        "longcontextreorder",
+        "metadatareplacementpostprocessor",
+        "nerpiinodepostprocessor",
+        "piinodepostprocessor",
+        "prevnextnodepostprocessor"
+      ],
+      "retrieved_names": [
+        "__call__postprocess_nodes",
+        "node",
+        "basenodepostprocessor",
+        "basenodepostprocessor",
+        "__call___postprocess_parsed_nodes"
+      ],
+      "latency_ms": 69.31
+    },
+    {
+      "id": "Q28",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which subclasses of BaseEmbedding implement _get_query_embedding()?",
+      "hit": true,
+      "gt_count": 1,
+      "gt_names": [
+        "mockembedding"
+      ],
+      "retrieved_names": [
+        "multimodalembedding",
+        "mockembedding",
+        "_get_query_embedding",
+        "_get_query_embedding",
+        "_get_query_embedding"
+      ],
+      "latency_ms": 16.77
+    },
+    {
+      "id": "Q29",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which subclasses of BaseRetriever provide _retrieve()?",
+      "hit": false,
+      "gt_count": 24,
+      "gt_names": [
+        "automergingretriever",
+        "baseautoretriever",
+        "basekeywordtableretriever",
+        "basepgretriever",
+        "documentsummaryindexembeddingretriever",
+        "documentsummaryindexllmretriever",
+        "emptyindexretriever",
+        "hotpotqaretriever",
+        "kgtableretriever",
+        "knowledgegraphragretriever"
+      ],
+      "retrieved_names": [
+        "baseretriever",
+        "baseretriever",
+        "_retrieve",
+        "baseretrievalmetric",
+        "_retrieve"
+      ],
+      "latency_ms": 72.86
+    },
+    {
+      "id": "Q30",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which BaseSynthesizer subclasses define synthesize()?",
+      "hit": false,
+      "gt_count": 1,
+      "gt_names": [
+        "generation"
+      ],
+      "retrieved_names": [
+        "basesynthesizer",
+        "__call__synthesize",
+        "basesynthesizer",
+        "synthesize",
+        "synthesize"
+      ],
+      "latency_ms": 89.88
+    },
+    {
+      "id": "Q31",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which modules depend on `storage_context` within two import hops?",
+      "hit": true,
+      "gt_count": 19,
+      "gt_names": [
+        "__init__",
+        "auto_merging_retriever",
+        "base",
+        "base_node_mapping",
+        "composability",
+        "fn_node_mapping",
+        "graph",
+        "graph_query_engine",
+        "indices",
+        "ingestion"
+      ],
+      "retrieved_names": [
+        "storage",
+        "auto_merging_retriever",
+        "retrievers",
+        "knowledge_graph_query_engine",
+        "query_engine"
+      ],
+      "latency_ms": 7.94
+    },
+    {
+      "id": "Q32",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which modules depend on base_query_engine within two import hops?",
+      "hit": true,
+      "gt_count": 42,
+      "gt_names": [
+        "base",
+        "base_retriever",
+        "batch_runner",
+        "benchmarks",
+        "chat_engine",
+        "citation_query_engine",
+        "cogniswitch_query_engine",
+        "composability",
+        "condense_question",
+        "correctness"
+      ],
+      "retrieved_names": [
+        "query_engine",
+        "tools",
+        "sub_question_query_engine",
+        "sql_vector_query_engine",
+        "sql_join_query_engine"
+      ],
+      "latency_ms": 4.35
+    },
+    {
+      "id": "Q33",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which functions can reach get_content() within two calls?",
+      "hit": true,
+      "gt_count": 96,
+      "gt_names": [
+        "__call__",
+        "__str__",
+        "_acall_program",
+        "_add_nodes_to_index",
+        "_add_source_text",
+        "_aextract",
+        "_aextract_keywords_from_node",
+        "_aextract_questions_from_node",
+        "_agenerate_dataset",
+        "_agenerate_node_context"
+      ],
+      "retrieved_names": [
+        "get_text",
+        "__str__",
+        "acall",
+        "call",
+        "_parse_tool_output"
+      ],
+      "latency_ms": 17.26
+    },
+    {
+      "id": "Q34",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "What methods does VectorStoreIndex inherit from its direct base classes?",
+      "hit": true,
+      "gt_count": 31,
+      "gt_names": [
+        "__init__",
+        "_build_index_from_nodes",
+        "_delete_node",
+        "_insert",
+        "adelete_nodes",
+        "adelete_ref_doc",
+        "ainsert",
+        "ainsert_nodes",
+        "arefresh_ref_docs",
+        "as_chat_engine"
+      ],
+      "retrieved_names": [
+        "ref_doc_info",
+        "adelete_ref_doc",
+        "_adelete_from_docstore",
+        "_adelete_from_index_struct",
+        "delete_ref_doc"
+      ],
+      "latency_ms": 6.42
+    },
+    {
+      "id": "Q35",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "What modules are imported by retriever_query_engine.py within two import hops?",
+      "hit": true,
+      "gt_count": 58,
+      "gt_names": [
+        "abc",
+        "accumulate",
+        "async_utils",
+        "base",
+        "base64",
+        "base_retriever",
+        "binascii",
+        "callbacks",
+        "collections",
+        "compact_and_refine"
+      ],
+      "retrieved_names": [
+        "types",
+        "base",
+        "events",
+        "websocket",
+        "interface"
+      ],
+      "latency_ms": 3.43
+    },
+    {
+      "id": "Q36",
+      "hops": 3,
+      "query_type": "structural",
+      "question": "Which functions can reach get_response() within three calls?",
+      "hit": true,
+      "gt_count": 11,
+      "gt_names": [
+        "_aquery",
+        "_postprocess_nodes",
+        "_query",
+        "_query_level",
+        "_query_with_selected_node",
+        "acombine_responses",
+        "build_all_context_from_documents",
+        "build_table_context_from_documents",
+        "combine_responses",
+        "get_response"
+      ],
+      "retrieved_names": [
+        "synthesize",
+        "synthesize",
+        "get_response",
+        "get_response",
+        "get_response"
+      ],
+      "latency_ms": 12.64
+    },
+    {
+      "id": "Q37",
+      "hops": 3,
+      "query_type": "structural",
+      "question": "Trace the ancestor hierarchy of AgentWorkflow up to three levels.",
+      "hit": true,
+      "gt_count": 3,
+      "gt_names": [
+        "abc",
+        "promptmixin",
+        "workflow"
+      ],
+      "retrieved_names": [
+        "promptmixin",
+        "abc",
+        "workflow",
+        "abcmeta",
+        "workflowmeta"
+      ],
+      "latency_ms": 5.22
+    },
+    {
+      "id": "Q38",
+      "hops": 3,
+      "query_type": "structural",
+      "question": "Which modules transitively depend on async_utils within three imports?",
+      "hit": true,
+      "gt_count": 142,
+      "gt_names": [
+        "__init__",
+        "accumulate",
+        "agent",
+        "answer_inserter",
+        "answer_relevancy",
+        "auto_retriever",
+        "base",
+        "base_agent",
+        "base_element",
+        "base_retriever"
+      ],
+      "retrieved_names": [
+        "function_tool",
+        "base",
+        "base",
+        "ondemand_loader_tool",
+        "tools"
+      ],
+      "latency_ms": 2.77
+    },
+    {
+      "id": "Q39",
+      "hops": 3,
+      "query_type": "structural",
+      "question": "Which functions are reachable from as_query_engine() within three calls?",
+      "hit": true,
+      "gt_count": 17,
+      "gt_names": [
+        "__call__as_query_engine",
+        "__call__cast",
+        "__call__class_name",
+        "__call__composablegraphqueryengine",
+        "__call__from_args",
+        "__call__isinstance",
+        "__call__list",
+        "__call__multimodalvectorindexretriever",
+        "__call__nlstructstorequeryengine",
+        "__call__resolve_llm"
+      ],
+      "retrieved_names": [
+        "__call__from_args",
+        "__call__resolve_llm",
+        "as_retriever",
+        "__call__super",
+        "__call__valueerror"
+      ],
+      "latency_ms": 5.74
+    },
+    {
+      "id": "Q40",
+      "hops": 3,
+      "query_type": "structural",
+      "question": "Which functions are called by query() within three calls?",
+      "hit": true,
+      "gt_count": 23,
+      "gt_names": [
+        "__call__append",
+        "__call__as_trace",
+        "__call__build_metadata_filter_fn",
+        "__call__cast",
+        "__call__event",
+        "__call__get",
+        "__call__get_top_k_embeddings",
+        "__call__get_top_k_embeddings_learner",
+        "__call__get_top_k_mmr_embeddings",
+        "__call__isinstance"
+      ],
+      "retrieved_names": [
+        "__call__notimplementederror",
+        "custom_query",
+        "__call__response",
+        "__call__as_trace",
+        "__call__isinstance"
+      ],
+      "latency_ms": 8.32
+    },
+    {
+      "id": "Q41",
+      "hops": 1,
+      "query_type": "semantic",
+      "question": "Which classes represent streaming behavior?",
+      "hit": true,
+      "gt_count": 11,
+      "gt_names": [
+        "agentstream",
+        "agentstreamstructuredoutput",
+        "asyncstreamingresponse",
+        "mockllmwithnonyieldingchatstream",
+        "streamchatdeltareceivedevent",
+        "streamchatendevent",
+        "streamchaterrorevent",
+        "streamchatstartevent",
+        "streamingagentchatresponse",
+        "streaminggeneratorcallbackhandler"
+      ],
+      "retrieved_names": [
+        "__call__streamingresponse",
+        "streamingagentchatresponse",
+        "streamingresponse",
+        "__call__process_streaming_objects",
+        "streaming_utils"
+      ],
+      "latency_ms": 46.66
+    },
+    {
+      "id": "Q42",
+      "hops": 1,
+      "query_type": "hybrid",
+      "question": "Which functions implement retry or fallback behavior?",
+      "hit": true,
+      "gt_count": 9,
+      "gt_names": [
+        "__call__aretry_on_exceptions_with_backoff",
+        "__call__retry_on_exceptions_with_backoff",
+        "__call__retryguidelinequeryengine",
+        "__call__retryqueryengine",
+        "__call__retrysourcequeryengine",
+        "_aextract_with_retry",
+        "aretry_on_exceptions_with_backoff",
+        "get_retry_on_exceptions_with_backoff_decorator",
+        "retry_on_exceptions_with_backoff"
+      ],
+      "retrieved_names": [
+        "__call__retry_on_exceptions_with_backoff",
+        "__call__check_fn",
+        "__call__aretry_on_exceptions_with_backoff",
+        "__call__raise_for_status",
+        "__call__download"
+      ],
+      "latency_ms": 44.03
+    },
+    {
+      "id": "Q43",
+      "hops": 1,
+      "query_type": "semantic",
+      "question": "Which modules are named for callbacks, hooks, events, or dispatchers?",
+      "hit": true,
+      "gt_count": 5,
+      "gt_names": [
+        "callbacks",
+        "dispatcher",
+        "event_handlers",
+        "events",
+        "workflow_events"
+      ],
+      "retrieved_names": [
+        "callbacks",
+        "llm",
+        "llama_debug",
+        "utils",
+        "base"
+      ],
+      "latency_ms": 40.85
+    },
+    {
+      "id": "Q44",
+      "hops": 1,
+      "query_type": "semantic",
+      "question": "Which a-prefixed functions perform asynchronous chat or completion work?",
+      "hit": false,
+      "gt_count": 15,
+      "gt_names": [
+        "achat",
+        "achat_to_completion_decorator",
+        "achat_with_tools",
+        "acomplete",
+        "acompletion_to_chat_decorator",
+        "as_chat_engine",
+        "astream_chat",
+        "astream_chat_response_to_completion_response",
+        "astream_chat_response_to_tokens",
+        "astream_chat_to_completion_decorator"
+      ],
+      "retrieved_names": [
+        "__call__astream_completion_response_to_chat_response",
+        "__call__astream_chat_response_to_completion_response",
+        "__call__completion_response_to_chat_response",
+        "__call__astream_chat",
+        "__call__chat_response_to_completion_response"
+      ],
+      "latency_ms": 44.77
+    },
+    {
+      "id": "Q45",
+      "hops": 1,
+      "query_type": "semantic",
+      "question": "Which functions are explicitly named for persistence or saving?",
+      "hit": true,
+      "gt_count": 12,
+      "gt_names": [
+        "__call__from_namespaced_persist_dir",
+        "__call__from_persist_dir",
+        "__call__from_persist_path",
+        "__call__persist",
+        "__call__save",
+        "from_namespaced_persist_dir",
+        "from_persist_dir",
+        "from_persist_path",
+        "persist",
+        "save_embedding"
+      ],
+      "retrieved_names": [
+        "__call__persist",
+        "__call__from_persist_path",
+        "__call__from_persist_dir",
+        "__call__endswith",
+        "persist"
+      ],
+      "latency_ms": 46.34
+    },
+    {
+      "id": "Q46",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "For the class BaseRetriever—not similarly named modules—which methods does it define?",
+      "hit": true,
+      "gt_count": 13,
+      "gt_names": [
+        "__init__",
+        "_ahandle_recursive_retrieval",
+        "_aretrieve",
+        "_aretrieve_from_object",
+        "_check_callback_manager",
+        "_get_prompt_modules",
+        "_get_prompts",
+        "_handle_recursive_retrieval",
+        "_retrieve",
+        "_retrieve_from_object"
+      ],
+      "retrieved_names": [
+        "_aretrieve",
+        "_retrieve",
+        "aretrieve",
+        "retrieve",
+        "_ahandle_recursive_retrieval"
+      ],
+      "latency_ms": 7.7
+    },
+    {
+      "id": "Q47",
+      "hops": 2,
+      "query_type": "structural",
+      "question": "Which direct subclasses of BaseRetriever override the private _retrieve method?",
+      "hit": true,
+      "gt_count": 24,
+      "gt_names": [
+        "automergingretriever",
+        "baseautoretriever",
+        "basekeywordtableretriever",
+        "basepgretriever",
+        "documentsummaryindexembeddingretriever",
+        "documentsummaryindexllmretriever",
+        "emptyindexretriever",
+        "hotpotqaretriever",
+        "kgtableretriever",
+        "knowledgegraphragretriever"
+      ],
+      "retrieved_names": [
+        "transformretriever",
+        "routerretriever",
+        "recursiveretriever",
+        "queryfusionretriever",
+        "automergingretriever"
+      ],
+      "latency_ms": 6.8
+    },
+    {
+      "id": "Q48",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which methods are defined on the StorageContext class itself?",
+      "hit": true,
+      "gt_count": 6,
+      "gt_names": [
+        "add_vector_store",
+        "from_defaults",
+        "from_dict",
+        "persist",
+        "to_dict",
+        "vector_store"
+      ],
+      "retrieved_names": [
+        "add_vector_store",
+        "vector_store",
+        "from_dict",
+        "to_dict",
+        "persist"
+      ],
+      "latency_ms": 4.91
+    },
+    {
+      "id": "Q49",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which functions call either public retrieve() or private _retrieve() directly?",
+      "hit": true,
+      "gt_count": 15,
+      "gt_names": [
+        "_aquery",
+        "_aretrieve",
+        "_get_nodes",
+        "_get_table_context",
+        "_load_get_tables_fn",
+        "_query",
+        "_query_index",
+        "_retrieve",
+        "_retrieve_from_object",
+        "_retrieve_rec"
+      ],
+      "retrieved_names": [
+        "_query",
+        "_query",
+        "_query",
+        "retrieve",
+        "retrieve"
+      ],
+      "latency_ms": 17.2
+    },
+    {
+      "id": "Q50",
+      "hops": 1,
+      "query_type": "structural",
+      "question": "Which modules in this repository directly depend on base_retriever?",
+      "hit": true,
+      "gt_count": 29,
+      "gt_names": [
+        "all_leaf_retriever",
+        "auto_merging_retriever",
+        "auto_retriever",
+        "base",
+        "base_auto_retriever",
+        "base_multi_modal_retriever",
+        "base_retriever",
+        "beir",
+        "citation_query_engine",
+        "condense_plus_context"
+      ],
+      "retrieved_names": [
+        "retriever_tool",
+        "transform_retriever",
+        "router_retriever",
+        "recursive_retriever",
+        "auto_merging_retriever"
+      ],
+      "latency_ms": 4.74
     }
   ],
   "vector_per_query": [
@@ -609,7 +1414,7 @@
         "baseretrievalevaluator",
         "baseretriever"
       ],
-      "latency_ms": 38.83
+      "latency_ms": 65.51
     },
     {
       "id": "Q2",
@@ -624,7 +1429,7 @@
         "query_engine",
         "auto_retriever"
       ],
-      "latency_ms": 36.02
+      "latency_ms": 43.91
     },
     {
       "id": "Q3",
@@ -639,7 +1444,7 @@
         "retriever",
         "__call__retrieve"
       ],
-      "latency_ms": 38.01
+      "latency_ms": 50.81
     },
     {
       "id": "Q4",
@@ -654,7 +1459,7 @@
         "basenode",
         "generation"
       ],
-      "latency_ms": 40.68
+      "latency_ms": 50.01
     },
     {
       "id": "Q5",
@@ -666,25 +1471,25 @@
         "similarity_top_k",
         "similarity_top_k",
         "image_similarity_top_k",
-        "__init__",
-        "__call__vectorindexretriever"
+        "__call__vectorindexretriever",
+        "multimodalretriever"
       ],
-      "latency_ms": 43.07
+      "latency_ms": 48.19
     },
     {
       "id": "Q6",
       "hops": 2,
       "query_type": "structural",
-      "hit": true,
+      "hit": false,
       "gt_count": 31,
       "retrieved_names": [
-        "as_retriever",
-        "base",
-        "base",
         "basenode",
-        "base"
+        "base",
+        "base",
+        "basestructstoreindex",
+        "basenode"
       ],
-      "latency_ms": 37.71
+      "latency_ms": 51.71
     },
     {
       "id": "Q7",
@@ -693,13 +1498,13 @@
       "hit": false,
       "gt_count": 7,
       "retrieved_names": [
-        "mock_embed_model",
         "_get_text_embedding",
         "_get_text_embedding",
-        "vector",
-        "embeddings"
+        "__call___get_text_embedding",
+        "__call___get_text_embeddings",
+        "__call___get_text_embedding"
       ],
-      "latency_ms": 32.32
+      "latency_ms": 44.04
     },
     {
       "id": "Q8",
@@ -708,13 +1513,13 @@
       "hit": true,
       "gt_count": 141,
       "retrieved_names": [
-        "query_engine",
-        "query_engine",
-        "sqljoinqueryengine",
-        "__call__insert_datapoint_from_nodes",
-        "__call__nlstructstorequeryengine"
+        "jsonalyze",
+        "multistep_query_engine",
+        "multistep_query_engine",
+        "schema",
+        "pandas"
       ],
-      "latency_ms": 36.78
+      "latency_ms": 45.5
     },
     {
       "id": "Q9",
@@ -729,7 +1534,7 @@
         "retriever",
         "baseretriever"
       ],
-      "latency_ms": 45.78
+      "latency_ms": 46.48
     },
     {
       "id": "Q10",
@@ -742,9 +1547,9 @@
         "storage_context",
         "storage_context",
         "storage_context",
-        "storagecontext"
+        "container_builder"
       ],
-      "latency_ms": 46.1
+      "latency_ms": 48.01
     },
     {
       "id": "Q11",
@@ -759,7 +1564,7 @@
         "__call__retrieve",
         "__call__retrieve"
       ],
-      "latency_ms": 51.18
+      "latency_ms": 44.73
     },
     {
       "id": "Q12",
@@ -768,13 +1573,13 @@
       "hit": false,
       "gt_count": 4,
       "retrieved_names": [
-        "retrieverrouterqueryengine",
         "with_retriever",
-        "compute",
-        "retriever",
-        "retriever"
+        "retrieverrouterqueryengine",
+        "__call__retrieverqueryengine",
+        "recursiveretriever",
+        "retrieve"
       ],
-      "latency_ms": 48.85
+      "latency_ms": 42.6
     },
     {
       "id": "Q13",
@@ -789,22 +1594,22 @@
         "multi_modal",
         "retriever"
       ],
-      "latency_ms": 47.61
+      "latency_ms": 41.72
     },
     {
       "id": "Q14",
       "hops": 3,
       "query_type": "structural",
-      "hit": false,
+      "hit": true,
       "gt_count": 1,
       "retrieved_names": [
-        "__call__get_query_embedding",
-        "__call___get_query_embedding",
-        "__call__dot",
-        "__call___aget_query_embedding",
-        "__call___get_query_embedding"
+        "as_query_engine",
+        "as_query_engine",
+        "__call__as_query_engine",
+        "__call__as_query_engine",
+        "__call__as_query_engine"
       ],
-      "latency_ms": 51.66
+      "latency_ms": 47.98
     },
     {
       "id": "Q15",
@@ -814,27 +1619,27 @@
       "gt_count": 11,
       "retrieved_names": [
         "class_name",
+        "nodewithscore",
         "__call__nodewithscore",
-        "__call__int",
         "__call__nodewithscore",
-        "__call__nodewithscore"
+        "__str__"
       ],
-      "latency_ms": 47.56
+      "latency_ms": 46.41
     },
     {
       "id": "Q16",
       "hops": 2,
       "query_type": "hybrid",
-      "hit": true,
+      "hit": false,
       "gt_count": 4,
       "retrieved_names": [
-        "errortoretry",
-        "retryqueryengine",
-        "retrysourcequeryengine",
-        "get_retry_on_exceptions_with_backoff_decorator",
-        "__init__"
+        "class_name",
+        "class_name",
+        "rerankendevent",
+        "class_name",
+        "class_name"
       ],
-      "latency_ms": 39.2
+      "latency_ms": 38.39
     },
     {
       "id": "Q17",
@@ -843,13 +1648,13 @@
       "hit": true,
       "gt_count": 5,
       "retrieved_names": [
+        "events",
         "event_handlers",
-        "llama_debug",
         "callbacks",
-        "llama_debug",
-        "utils"
+        "dispatcher",
+        "callbacks"
       ],
-      "latency_ms": 48.02
+      "latency_ms": 39.34
     },
     {
       "id": "Q18",
@@ -858,28 +1663,28 @@
       "hit": false,
       "gt_count": 29,
       "retrieved_names": [
-        "async_fn",
-        "__call__async_fn",
-        "basetoolasyncadapter",
-        "asyncio_module",
-        "__call__get_default"
+        "_aquery",
+        "__call___run_async_queries",
+        "__call__asynthesize",
+        "asynthesize",
+        "__call__asynthesize"
       ],
-      "latency_ms": 38.84
+      "latency_ms": 37.38
     },
     {
       "id": "Q19",
       "hops": 3,
       "query_type": "hybrid",
-      "hit": false,
+      "hit": true,
       "gt_count": 4,
       "retrieved_names": [
-        "queryresponsedataset",
-        "basequerytransform",
-        "getresponsestartevent",
-        "response",
-        "querytask"
+        "retrieverqueryengine",
+        "retrieverrouterqueryengine",
+        "retrieverqueryengine",
+        "retrieverqueryengine",
+        "multistepqueryengine"
       ],
-      "latency_ms": 45.55
+      "latency_ms": 40.72
     },
     {
       "id": "Q20",
@@ -888,13 +1693,463 @@
       "hit": true,
       "gt_count": 76,
       "retrieved_names": [
-        "read_file_content",
-        "__call__read_file_content",
-        "__call__read_file_content",
+        "__call__load",
         "__call__load_file",
-        "__call__run_jobs"
+        "__call__load_data",
+        "__call__list",
+        "__call__open"
       ],
-      "latency_ms": 37.66
+      "latency_ms": 45.88
+    },
+    {
+      "id": "Q21",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 21,
+      "retrieved_names": [
+        "__call__",
+        "_get_text_embeddings",
+        "_get_text_embedding",
+        "baseembedding",
+        "base"
+      ],
+      "latency_ms": 49.41
+    },
+    {
+      "id": "Q22",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 22,
+      "retrieved_names": [
+        "basequeryengine",
+        "subquestionqueryengine",
+        "basequeryengine",
+        "basequeryengine",
+        "basequeryengine"
+      ],
+      "latency_ms": 46.04
+    },
+    {
+      "id": "Q23",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 60,
+      "retrieved_names": [
+        "pydantic_settings",
+        "settings",
+        "settings",
+        "settings",
+        "settings"
+      ],
+      "latency_ms": 44.41
+    },
+    {
+      "id": "Q24",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 69,
+      "retrieved_names": [
+        "get_content",
+        "get_content",
+        "get_content",
+        "get_content",
+        "get_content"
+      ],
+      "latency_ms": 49.75
+    },
+    {
+      "id": "Q25",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 16,
+      "retrieved_names": [
+        "simpledirectoryreader",
+        "simpledirectoryreader",
+        "simpledirectoryreader",
+        "simpledirectoryreader",
+        "simpledirectoryreader"
+      ],
+      "latency_ms": 46.22
+    },
+    {
+      "id": "Q26",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 22,
+      "retrieved_names": [
+        "basequeryengine",
+        "subquestionqueryengine",
+        "basequeryengine",
+        "basequeryengine",
+        "basequeryengine"
+      ],
+      "latency_ms": 51.45
+    },
+    {
+      "id": "Q27",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 16,
+      "retrieved_names": [
+        "_postprocess_nodes",
+        "postprocess_nodes",
+        "basenodepostprocessor",
+        "node_postprocessors",
+        "_apostprocess_nodes"
+      ],
+      "latency_ms": 43.54
+    },
+    {
+      "id": "Q28",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 1,
+      "retrieved_names": [
+        "_get_query_embedding",
+        "baseembedding",
+        "base",
+        "get_agg_embedding_from_queries",
+        "_get_query_embedding"
+      ],
+      "latency_ms": 41.66
+    },
+    {
+      "id": "Q29",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 24,
+      "retrieved_names": [
+        "_retrieve",
+        "baseretriever",
+        "retriever",
+        "baseretriever",
+        "_get_prompts"
+      ],
+      "latency_ms": 51.75
+    },
+    {
+      "id": "Q30",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 1,
+      "retrieved_names": [
+        "synthesize",
+        "__call__synthesize",
+        "synthesize",
+        "basesynthesizer",
+        "basesynthesizer"
+      ],
+      "latency_ms": 39.73
+    },
+    {
+      "id": "Q31",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 19,
+      "retrieved_names": [
+        "storage",
+        "loading",
+        "chat_store",
+        "storage_context",
+        "storage_context"
+      ],
+      "latency_ms": 48.08
+    },
+    {
+      "id": "Q32",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 42,
+      "retrieved_names": [
+        "base",
+        "multistep_query_engine",
+        "base_query_engine",
+        "retriever_query_engine",
+        "multistep_query_engine"
+      ],
+      "latency_ms": 51.29
+    },
+    {
+      "id": "Q33",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 96,
+      "retrieved_names": [
+        "__call__get_content",
+        "get_content",
+        "__call__get_content",
+        "__call__get_content",
+        "__call__get_content"
+      ],
+      "latency_ms": 44.1
+    },
+    {
+      "id": "Q34",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 31,
+      "retrieved_names": [
+        "vectorstoreindex",
+        "basepydanticvectorstore",
+        "from_vector_store",
+        "baseautoretriever",
+        "vectorstoreindex"
+      ],
+      "latency_ms": 43.52
+    },
+    {
+      "id": "Q35",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 58,
+      "retrieved_names": [
+        "retrievers",
+        "retriever_query_engine",
+        "jsonalyze",
+        "_get_prompt_modules",
+        "pandas"
+      ],
+      "latency_ms": 37.7
+    },
+    {
+      "id": "Q36",
+      "hops": 3,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 11,
+      "retrieved_names": [
+        "__call__get_response",
+        "__call__get_response",
+        "get_response",
+        "__call___prepare_response_output",
+        "get_responses"
+      ],
+      "latency_ms": 43.3
+    },
+    {
+      "id": "Q37",
+      "hops": 3,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 3,
+      "retrieved_names": [
+        "agentworkflowmeta",
+        "agentworkflow",
+        "workflow",
+        "__call__agentinput",
+        "run_agent_step"
+      ],
+      "latency_ms": 49.84
+    },
+    {
+      "id": "Q38",
+      "hops": 3,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 142,
+      "retrieved_names": [
+        "get_asyncio_module",
+        "__call__get_asyncio_module",
+        "asyncio_module",
+        "__call__get_asyncio_module",
+        "async_utils"
+      ],
+      "latency_ms": 43.6
+    },
+    {
+      "id": "Q39",
+      "hops": 3,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 17,
+      "retrieved_names": [
+        "__call__as_query_engine",
+        "__call__aselect",
+        "__call__aselect",
+        "__call__as_trace",
+        "__call__as_query_engine"
+      ],
+      "latency_ms": 42.85
+    },
+    {
+      "id": "Q40",
+      "hops": 3,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 23,
+      "retrieved_names": [
+        "__call___query_multistep",
+        "__call___query_multistep",
+        "__call___combine_queries",
+        "__call___query_multistep",
+        "__call___wrap_query"
+      ],
+      "latency_ms": 45.76
+    },
+    {
+      "id": "Q41",
+      "hops": 1,
+      "query_type": "semantic",
+      "hit": true,
+      "gt_count": 11,
+      "retrieved_names": [
+        "streamingresponse",
+        "__call__streamingresponse",
+        "streaming_utils",
+        "promptmixin",
+        "streamingagentchatresponse"
+      ],
+      "latency_ms": 40.78
+    },
+    {
+      "id": "Q42",
+      "hops": 1,
+      "query_type": "hybrid",
+      "hit": true,
+      "gt_count": 9,
+      "retrieved_names": [
+        "__call__retry_on_exceptions_with_backoff",
+        "retry_on_exceptions_with_backoff",
+        "__call__retry_on_exceptions_with_backoff",
+        "get_retry_on_exceptions_with_backoff_decorator",
+        "__call__raise_for_status"
+      ],
+      "latency_ms": 38.67
+    },
+    {
+      "id": "Q43",
+      "hops": 1,
+      "query_type": "semantic",
+      "hit": true,
+      "gt_count": 5,
+      "retrieved_names": [
+        "callbacks",
+        "callbacks",
+        "dispatcher",
+        "utils",
+        "event_handlers"
+      ],
+      "latency_ms": 38.22
+    },
+    {
+      "id": "Q44",
+      "hops": 1,
+      "query_type": "semantic",
+      "hit": true,
+      "gt_count": 15,
+      "retrieved_names": [
+        "astream_completion_to_chat_decorator",
+        "astream_chat_to_completion_decorator",
+        "__call__astream_completion_response_to_chat_response",
+        "__call__astream_chat_response_to_completion_response",
+        "__call__chat_to_completion_decorator"
+      ],
+      "latency_ms": 43.58
+    },
+    {
+      "id": "Q45",
+      "hops": 1,
+      "query_type": "semantic",
+      "hit": true,
+      "gt_count": 12,
+      "retrieved_names": [
+        "__call__endswith",
+        "__call__persist",
+        "__call__from_persist_path",
+        "__call__from_persist_dir",
+        "persist"
+      ],
+      "latency_ms": 35.5
+    },
+    {
+      "id": "Q46",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 13,
+      "retrieved_names": [
+        "baseretriever",
+        "baseretrievalevaluator",
+        "base",
+        "basereasoningstep",
+        "base_retriever"
+      ],
+      "latency_ms": 38.39
+    },
+    {
+      "id": "Q47",
+      "hops": 2,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 24,
+      "retrieved_names": [
+        "base_retriever",
+        "_retrieve",
+        "retriever",
+        "retriever",
+        "baseretriever"
+      ],
+      "latency_ms": 39.81
+    },
+    {
+      "id": "Q48",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 6,
+      "retrieved_names": [
+        "storage",
+        "storagecontext",
+        "storagecontext",
+        "storagecontext",
+        "storage_context"
+      ],
+      "latency_ms": 39.49
+    },
+    {
+      "id": "Q49",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": false,
+      "gt_count": 15,
+      "retrieved_names": [
+        "retriever",
+        "retriever",
+        "__call__retrieve",
+        "retriever",
+        "__call__retrieve"
+      ],
+      "latency_ms": 40.64
+    },
+    {
+      "id": "Q50",
+      "hops": 1,
+      "query_type": "structural",
+      "hit": true,
+      "gt_count": 29,
+      "retrieved_names": [
+        "base_retriever",
+        "base_retriever",
+        "base",
+        "base_retriever",
+        "_get_prompt_modules"
+      ],
+      "latency_ms": 49.09
     }
   ],
   "ragas": null

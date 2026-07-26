@@ -1,7 +1,7 @@
 """
 Full evaluation pipeline: Hit Rate + RAGAS + Latency benchmarks.
 
-Runs all 20 queries from the eval corpus against the live Hybrid-RAG system,
+Runs all 50 queries from the eval corpus against the live Hybrid-RAG system,
 measures hit rate per hop-category, RAGAS quality scores, and latency breakdown.
 
 Outputs:

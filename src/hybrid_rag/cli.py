@@ -384,12 +384,12 @@ def eval(
         [],
         "--query",
         "-q",
-        help="Run only these query IDs (e.g. Q4 Q9). Defaults to full Q1-Q20 corpus (diagnostic mode only).",
+        help="Run only these query IDs (e.g. Q4 Q29). Defaults to full Q1-Q50 corpus (diagnostic mode only).",
     ),
     mode: str = typer.Option(
         "diagnostic",
         "--mode",
-        help="Evaluation mode: 'diagnostic' (default structural/hybrid Q1-Q20) or 'repoqa' (Searching Needle Function).",
+        help="Evaluation mode: 'diagnostic' (default structural/hybrid Q1-Q50) or 'repoqa' (Searching Needle Function).",
     ),
     benchmark_path: Path = typer.Option(
         None,
@@ -628,7 +628,7 @@ def eval(
 
     # ── Rich results table ────────────────────────────────────────────────────
     console.print()
-    tbl = Table(title="Q1-Q20 Evaluation Results", show_lines=True)
+    tbl = Table(title=f"Q1-Q{len(corpus)} Evaluation Results", show_lines=True)
     tbl.add_column("ID", style="bold", width=4)
     tbl.add_column("Hops", justify="center", width=5)
     tbl.add_column("Type", width=11)
@@ -861,7 +861,7 @@ def bench(
     n_runs: int = typer.Option(5, help="Timed runs per query."),
     top_k: int = typer.Option(20, help="Retrieval candidates (match production config)."),
     corpus: bool = typer.Option(
-        False, "--corpus", help="Use Q1-Q20 corpus instead of default queries."
+        False, "--corpus", help="Use Q1-Q50 corpus instead of default queries."
     ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),

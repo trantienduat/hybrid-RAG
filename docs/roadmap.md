@@ -9,7 +9,7 @@ Reflects thesis milestones. Updated as work progresses.
 | Item | Status |
 |------|--------|
 | Smoke test (FalkorDB, Qdrant, Ollama) | ✅ Done |
-| 20 multi-hop test queries | ✅ Done |
+| 50 diagnostic retrieval queries | ✅ Done |
 | KG schema v0.1 | ✅ Done |
 | Architecture data flow | ✅ Done |
 | Project structure init | ✅ Done |
@@ -70,7 +70,7 @@ Reflects thesis milestones. Updated as work progresses.
 | `retrieval/vector_retriever.py` — Qdrant semantic search | #22 | ✅ |
 | `retrieval/rrf.py` — Reciprocal Rank Fusion merger | #23 | ✅ |
 | `retrieval/context_assembler.py` — format context for LLM | #24 | ✅ |
-| Baseline evaluation: Vector-only vs Hybrid on Q1–Q20 | #25 | ✅ |
+| Baseline evaluation: Vector-only vs Hybrid on Q1–Q50 | #25 | ✅ |
 | Tune RRF k + weights | #26 | ✅ |
 
 **M3 Done When:** Hybrid outperforms vector-only by ΔHitRate ≥ +0.20 on 2-3 hop queries (Q11–Q15).

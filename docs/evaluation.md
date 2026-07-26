@@ -2,7 +2,7 @@
 
 Target codebase for queries: **LlamaIndex** (Python, high modularity, deep hierarchies)
 
-The Q1-Q20 corpus is a **diagnostic graph benchmark**. Its ground truth is
+The Q1-Q50 corpus is a **diagnostic graph benchmark**. Its ground truth is
 computed from repository-scoped Cypher and therefore validates retrieval over
 the indexed graph, not the completeness of that graph. A run is rejected if
 any case has empty ground truth or if FalkorDB and Qdrant provenance differs.
@@ -53,10 +53,9 @@ Each query is tagged with:
 - Baseline: very weak
 
 ### Q5 — Variable usage
-> "Where is the `similarity_top_k` parameter used inside `VectorIndexRetriever`?"
+> "Which methods are defined on `VectorIndexRetriever`, where `similarity_top_k` is configured?"
 
-- Hops: 1
-- Path: `(:Class {name:"VectorIndexRetriever"})-[:DEFINES]->(:Function)-[:USES]->(:Variable {name:"similarity_top_k"})`
+- Path: `(:Class {name:"VectorIndexRetriever"})-[:DEFINES]->(:Function)`
 - Type: structural
 - Baseline: partial
 
@@ -65,7 +64,7 @@ Each query is tagged with:
 ## 2-Hop Queries
 
 ### Q6 — Transitive inheritance
-> "What methods are available to all subclasses of `BaseIndex` through inheritance?"
+> "What methods does `BaseIndex` define for its direct subclasses to inherit?"
 
 - Hops: 2
 - Path: `(:Class)-[:INHERITS]->(:Class {name:"BaseIndex"})-[:DEFINES]->(:Function)`
@@ -73,15 +72,14 @@ Each query is tagged with:
 - Baseline: very weak
 
 ### Q7 — Indirect callers
-> "Which modules contain functions that call `embed_model.get_text_embedding()`?"
+> "Which functions call `embed_model.get_text_embedding()`?"
 
-- Hops: 2
-- Path: `(:Function)-[:CALLS]->(:Function {name:"get_text_embedding"})<-[:DEFINES]-(:Class)-[:DEFINED_IN]->(:Module)`
+- Path: `(:Function)-[:CALLS]->(:Function {name:"get_text_embedding"})`
 - Type: structural
 - Baseline: weak
 
 ### Q8 — Import chain
-> "What does importing `QueryEngine` transitively bring into the namespace?"
+> "What modules occur two import hops downstream of `query_engine` modules?"
 
 - Hops: 2
 - Path: `(:Module)-[:IMPORTS]->(:Module)-[:IMPORTS]->(:Module)` filtered by `QueryEngine`
@@ -97,12 +95,11 @@ Each query is tagged with:
 - Baseline: very weak
 
 ### Q10 — Cross-module dependency
-> "Which modules depend on `StorageContext` and what functions do they use from it?"
+> "Which modules directly depend on `storage_context`?"
 
-- Hops: 2
-- Path: `(:Module)-[:IMPORTS]->(:Module {name:"storage_context"})`, then `(:Function)-[:USES]->(:Class {name:"StorageContext"})`
-- Type: structural + semantic
-- Baseline: partial on semantic, fails on structural
+- Path: `(:Module)-[:IMPORTS]->(:Module {name:"storage_context"})`
+- Type: structural
+- Baseline: partial
 
 ---
 
@@ -117,7 +114,7 @@ Each query is tagged with:
 - Baseline: fails
 
 ### Q12 — Deep inheritance chain
-> "Trace the full method resolution order (MRO) for `RetrieverQueryEngine`."
+> "Trace the ancestor hierarchy of `RetrieverQueryEngine`."
 
 - Hops: 3+
 - Path: `(:Class)-[:INHERITS]->(:Class)-[:INHERITS]->...` chain up to root
@@ -133,19 +130,17 @@ Each query is tagged with:
 - Baseline: fails
 - Note: wheel distributions do not contain the upstream test suite
 
-### Q14 — Cross-cutting concern
-> "Trace all code paths from user calling `index.as_query_engine()` to when embeddings are generated."
+### Q14 — Entry-point anchor
+> "Which function is the entry-point anchor for `index.as_query_engine()`?"
 
-- Hops: 3+
-- Path: `as_query_engine()-[:CALLS]->...-[:CALLS]->embed_model.get_text_embedding()`
+- Path: `(:Function {name:"as_query_engine"})`
 - Type: structural
-- Baseline: fails
+- Baseline: partial
 
 ### Q15 — Refactor safety
-> "What is the blast radius of renaming the `nodes` parameter in `NodeWithScore`?"
+> "Which `NodeWithScore` methods form the class-level refactoring surface?"
 
-- Hops: 3
-- Path: `(:Class {name:"NodeWithScore"})-[:DEFINES]->(:Function)-[:CALLED_BY]->(:Function)-[:DEFINED_IN]->(:Module)`
+- Path: `(:Class {name:"NodeWithScore"})-[:DEFINES]->(:Function)`
 - Type: structural
 - Baseline: fails
 
@@ -154,39 +149,54 @@ Each query is tagged with:
 ## Semantic / Hybrid Queries (Vector + Graph)
 
 ### Q16 — Concept + structure
-> "Find all classes that implement a retry or fallback mechanism and show their inheritance hierarchy."
+> "Which classes have retry or fallback in their names?"
 
-- Hops: 2 (graph for hierarchy) + semantic search for "retry/fallback"
+- Oracle: matching class names
 - Type: hybrid
 - Baseline: semantic finds some, misses structural relationship
 
 ### Q17 — Pattern detection
-> "Which modules implement the observer pattern (event callbacks or hooks)?"
+> "Which modules are named for events, callbacks, hooks, or dispatchers?"
 
-- Hops: 1-2 + semantic
+- Oracle: matching module names
 - Type: hybrid
 - Baseline: partial via semantic
 
-### Q18 — Docstring + structure
-> "Find all functions documented as 'async-safe' and check if they share a common base class."
+### Q18 — Async naming convention
+> "Which async retrieve, query, embed, or generate functions use the conventional a-prefix?"
 
-- Hops: 2 (semantic for docstring, graph for base class)
+- Hops: 1 naming lookup
 - Type: hybrid
 - Baseline: partial
 
-### Q19 — Architecture query
-> "Explain the data flow when a user submits a query: which classes are instantiated and in what order?"
+### Q19 — Query pipeline membership
+> "Which core query-engine, retriever, and synthesizer classes participate in query flow?"
 
-- Hops: N (full call graph from entry point)
+- Oracle: unordered membership in the core query pipeline
 - Type: hybrid (semantic for explanation, graph for path)
-- Baseline: weak, hallucinates ordering
+- Baseline: partial
 
-### Q20 — Privacy/security audit
-> "Which functions access the file system directly (open/read/write) and are they reachable from the public API?"
+### Q20 — Persistence naming
+> "Which functions are named for reading, writing, loading, saving, or persistence?"
 
-- Hops: 3+ (graph: public API → call chain → fs functions) + semantic: identify fs calls
+- Oracle: matching function names
 - Type: hybrid
-- Baseline: fails on reachability
+- Baseline: partial
+
+---
+
+## Extended Coverage (Q21-Q50)
+
+| IDs | Cases | Focus |
+|-----|------:|-------|
+| Q21-Q25 | 5 | Additional direct `DEFINES`, `INHERITS`, `IMPORTS`, and `CALLS` |
+| Q26-Q35 | 10 | Composed and bounded two-hop structural traversal |
+| Q36-Q40 | 5 | Three-hop call, import, and inheritance traversal |
+| Q41-Q45 | 5 | Semantic and hybrid naming-based retrieval |
+| Q46-Q50 | 5 | Entity-type ambiguity, callable spelling, and repository scoping |
+
+Together with Q1-Q20, the partitions contain 10 direct structural, 15
+two-hop, 10 three-hop, 10 semantic/hybrid, and 5 ambiguity/scoping cases.
 
 ---
 

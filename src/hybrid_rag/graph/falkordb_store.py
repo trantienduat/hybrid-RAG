@@ -86,10 +86,11 @@ class FalkorDBStore(GraphStore):
             params["repository"] = repository
 
         where_str = " AND ".join(where_clauses)
+        order = "ORDER BY CASE WHEN n.name = $name THEN 0 ELSE 1 END, size(n.id)"
         if label:
-            cypher = f"MATCH (n:{label}) WHERE {where_str} RETURN n LIMIT {limit}"
+            cypher = f"MATCH (n:{label}) WHERE {where_str} RETURN n {order} LIMIT {limit}"
         else:
-            cypher = f"MATCH (n) WHERE {where_str} RETURN n LIMIT {limit}"
+            cypher = f"MATCH (n) WHERE {where_str} RETURN n {order} LIMIT {limit}"
 
         res = self._graph.query(cypher, params)
         results: list[dict[str, Any]] = []
@@ -128,7 +129,7 @@ class FalkorDBStore(GraphStore):
 
         if max_hops > 1:
             # Variable-length path: return reachable endpoint nodes only
-            hops = f"*1..{max_hops}"
+            hops = f":{rel}*1..{max_hops}" if rel else f"*1..{max_hops}"
             if direction == "out":
                 cypher = f"MATCH (n {{id: $id}})-[{hops}]->(m) RETURN m LIMIT {limit}"
             elif direction == "in":
@@ -198,6 +199,14 @@ class FalkorDBStore(GraphStore):
         )
         self._graph.query(cypher, {"file_path": file_path, "repository": repository})
 
+    def delete_repository(self, repository: str) -> None:
+        """Delete one repository namespace without affecting other indexes."""
+        self._graph.query(
+            "MATCH (n) WHERE n.repository = $repository OR "
+            "(n:RepositoryMetadata AND n.id = $repository) DETACH DELETE n",
+            {"repository": repository},
+        )
+
     def get_repository_commit(self, repository: str) -> str | None:
         """Retrieve the last indexed commit hash for a repository."""
         cypher = "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit"
@@ -214,19 +223,22 @@ class FalkorDBStore(GraphStore):
         )
         self._graph.query(cypher, {"repo": repository, "commit_hash": commit_hash})
 
-    def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
-        """Retrieve repository metadata including last indexed commit, path, and last synced time."""
-        cypher = (
-            "MATCH (r:RepositoryMetadata {id: $repo}) "
-            "RETURN r.last_indexed_commit AS commit, r.updated_at AS updated_at"
+    def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
+        """Save complete provenance after graph and vector indexing succeed."""
+        props = _sanitize(metadata)
+        self._graph.query(
+            "MERGE (r:RepositoryMetadata {id: $repo}) "
+            "SET r += $metadata, r.updated_at = timestamp()",
+            {"repo": repository, "metadata": props},
         )
+
+    def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:
+        """Retrieve repository index provenance."""
+        cypher = "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r"
         res = self._graph.query(cypher, {"repo": repository})
         if res.result_set:
-            return {
-                "last_indexed_commit": res.result_set[0][0],
-                "repo_path": None,
-                "updated_at": res.result_set[0][1],
-            }
+            node = res.result_set[0][0]
+            return dict(getattr(node, "properties", {}) or {})
         return None
 
     # ── Internal ──────────────────────────────────────────────────

@@ -3,18 +3,18 @@ from unittest.mock import MagicMock
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 
 
-def test_get_called_siblings():
+def test_get_called_siblings_batch():
     graph_store = MagicMock()
     mock_res = MagicMock()
-    mock_res.result_set = [["sibling_method"]]
+    mock_res.result_set = [["module.Class.method", ["sibling_method"]]]
     graph_store.query.return_value = mock_res
 
     retriever = HybridRetriever(
         graph_store=graph_store, vector_store=MagicMock(), embedder=MagicMock()
     )
 
-    siblings = retriever._get_called_siblings("module.Class.method")
-    assert siblings == ["sibling_method"]
+    siblings = retriever._get_called_siblings_batch(["module.Class.method"])
+    assert siblings == {"module.Class.method": ["sibling_method"]}
     graph_store.query.assert_called_once()
     cypher_called = graph_store.query.call_args[0][0]
     assert "CALLS" in cypher_called
@@ -23,7 +23,7 @@ def test_get_called_siblings():
 def test_retrieve_with_context_attaches_siblings(monkeypatch):
     graph_store = MagicMock()
     mock_res = MagicMock()
-    mock_res.result_set = [["sibling_method"]]
+    mock_res.result_set = [["module.Class.method", ["sibling_method"]]]
     graph_store.query.return_value = mock_res
 
     retriever = HybridRetriever(

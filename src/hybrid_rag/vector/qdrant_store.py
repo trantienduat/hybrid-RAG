@@ -16,7 +16,15 @@ import uuid
 from typing import Any
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PayloadSchemaType,
+    PointStruct,
+    VectorParams,
+)
 
 from hybrid_rag.ports.vector_store import VectorStore
 
@@ -74,11 +82,15 @@ class QdrantStore(VectorStore):
                 vector=c["embedding"],
                 payload={
                     "node_id": c["node_id"],
+                    "name": c.get("name", ""),
                     "label": c["label"],
                     "file_path": c["file_path"],
                     "text": c["text"],
                     "repository": c.get("repository", ""),
                     "file_type": c.get("file_type", ""),
+                    "indexed_commit": c.get("indexed_commit", ""),
+                    "index_run_id": c.get("index_run_id", ""),
+                    "source_identity": c.get("source_identity", ""),
                 },
             )
             for c in chunks
@@ -130,8 +142,6 @@ class QdrantStore(VectorStore):
 
     def delete_file_vectors(self, file_path: str, repository: str) -> None:
         """Delete all vectors associated with a specific file in a repository."""
-        from qdrant_client.models import FieldCondition, Filter, MatchValue
-
         self._client.delete(
             collection_name=self._collection,
             points_selector=Filter(
@@ -141,6 +151,51 @@ class QdrantStore(VectorStore):
                 ]
             ),
         )
+
+    def delete_repository(self, repository: str) -> None:
+        """Delete one repository namespace without recreating the collection."""
+        self._client.delete(
+            collection_name=self._collection,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(key="repository", match=MatchValue(value=repository)),
+                ]
+            ),
+            wait=True,
+        )
+
+    def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
+        """Stamp every repository vector after a successful indexing run."""
+        self._client.set_payload(
+            collection_name=self._collection,
+            payload=metadata,
+            points=Filter(
+                must=[
+                    FieldCondition(key="repository", match=MatchValue(value=repository)),
+                ]
+            ),
+            wait=True,
+        )
+
+    def get_repository_metadata(self, repository: str) -> dict[str, set[Any]]:
+        """Return distinct provenance values across all vectors in a repository."""
+        fields = ("indexed_commit", "index_run_id", "source_identity")
+        values: dict[str, set[Any]] = {field: set() for field in fields}
+        repository_filter = Filter(
+            must=[
+                FieldCondition(key="repository", match=MatchValue(value=repository)),
+            ]
+        )
+        for field in fields:
+            response = self._client.facet(
+                collection_name=self._collection,
+                key=field,
+                facet_filter=repository_filter,
+                limit=10,
+                exact=True,
+            )
+            values[field] = {hit.value for hit in response.hits if hit.value not in (None, "")}
+        return values
 
     # ── Internal ──────────────────────────────────────────────────
 
@@ -152,3 +207,19 @@ class QdrantStore(VectorStore):
                 vectors_config=VectorParams(size=self._vector_size, distance=Distance.COSINE),
             )
             logger.info("Created Qdrant collection: %s", self._collection)
+        for field_name in (
+            "repository",
+            "file_type",
+            "indexed_commit",
+            "index_run_id",
+            "source_identity",
+        ):
+            try:
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name=field_name,
+                    field_schema=PayloadSchemaType.KEYWORD,
+                    wait=True,
+                )
+            except Exception as exc:
+                logger.warning("Unable to create Qdrant payload index for %s: %s", field_name, exc)

@@ -44,37 +44,36 @@ class GraphRetriever:
             return []
 
         seen_ids: set[str] = set()
-        results: list[dict[str, Any]] = []
+        seeds: list[dict[str, Any]] = []
 
         # Search by entities only — keywords are generic terms (e.g. "classes",
         # "inherit") that produce noisy graph matches; vector search handles them.
         search_terms = list(dict.fromkeys(analysis.entities))
 
         for term in search_terms:
-            if len(results) >= top_k:
+            if len(seeds) >= top_k:
                 break
-            nodes = self._store.find_nodes(term, limit=top_k)
+            nodes = self._store.find_nodes(term, repository=repository, limit=top_k)
             for node in nodes:
-                # Apply repository filter if provided
-                if repository and node.get("repository") != repository:
-                    continue
                 nid = node.get("node_id", "")
                 if nid and nid not in seen_ids:
                     seen_ids.add(nid)
-                    results.append(_node_to_result(node))
+                    seeds.append(_node_to_result(node))
 
-        # For non-global (local) queries, expand direct neighbors of seed nodes.
-        # Query in-bound and out-bound separately so each direction gets its own
-        # slot budget — prevents outgoing DEFINES edges (methods) from drowning
-        # out incoming INHERITS edges (subclasses / callers) when limit is shared.
+        results: list[dict[str, Any]] = []
         if analysis.query_type != "global":
-            seed_ids = [r["node_id"] for r in results[:_NEIGHBOR_SEEDS]]
+            seed_ids = [r["node_id"] for r in seeds[:_NEIGHBOR_SEEDS]]
+            directions = [analysis.direction] if analysis.direction else ["in", "out"]
             for seed_id in seed_ids:
                 if len(results) >= top_k * 4:
                     break
-                for direction in ("in", "out"):
+                for direction in directions:
                     neighbors = self._store.find_neighbors(
-                        seed_id, direction=direction, max_hops=1, limit=_NEIGHBOR_LIMIT
+                        seed_id,
+                        rel=analysis.relation,
+                        direction=direction,
+                        max_hops=analysis.max_hops,
+                        limit=_NEIGHBOR_LIMIT,
                     )
                     for nb in neighbors:
                         # Apply repository filter if provided
@@ -96,6 +95,10 @@ class GraphRetriever:
                                     "source": "graph",
                                 }
                             )
+
+        # For relation questions, targets are the answer and should rank before
+        # the matching seed. General searches retain seed-first behavior.
+        results = results + seeds if analysis.relation else seeds + results
 
         logger.debug(
             "GraphRetriever: %d results for %r (scoped to repo=%s)",

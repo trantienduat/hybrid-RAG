@@ -15,6 +15,7 @@ from typing import Any
 
 from hybrid_rag.eval.corpus import QueryCase, RepoQACase
 from hybrid_rag.eval.metrics import EvalReport, QueryResult, RepoQAEvalReport, RepoQAQueryResult
+from hybrid_rag.eval.preflight import require_complete_ground_truth
 from hybrid_rag.ports.embedder import BaseEmbedder
 from hybrid_rag.ports.graph_store import GraphStore
 from hybrid_rag.ports.vector_store import VectorStore
@@ -33,11 +34,11 @@ def _extract_names(results: list[dict[str, Any]]) -> list[str]:
         if "::" in name and name.rsplit("::", 1)[-1].isdigit():
             name = name.rsplit("::", 1)[0]
 
-        # If FQN dot-notation is used, get the last part (simple name)
-        if "." in name:
-            name = name.rsplit(".", 1)[-1]
-        elif "::" in name:
+        # Prefer the explicit entity separator before interpreting dots in paths.
+        if "::" in name:
             name = name.rsplit("::", 1)[-1]
+        elif "." in name:
+            name = name.rsplit(".", 1)[-1]
         if name:
             names.append(name)
     return names
@@ -71,10 +72,13 @@ class EvalRunner:
             rrf_hybrid_weight=rrf_hybrid_weight,
         )
 
-    def _ground_truth(self, case: QueryCase) -> set[str]:
+    def _ground_truth(self, case: QueryCase, repository: str) -> set[str]:
         """Execute the case's Cypher against FalkorDB; return set of expected names."""
         try:
-            res = self._graph_store.query(case.ground_truth_cypher)
+            res = self._graph_store.query(
+                case.ground_truth_cypher,
+                {"repository": repository},
+            )
             names: set[str] = set()
             for row in res.result_set or []:
                 val = row[case.gt_col_index] if row else None
@@ -100,11 +104,16 @@ class EvalRunner:
         3. Run vector-only retrieval (no graph).
         4. Build QueryResult with hit@5 and MRR for both modes.
         """
+        if not repository:
+            raise ValueError("repository is required for diagnostic evaluation")
+
         report = EvalReport()
+        ground_truth = {case.id: self._ground_truth(case, repository) for case in cases}
+        require_complete_ground_truth(ground_truth)
         for case in cases:
             logger.info("Evaluating %s: %s", case.id, case.question[:60])
 
-            gt = self._ground_truth(case)
+            gt = ground_truth[case.id]
             logger.debug("%s ground truth (%d items): %s", case.id, len(gt), list(gt)[:5])
 
             # Hybrid mode

@@ -6,11 +6,16 @@ No external services required — all database stores and retrievers are mocked.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 from hybrid_rag.mcp.server import (
+    _index_status,
     get_ast_neighbors,
     get_community_report,
+    get_index_status,
     health_check,
     list_repositories,
     query_codebase,
@@ -20,6 +25,23 @@ from hybrid_rag.retrieval.context_assembler import RetrievalContext
 
 
 class TestMCPServer:
+    @patch("hybrid_rag.mcp.server.app_config.get_repo_path", return_value=None)
+    def test_legacy_index_metadata_is_stale(self, _mock_repo_path):
+        graph_store = MagicMock()
+        graph_store.get_repository_metadata.return_value = {"last_indexed_commit": "wrong-commit"}
+        vector_store = MagicMock()
+        vector_store.get_repository_metadata.return_value = {
+            "source_identity": set(),
+            "index_run_id": set(),
+            "indexed_commit": {"wrong-commit"},
+        }
+
+        status = _index_status(graph_store, vector_store, "legacy-repo")
+
+        assert status["stale"] is True
+        assert status["provenance_valid"] is False
+        assert "missing source_identity" in status["provenance_error"]
+
     @patch("hybrid_rag.mcp.server.get_components")
     def test_query_codebase(self, mock_get_components):
         mock_retriever = MagicMock()
@@ -39,7 +61,7 @@ class TestMCPServer:
         mock_retriever.retrieve_with_context.assert_called_once_with(
             query="how to print hello world?",
             top_k=20,
-            max_tokens=2048,
+            max_tokens=1024,
             repository=None,
         )
 
@@ -125,7 +147,59 @@ class TestMCPServer:
         assert communities[0]["level"] == 0
         mock_graph_store.query.assert_called_once()
 
-    async def test_health_check(self):
+    @patch("hybrid_rag.mcp.server.get_components")
+    def test_get_community_report_scopes_repository(self, mock_get_components):
+        mock_graph_store = MagicMock()
+        mock_graph_store.query.return_value.result_set = []
+        mock_get_components.return_value = (mock_graph_store, MagicMock(), MagicMock())
+
+        get_community_report(repository="repo-one")
+
+        cypher, params = mock_graph_store.query.call_args.args
+        assert "n.repository = $repository" in cypher
+        assert params == {"repository": "repo-one"}
+
+    @patch("hybrid_rag.mcp.server._index_status")
+    @patch("hybrid_rag.mcp.server.get_components")
+    def test_get_index_status(self, mock_get_components, mock_status):
+        mock_status.return_value = {
+            "repository": "repo-one",
+            "indexed_commit": "abc",
+            "current_commit": "def",
+            "working_tree_dirty": False,
+            "stale": True,
+            "updated_at": 123,
+        }
+        graph_store = MagicMock()
+        vector_store = MagicMock()
+        mock_get_components.return_value = (graph_store, vector_store, MagicMock())
+
+        status = get_index_status("repo-one")
+
+        assert status["stale"] is True
+        mock_status.assert_called_once_with(graph_store, vector_store, "repo-one")
+
+    @patch("hybrid_rag.mcp.server.get_components")
+    def test_tool_failure_is_explicit(self, mock_get_components):
+        mock_get_components.side_effect = RuntimeError("database unavailable")
+
+        with pytest.raises(ToolError):
+            list_repositories()
+
+    @patch("hybrid_rag.mcp.server.httpx.AsyncClient")
+    @patch("hybrid_rag.mcp.server.get_components")
+    async def test_health_check(self, mock_get_components, mock_client_class):
+        graph_store = MagicMock()
+        graph_store.node_count.return_value = 10
+        vector_store = MagicMock()
+        vector_store.point_count.return_value = 20
+        mock_get_components.return_value = (graph_store, vector_store, MagicMock())
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        async_client = AsyncMock()
+        async_client.get.return_value = response
+        mock_client_class.return_value.__aenter__.return_value = async_client
+
         from starlette.datastructures import Headers
         from starlette.requests import Request
 
@@ -140,3 +214,6 @@ class TestMCPServer:
         resp = await health_check(mock_request)
         assert resp.status_code == 200
         assert b'"status":"ok"' in resp.body
+        assert b'"falkordb"' in resp.body
+        assert b'"qdrant"' in resp.body
+        assert b'"ollama"' in resp.body

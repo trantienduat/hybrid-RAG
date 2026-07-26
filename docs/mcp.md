@@ -62,6 +62,7 @@ The server is implemented via `FastMCP` and exposes the following tools:
 
 1.  **`query_codebase(question, repository, top_k, max_tokens)`**
     *   **Description:** Performs RRF hybrid retrieval over FalkorDB and Qdrant under a strict token budget.
+    *   **Default budget:** 1,024 tokens. Increase only when broader context is needed.
     *   **Returns:** Fused, ranked code chunks formatted for direct inclusion into an LLM context.
 2.  **`list_repositories()`**
     *   **Description:** Returns a list of all repository namespaces indexed in the current database.
@@ -71,6 +72,8 @@ The server is implemented via `FastMCP` and exposes the following tools:
     *   **Description:** Retrieves incoming or outgoing relations from the FalkorDB AST graph (e.g. tracing who calls a function, or what interface is inherited by a class).
 5.  **`get_community_report(repository)`**
     *   **Description:** Returns Directory-based community partitioning summaries for high-level codebase architectural queries.
+6.  **`get_index_status(repository)`**
+    *   **Description:** Reports the indexed commit, current configured-repository commit, working-tree state, and whether the index is stale.
 
 ---
 
@@ -220,4 +223,3 @@ To do this, specify `docker` as the command and use `exec -i` to forward stdio:
 }
 ```
 *(Note: In this mode, environmental configurations like database hosts are read directly from the container's environment variables defined in your `docker-compose.yml` file, so no host-level `env` overrides are necessary).*
-

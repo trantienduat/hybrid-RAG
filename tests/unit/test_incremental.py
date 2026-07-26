@@ -94,19 +94,41 @@ def test_falkordb_store_commit_metadata():
         )
 
         # Test get_repository_metadata
+        mock_node = MagicMock()
+        mock_node.properties = {
+            "last_indexed_commit": "commit456",
+            "source_identity": "git:repo@commit456",
+            "updated_at": 1700000000000,
+        }
         mock_meta_res = MagicMock()
-        mock_meta_res.result_set = [["commit456", 1700000000000]]
+        mock_meta_res.result_set = [[mock_node]]
         mock_graph.query.return_value = mock_meta_res
 
         meta = store.get_repository_metadata("repo123")
         assert meta == {
             "last_indexed_commit": "commit456",
-            "repo_path": None,
+            "source_identity": "git:repo@commit456",
             "updated_at": 1700000000000,
         }
         mock_graph.query.assert_called_with(
-            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit, r.updated_at AS updated_at",
+            "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r",
             {"repo": "repo123"},
+        )
+
+        store.set_repository_metadata(
+            "repo123",
+            {"last_indexed_commit": "commit456", "index_run_id": "run-1"},
+        )
+        mock_graph.query.assert_called_with(
+            "MERGE (r:RepositoryMetadata {id: $repo}) "
+            "SET r += $metadata, r.updated_at = timestamp()",
+            {
+                "repo": "repo123",
+                "metadata": {
+                    "last_indexed_commit": "commit456",
+                    "index_run_id": "run-1",
+                },
+            },
         )
 
 
@@ -121,6 +143,13 @@ def test_falkordb_store_delete_file_nodes():
         mock_graph.query.assert_called_with(
             "MATCH (n) WHERE n.file_path = $file_path AND n.repository = $repository DETACH DELETE n",
             {"file_path": "src/foo.py", "repository": "repo123"},
+        )
+
+        store.delete_repository("repo123")
+        mock_graph.query.assert_called_with(
+            "MATCH (n) WHERE n.repository = $repository OR "
+            "(n:RepositoryMetadata AND n.id = $repository) DETACH DELETE n",
+            {"repository": "repo123"},
         )
 
 
@@ -145,11 +174,48 @@ def test_qdrant_store_delete_file_vectors():
         assert conditions[1].match.value == "repo123"
 
 
+def test_qdrant_store_repository_metadata():
+    mock_client = MagicMock()
+    mock_client.facet.side_effect = [
+        MagicMock(hits=[MagicMock(value="abc")]),
+        MagicMock(hits=[MagicMock(value="run-1")]),
+        MagicMock(hits=[MagicMock(value="git:repo@abc")]),
+    ]
+
+    with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
+        store = QdrantStore(host="localhost", port=6333, collection="test_col")
+        store.set_repository_metadata(
+            "repo123",
+            {"indexed_commit": "abc", "index_run_id": "run-1"},
+        )
+        metadata = store.get_repository_metadata("repo123")
+
+    assert metadata == {
+        "indexed_commit": {"abc"},
+        "index_run_id": {"run-1"},
+        "source_identity": {"git:repo@abc"},
+    }
+    set_payload = mock_client.set_payload.call_args.kwargs
+    assert set_payload["payload"]["index_run_id"] == "run-1"
+    assert mock_client.facet.call_count == 3
+
+
+def test_qdrant_store_delete_repository():
+    mock_client = MagicMock()
+    with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
+        store = QdrantStore(host="localhost", port=6333, collection="test_col")
+        store.delete_repository("repo123")
+
+    delete_call = mock_client.delete.call_args.kwargs
+    assert delete_call["collection_name"] == "test_col"
+    assert delete_call["points_selector"].must[0].match.value == "repo123"
+
+
 @patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
 @patch("hybrid_rag.ingestion.parser.parse_file")
-@patch("subprocess.run")
+@patch("hybrid_rag.ingestion.pipeline._git_source_provenance")
 def test_incremental_indexing_pipeline_run(
-    mock_sub_run, mock_parse_file, mock_detect_git, tmp_path
+    mock_git_provenance, mock_parse_file, mock_detect_git, tmp_path
 ):
     # Set up mocks
     mock_graph = MagicMock()
@@ -158,9 +224,14 @@ def test_incremental_indexing_pipeline_run(
     # last indexed commit in DB is commit123, HEAD is commit456
     mock_graph.get_repository_commit.return_value = "commit123"
 
-    mock_head_res = MagicMock()
-    mock_head_res.stdout = "commit456\n"
-    mock_sub_run.return_value = mock_head_res
+    mock_git_provenance.return_value = {
+        "source_kind": "git",
+        "source_path": str(tmp_path),
+        "source_commit": "commit456",
+        "source_digest": "",
+        "source_identity": "git:repo@commit456",
+        "working_tree_dirty": False,
+    }
 
     # Git changes: modified: src/a.py, deleted: src/b.py
     mock_detect_git.return_value = ({"src/a.py"}, {"src/b.py"})
@@ -207,4 +278,8 @@ def test_incremental_indexing_pipeline_run(
         # Assert only src/a.py was parsed
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
-        mock_graph.set_repository_commit.assert_called_with("myrepo", "commit456")
+        mock_graph.set_repository_metadata.assert_called_once()
+        metadata = mock_graph.set_repository_metadata.call_args.args[1]
+        assert metadata["last_indexed_commit"] == "commit456"
+        assert metadata["source_identity"].endswith("@commit456")
+        mock_vector.set_repository_metadata.assert_called_once_with("myrepo", metadata)

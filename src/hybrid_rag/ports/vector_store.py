@@ -50,3 +50,15 @@ class VectorStore(ABC):
     @abstractmethod
     def delete_file_vectors(self, file_path: str, repository: str) -> None:
         """Delete all vectors associated with a specific file in a repository."""
+
+    @abstractmethod
+    def delete_repository(self, repository: str) -> None:
+        """Delete vectors for one repository namespace."""
+
+    @abstractmethod
+    def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
+        """Stamp all vectors for a repository with the current index provenance."""
+
+    @abstractmethod
+    def get_repository_metadata(self, repository: str) -> dict[str, set[Any]]:
+        """Return distinct provenance values stored on a repository's vectors."""

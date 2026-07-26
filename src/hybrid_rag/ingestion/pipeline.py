@@ -7,14 +7,108 @@ programmatically with progress callbacks.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
+INDEX_SCHEMA_VERSION = 2
+
+
+def _run_git(repo: Path, args: list[str]) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _git_source_provenance(repo: Path) -> dict[str, Any] | None:
+    """Return Git provenance only when the indexed path contains tracked files."""
+    try:
+        git_root = Path(_run_git(repo, ["rev-parse", "--show-toplevel"])).resolve()
+        source_subdir = str(repo.relative_to(git_root))
+        pathspec = source_subdir or "."
+        tracked = _run_git(git_root, ["ls-files", "--", pathspec])
+        if not tracked:
+            return None
+        commit = _run_git(git_root, ["rev-parse", "HEAD"])
+        dirty = bool(
+            _run_git(
+                git_root,
+                ["status", "--porcelain", "--untracked-files=all", "--", pathspec],
+            )
+        )
+        try:
+            remote = _run_git(git_root, ["config", "--get", "remote.origin.url"])
+        except (OSError, subprocess.SubprocessError):
+            remote = ""
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+    location = remote or str(git_root)
+    suffix = f":{source_subdir}" if source_subdir else ""
+    return {
+        "source_kind": "git",
+        "source_path": str(repo),
+        "source_commit": commit,
+        "source_digest": "",
+        "source_identity": f"git:{location}@{commit}{suffix}",
+        "working_tree_dirty": dirty,
+    }
+
+
+def _directory_source_provenance(repo: Path, file_paths: set[str]) -> dict[str, Any]:
+    """Hash indexed files when the source is not tracked by its own Git checkout."""
+    digest = hashlib.sha256()
+    for file_path in sorted(file_paths):
+        absolute_path = repo / file_path
+        if not absolute_path.is_file():
+            continue
+        digest.update(file_path.encode())
+        digest.update(b"\0")
+        digest.update(absolute_path.read_bytes())
+        digest.update(b"\0")
+    source_digest = digest.hexdigest()
+    return {
+        "source_kind": "directory",
+        "source_path": str(repo),
+        "source_commit": "",
+        "source_digest": source_digest,
+        "source_identity": f"sha256:{source_digest}",
+        "working_tree_dirty": False,
+    }
+
+
+def _index_metadata(
+    repo: Path,
+    result: Any,
+    embed_model: str,
+    index_run_id: str,
+    git_provenance: dict[str, Any] | None,
+) -> dict[str, Any]:
+    file_paths = {
+        str(node.properties.get("file_path", ""))
+        for node in result.nodes
+        if node.properties.get("file_path")
+    }
+    source = git_provenance or _directory_source_provenance(repo, file_paths)
+    return {
+        **source,
+        "last_indexed_commit": source["source_commit"],
+        "index_run_id": index_run_id,
+        "index_schema_version": INDEX_SCHEMA_VERSION,
+        "embedding_model": embed_model,
+    }
 
 
 class IndexingListener:
@@ -186,23 +280,20 @@ def run_indexing_pipeline(
     is_incremental = False
     modified_files = None
     deleted_files = None
-    head_commit = None
+    git_provenance = _git_source_provenance(repo)
+    head_commit = git_provenance["source_commit"] if git_provenance else None
+    index_run_id = str(uuid.uuid4())
+
+    if rebuild:
+        listener.on_step("cleanup", f"Removing existing {repo_name} index data...", 0.0)
+        graph_store.delete_repository(repo_name)
+        vector_store.delete_repository(repo_name)
+        listener.on_step("cleanup", f"Removed existing {repo_name} index data.", 1.0)
 
     if incremental and not rebuild:
         try:
-            import subprocess
-
-            res_head = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=str(repo),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            head_commit = res_head.stdout.strip()
-
             last_commit = from_commit or graph_store.get_repository_commit(repo_name)
-            if last_commit:
+            if head_commit and last_commit:
                 git_changes = _detect_git_changes(repo, last_commit, languages, excludes)
                 if git_changes is not None:
                     modified_files, deleted_files = git_changes
@@ -229,9 +320,16 @@ def run_indexing_pipeline(
             vector_store.delete_file_vectors(f, repo_name)
 
         if not modified_files and not deleted_files:
+            metadata = _index_metadata(
+                repo,
+                ParseResult(),
+                embed_model,
+                index_run_id,
+                git_provenance,
+            )
+            vector_store.set_repository_metadata(repo_name, metadata)
+            graph_store.set_repository_metadata(repo_name, metadata)
             listener.on_step("complete", "Index is already up to date.", 1.0)
-            if head_commit:
-                graph_store.set_repository_commit(repo_name, head_commit)
             return {
                 "elapsed_seconds": time.perf_counter() - t_start,
                 "nodes_parsed": 0,
@@ -270,20 +368,13 @@ def run_indexing_pipeline(
             1.0,
         )
 
-        # Get HEAD commit for full ingest so we can do incremental sync next time
-        try:
-            import subprocess
-
-            res_head = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=str(repo),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            head_commit = res_head.stdout.strip()
-        except Exception:
-            pass
+    metadata = _index_metadata(
+        repo,
+        result,
+        embed_model,
+        index_run_id,
+        git_provenance,
+    )
 
     # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
     if llm_extract:
@@ -387,6 +478,9 @@ def run_indexing_pipeline(
     from hybrid_rag.ingestion.chunker import chunk_file
 
     chunks_to_embed = []
+    node_names = {
+        node.id: node.properties.get("name", node.id.rsplit("::", 1)[-1]) for node in result.nodes
+    }
     seen_files: set[str] = set()
     for node in result.nodes:
         fp = node.properties.get("file_path", "")
@@ -443,12 +537,16 @@ def run_indexing_pipeline(
                         batch_payload.append(
                             {
                                 "node_id": f"{ch.node_id}::{ch.chunk_index}",
+                                "name": node_names.get(ch.node_id, ch.node_id.rsplit("::", 1)[-1]),
                                 "label": label,
                                 "file_path": ch.file_path,
                                 "text": ch.text,
                                 "embedding": emb,
                                 "repository": repo_name,
                                 "file_type": file_type,
+                                "indexed_commit": metadata["last_indexed_commit"],
+                                "index_run_id": metadata["index_run_id"],
+                                "source_identity": metadata["source_identity"],
                             }
                         )
 
@@ -476,13 +574,10 @@ def run_indexing_pipeline(
         "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
     )
 
-    # Save HEAD commit state to FalkorDB for next incremental sync
-    if head_commit:
-        try:
-            graph_store.set_repository_commit(repo_name, head_commit)
-            logger.info("Saved last indexed commit %s to graph store metadata", head_commit)
-        except Exception as exc:
-            logger.debug("Failed to save commit state to graph store: %s", exc)
+    # Stamp all old and new vectors before publishing matching graph metadata.
+    vector_store.set_repository_metadata(repo_name, metadata)
+    graph_store.set_repository_metadata(repo_name, metadata)
+    logger.info("Saved index provenance %s for %s", metadata["index_run_id"], repo_name)
 
     elapsed = time.perf_counter() - t_start
     listener.on_step(

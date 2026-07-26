@@ -447,6 +447,14 @@ def _child_text(node: Node, field_name: str, src: bytes) -> str | None:
     return _text(child, src) if child else None
 
 
+def _decorated_definition(node: Node) -> Node | None:
+    """Return the class/function wrapped by a decorated_definition node."""
+    for child in node.named_children:
+        if child.type in ("class_definition", "function_definition"):
+            return child
+    return None
+
+
 def _docstring(node: Node, src: bytes) -> str | None:
     """
     Extract the docstring of a Python block (class/function/module).
@@ -505,6 +513,27 @@ def _extract_python(root: Node, src: bytes, rel_path: str) -> ParseResult:
             _handle_class(node, src, rel_path, module_id, result)
         elif node.type == "function_definition":
             _handle_function(node, src, rel_path, module_id, class_name=None, result=result)
+        elif node.type == "decorated_definition":
+            definition = _decorated_definition(node)
+            if definition is not None and definition.type == "class_definition":
+                _handle_class(
+                    definition,
+                    src,
+                    rel_path,
+                    module_id,
+                    result,
+                    decorated_node=node,
+                )
+            elif definition is not None:
+                _handle_function(
+                    definition,
+                    src,
+                    rel_path,
+                    module_id,
+                    class_name=None,
+                    result=result,
+                    decorated_node=node,
+                )
 
     return result
 
@@ -514,7 +543,7 @@ def _handle_import(node: Node, src: bytes, module_id: str, result: ParseResult) 
     for child in node.children:
         if child.type in ("dotted_name", "aliased_import"):
             name_node = child.child_by_field_name("name") or child
-            name = _text(name_node, src).split(".")[0]
+            name = _text(name_node, src)
             dst_id = name  # external stub id reference
             _ensure_stub(name, result)
             result.edges.append(
@@ -539,22 +568,26 @@ def _handle_from_import(node: Node, src: bytes, module_id: str, result: ParseRes
             break
 
     if module_part:
-        # We use the base package name for external dependency tracking
-        base = module_part.lstrip(".").split(".")[0]
-        if base:
-            _ensure_stub(base, result)
+        module_name = module_part.lstrip(".")
+        if module_name:
+            _ensure_stub(module_name, result)
             result.edges.append(
                 EdgeData(
                     src_id=module_id,
                     rel="IMPORTS",
-                    dst_id=base,
+                    dst_id=module_name,
                     properties={"is_from": True},
                 )
             )
 
 
 def _handle_class(
-    node: Node, src: bytes, rel_path: str, module_id: str, result: ParseResult
+    node: Node,
+    src: bytes,
+    rel_path: str,
+    module_id: str,
+    result: ParseResult,
+    decorated_node: Node | None = None,
 ) -> None:
     """Extracts Class node data and its members (methods)."""
     name = _child_text(node, "name", src) or "UnknownClass"
@@ -567,11 +600,16 @@ def _handle_class(
         for arg in arg_list.children:
             if arg.type in ("identifier", "attribute"):
                 bases.append(_text(arg, src))
+            elif arg.type == "subscript":
+                generic_base = arg.child_by_field_name("value")
+                if generic_base is not None:
+                    bases.append(_text(generic_base, src))
 
     # Check for abstract markers
+    decorator_parent = decorated_node or node
     is_abstract = any(
         _text(d, src) in ("ABC", "ABCMeta", "abstractmethod")
-        for d in node.children
+        for d in decorator_parent.children
         if d.type == "decorator"
     )
 
@@ -581,7 +619,7 @@ def _handle_class(
         properties={
             "name": name,
             "file_path": rel_path,
-            "line_start": node.start_point[0] + 1,
+            "line_start": (decorated_node or node).start_point[0] + 1,
             "line_end": node.end_point[0] + 1,
             "docstring": _docstring(node, src),
             "is_abstract": is_abstract,
@@ -608,13 +646,24 @@ def _handle_class(
             )
         )
 
-
     # Extract methods from class body
     body = node.child_by_field_name("body")
     if body:
         for child in body.children:
             if child.type == "function_definition":
                 _handle_function(child, src, rel_path, module_id, class_name=name, result=result)
+            elif child.type == "decorated_definition":
+                definition = _decorated_definition(child)
+                if definition is not None and definition.type == "function_definition":
+                    _handle_function(
+                        definition,
+                        src,
+                        rel_path,
+                        module_id,
+                        class_name=name,
+                        result=result,
+                        decorated_node=child,
+                    )
 
 
 def _handle_function(
@@ -624,6 +673,7 @@ def _handle_function(
     module_id: str,
     class_name: str | None,
     result: ParseResult,
+    decorated_node: Node | None = None,
 ) -> None:
     """Extracts Function/Method node data and its call sites."""
     name = _child_text(node, "name", src) or "unknown"
@@ -632,10 +682,15 @@ def _handle_function(
 
     # Metadata extraction
     is_async = any(c.type == "async" for c in node.children)
+    decorator_parent = decorated_node or node
     is_abstract = any(
-        "abstractmethod" in _text(d, src) for d in node.children if d.type == "decorator"
+        "abstractmethod" in _text(d, src)
+        for d in decorator_parent.children
+        if d.type == "decorator"
     )
-    is_property = any("property" in _text(d, src) for d in node.children if d.type == "decorator")
+    is_property = any(
+        "property" in _text(d, src) for d in decorator_parent.children if d.type == "decorator"
+    )
 
     params_node = node.child_by_field_name("parameters")
     signature = f"def {name}{_text(params_node, src) if params_node else '()'}"
@@ -647,7 +702,7 @@ def _handle_function(
             "name": name,
             "file_path": rel_path,
             "class_name": class_name,
-            "line_start": node.start_point[0] + 1,
+            "line_start": (decorated_node or node).start_point[0] + 1,
             "line_end": node.end_point[0] + 1,
             "signature": signature,
             "docstring": _docstring(node, src),

@@ -61,6 +61,30 @@ class TestParseFile:
         dst_ids = {e.dst_id for e in import_edges}
         assert "math_utils" in dst_ids or any("math" in d for d in dst_ids)
 
+    def test_preserves_full_import_module_for_resolution(self, tmp_path):
+        source = tmp_path / "imports.py"
+        source.write_text(
+            "import llama_index.core.schema\n"
+            "from llama_index.core.storage.storage_context import StorageContext\n"
+        )
+
+        result = parse_file(source, tmp_path)
+
+        imports = {edge.dst_id for edge in result.edges if edge.rel == "IMPORTS"}
+        assert "llama_index.core.schema" in imports
+        assert "llama_index.core.storage.storage_context" in imports
+
+    def test_extracts_generic_base_class(self, tmp_path):
+        source = tmp_path / "generic.py"
+        source.write_text("class Concrete(BaseIndex[IndexDict]):\n    pass\n")
+
+        result = parse_file(source, tmp_path)
+
+        inherits = [edge for edge in result.edges if edge.rel == "INHERITS"]
+        assert [(edge.src_id, edge.dst_id) for edge in inherits] == [
+            ("generic.Concrete", "BaseIndex")
+        ]
+
     def test_inherits_edge_extracted(self):
         result = parse_file(_STRING_HELPERS, _FIXTURE_REPO)
         inherit_edges = [e for e in result.edges if e.rel == "INHERITS"]
@@ -105,10 +129,46 @@ class TestParseFile:
 
     def test_function_node_has_line_numbers(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)
-        fns = [n for n in result.nodes if n.label == "Function" and n.properties.get("type") != "external"]
+        fns = [
+            n
+            for n in result.nodes
+            if n.label == "Function" and n.properties.get("type") != "external"
+        ]
         for fn in fns:
             assert fn.properties.get("line_start", 0) > 0
             assert fn.properties.get("line_end", 0) >= fn.properties["line_start"]
+
+    def test_extracts_decorated_definitions(self, tmp_path):
+        source = tmp_path / "decorated.py"
+        source.write_text(
+            """
+@register
+def top_level():
+    helper()
+
+@dataclass
+class Service:
+    @property
+    def value(self):
+        return 1
+
+    @abstractmethod
+    def run(self):
+        execute()
+""".strip()
+        )
+
+        result = parse_file(source, tmp_path)
+        functions = {
+            node.properties["name"]: node for node in result.nodes if node.label == "Function"
+        }
+
+        assert {"top_level", "value", "run"} <= functions.keys()
+        assert functions["value"].properties["is_property"] is True
+        assert functions["run"].properties["is_abstract"] is True
+        calls = {(edge.src_id, edge.dst_id) for edge in result.edges if edge.rel == "CALLS"}
+        assert ("decorated.top_level", "__call__helper") in calls
+        assert ("decorated.Service.run", "__call__execute") in calls
 
 
 # ── triplet extractor tests ───────────────────────────────────────────────────

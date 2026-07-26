@@ -72,7 +72,8 @@ Q1 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'BaseRetriever'})-[:DEFINES]->(f:Function) RETURN f.name"
+        "MATCH (c:Class {name:'BaseRetriever', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="1-hop DEFINES; large class with many methods",
 )
@@ -84,7 +85,8 @@ Q2 = QueryCase(
     query_type="structural",
     ground_truth_cypher=(
         "MATCH (m:Module)-[:IMPORTS]->(i) "
-        "WHERE m.file_path CONTAINS 'retriever_query_engine' "
+        "WHERE m.repository = $repository "
+        "AND m.file_path CONTAINS 'retriever_query_engine' "
         "RETURN i.name"
     ),
     notes="1-hop IMPORTS; file-level import lookup",
@@ -92,15 +94,16 @@ Q2 = QueryCase(
 
 Q3 = QueryCase(
     id="Q3",
-    question="Which functions directly call BaseRetriever.retrieve()?",
+    question="Which functions directly call retrieve()?",
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (f:Function)-[:CALLS]->(t:Function {name:'retrieve'}) "
-        "WHERE t.class_name = 'BaseRetriever' OR t.id CONTAINS '::BaseRetriever::retrieve' "
+        "MATCH (f:Function)-[:CALLS]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'retrieve' OR t.id = '__call__retrieve') "
         "RETURN f.name"
     ),
-    notes="1-hop CALLS; may be sparse if CALLS edges absent",
+    notes="1-hop CALLS; receiver type is intentionally not inferred",
 )
 
 Q4 = QueryCase(
@@ -109,7 +112,8 @@ Q4 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class)-[:INHERITS]->(b:Class {name:'BaseSynthesizer'}) RETURN c.name"
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseSynthesizer', repository:$repository}) RETURN c.name"
     ),
     notes="1-hop INHERITS; expected 7 subclasses",
 )
@@ -120,7 +124,8 @@ Q5 = QueryCase(
     hops=1,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'VectorIndexRetriever'})-[:DEFINES]->(f:Function) RETURN f.name"
+        "MATCH (c:Class {name:'VectorIndexRetriever', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="1-hop DEFINES; all methods of VectorIndexRetriever are relevant",
 )
@@ -133,7 +138,8 @@ Q6 = QueryCase(
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (sub:Class)-[:INHERITS]->(b:Class {name:'BaseIndex'})-[:DEFINES]->(f:Function) "
+        "MATCH (sub:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseIndex', repository:$repository})-[:DEFINES]->(f:Function) "
         "RETURN f.name"
     ),
     notes="2-hop INHERITS+DEFINES; methods inherited by all BaseIndex subclasses",
@@ -145,7 +151,10 @@ Q7 = QueryCase(
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (f:Function)-[:CALLS]->(t:Function {name:'get_text_embedding'}) RETURN f.name"
+        "MATCH (f:Function)-[:CALLS]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'get_text_embedding' OR t.id = '__call__get_text_embedding') "
+        "RETURN f.name"
     ),
     notes="2-hop CALLS; callers of the embedding function",
 )
@@ -157,7 +166,7 @@ Q8 = QueryCase(
     query_type="structural",
     ground_truth_cypher=(
         "MATCH (m:Module)-[:IMPORTS]->(mid:Module)-[:IMPORTS]->(dep:Module) "
-        "WHERE m.name CONTAINS 'query_engine' "
+        "WHERE m.repository = $repository AND m.name CONTAINS 'query_engine' "
         "RETURN dep.name"
     ),
     notes="2-hop IMPORTS chain; transitive deps of query_engine modules",
@@ -169,7 +178,8 @@ Q9 = QueryCase(
     hops=2,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class)-[:INHERITS]->(b:Class {name:'BaseRetriever'}) "
+        "MATCH (c:Class)-[:INHERITS]->"
+        "(b:Class {name:'BaseRetriever', repository:$repository}) "
         "MATCH (c)-[:DEFINES]->(f:Function {name:'_retrieve'}) "
         "RETURN c.name"
     ),
@@ -183,7 +193,8 @@ Q10 = QueryCase(
     query_type="structural",
     ground_truth_cypher=(
         "MATCH (m:Module)-[:IMPORTS]->(sc:Module) "
-        "WHERE sc.name CONTAINS 'storage_context' OR sc.file_path CONTAINS 'storage_context' "
+        "WHERE m.repository = $repository "
+        "AND (sc.name CONTAINS 'storage_context' OR sc.file_path CONTAINS 'storage_context') "
         "RETURN m.name"
     ),
     notes="2-hop IMPORTS; modules directly importing storage_context",
@@ -193,15 +204,16 @@ Q10 = QueryCase(
 
 Q11 = QueryCase(
     id="Q11",
-    question="If I change the signature of BaseRetriever.retrieve(), which functions across which modules are affected?",
+    question="Which functions can reach retrieve() within three calls?",
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (f:Function)-[:CALLS]->(t:Function {name:'retrieve'}) "
-        "WHERE t.id CONTAINS 'BaseRetriever' "
+        "MATCH (f:Function)-[:CALLS*1..3]->(t:Function) "
+        "WHERE f.repository = $repository "
+        "AND (t.name = 'retrieve' OR t.id = '__call__retrieve') "
         "RETURN f.name"
     ),
-    notes="3-hop impact analysis via CALLS chain",
+    notes="3-hop CALLS reachability without unsupported receiver-type inference",
 )
 
 Q12 = QueryCase(
@@ -210,23 +222,24 @@ Q12 = QueryCase(
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'RetrieverQueryEngine'})-[:INHERITS*1..5]->(b:Class) RETURN b.name"
+        "MATCH (c:Class {name:'RetrieverQueryEngine', repository:$repository})"
+        "-[:INHERITS*1..5]->(b:Class) RETURN b.name"
     ),
     notes="3+-hop INHERITS chain; full ancestor hierarchy",
 )
 
 Q13 = QueryCase(
     id="Q13",
-    question="Which tests would break if VectorStoreIndex is removed?",
+    question="Which modules transitively depend on the VectorStoreIndex module?",
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (test:Module)-[:IMPORTS*1..3]->(dep:Module) "
-        "WHERE test.file_path CONTAINS 'test' "
-        "AND (dep.name CONTAINS 'vector_store_index' OR dep.file_path CONTAINS 'vector_store_index') "
-        "RETURN test.name"
+        "MATCH (m:Module)-[:IMPORTS*1..3]->(dep:Module) "
+        "WHERE m.repository = $repository "
+        "AND dep.file_path CONTAINS 'indices/vector_store' "
+        "RETURN m.name"
     ),
-    notes="3-hop IMPORTS* chain from test modules to VectorStoreIndex",
+    notes="3-hop IMPORTS chain supported by wheel source without requiring tests",
 )
 
 Q14 = QueryCase(
@@ -234,7 +247,9 @@ Q14 = QueryCase(
     question="Trace all code paths from user calling index.as_query_engine() to when embeddings are generated.",
     hops=3,
     query_type="structural",
-    ground_truth_cypher=("MATCH (f:Function {name:'as_query_engine'}) RETURN f.name"),
+    ground_truth_cypher=(
+        "MATCH (f:Function {name:'as_query_engine', repository:$repository}) RETURN f.name"
+    ),
     notes="Entry-point anchor for call-chain tracing",
 )
 
@@ -244,7 +259,8 @@ Q15 = QueryCase(
     hops=3,
     query_type="structural",
     ground_truth_cypher=(
-        "MATCH (c:Class {name:'NodeWithScore'})-[:DEFINES]->(f:Function) RETURN f.name"
+        "MATCH (c:Class {name:'NodeWithScore', repository:$repository})"
+        "-[:DEFINES]->(f:Function) RETURN f.name"
     ),
     notes="NodeWithScore methods as blast radius anchor",
 )
@@ -258,8 +274,9 @@ Q16 = QueryCase(
     query_type="hybrid",
     ground_truth_cypher=(
         "MATCH (c:Class) "
-        "WHERE c.name CONTAINS 'Retry' OR c.name CONTAINS 'Fallback' "
-        "OR c.name CONTAINS 'retry' OR c.name CONTAINS 'fallback' "
+        "WHERE c.repository = $repository "
+        "AND (c.name CONTAINS 'Retry' OR c.name CONTAINS 'Fallback' "
+        "OR c.name CONTAINS 'retry' OR c.name CONTAINS 'fallback') "
         "RETURN c.name"
     ),
     notes="Hybrid: semantic for retry/fallback concept, graph for hierarchy",
@@ -272,8 +289,9 @@ Q17 = QueryCase(
     query_type="hybrid",
     ground_truth_cypher=(
         "MATCH (m:Module) "
-        "WHERE m.name CONTAINS 'event' OR m.name CONTAINS 'callback' "
-        "OR m.name CONTAINS 'hook' OR m.name CONTAINS 'dispatcher' "
+        "WHERE m.repository = $repository "
+        "AND (m.name CONTAINS 'event' OR m.name CONTAINS 'callback' "
+        "OR m.name CONTAINS 'hook' OR m.name CONTAINS 'dispatcher') "
         "RETURN m.name"
     ),
     notes="Hybrid: semantic for pattern, graph for module structure",
@@ -286,7 +304,8 @@ Q18 = QueryCase(
     query_type="hybrid",
     ground_truth_cypher=(
         "MATCH (f:Function) "
-        "WHERE f.name STARTS WITH 'a' AND (f.name CONTAINS 'retrieve' OR f.name CONTAINS 'query' "
+        "WHERE f.repository = $repository AND f.name STARTS WITH 'a' "
+        "AND (f.name CONTAINS 'retrieve' OR f.name CONTAINS 'query' "
         "OR f.name CONTAINS 'embed' OR f.name CONTAINS 'generate') "
         "RETURN f.name"
     ),
@@ -300,7 +319,8 @@ Q19 = QueryCase(
     query_type="hybrid",
     ground_truth_cypher=(
         "MATCH (c:Class) "
-        "WHERE c.name IN ['QueryEngine', 'RetrieverQueryEngine', 'BaseRetriever', "
+        "WHERE c.repository = $repository "
+        "AND c.name IN ['QueryEngine', 'RetrieverQueryEngine', 'BaseRetriever', "
         "'VectorIndexRetriever', 'BaseSynthesizer', 'ResponseSynthesizer'] "
         "RETURN c.name"
     ),
@@ -314,9 +334,10 @@ Q20 = QueryCase(
     query_type="hybrid",
     ground_truth_cypher=(
         "MATCH (f:Function) "
-        "WHERE f.name CONTAINS 'read' OR f.name CONTAINS 'write' "
+        "WHERE f.repository = $repository "
+        "AND (f.name CONTAINS 'read' OR f.name CONTAINS 'write' "
         "OR f.name CONTAINS 'load' OR f.name CONTAINS 'save' "
-        "OR f.name CONTAINS 'persist' "
+        "OR f.name CONTAINS 'persist') "
         "RETURN f.name"
     ),
     notes="Hybrid: file I/O function names as proxy for FS access",

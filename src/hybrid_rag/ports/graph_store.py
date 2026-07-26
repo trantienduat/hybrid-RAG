@@ -79,12 +79,20 @@ class GraphStore(ABC):
         """Delete all nodes associated with a specific file in a repository."""
 
     @abstractmethod
+    def delete_repository(self, repository: str) -> None:
+        """Delete graph data for one repository namespace."""
+
+    @abstractmethod
     def get_repository_commit(self, repository: str) -> str | None:
         """Retrieve the last indexed commit hash for a repository."""
 
     @abstractmethod
     def set_repository_commit(self, repository: str, commit_hash: str) -> None:
         """Save the last indexed commit hash for a repository."""
+
+    @abstractmethod
+    def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
+        """Save complete provenance for the current repository index."""
 
     @abstractmethod
     def get_repository_metadata(self, repository: str) -> dict[str, Any] | None:

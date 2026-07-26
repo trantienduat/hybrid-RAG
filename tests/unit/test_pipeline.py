@@ -100,6 +100,17 @@ class TestIndexingPipeline:
         mock_parse_repo.assert_called_once()
         mock_graph_store.ingest.assert_called_once()
         mock_vector_store.upsert.assert_called_once()
+        payload = mock_vector_store.upsert.call_args.args[0][0]
+        assert payload["name"] == "foo"
+        assert payload["indexed_commit"] == ""
+        assert payload["source_identity"].startswith("sha256:")
+        assert payload["index_run_id"]
+        metadata = mock_graph_store.set_repository_metadata.call_args.args[1]
+        assert metadata["source_kind"] == "directory"
+        mock_vector_store.set_repository_metadata.assert_called_once_with(
+            "test-repo",
+            metadata,
+        )
 
         # Assertions on listener calls
         steps = [step[0] for step in listener.steps]
@@ -132,3 +143,38 @@ class TestIndexingPipeline:
             assert False, "Should raise ValueError for invalid directory"
         except ValueError as exc:
             assert "Repository path is not a directory" in str(exc)
+
+    @patch("hybrid_rag.ingestion.parser.parse_repo")
+    @patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda result: result)
+    @patch(
+        "hybrid_rag.ingestion.entity_resolver.resolve_global",
+        side_effect=lambda result, _store: result,
+    )
+    def test_rebuild_deletes_only_repository_namespace(
+        self,
+        _mock_resolve_global,
+        _mock_resolve,
+        mock_parse_repo,
+        tmp_path,
+    ):
+        mock_parse_repo.return_value = ParseResult()
+        graph_store = MagicMock()
+        graph_store.ingest.return_value = {"nodes": 0, "edges": 0}
+        vector_store = MagicMock()
+
+        run_indexing_pipeline(
+            repo_path=tmp_path,
+            languages=["python"],
+            repo_name="repo-one",
+            graph_store=graph_store,
+            vector_store=vector_store,
+            ollama_url="http://localhost:11434",
+            embed_model=DEFAULT_EMBED_MODEL,
+            llm_model=DEFAULT_LLM_MODEL,
+            llm_extract=False,
+            max_tokens=512,
+            rebuild=True,
+        )
+
+        graph_store.delete_repository.assert_called_once_with("repo-one")
+        vector_store.delete_repository.assert_called_once_with("repo-one")

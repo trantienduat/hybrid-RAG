@@ -87,6 +87,19 @@ class TestQueryAnalyzer:
         assert "local" in repr(a)
         assert "Foo" in repr(a)
 
+    def test_relation_intent(self):
+        methods = analyze("What methods does BaseRetriever define?")
+        callers = analyze("Which functions directly call BaseRetriever.retrieve()?")
+        imports = analyze("What modules does retriever_query_engine.py import?")
+        transitive = analyze("What does importing QueryEngine transitively bring in?")
+        mro = analyze("Trace the method resolution order (MRO) for RetrieverQueryEngine")
+
+        assert (methods.relation, methods.direction) == ("DEFINES", "out")
+        assert (callers.relation, callers.direction) == ("CALLS", "in")
+        assert (imports.relation, imports.direction) == ("IMPORTS", "out")
+        assert (transitive.relation, transitive.max_hops) == ("IMPORTS", 3)
+        assert (mro.relation, mro.direction, mro.max_hops) == ("INHERITS", "out", 3)
+
 
 # ─── RRF ──────────────────────────────────────────────────────────────────────
 
@@ -234,6 +247,15 @@ class TestContextAssembler:
         ctx = ContextAssembler().assemble(items, top_n=3)
         assert len(ctx.chunks) == 3
 
+    def test_oversized_chunk_does_not_block_smaller_results(self):
+        oversized = self._result(node_id="large", text="x" * 1000, name="large")
+        small = self._result(node_id="small", text="ok", name="small")
+
+        ctx = ContextAssembler().assemble([oversized, small], max_tokens=30)
+
+        assert [chunk["name"] for chunk in ctx.chunks] == ["small"]
+        assert ctx.metadata["chunks_excluded_count"] == 1
+
 
 # ─── GraphRetriever ────────────────────────────────────────────────────────────
 
@@ -263,8 +285,22 @@ class TestGraphRetriever:
         store = self._store(nodes=[self._node("n1", "BaseEmbedder")])
         analysis = self._analysis(entities=["BaseEmbedder"])
         results = GraphRetriever(store).retrieve(analysis)
-        store.find_nodes.assert_called_once_with("BaseEmbedder", limit=20)
+        store.find_nodes.assert_called_once_with("BaseEmbedder", repository=None, limit=20)
         assert results[0]["node_id"] == "n1"
+
+    def test_repository_scope_is_applied_before_graph_limit(self):
+        store = self._store(nodes=[self._node("n1", "BaseEmbedder")])
+
+        GraphRetriever(store).retrieve(
+            self._analysis(entities=["BaseEmbedder"]),
+            repository="hybrid-rag",
+        )
+
+        store.find_nodes.assert_called_once_with(
+            "BaseEmbedder",
+            repository="hybrid-rag",
+            limit=20,
+        )
 
     def test_result_source_is_graph(self):
         store = self._store(nodes=[self._node("n1")])
@@ -289,6 +325,57 @@ class TestGraphRetriever:
         ids = {r["node_id"] for r in results}
         assert "n1" in ids
         assert "n2" in ids
+
+    def test_relation_targets_rank_before_seed(self):
+        store = self._store(
+            nodes=[self._node("base", "BaseRetriever")],
+            neighbors=[
+                {
+                    "rel": "DEFINES",
+                    "dst_id": "method",
+                    "dst_name": "retrieve",
+                    "dst_label": "Function",
+                    "dst_file_path": "retriever.py",
+                }
+            ],
+        )
+        analysis = QueryAnalysis(
+            query_type="local",
+            entities=["BaseRetriever"],
+            relation="DEFINES",
+            direction="out",
+        )
+
+        results = GraphRetriever(store).retrieve(analysis)
+
+        assert [result["node_id"] for result in results[:2]] == ["method", "base"]
+        store.find_neighbors.assert_called_once_with(
+            "base",
+            rel="DEFINES",
+            direction="out",
+            max_hops=1,
+            limit=30,
+        )
+
+    def test_transitive_relation_uses_requested_hops(self):
+        store = self._store(nodes=[self._node("child", "Child")])
+        analysis = QueryAnalysis(
+            query_type="local",
+            entities=["Child"],
+            relation="INHERITS",
+            direction="out",
+            max_hops=3,
+        )
+
+        GraphRetriever(store).retrieve(analysis)
+
+        store.find_neighbors.assert_called_once_with(
+            "child",
+            rel="INHERITS",
+            direction="out",
+            max_hops=3,
+            limit=30,
+        )
 
     def test_no_neighbor_expansion_for_global(self):
         store = self._store(nodes=[self._node("n1")])
@@ -394,6 +481,15 @@ class TestVectorRetriever:
         _, kwargs = store.search.call_args
         assert kwargs.get("top_k") == 7
 
+    def test_caches_query_embeddings(self):
+        embedder = self._embedder()
+        retriever = VectorRetriever(self._store([]), embedder)
+
+        retriever.retrieve("same query")
+        retriever.retrieve("same query")
+
+        embedder.embed_query.assert_called_once_with("same query")
+
 
 # ─── HybridRetriever ─────────────────────────────────────────────────────────
 
@@ -470,6 +566,46 @@ class TestHybridRetriever:
         )
         retriever.retrieve("which classes inherit from BaseEmbedder?")
         graph_store.find_nodes.assert_called()
+        embedder.embed_query.assert_not_called()
+
+    def test_called_siblings_are_fetched_in_one_batch(self):
+        graph_store = MagicMock()
+        graph_store.find_nodes.return_value = []
+        graph_store.find_neighbors.return_value = []
+        graph_store.query.return_value.result_set = [
+            ["a.py.foo", ["helper"]],
+            ["a.py.bar", ["other"]],
+        ]
+        vector_store = MagicMock()
+        vector_store.search.return_value = [
+            {
+                "node_id": "a.py.foo::0",
+                "name": "foo",
+                "label": "Function",
+                "file_path": "a.py",
+                "text": "def foo(): pass",
+                "score": 0.9,
+            },
+            {
+                "node_id": "a.py.bar::0",
+                "name": "bar",
+                "label": "Function",
+                "file_path": "a.py",
+                "text": "def bar(): pass",
+                "score": 0.8,
+            },
+        ]
+        embedder = MagicMock()
+        embedder.embed_query.return_value = [0.0] * 768
+        retriever = HybridRetriever(graph_store, vector_store, embedder)
+
+        ctx = retriever.retrieve_with_context("explain the helpers")
+
+        assert graph_store.query.call_count == 1
+        cypher, params = graph_store.query.call_args.args
+        assert "UNWIND $ids AS id" in cypher
+        assert params == {"ids": ["a.py.foo", "a.py.bar"]}
+        assert ctx.chunks[0]["called_siblings"] == ["helper"]
 
     def test_graph_not_called_for_pure_semantic(self):
         graph_store = MagicMock()

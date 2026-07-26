@@ -12,7 +12,16 @@ import pytest
 
 from hybrid_rag.eval.corpus import RepoQACase, load_repoqa_json
 from hybrid_rag.eval.metrics import RepoQAEvalReport, RepoQAQueryResult
-from hybrid_rag.eval.runner import RepoQAEvalRunner
+from hybrid_rag.eval.runner import RepoQAEvalRunner, _extract_names
+
+
+def test_extract_names_falls_back_to_chunk_node_id():
+    results = [
+        {"node_id": "src/math_utils.py::Calculator::add::0"},
+        {"name": "subtract", "node_id": "ignored::0"},
+    ]
+
+    assert _extract_names(results) == ["add", "subtract"]
 
 
 def test_load_repoqa_json(tmp_path: Path):

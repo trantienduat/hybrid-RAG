@@ -2,6 +2,13 @@
 
 Target codebase for queries: **LlamaIndex** (Python, high modularity, deep hierarchies)
 
+The Q1-Q20 corpus is a **diagnostic graph benchmark**. Its ground truth is
+computed from repository-scoped Cypher and therefore validates retrieval over
+the indexed graph, not the completeness of that graph. A run is rejected if
+any case has empty ground truth or if FalkorDB and Qdrant provenance differs.
+Use the versioned RepoQA fixtures for an independent source-file retrieval
+benchmark.
+
 Each query is tagged with:
 - **Hops**: number of graph edge traversals required
 - **Path**: expected Cypher traversal pattern
@@ -29,12 +36,13 @@ Each query is tagged with:
 - Baseline: partial
 
 ### Q3 — Direct callers
-> "Which functions directly call `BaseRetriever.retrieve()`?"
+> "Which functions directly call `retrieve()`?"
 
 - Hops: 1
-- Path: `(:Function)-[:CALLS]->(:Function {name:"retrieve", class:"BaseRetriever"})`
+- Path: `(:Function)-[:CALLS]->(:Function {name:"retrieve"})`
 - Type: structural
 - Baseline: weak (semantic search finds description, not call sites)
+- Note: receiver-type inference is outside the current static-analysis schema
 
 ### Q4 — Inheritance
 > "Which classes directly inherit from `BaseSynthesizer`?"
@@ -101,10 +109,10 @@ Each query is tagged with:
 ## 3-Hop Queries
 
 ### Q11 — Impact analysis
-> "If I change the signature of `BaseRetriever.retrieve()`, which functions across which modules are affected?"
+> "Which functions can reach `retrieve()` within three calls?"
 
 - Hops: 3
-- Path: `retrieve()<-[:CALLS]-(:Function)-[:DEFINED_IN]->(:Module)`, then callers' callers
+- Path: `(:Function)-[:CALLS*1..3]->(:Function {name:"retrieve"})`
 - Type: structural
 - Baseline: fails
 
@@ -117,12 +125,13 @@ Each query is tagged with:
 - Baseline: fails
 
 ### Q13 — Dependency impact
-> "Which tests would break if `VectorStoreIndex` is removed?"
+> "Which modules transitively depend on the `VectorStoreIndex` module?"
 
 - Hops: 3
-- Path: `(:Module {type:"test"})-[:IMPORTS]->...-[:IMPORTS]->(:Module containing VectorStoreIndex)`
+- Path: `(:Module)-[:IMPORTS*1..3]->(:Module containing VectorStoreIndex)`
 - Type: structural
 - Baseline: fails
+- Note: wheel distributions do not contain the upstream test suite
 
 ### Q14 — Cross-cutting concern
 > "Trace all code paths from user calling `index.as_query_engine()` to when embeddings are generated."
@@ -182,6 +191,10 @@ Each query is tagged with:
 ---
 
 ## Acceptance Criteria
+
+Acceptance results are valid only with 100% ground-truth coverage and matching
+graph/vector provenance. Partial runs are inconclusive and must not be marked
+as passing.
 
 | Metric | Target |
 |--------|--------|

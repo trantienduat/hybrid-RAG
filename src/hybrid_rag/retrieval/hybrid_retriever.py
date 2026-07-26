@@ -16,6 +16,7 @@ composition root (cli.py).
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from hybrid_rag.ports.embedder import BaseEmbedder
@@ -250,26 +251,67 @@ class HybridRetriever(BaseRetriever):
                 logger.error("Failed to retrieve communities for global query: %s", exc)
 
         graph_results: list[dict[str, Any]] = []
-        if not skip_graph and analysis.query_type == "local":
+
+        # Exact structural relations are cheaper and more precise through the
+        # graph. Fall back to vector retrieval only when the graph has no answer.
+        if not skip_graph and analysis.query_type == "local" and analysis.relation:
             t_graph = time.perf_counter()
             graph_results = self._graph_retriever.retrieve(
                 analysis, top_k=top_k * 2, repository=repository
             )
             self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
             logger.debug("Graph results: %d nodes", len(graph_results))
+            if graph_results:
+                t_rrf = time.perf_counter()
+                fused = reciprocal_rank_fusion(
+                    graph_results,
+                    [],
+                    k=self._rrf_k,
+                    weights=(self._rrf_graph_weight, 0.0),
+                )
+                self._last_timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
+                return fused[:top_k]
 
-        t_vector = time.perf_counter()
-        vector_results = self._vector_retriever.retrieve(
-            query, top_k=top_k * 2, filter_payload=filter_payload
+        def retrieve_graph() -> tuple[list[dict[str, Any]], float]:
+            started = time.perf_counter()
+            found = self._graph_retriever.retrieve(
+                analysis,
+                top_k=top_k * 2,
+                repository=repository,
+            )
+            return found, round((time.perf_counter() - started) * 1000, 2)
+
+        def retrieve_vector() -> tuple[list[dict[str, Any]], float]:
+            started = time.perf_counter()
+            found = self._vector_retriever.retrieve(
+                query,
+                top_k=top_k * 2,
+                filter_payload=filter_payload,
+            )
+            return found, round((time.perf_counter() - started) * 1000, 2)
+
+        should_search_graph = (
+            not skip_graph and analysis.query_type == "local" and not analysis.relation
         )
-        self._last_timings["vector_search_ms"] = round((time.perf_counter() - t_vector) * 1000, 2)
+        if should_search_graph:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                graph_future = executor.submit(retrieve_graph)
+                vector_future = executor.submit(retrieve_vector)
+                graph_results, self._last_timings["graph_search_ms"] = graph_future.result()
+                vector_results, self._last_timings["vector_search_ms"] = vector_future.result()
+        else:
+            vector_results, self._last_timings["vector_search_ms"] = retrieve_vector()
+
+        logger.debug("Graph results: %d nodes", len(graph_results))
         logger.debug("Vector results: %d chunks", len(vector_results))
 
         t_rrf = time.perf_counter()
         if skip_graph:
             rrf_weights = (0.0, 1.0)
         else:
-            rrf_weights = (self._rrf_graph_weight, 1.0)
+            # Generic graph expansion is noisier than an explicit relation
+            # traversal; do not let it overpower a strong vector ranking.
+            rrf_weights = (min(self._rrf_graph_weight, 1.0), 1.0)
 
         fused = reciprocal_rank_fusion(
             graph_results, vector_results, k=self._rrf_k, weights=rrf_weights
@@ -278,6 +320,7 @@ class HybridRetriever(BaseRetriever):
         return fused[:top_k]
 
     def close(self) -> None:
+        self._vector_retriever.clear_cache()
         self._vector_retriever._embedder.close()
 
     # ── Convenience ───────────────────────────────────────────────
@@ -294,14 +337,19 @@ class HybridRetriever(BaseRetriever):
         """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
         results = self.retrieve(query, top_k=top_k, repository=repository)
 
-        # Retrieve called sibling functions to prevent sibling body loss during skeletonization
+        function_ids = [
+            item.get("base_node_id") or item.get("node_id", "")
+            for item in results
+            if item.get("label") == "Function" and item.get("node_id")
+        ]
+        siblings_by_id = self._get_called_siblings_batch(function_ids)
+
+        # Attach called sibling names for context skeletonization.
         for item in results:
-            label = item.get("label", "")
-            node_id = item.get("node_id", "")
-            if label == "Function" and node_id:
-                siblings = self._get_called_siblings(node_id)
-                if siblings:
-                    item["called_siblings"] = siblings
+            node_id = item.get("base_node_id") or item.get("node_id", "")
+            siblings = siblings_by_id.get(node_id, [])
+            if siblings:
+                item["called_siblings"] = siblings
 
         # Fallback to legacy top_n count assembly if budget is explicitly omitted and legacy count is provided
         if max_tokens is None and max_chars is None and context_n is not None:
@@ -317,21 +365,22 @@ class HybridRetriever(BaseRetriever):
         ctx.timings = self._last_timings.copy()
         return ctx
 
-    def _get_called_siblings(self, node_id: str) -> list[str]:
-        """Fetch the names of sibling functions in the same file that are called by node_id."""
-        if not node_id:
-            return []
+    def _get_called_siblings_batch(self, node_ids: list[str]) -> dict[str, list[str]]:
+        """Fetch called sibling names for all result functions in one query."""
+        if not node_ids:
+            return {}
         cypher = (
-            "MATCH (f:Function {id: $id})-[:CALLS]->(sibling:Function) "
+            "UNWIND $ids AS id "
+            "MATCH (f:Function {id: id})-[:CALLS]->(sibling:Function) "
             "WHERE sibling.file_path = f.file_path "
-            "RETURN sibling.name AS name"
+            "RETURN id, collect(DISTINCT sibling.name) AS names"
         )
         try:
-            res = self._graph_store.query(cypher, {"id": node_id})
-            siblings = []
+            res = self._graph_store.query(cypher, {"ids": node_ids})
+            siblings_by_id: dict[str, list[str]] = {}
             for row in res.result_set or []:
-                siblings.append(str(row[0]))
-            return siblings
+                siblings_by_id[str(row[0])] = [str(name) for name in (row[1] or [])]
+            return siblings_by_id
         except Exception as exc:
-            logger.warning("Failed to fetch called siblings for %s: %s", node_id, exc)
-            return []
+            logger.warning("Failed to fetch called siblings: %s", exc)
+            return {}

@@ -9,6 +9,8 @@ ports — fully vendor-neutral.
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
+from threading import Lock
 from typing import Any
 
 from hybrid_rag.ports.embedder import BaseEmbedder
@@ -40,6 +42,8 @@ class VectorRetriever:
     def __init__(self, vector_store: VectorStore, embedder: BaseEmbedder) -> None:
         self._store = vector_store
         self._embedder = embedder
+        self._embedding_cache: OrderedDict[str, list[float]] = OrderedDict()
+        self._cache_lock = Lock()
 
     def retrieve(
         self,
@@ -53,7 +57,17 @@ class VectorRetriever:
         Each result dict has:
           node_id, base_node_id, label, file_path, text, score, source.
         """
-        embedding = self._embedder.embed_query(query)
+        with self._cache_lock:
+            embedding = self._embedding_cache.get(query)
+        if embedding is None:
+            embedding = self._embedder.embed_query(query)
+            with self._cache_lock:
+                self._embedding_cache[query] = embedding
+                if len(self._embedding_cache) > 256:
+                    self._embedding_cache.popitem(last=False)
+        else:
+            with self._cache_lock:
+                self._embedding_cache.move_to_end(query)
         hits = self._store.search(embedding, top_k=top_k, filter_payload=filter_payload)
         results: list[dict[str, Any]] = []
         for hit in hits:
@@ -67,3 +81,8 @@ class VectorRetriever:
             )
         logger.debug("VectorRetriever: %d hits for %r", len(results), query[:60])
         return results
+
+    def clear_cache(self) -> None:
+        """Clear cached query embeddings."""
+        with self._cache_lock:
+            self._embedding_cache.clear()

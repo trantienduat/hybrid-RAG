@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-07-26T05:20:10Z",
+  "methodology": {
+    "corpus": "repository-scoped Q1-Q20 diagnostic graph benchmark",
+    "ground_truth_coverage": "20/20",
+    "index_source_identity": "sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509",
+    "falkordb_graph": "llama_core_repair_20260726",
+    "qdrant_collection": "llama_core_repair_20260726",
+    "runs": 1,
+    "latency_note": "Single local cold/warm mixed run; use repeated p50/p95 runs for capacity planning.",
+    "baseline_vector_note": "Develop's skip_graph path was not a pure vector baseline, so only hybrid revision metrics are compared."
+  },
+  "develop": {
+    "revision": "0bb19f3fd1fd3d26ca386377d6fa83e92c8a401c",
+    "hybrid_hit_rate_at_5": 0.45,
+    "hybrid_hits": 9,
+    "queries": 20,
+    "average_latency_ms": 73.97622074786341,
+    "hit_rate_by_hops": {
+      "1": 0.4,
+      "2": 0.375,
+      "3": 0.5714285714285714
+    }
+  },
+  "candidate": {
+    "branch": "feat/retrieval-mcp-hardening",
+    "hybrid_hit_rate_at_5": 0.55,
+    "hybrid_hits": 11,
+    "queries": 20,
+    "average_latency_ms": 55.7325,
+    "hit_rate_by_hops": {
+      "1": 0.8,
+      "2": 0.375,
+      "3": 0.5714285714285714
+    }
+  },
+  "delta": {
+    "hybrid_hit_rate_points": 0.1,
+    "hybrid_hits": 2,
+    "average_latency_ms": -18.24372074786341,
+    "average_latency_percent": -24.66160028258502
+  },
+  "acceptance": {
+    "hit_rate_target": 0.6,
+    "hit_rate_pass": false,
+    "latency_target_ms": 1000,
+    "latency_pass": true
+  }
+}

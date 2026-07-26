@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 QueryType = Literal["local", "global"]
+RelationDirection = Literal["in", "out"]
 
 # Global signals: questions about repository-wide architecture, summaries, modules overview
 _GLOBAL_RE = re.compile(
@@ -27,6 +28,35 @@ _GLOBAL_RE = re.compile(
     r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống|"
     r"tổng\s+quan\s+dự\s+án|tóm\s+tắt\s+codebase|luồng\s+hệ\s+thống|cấu\s+trúc\s+thư\s+mục)\b",
     re.IGNORECASE,
+)
+
+_RELATION_INTENTS: tuple[tuple[re.Pattern[str], str, RelationDirection, int], ...] = (
+    (
+        re.compile(r"\b(?:method resolution order|mro)\b", re.IGNORECASE),
+        "INHERITS",
+        "out",
+        3,
+    ),
+    (
+        re.compile(r"\b(?:define[sd]?|methods?\s+(?:does|of|in))\b", re.IGNORECASE),
+        "DEFINES",
+        "out",
+        1,
+    ),
+    (
+        re.compile(r"\b(?:inherit(?:s|ed)?\s+from|subclasses?\s+of)\b", re.IGNORECASE),
+        "INHERITS",
+        "in",
+        1,
+    ),
+    (
+        re.compile(r"\b(?:callers?\s+of|functions?\s+.*\bcall)\b", re.IGNORECASE),
+        "CALLS",
+        "in",
+        1,
+    ),
+    (re.compile(r"\b(?:calls?|invokes?)\b", re.IGNORECASE), "CALLS", "out", 1),
+    (re.compile(r"\bimport(?:s|ing|ed)?\b", re.IGNORECASE), "IMPORTS", "out", 1),
 )
 
 # PascalCase with ≥2 uppercase letters: BaseEmbedder, GraphStore, FalkorDB
@@ -177,11 +207,16 @@ class QueryAnalysis:
     query_type: QueryType
     entities: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
+    relation: str | None = None
+    direction: RelationDirection | None = None
+    max_hops: int = 1
 
     def __repr__(self) -> str:
         return (
             f"QueryAnalysis(type={self.query_type!r}, "
-            f"entities={self.entities!r}, keywords={self.keywords!r})"
+            f"entities={self.entities!r}, keywords={self.keywords!r}, "
+            f"relation={self.relation!r}, direction={self.direction!r}, "
+            f"max_hops={self.max_hops!r})"
         )
 
 
@@ -189,6 +224,17 @@ def analyze(query: str) -> QueryAnalysis:
     """Classify a free-text query and extract code identifiers."""
     is_global = bool(_GLOBAL_RE.search(query))
     query_type: QueryType = "global" if is_global else "local"
+    relation = None
+    direction = None
+    max_hops = 1
+    for pattern, candidate_relation, candidate_direction, candidate_hops in _RELATION_INTENTS:
+        if pattern.search(query):
+            relation = candidate_relation
+            direction = candidate_direction
+            max_hops = candidate_hops
+            break
+    if relation and re.search(r"\btransitiv(?:e|ely)\b", query, re.IGNORECASE):
+        max_hops = 3
 
     # ── entity extraction ──────────────────────────────────────────
     seen: set[str] = set()
@@ -224,4 +270,7 @@ def analyze(query: str) -> QueryAnalysis:
         query_type=query_type,
         entities=list(dict.fromkeys(entities)),
         keywords=list(dict.fromkeys(keywords)),
+        relation=relation,
+        direction=direction,
+        max_hops=max_hops,
     )

@@ -424,6 +424,10 @@ def eval(
     from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
     from hybrid_rag.vector.qdrant_store import QdrantStore
 
+    if not repo_name:
+        err_console.print("[ERROR] --repo-name is required for reproducible evaluation.")
+        raise typer.Exit(1)
+
     if mode.lower() == "repoqa":
         if not benchmark_path:
             err_console.print("[ERROR] --benchmark-path is required in 'repoqa' evaluation mode.")
@@ -449,6 +453,9 @@ def eval(
             vector_store = QdrantStore(
                 host=qdrant_host, port=qdrant_port, collection=qdrant_collection
             )
+            from hybrid_rag.eval.preflight import validate_index_provenance
+
+            validate_index_provenance(graph_store, vector_store, repo_name)
 
             with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
                 runner = RepoQAEvalRunner(
@@ -573,6 +580,9 @@ def eval(
     try:
         graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+        from hybrid_rag.eval.preflight import validate_index_provenance
+
+        validate_index_provenance(graph_store, vector_store, repo_name)
 
         with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
             runner = EvalRunner(

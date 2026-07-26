@@ -150,10 +150,10 @@ class ContextAssembler:
                     violated = True
 
                 if violated:
-                    # Once a high-ranked chunk violates the budget, exclude it and all remaining
-                    # chunks to strictly preserve rank priority without packing holes or truncating.
-                    chunks_excluded.extend(results[i - 1 :])
-                    break
+                    # Skip an oversized item and continue packing smaller useful
+                    # chunks instead of returning sparse or empty context.
+                    chunks_excluded.append(item)
+                    continue
 
             # Fallback legacy constraint
             elif len(chunks_included) >= top_n:

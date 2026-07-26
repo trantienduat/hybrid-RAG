@@ -57,6 +57,7 @@ from hybrid_rag.config import app_config, translate_path_for_docker
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
+from hybrid_rag.retrieval.context_assembler import RetrievalContext
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
 from hybrid_rag.retrieval.query_analyzer import analyze
 from hybrid_rag.utils.cache import RedisQueryCache
@@ -818,6 +819,21 @@ async def list_models() -> list[LLMModelResponse]:
 # ── POST /query ────────────────────────────────────────────────────────────────
 
 
+async def _retrieve_context(
+    retriever: HybridRetriever,
+    req: QueryRequest,
+) -> RetrievalContext:
+    kwargs: dict[str, Any] = {
+        "top_k": req.top_k,
+        "repository": req.repository,
+    }
+    if req.max_tokens is None and req.max_chars is None:
+        kwargs.update(max_tokens=None, max_chars=None, context_n=req.context_n)
+    else:
+        kwargs.update(max_tokens=req.max_tokens, max_chars=req.max_chars)
+    return await asyncio.to_thread(retriever.retrieve_with_context, req.question, **kwargs)
+
+
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(req: QueryRequest) -> QueryResponse:
     """Hybrid retrieval + LLM answer (synchronous)."""
@@ -858,23 +874,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                 with start_span(
                     "api_context_retrieval", {"top_k": req.top_k, "context_n": req.context_n}
                 ):
-                    if req.max_tokens is None and req.max_chars is None:
-                        ctx = retriever.retrieve_with_context(
-                            req.question,
-                            top_k=req.top_k,
-                            max_tokens=None,
-                            max_chars=None,
-                            context_n=req.context_n,
-                            repository=req.repository,
-                        )
-                    else:
-                        ctx = retriever.retrieve_with_context(
-                            req.question,
-                            top_k=req.top_k,
-                            max_tokens=req.max_tokens,
-                            max_chars=req.max_chars,
-                            repository=req.repository,
-                        )
+                    ctx = await _retrieve_context(retriever, req)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Retrieval failed")
                 raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
@@ -1105,23 +1105,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 with start_span(
                     "api_context_retrieval_stream", {"top_k": req.top_k, "context_n": req.context_n}
                 ):
-                    if req.max_tokens is None and req.max_chars is None:
-                        ctx = retriever.retrieve_with_context(
-                            req.question,
-                            top_k=req.top_k,
-                            max_tokens=None,
-                            max_chars=None,
-                            context_n=req.context_n,
-                            repository=req.repository,
-                        )
-                    else:
-                        ctx = retriever.retrieve_with_context(
-                            req.question,
-                            top_k=req.top_k,
-                            max_tokens=req.max_tokens,
-                            max_chars=req.max_chars,
-                            repository=req.repository,
-                        )
+                    ctx = await _retrieve_context(retriever, req)
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(status_code=503, detail=f"Retrieval failed: {exc}") from exc
 

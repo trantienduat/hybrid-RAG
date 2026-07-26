@@ -1066,3 +1066,23 @@ class TestHybridRetriever:
         assert "vector_search_ms" in ctx.timings
         assert "rrf_ms" in ctx.timings
         assert ctx.timings["parse_query_ms"] >= 0.0
+
+    def test_context_uses_timings_from_its_own_retrieval(self):
+        retriever = self._retriever()
+        retrievals_ready = Barrier(2, timeout=1)
+
+        def retrieve_with_timings(query, **_kwargs):
+            marker = 1.0 if query == "first" else 2.0
+            retrievals_ready.wait()
+            return [], {"request_marker": marker}
+
+        retriever._retrieve = retrieve_with_timings
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            first_future = executor.submit(retriever.retrieve_with_context, "first")
+            second_future = executor.submit(retriever.retrieve_with_context, "second")
+            first = first_future.result(timeout=2)
+            second = second_future.result(timeout=2)
+
+        assert first.timings == {"request_marker": 1.0}
+        assert second.timings == {"request_marker": 2.0}

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from typing import Any
 
 from hybrid_rag.ports.embedder import BaseEmbedder
@@ -56,7 +57,10 @@ class HybridRetriever(BaseRetriever):
         self._assembler = ContextAssembler()
         self._rrf_k = rrf_k
         self._rrf_graph_weight = rrf_structural_weight
-        self._last_timings: dict[str, float] = {}
+        self._request_timings: ContextVar[dict[str, float] | None] = ContextVar(
+            "hybrid_rag_request_timings",
+            default=None,
+        )
 
     # ── BaseRetriever interface ────────────────────────────────────
 
@@ -67,8 +71,25 @@ class HybridRetriever(BaseRetriever):
         skip_graph: bool = False,
         repository: str | None = None,
     ) -> list[dict[str, Any]]:
+        """Run hybrid retrieval and return the top_k fused results."""
+        results, timings = self._retrieve(
+            query,
+            top_k=top_k,
+            skip_graph=skip_graph,
+            repository=repository,
+        )
+        self._request_timings.set(timings)
+        return results
+
+    def _retrieve(
+        self,
+        query: str,
+        top_k: int = 10,
+        skip_graph: bool = False,
+        repository: str | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, float]]:
         """
-        Run hybrid retrieval and return top_k fused results sorted by rrf_score.
+        Run hybrid retrieval and return results with request-local timings.
 
         Each result dict has at least:
           node_id, base_node_id, name, label, file_path,
@@ -81,7 +102,7 @@ class HybridRetriever(BaseRetriever):
         """
         import time
 
-        self._last_timings = {
+        timings = {
             "parse_query_ms": 0.0,
             "graph_search_ms": 0.0,
             "vector_search_ms": 0.0,
@@ -90,7 +111,7 @@ class HybridRetriever(BaseRetriever):
 
         t_start = time.perf_counter()
         analysis = analyze(query)
-        self._last_timings["parse_query_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
+        timings["parse_query_ms"] = round((time.perf_counter() - t_start) * 1000, 2)
         logger.debug("HybridRetriever query analysis: %s", analysis)
 
         # ── Query Routing (Milestone 3.3) ──
@@ -129,9 +150,7 @@ class HybridRetriever(BaseRetriever):
             vector_results = self._vector_retriever.retrieve(
                 query, top_k=top_k * 2, filter_payload=filter_payload
             )
-            self._last_timings["vector_search_ms"] = round(
-                (time.perf_counter() - t_vector) * 1000, 2
-            )
+            timings["vector_search_ms"] = round((time.perf_counter() - t_vector) * 1000, 2)
 
             best_score = vector_results[0].get("score", 0.0) if vector_results else 0.0
             if routing_fallback_env and best_score < routing_threshold_env:
@@ -199,11 +218,9 @@ class HybridRetriever(BaseRetriever):
                                 "Vector Routing neighbor expansion failed for %s: %s", seed_id, exc
                             )
 
-                self._last_timings["graph_search_ms"] = round(
-                    (time.perf_counter() - t_graph) * 1000, 2
-                )
+                timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
                 results.sort(key=lambda x: x.get("rrf_score", 0.0), reverse=True)
-                return results[:top_k]
+                return results[:top_k], timings
 
         if not skip_graph and analysis.query_type == "global":
             # Global query: fetch community summaries, optionally scoped by repository.
@@ -238,16 +255,12 @@ class HybridRetriever(BaseRetriever):
                             "rrf_score": 1.0,
                         }
                     )
-                self._last_timings["graph_search_ms"] = round(
-                    (time.perf_counter() - t_graph) * 1000, 2
-                )
+                timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
                 logger.debug("Retrieved %d communities for global query", len(global_results))
                 if global_results:
-                    return global_results
+                    return global_results, timings
             except Exception as exc:
-                self._last_timings["graph_search_ms"] = round(
-                    (time.perf_counter() - t_graph) * 1000, 2
-                )
+                timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
                 logger.error("Failed to retrieve communities for global query: %s", exc)
 
         graph_results: list[dict[str, Any]] = []
@@ -259,7 +272,7 @@ class HybridRetriever(BaseRetriever):
             graph_results = self._graph_retriever.retrieve(
                 analysis, top_k=top_k * 2, repository=repository
             )
-            self._last_timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
+            timings["graph_search_ms"] = round((time.perf_counter() - t_graph) * 1000, 2)
             logger.debug("Graph results: %d nodes", len(graph_results))
             has_relation_target = any(
                 result.get("result_role") == "relation_target" for result in graph_results
@@ -272,8 +285,8 @@ class HybridRetriever(BaseRetriever):
                     k=self._rrf_k,
                     weights=(self._rrf_graph_weight, 0.0),
                 )
-                self._last_timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
-                return fused[:top_k]
+                timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
+                return fused[:top_k], timings
             graph_results = []
 
         def retrieve_graph() -> tuple[list[dict[str, Any]], float]:
@@ -326,10 +339,10 @@ class HybridRetriever(BaseRetriever):
             with ThreadPoolExecutor(max_workers=2) as executor:
                 graph_future = executor.submit(retrieve_graph)
                 vector_future = executor.submit(retrieve_vector)
-                graph_results, self._last_timings["graph_search_ms"] = graph_future.result()
-                vector_results, self._last_timings["vector_search_ms"] = vector_future.result()
+                graph_results, timings["graph_search_ms"] = graph_future.result()
+                vector_results, timings["vector_search_ms"] = vector_future.result()
         else:
-            vector_results, self._last_timings["vector_search_ms"] = retrieve_vector()
+            vector_results, timings["vector_search_ms"] = retrieve_vector()
 
         logger.debug("Graph results: %d nodes", len(graph_results))
         logger.debug("Vector results: %d chunks", len(vector_results))
@@ -345,8 +358,8 @@ class HybridRetriever(BaseRetriever):
         fused = reciprocal_rank_fusion(
             graph_results, vector_results, k=self._rrf_k, weights=rrf_weights
         )
-        self._last_timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
-        return fused[:top_k]
+        timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
+        return fused[:top_k], timings
 
     def close(self) -> None:
         self._vector_retriever.clear_cache()
@@ -364,7 +377,9 @@ class HybridRetriever(BaseRetriever):
         repository: str | None = None,
     ) -> RetrievalContext:
         """Retrieve and assemble context in one call with dynamic token/char budgeting and scoping."""
+        self._request_timings.set(None)
         results = self.retrieve(query, top_k=top_k, repository=repository)
+        timings = self._request_timings.get() or {}
 
         function_ids = [
             item.get("base_node_id") or item.get("node_id", "")
@@ -391,7 +406,7 @@ class HybridRetriever(BaseRetriever):
                 max_chars=max_chars,
                 query=query,
             )
-        ctx.timings = self._last_timings.copy()
+        ctx.timings = timings
         return ctx
 
     def _get_called_siblings_batch(self, node_ids: list[str]) -> dict[str, list[str]]:

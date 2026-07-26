@@ -29,6 +29,19 @@ docker compose --profile observability up -d --build
 See [operations](docs/usage.md), [architecture](docs/architecture.md), and
 [MCP setup](docs/mcp.md) for details.
 
+## API concurrency benchmark
+
+Run the controlled before/after benchmark for blocking retrieval:
+
+```bash
+.venv/bin/python scripts/benchmark_api_concurrency.py \
+  --requests 20 --delay-ms 50 --trials 7
+```
+
+The JSON output reports batch latency, throughput, completion p50/p95, and
+worst event-loop stall. Results depend on the host CPU and scheduler; compare
+runs made with the same parameters and environment.
+
 ## Current limitations
 
 - Python AST extraction is implemented. Java is accepted by configuration but

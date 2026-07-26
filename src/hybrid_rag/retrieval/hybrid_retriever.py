@@ -274,6 +274,7 @@ class HybridRetriever(BaseRetriever):
                 )
                 self._last_timings["rrf_ms"] = round((time.perf_counter() - t_rrf) * 1000, 2)
                 return fused[:top_k]
+            graph_results = []
 
         def retrieve_graph() -> tuple[list[dict[str, Any]], float]:
             started = time.perf_counter()
@@ -286,11 +287,36 @@ class HybridRetriever(BaseRetriever):
 
         def retrieve_vector() -> tuple[list[dict[str, Any]], float]:
             started = time.perf_counter()
+            clean_semantic_candidates = (
+                not skip_graph and analysis.relation is None and "__call__" not in query
+            )
             found = self._vector_retriever.retrieve(
                 query,
-                top_k=top_k * 2,
+                top_k=top_k * (4 if clean_semantic_candidates else 2),
                 filter_payload=filter_payload,
             )
+            if clean_semantic_candidates:
+                canonical = []
+                placeholders = []
+                for result in found:
+                    is_placeholder = any(
+                        str(result.get(field, "")).startswith("__call__")
+                        for field in ("name", "node_id", "base_node_id")
+                    )
+                    (placeholders if is_placeholder else canonical).append(result)
+                if analysis.target_label:
+                    matching = [
+                        result
+                        for result in canonical
+                        if result.get("label") == analysis.target_label
+                    ]
+                    if matching:
+                        canonical = matching + [
+                            result
+                            for result in canonical
+                            if result.get("label") != analysis.target_label
+                        ]
+                found = (canonical + placeholders)[: top_k * 2]
             return found, round((time.perf_counter() - started) * 1000, 2)
 
         should_search_graph = (

@@ -50,10 +50,12 @@ def reciprocal_rank_fusion(
 
     for list_idx, ranked in enumerate(ranked_lists):
         w = weights[list_idx] if weights and list_idx < len(weights) else 1.0
+        seen_in_list: set[str] = set()
         for rank, item in enumerate(ranked, start=1):
             doc_id = item.get(id_key, "")
-            if not doc_id:
+            if not doc_id or doc_id in seen_in_list:
                 continue
+            seen_in_list.add(doc_id)
             scores[doc_id] = scores.get(doc_id, 0.0) + w / (k + rank)
             if doc_id not in merged:
                 merged[doc_id] = dict(item)

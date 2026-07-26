@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-26T06:29:44Z",
+  "timestamp": "2026-07-26T07:11:03Z",
   "config": {
     "repo": "llama-core-repair",
     "top_k": 20,
@@ -27,18 +27,18 @@
     "label": "Hybrid-RAG",
     "skipped_empty_ground_truth": 0,
     "overall": {
-      "hit_rate": 0.94,
-      "hits": 47,
+      "hit_rate": 1.0,
+      "hits": 50,
       "total": 50
     },
     "1-hop": {
-      "hit_rate": 0.9473684210526315,
-      "hits": 18,
+      "hit_rate": 1.0,
+      "hits": 19,
       "total": 19
     },
     "2-hop": {
-      "hit_rate": 0.8947368421052632,
-      "hits": 17,
+      "hit_rate": 1.0,
+      "hits": 19,
       "total": 19
     },
     "3-hop": {
@@ -98,7 +98,7 @@
         "retrieve",
         "_ahandle_recursive_retrieval"
       ],
-      "latency_ms": 2.73
+      "latency_ms": 2.75
     },
     {
       "id": "Q2",
@@ -126,7 +126,7 @@
         "custom",
         "sql_query"
       ],
-      "latency_ms": 13.65
+      "latency_ms": 9.57
     },
     {
       "id": "Q3",
@@ -154,7 +154,7 @@
         "retrieve",
         "retrieve"
       ],
-      "latency_ms": 7.75
+      "latency_ms": 7.08
     },
     {
       "id": "Q4",
@@ -179,7 +179,7 @@
         "notext",
         "generation"
       ],
-      "latency_ms": 1.63
+      "latency_ms": 1.7
     },
     {
       "id": "Q5",
@@ -207,7 +207,7 @@
         "_insert_fetched_nodes_into_query_result",
         "_determine_nodes_to_fetch"
       ],
-      "latency_ms": 6.51
+      "latency_ms": 6.95
     },
     {
       "id": "Q6",
@@ -235,7 +235,7 @@
         "ref_doc_info",
         "arefresh_ref_docs"
       ],
-      "latency_ms": 3.51
+      "latency_ms": 2.54
     },
     {
       "id": "Q7",
@@ -260,7 +260,7 @@
         "_retrieve",
         "upsert_triplet_and_node"
       ],
-      "latency_ms": 8.25
+      "latency_ms": 7.59
     },
     {
       "id": "Q8",
@@ -288,7 +288,7 @@
         "custom",
         "sql_query"
       ],
-      "latency_ms": 6.92
+      "latency_ms": 6.33
     },
     {
       "id": "Q9",
@@ -316,7 +316,7 @@
         "queryfusionretriever",
         "automergingretriever"
       ],
-      "latency_ms": 16.37
+      "latency_ms": 15.13
     },
     {
       "id": "Q10",
@@ -344,7 +344,7 @@
         "base_node_mapping",
         "base"
       ],
-      "latency_ms": 2.04
+      "latency_ms": 1.97
     },
     {
       "id": "Q11",
@@ -372,7 +372,7 @@
         "retrieve",
         "retrieve"
       ],
-      "latency_ms": 5.77
+      "latency_ms": 5.46
     },
     {
       "id": "Q12",
@@ -394,7 +394,7 @@
         "__call__retrieverqueryengine",
         "sqltableretrieverqueryengine"
       ],
-      "latency_ms": 2.35
+      "latency_ms": 2.06
     },
     {
       "id": "Q13",
@@ -416,13 +416,13 @@
         "joint_qa_summary"
       ],
       "retrieved_names": [
-        "multimodalvectorstoreindex",
+        "vector_store",
+        "vector_stores",
         "vectorstoreindex",
-        "vectorstoreindex",
-        "base",
-        "vector_memory"
+        "multi_modal",
+        "retriever"
       ],
-      "latency_ms": 341.59
+      "latency_ms": 344.61
     },
     {
       "id": "Q14",
@@ -435,13 +435,13 @@
         "as_query_engine"
       ],
       "retrieved_names": [
-        "__call__as_query_engine",
         "as_query_engine",
         "as_query_engine",
         "as_query_engine",
-        "as_query_engine"
+        "as_query_engine",
+        "as_retriever"
       ],
-      "latency_ms": 46.97
+      "latency_ms": 53.33
     },
     {
       "id": "Q15",
@@ -463,20 +463,20 @@
         "node_id"
       ],
       "retrieved_names": [
-        "__call__nodewithscore",
-        "baseretriever",
-        "nodewithscore",
+        "embedding",
         "class_name",
+        "id_",
+        "text",
         "__str__"
       ],
-      "latency_ms": 48.95
+      "latency_ms": 46.46
     },
     {
       "id": "Q16",
       "hops": 2,
       "query_type": "hybrid",
       "question": "Which classes have retry or fallback in their names?",
-      "hit": false,
+      "hit": true,
       "gt_count": 4,
       "gt_names": [
         "errortoretry",
@@ -485,13 +485,13 @@
         "retrysourcequeryengine"
       ],
       "retrieved_names": [
-        "__call__retry_on_exceptions_with_backoff",
-        "class_name",
-        "class_name",
         "rerankendevent",
-        "class_name"
+        "rerankstartevent",
+        "errortoretry",
+        "documentrelevancelist",
+        "retryqueryengine"
       ],
-      "latency_ms": 38.91
+      "latency_ms": 52.06
     },
     {
       "id": "Q17",
@@ -508,20 +508,20 @@
         "workflow_events"
       ],
       "retrieved_names": [
+        "events",
+        "event_handlers",
         "callbacks",
-        "llm",
-        "llama_debug",
-        "utils",
-        "base"
+        "dispatcher",
+        "utils"
       ],
-      "latency_ms": 42.54
+      "latency_ms": 51.2
     },
     {
       "id": "Q18",
       "hops": 2,
       "query_type": "hybrid",
       "question": "Which async retrieve, query, embed, or generate functions use the conventional a-prefix?",
-      "hit": false,
+      "hit": true,
       "gt_count": 29,
       "gt_names": [
         "acustom_query",
@@ -536,13 +536,13 @@
         "aget_image_embedding"
       ],
       "retrieved_names": [
-        "__call__asynthesize",
-        "__call__async_acquire",
-        "__call__aselect",
-        "__call__as_retriever",
-        "_aquery"
+        "_aquery",
+        "asynthesize",
+        "_aquery",
+        "aquery",
+        "asynthesize"
       ],
-      "latency_ms": 41.02
+      "latency_ms": 49.48
     },
     {
       "id": "Q19",
@@ -559,12 +559,12 @@
       ],
       "retrieved_names": [
         "retrieverqueryengine",
-        "retriever_query_engine",
-        "basesqltablequeryengine",
         "retrieverrouterqueryengine",
-        "multistepqueryengine"
+        "multistepqueryengine",
+        "queryfusionretriever",
+        "sqlautovectorqueryengine"
       ],
-      "latency_ms": 38.92
+      "latency_ms": 44.87
     },
     {
       "id": "Q20",
@@ -586,13 +586,13 @@
         "__call__load"
       ],
       "retrieved_names": [
-        "__call__load",
-        "__call__load_file",
-        "__call__load_data",
-        "__call__repeat",
-        "__call__persist"
+        "persist",
+        "load",
+        "persist",
+        "ingestioncache",
+        "__call__load"
       ],
-      "latency_ms": 43.15
+      "latency_ms": 50.83
     },
     {
       "id": "Q21",
@@ -620,7 +620,7 @@
         "aget_text_embedding_batch",
         "get_text_embedding_batch"
       ],
-      "latency_ms": 7.61
+      "latency_ms": 8.07
     },
     {
       "id": "Q22",
@@ -648,7 +648,7 @@
         "toolretrieverrouterqueryengine",
         "retrieverrouterqueryengine"
       ],
-      "latency_ms": 7.04
+      "latency_ms": 6.07
     },
     {
       "id": "Q23",
@@ -676,7 +676,7 @@
         "fusion_retriever",
         "factory"
       ],
-      "latency_ms": 7.39
+      "latency_ms": 7.19
     },
     {
       "id": "Q24",
@@ -704,7 +704,7 @@
         "call",
         "_parse_tool_output"
       ],
-      "latency_ms": 18.83
+      "latency_ms": 19.36
     },
     {
       "id": "Q25",
@@ -732,7 +732,7 @@
         "aload_file",
         "load_file"
       ],
-      "latency_ms": 3.36
+      "latency_ms": 4.24
     },
     {
       "id": "Q26",
@@ -760,7 +760,7 @@
         "toolretrieverrouterqueryengine",
         "retrieverrouterqueryengine"
       ],
-      "latency_ms": 31.14
+      "latency_ms": 32.3
     },
     {
       "id": "Q27",
@@ -788,7 +788,7 @@
         "nerpiinodepostprocessor",
         "piinodepostprocessor"
       ],
-      "latency_ms": 19.52
+      "latency_ms": 20.78
     },
     {
       "id": "Q28",
@@ -804,7 +804,7 @@
         "mockembedding",
         "baseembedding"
       ],
-      "latency_ms": 4.79
+      "latency_ms": 4.19
     },
     {
       "id": "Q29",
@@ -832,7 +832,7 @@
         "queryfusionretriever",
         "automergingretriever"
       ],
-      "latency_ms": 29.67
+      "latency_ms": 31.95
     },
     {
       "id": "Q30",
@@ -848,7 +848,7 @@
         "generation",
         "basesynthesizer"
       ],
-      "latency_ms": 9.78
+      "latency_ms": 11.07
     },
     {
       "id": "Q31",
@@ -876,7 +876,7 @@
         "knowledge_graph_query_engine",
         "query_engine"
       ],
-      "latency_ms": 3.29
+      "latency_ms": 3.65
     },
     {
       "id": "Q32",
@@ -904,7 +904,7 @@
         "sql_vector_query_engine",
         "sql_join_query_engine"
       ],
-      "latency_ms": 2.66
+      "latency_ms": 2.79
     },
     {
       "id": "Q33",
@@ -960,7 +960,7 @@
         "ref_doc_info",
         "arefresh_ref_docs"
       ],
-      "latency_ms": 3.82
+      "latency_ms": 3.7
     },
     {
       "id": "Q35",
@@ -988,7 +988,7 @@
         "websocket",
         "interface"
       ],
-      "latency_ms": 2.16
+      "latency_ms": 2.24
     },
     {
       "id": "Q36",
@@ -1016,7 +1016,7 @@
         "get_response",
         "get_response"
       ],
-      "latency_ms": 9.19
+      "latency_ms": 9.2
     },
     {
       "id": "Q37",
@@ -1037,7 +1037,7 @@
         "abcmeta",
         "workflowmeta"
       ],
-      "latency_ms": 3.85
+      "latency_ms": 3.51
     },
     {
       "id": "Q38",
@@ -1065,7 +1065,7 @@
         "ondemand_loader_tool",
         "tools"
       ],
-      "latency_ms": 2.19
+      "latency_ms": 2.27
     },
     {
       "id": "Q39",
@@ -1093,7 +1093,7 @@
         "__call__super",
         "__call__valueerror"
       ],
-      "latency_ms": 5.36
+      "latency_ms": 5.34
     },
     {
       "id": "Q40",
@@ -1121,7 +1121,7 @@
         "__call__as_trace",
         "__call__isinstance"
       ],
-      "latency_ms": 7.1
+      "latency_ms": 7.5
     },
     {
       "id": "Q41",
@@ -1143,13 +1143,13 @@
         "streaminggeneratorcallbackhandler"
       ],
       "retrieved_names": [
-        "__call__streamingresponse",
-        "streamingagentchatresponse",
         "streamingresponse",
-        "__call__process_streaming_objects",
-        "streaming_utils"
+        "promptmixin",
+        "streamingagentchatresponse",
+        "completionresponse",
+        "streamchatendevent"
       ],
-      "latency_ms": 46.3
+      "latency_ms": 51.97
     },
     {
       "id": "Q42",
@@ -1170,13 +1170,13 @@
         "retry_on_exceptions_with_backoff"
       ],
       "retrieved_names": [
-        "__call__retry_on_exceptions_with_backoff",
-        "__call__check_fn",
-        "__call__aretry_on_exceptions_with_backoff",
-        "__call__raise_for_status",
-        "__call__download"
+        "retry_on_exceptions_with_backoff",
+        "get_retry_on_exceptions_with_backoff_decorator",
+        "aretry_on_exceptions_with_backoff",
+        "utils",
+        "retry_policy"
       ],
-      "latency_ms": 35.74
+      "latency_ms": 48.66
     },
     {
       "id": "Q43",
@@ -1194,19 +1194,19 @@
       ],
       "retrieved_names": [
         "callbacks",
-        "llm",
-        "llama_debug",
+        "dispatcher",
         "utils",
-        "base"
+        "event_handlers",
+        "events"
       ],
-      "latency_ms": 38.77
+      "latency_ms": 50.67
     },
     {
       "id": "Q44",
       "hops": 1,
       "query_type": "semantic",
       "question": "Which a-prefixed functions perform asynchronous chat or completion work?",
-      "hit": false,
+      "hit": true,
       "gt_count": 15,
       "gt_names": [
         "achat",
@@ -1221,13 +1221,13 @@
         "astream_chat_to_completion_decorator"
       ],
       "retrieved_names": [
-        "__call__astream_completion_response_to_chat_response",
-        "__call__astream_chat_response_to_completion_response",
-        "__call__completion_response_to_chat_response",
-        "__call__astream_chat",
-        "__call__chat_response_to_completion_response"
+        "astream_completion_to_chat_decorator",
+        "astream_chat_to_completion_decorator",
+        "acompletion_to_chat_decorator",
+        "async_stream_completion_response_to_chat_response",
+        "astream_completion_response_to_chat_response"
       ],
-      "latency_ms": 35.45
+      "latency_ms": 57.17
     },
     {
       "id": "Q45",
@@ -1249,13 +1249,13 @@
         "save_embedding"
       ],
       "retrieved_names": [
-        "__call__persist",
-        "__call__from_persist_path",
-        "__call__from_persist_dir",
-        "__call__endswith",
-        "persist"
+        "persist",
+        "persist",
+        "persist",
+        "persist",
+        "from_persist_path"
       ],
-      "latency_ms": 31.19
+      "latency_ms": 46.45
     },
     {
       "id": "Q46",
@@ -1283,7 +1283,7 @@
         "retrieve",
         "_ahandle_recursive_retrieval"
       ],
-      "latency_ms": 5.7
+      "latency_ms": 7.97
     },
     {
       "id": "Q47",
@@ -1311,7 +1311,7 @@
         "queryfusionretriever",
         "automergingretriever"
       ],
-      "latency_ms": 56.42
+      "latency_ms": 49.94
     },
     {
       "id": "Q48",
@@ -1335,7 +1335,7 @@
         "to_dict",
         "persist"
       ],
-      "latency_ms": 3.79
+      "latency_ms": 3.01
     },
     {
       "id": "Q49",
@@ -1363,7 +1363,7 @@
         "retrieve",
         "retrieve"
       ],
-      "latency_ms": 13.28
+      "latency_ms": 12.57
     },
     {
       "id": "Q50",
@@ -1391,7 +1391,7 @@
         "recursive_retriever",
         "auto_merging_retriever"
       ],
-      "latency_ms": 3.98
+      "latency_ms": 3.89
     }
   ],
   "vector_per_query": [
@@ -1408,7 +1408,7 @@
         "baseretrievalevaluator",
         "baseretriever"
       ],
-      "latency_ms": 56.3
+      "latency_ms": 61.1
     },
     {
       "id": "Q2",
@@ -1423,7 +1423,7 @@
         "query_engine",
         "auto_retriever"
       ],
-      "latency_ms": 49.72
+      "latency_ms": 53.39
     },
     {
       "id": "Q3",
@@ -1438,7 +1438,7 @@
         "retriever",
         "__call__retrieve"
       ],
-      "latency_ms": 46.49
+      "latency_ms": 62.39
     },
     {
       "id": "Q4",
@@ -1453,7 +1453,7 @@
         "basenode",
         "generation"
       ],
-      "latency_ms": 46.07
+      "latency_ms": 54.52
     },
     {
       "id": "Q5",
@@ -1468,7 +1468,7 @@
         "__call__vectorindexretriever",
         "multimodalretriever"
       ],
-      "latency_ms": 42.58
+      "latency_ms": 57.29
     },
     {
       "id": "Q6",
@@ -1483,7 +1483,7 @@
         "basestructstoreindex",
         "basenode"
       ],
-      "latency_ms": 52.15
+      "latency_ms": 49.54
     },
     {
       "id": "Q7",
@@ -1498,7 +1498,7 @@
         "__call___get_text_embeddings",
         "__call___get_text_embedding"
       ],
-      "latency_ms": 42.75
+      "latency_ms": 49.74
     },
     {
       "id": "Q8",
@@ -1513,7 +1513,7 @@
         "schema",
         "pandas"
       ],
-      "latency_ms": 48.93
+      "latency_ms": 54.29
     },
     {
       "id": "Q9",
@@ -1528,7 +1528,7 @@
         "retriever",
         "baseretriever"
       ],
-      "latency_ms": 48.23
+      "latency_ms": 55.98
     },
     {
       "id": "Q10",
@@ -1543,7 +1543,7 @@
         "storage_context",
         "container_builder"
       ],
-      "latency_ms": 44.94
+      "latency_ms": 48.51
     },
     {
       "id": "Q11",
@@ -1558,7 +1558,7 @@
         "__call__retrieve",
         "__call__retrieve"
       ],
-      "latency_ms": 47.27
+      "latency_ms": 55.01
     },
     {
       "id": "Q12",
@@ -1573,7 +1573,7 @@
         "recursiveretriever",
         "retrieve"
       ],
-      "latency_ms": 39.94
+      "latency_ms": 50.71
     },
     {
       "id": "Q13",
@@ -1588,7 +1588,7 @@
         "multi_modal",
         "retriever"
       ],
-      "latency_ms": 42.67
+      "latency_ms": 58.42
     },
     {
       "id": "Q14",
@@ -1603,7 +1603,7 @@
         "__call__as_query_engine",
         "__call__as_query_engine"
       ],
-      "latency_ms": 46.56
+      "latency_ms": 60.41
     },
     {
       "id": "Q15",
@@ -1618,7 +1618,7 @@
         "__call__nodewithscore",
         "__str__"
       ],
-      "latency_ms": 43.14
+      "latency_ms": 50.57
     },
     {
       "id": "Q16",
@@ -1633,7 +1633,7 @@
         "class_name",
         "class_name"
       ],
-      "latency_ms": 38.47
+      "latency_ms": 45.43
     },
     {
       "id": "Q17",
@@ -1648,7 +1648,7 @@
         "dispatcher",
         "callbacks"
       ],
-      "latency_ms": 42.03
+      "latency_ms": 44.95
     },
     {
       "id": "Q18",
@@ -1663,7 +1663,7 @@
         "asynthesize",
         "__call__asynthesize"
       ],
-      "latency_ms": 39.84
+      "latency_ms": 41.2
     },
     {
       "id": "Q19",
@@ -1678,7 +1678,7 @@
         "retrieverqueryengine",
         "multistepqueryengine"
       ],
-      "latency_ms": 41.77
+      "latency_ms": 46.43
     },
     {
       "id": "Q20",
@@ -1693,7 +1693,7 @@
         "__call__list",
         "__call__open"
       ],
-      "latency_ms": 38.51
+      "latency_ms": 45.61
     },
     {
       "id": "Q21",
@@ -1708,7 +1708,7 @@
         "baseembedding",
         "base"
       ],
-      "latency_ms": 36.88
+      "latency_ms": 38.26
     },
     {
       "id": "Q22",
@@ -1723,7 +1723,7 @@
         "basequeryengine",
         "basequeryengine"
       ],
-      "latency_ms": 35.88
+      "latency_ms": 39.04
     },
     {
       "id": "Q23",
@@ -1738,7 +1738,7 @@
         "settings",
         "settings"
       ],
-      "latency_ms": 37.29
+      "latency_ms": 39.35
     },
     {
       "id": "Q24",
@@ -1753,7 +1753,7 @@
         "get_content",
         "get_content"
       ],
-      "latency_ms": 38.96
+      "latency_ms": 43.09
     },
     {
       "id": "Q25",
@@ -1768,7 +1768,7 @@
         "simpledirectoryreader",
         "simpledirectoryreader"
       ],
-      "latency_ms": 41.46
+      "latency_ms": 46.54
     },
     {
       "id": "Q26",
@@ -1783,7 +1783,7 @@
         "basequeryengine",
         "basequeryengine"
       ],
-      "latency_ms": 42.78
+      "latency_ms": 40.11
     },
     {
       "id": "Q27",
@@ -1798,7 +1798,7 @@
         "node_postprocessors",
         "_apostprocess_nodes"
       ],
-      "latency_ms": 36.89
+      "latency_ms": 45.14
     },
     {
       "id": "Q28",
@@ -1813,7 +1813,7 @@
         "get_agg_embedding_from_queries",
         "_get_query_embedding"
       ],
-      "latency_ms": 43.36
+      "latency_ms": 38.54
     },
     {
       "id": "Q29",
@@ -1828,7 +1828,7 @@
         "baseretriever",
         "_get_prompts"
       ],
-      "latency_ms": 41.22
+      "latency_ms": 34.87
     },
     {
       "id": "Q30",
@@ -1843,7 +1843,7 @@
         "basesynthesizer",
         "basesynthesizer"
       ],
-      "latency_ms": 41.36
+      "latency_ms": 38.2
     },
     {
       "id": "Q31",
@@ -1858,7 +1858,7 @@
         "storage_context",
         "storage_context"
       ],
-      "latency_ms": 40.24
+      "latency_ms": 42.2
     },
     {
       "id": "Q32",
@@ -1873,7 +1873,7 @@
         "retriever_query_engine",
         "multistep_query_engine"
       ],
-      "latency_ms": 42.49
+      "latency_ms": 38.61
     },
     {
       "id": "Q33",
@@ -1888,7 +1888,7 @@
         "__call__get_content",
         "__call__get_content"
       ],
-      "latency_ms": 43.94
+      "latency_ms": 44.22
     },
     {
       "id": "Q34",
@@ -1903,7 +1903,7 @@
         "baseautoretriever",
         "vectorstoreindex"
       ],
-      "latency_ms": 45.93
+      "latency_ms": 45.37
     },
     {
       "id": "Q35",
@@ -1918,7 +1918,7 @@
         "_get_prompt_modules",
         "pandas"
       ],
-      "latency_ms": 44.39
+      "latency_ms": 47.15
     },
     {
       "id": "Q36",
@@ -1933,7 +1933,7 @@
         "__call___prepare_response_output",
         "get_responses"
       ],
-      "latency_ms": 48.54
+      "latency_ms": 47.96
     },
     {
       "id": "Q37",
@@ -1948,7 +1948,7 @@
         "__call__agentinput",
         "run_agent_step"
       ],
-      "latency_ms": 44.47
+      "latency_ms": 49.71
     },
     {
       "id": "Q38",
@@ -1963,7 +1963,7 @@
         "__call__get_asyncio_module",
         "async_utils"
       ],
-      "latency_ms": 46.64
+      "latency_ms": 48.77
     },
     {
       "id": "Q39",
@@ -1978,7 +1978,7 @@
         "__call__as_trace",
         "__call__as_query_engine"
       ],
-      "latency_ms": 53.81
+      "latency_ms": 53.79
     },
     {
       "id": "Q40",
@@ -1993,7 +1993,7 @@
         "__call___query_multistep",
         "__call___wrap_query"
       ],
-      "latency_ms": 58.67
+      "latency_ms": 53.58
     },
     {
       "id": "Q41",
@@ -2008,7 +2008,7 @@
         "promptmixin",
         "streamingagentchatresponse"
       ],
-      "latency_ms": 49.03
+      "latency_ms": 49.96
     },
     {
       "id": "Q42",
@@ -2023,7 +2023,7 @@
         "get_retry_on_exceptions_with_backoff_decorator",
         "__call__raise_for_status"
       ],
-      "latency_ms": 52.08
+      "latency_ms": 46.82
     },
     {
       "id": "Q43",
@@ -2038,7 +2038,7 @@
         "utils",
         "event_handlers"
       ],
-      "latency_ms": 52.04
+      "latency_ms": 41.66
     },
     {
       "id": "Q44",
@@ -2053,7 +2053,7 @@
         "__call__astream_chat_response_to_completion_response",
         "__call__chat_to_completion_decorator"
       ],
-      "latency_ms": 52.21
+      "latency_ms": 42.33
     },
     {
       "id": "Q45",
@@ -2068,7 +2068,7 @@
         "__call__from_persist_dir",
         "persist"
       ],
-      "latency_ms": 52.54
+      "latency_ms": 38.3
     },
     {
       "id": "Q46",
@@ -2083,7 +2083,7 @@
         "basereasoningstep",
         "base_retriever"
       ],
-      "latency_ms": 48.76
+      "latency_ms": 37.17
     },
     {
       "id": "Q47",
@@ -2098,7 +2098,7 @@
         "retriever",
         "baseretriever"
       ],
-      "latency_ms": 47.19
+      "latency_ms": 45.62
     },
     {
       "id": "Q48",
@@ -2113,7 +2113,7 @@
         "storagecontext",
         "storage_context"
       ],
-      "latency_ms": 44.55
+      "latency_ms": 38.97
     },
     {
       "id": "Q49",
@@ -2128,7 +2128,7 @@
         "retriever",
         "__call__retrieve"
       ],
-      "latency_ms": 47.93
+      "latency_ms": 41.9
     },
     {
       "id": "Q50",
@@ -2143,7 +2143,7 @@
         "base_retriever",
         "_get_prompt_modules"
       ],
-      "latency_ms": 48.2
+      "latency_ms": 37.99
     }
   ],
   "ragas": null

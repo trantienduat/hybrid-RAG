@@ -53,6 +53,13 @@ class TestQueryAnalyzer:
         assert "LLM" not in unquoted.entities
         assert "LLM" in quoted.entities
 
+    def test_requested_answer_label(self):
+        assert analyze("Which classes have retry behavior?").target_label == "Class"
+        assert analyze("Find all functions that persist data.").target_label == "Function"
+        assert analyze("What methods does BaseIndex define?").target_label == "Function"
+        assert analyze("Which modules depend on settings?").target_label == "Module"
+        assert analyze("Explain retry behavior.").target_label is None
+
     def test_entity_extraction_snake_case(self):
         a = analyze("show me parse_repo usage")
         assert "parse_repo" in a.entities
@@ -224,6 +231,18 @@ class TestRRF:
         lst2 = [self._item("doc")]
         result = reciprocal_rank_fusion(lst1, lst2, k=60)
         assert abs(result[0]["rrf_score"] - 2 / 61) < 1e-10
+
+    def test_duplicate_chunks_in_one_list_contribute_once(self):
+        result = reciprocal_rank_fusion(
+            [
+                self._item("doc", text="first chunk"),
+                self._item("doc", text="second chunk"),
+            ],
+            k=60,
+        )
+
+        assert len(result) == 1
+        assert abs(result[0]["rrf_score"] - 1 / 61) < 1e-10
 
     def test_empty_lists_return_empty(self):
         assert reciprocal_rank_fusion([], []) == []
@@ -762,7 +781,7 @@ class TestHybridRetriever:
 
         graph_store.find_nodes.assert_called()
         embedder.embed_query.assert_called_once()
-        assert any(result["base_node_id"] == "vector-answer" for result in results)
+        assert results[0]["base_node_id"] == "vector-answer"
 
     def test_unquoted_acronym_does_not_trigger_generic_graph_fusion(self):
         graph_nodes = [
@@ -792,6 +811,77 @@ class TestHybridRetriever:
         assert [result["base_node_id"] for result in results] == [
             f"vector-{index}" for index in range(5)
         ]
+
+    def test_semantic_query_suppresses_unresolved_call_placeholders(self):
+        vector_hits = [
+            {
+                "node_id": "__call__astream_chat::0",
+                "name": "__call__astream_chat",
+                "label": "Function",
+                "file_path": "",
+                "text": "unresolved call",
+                "score": 0.99,
+            },
+            {
+                "node_id": "llms.base.BaseLLM.astream_chat::0",
+                "name": "astream_chat",
+                "label": "Function",
+                "file_path": "llms/base.py",
+                "text": "async def astream_chat(): ...",
+                "score": 0.90,
+            },
+        ]
+        retriever = self._retriever(vector_hits=vector_hits)
+
+        results = retriever.retrieve("Which functions perform asynchronous chat work?")
+
+        assert [result["name"] for result in results] == [
+            "astream_chat",
+            "__call__astream_chat",
+        ]
+
+    def test_semantic_query_promotes_requested_answer_label(self):
+        vector_hits = [
+            {
+                "node_id": "utils.retry::0",
+                "name": "retry",
+                "label": "Function",
+                "file_path": "utils.py",
+                "text": "def retry(): ...",
+                "score": 0.99,
+            },
+            {
+                "node_id": "query_engine.RetryQueryEngine::0",
+                "name": "RetryQueryEngine",
+                "label": "Class",
+                "file_path": "query_engine.py",
+                "text": "class RetryQueryEngine: ...",
+                "score": 0.80,
+            },
+        ]
+        retriever = self._retriever(vector_hits=vector_hits)
+
+        results = retriever.retrieve("Which classes have retry behavior?")
+
+        assert [result["name"] for result in results[:2]] == [
+            "RetryQueryEngine",
+            "retry",
+        ]
+
+    def test_structural_call_query_preserves_call_placeholders(self):
+        placeholder = {
+            "node_id": "__call__retrieve::0",
+            "name": "__call__retrieve",
+            "label": "Function",
+            "file_path": "",
+            "text": "call site",
+            "score": 0.99,
+        }
+        retriever = self._retriever(vector_hits=[placeholder])
+
+        results = retriever.retrieve("Which functions directly call retrieve()?")
+
+        assert results[0]["name"] == "__call__retrieve"
 
     def test_called_siblings_are_fetched_in_one_batch(self):
         graph_store = MagicMock()

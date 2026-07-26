@@ -19,6 +19,7 @@ from typing import Literal
 
 QueryType = Literal["local", "global"]
 RelationDirection = Literal["in", "out"]
+TargetLabel = Literal["Class", "Function", "Module"]
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,21 @@ _HOP_COUNT_RE = re.compile(
     re.IGNORECASE,
 )
 _NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+_TARGET_LABEL_RE = re.compile(
+    r"\b(?:which|what|find|list|show)\b.{0,100}?"
+    r"\b(?P<kind>classes?|functions?|methods?|modules?)\b",
+    re.IGNORECASE,
+)
+_TARGET_LABELS: dict[str, TargetLabel] = {
+    "class": "Class",
+    "classes": "Class",
+    "function": "Function",
+    "functions": "Function",
+    "method": "Function",
+    "methods": "Function",
+    "module": "Module",
+    "modules": "Module",
+}
 
 _STOP_WORDS = frozenset(
     {
@@ -281,13 +297,15 @@ class QueryAnalysis:
     direction: RelationDirection | None = None
     max_hops: int = 1
     graph_plan: GraphPlan | None = None
+    target_label: TargetLabel | None = None
 
     def __repr__(self) -> str:
         return (
             f"QueryAnalysis(type={self.query_type!r}, "
             f"entities={self.entities!r}, keywords={self.keywords!r}, "
             f"relation={self.relation!r}, direction={self.direction!r}, "
-            f"max_hops={self.max_hops!r}, graph_plan={self.graph_plan!r})"
+            f"max_hops={self.max_hops!r}, graph_plan={self.graph_plan!r}, "
+            f"target_label={self.target_label!r})"
         )
 
 
@@ -400,6 +418,9 @@ def analyze(query: str) -> QueryAnalysis:
         direction = first_step.direction
         max_hops = first_step.max_hops
 
+    label_match = _TARGET_LABEL_RE.search(query)
+    target_label = _TARGET_LABELS[label_match.group("kind").lower()] if label_match else None
+
     # ── keyword extraction ─────────────────────────────────────────
     keywords: list[str] = []
     kw_seen: set[str] = set()
@@ -421,4 +442,5 @@ def analyze(query: str) -> QueryAnalysis:
         direction=direction,
         max_hops=max_hops,
         graph_plan=graph_plan,
+        target_label=target_label,
     )

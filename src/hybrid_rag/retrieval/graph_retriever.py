@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 from hybrid_rag.ports.graph_store import GraphStore
-from hybrid_rag.retrieval.query_analyzer import QueryAnalysis
+from hybrid_rag.retrieval.query_analyzer import GraphPlan, QueryAnalysis
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,8 @@ class GraphRetriever:
         """
         if not analysis.entities and not analysis.keywords:
             return []
+        if analysis.graph_plan:
+            return self._retrieve_plan(analysis.graph_plan, top_k, repository)
 
         seen_ids: set[str] = set()
         seeds: list[dict[str, Any]] = []
@@ -82,20 +84,7 @@ class GraphRetriever:
                         nid = nb.get("dst_id", "")
                         if nid and nid not in seen_ids:
                             seen_ids.add(nid)
-                            results.append(
-                                {
-                                    "node_id": nid,
-                                    "base_node_id": nid,
-                                    "name": nb.get("dst_name", ""),
-                                    "label": nb.get("dst_label", ""),
-                                    "file_path": nb.get("dst_file_path", ""),
-                                    "repository": nb.get("dst_repository", ""),
-                                    "rel": nb.get("rel", ""),
-                                    "text": "",
-                                    "source": "graph",
-                                    "result_role": "relation_target",
-                                }
-                            )
+                            results.append(_neighbor_to_result(nb))
 
         # For relation questions, targets are the answer and should rank before
         # the matching seed. General searches retain seed-first behavior.
@@ -108,6 +97,61 @@ class GraphRetriever:
             repository,
         )
         return results[:top_k]
+
+    def _retrieve_plan(
+        self,
+        plan: GraphPlan,
+        top_k: int,
+        repository: str | None,
+    ) -> list[dict[str, Any]]:
+        nodes = self._store.find_nodes(plan.anchor, repository=repository, limit=top_k)
+        exact_nodes = [node for node in nodes if node.get("name") == plan.anchor]
+        seeds = [_node_to_result(node) for node in (exact_nodes or nodes)]
+        paths: list[tuple[dict[str, Any], ...]] = [(seed,) for seed in seeds]
+
+        for step in plan.steps:
+            next_paths: list[tuple[dict[str, Any], ...]] = []
+            for path in paths:
+                neighbors = self._store.find_neighbors(
+                    path[-1]["node_id"],
+                    rel=step.relation,
+                    direction=step.direction,
+                    max_hops=step.max_hops,
+                    limit=_NEIGHBOR_LIMIT,
+                )
+                for neighbor in neighbors:
+                    if repository and neighbor.get("dst_repository") != repository:
+                        continue
+                    target = _neighbor_to_result(neighbor)
+                    if target["node_id"]:
+                        next_paths.append(path + (target,))
+            paths = next_paths
+            if not paths:
+                break
+
+        if len(paths) == 0 or any(len(path) <= plan.result_step for path in paths):
+            return seeds[:top_k]
+        if plan.terminal_name:
+            paths = [path for path in paths if path[-1]["name"] == plan.terminal_name]
+        if not paths:
+            return seeds[:top_k]
+
+        answers: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        for path in paths:
+            answer = path[plan.result_step]
+            node_id = answer["node_id"]
+            if node_id and node_id not in seen_ids:
+                seen_ids.add(node_id)
+                answers.append(answer)
+
+        logger.debug(
+            "GraphRetriever: %d projected results for plan %r (scoped to repo=%s)",
+            len(answers),
+            plan,
+            repository,
+        )
+        return (answers + seeds)[:top_k]
 
 
 def _node_to_result(node: dict[str, Any]) -> dict[str, Any]:
@@ -123,4 +167,20 @@ def _node_to_result(node: dict[str, Any]) -> dict[str, Any]:
         "text": "",
         "source": "graph",
         "result_role": "seed",
+    }
+
+
+def _neighbor_to_result(neighbor: dict[str, Any]) -> dict[str, Any]:
+    nid = neighbor.get("dst_id", "")
+    return {
+        "node_id": nid,
+        "base_node_id": nid,
+        "name": neighbor.get("dst_name", ""),
+        "label": neighbor.get("dst_label", ""),
+        "file_path": neighbor.get("dst_file_path", ""),
+        "repository": neighbor.get("dst_repository", ""),
+        "rel": neighbor.get("rel", ""),
+        "text": "",
+        "source": "graph",
+        "result_role": "relation_target",
     }

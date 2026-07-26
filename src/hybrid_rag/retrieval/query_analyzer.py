@@ -8,6 +8,7 @@ Routes queries as:
 Extracts:
   entities   — code identifiers (PascalCase, snake_case, backtick/quote delimited)
   keywords   — meaningful non-stopword terms for semantic search
+  graph_plan — deterministic ordered traversal for supported composed intents
 """
 
 from __future__ import annotations
@@ -18,6 +19,26 @@ from typing import Literal
 
 QueryType = Literal["local", "global"]
 RelationDirection = Literal["in", "out"]
+
+
+@dataclass(frozen=True)
+class RelationStep:
+    """One directed relationship traversal in a deterministic graph plan."""
+
+    relation: str
+    direction: RelationDirection
+    max_hops: int = 1
+
+
+@dataclass(frozen=True)
+class GraphPlan:
+    """Ordered graph traversal with an explicit answer projection."""
+
+    anchor: str
+    steps: tuple[RelationStep, ...]
+    result_step: int
+    terminal_name: str | None = None
+
 
 # Global signals: questions about repository-wide architecture, summaries, modules overview
 _GLOBAL_RE = re.compile(
@@ -259,14 +280,75 @@ class QueryAnalysis:
     relation: str | None = None
     direction: RelationDirection | None = None
     max_hops: int = 1
+    graph_plan: GraphPlan | None = None
 
     def __repr__(self) -> str:
         return (
             f"QueryAnalysis(type={self.query_type!r}, "
             f"entities={self.entities!r}, keywords={self.keywords!r}, "
             f"relation={self.relation!r}, direction={self.direction!r}, "
-            f"max_hops={self.max_hops!r})"
+            f"max_hops={self.max_hops!r}, graph_plan={self.graph_plan!r})"
         )
+
+
+def _build_graph_plan(query: str, entities: list[str]) -> GraphPlan | None:
+    """Build the small set of composed plans supported by the graph schema."""
+    anchor = next((entity for entity in entities if entity[:1].isupper()), None)
+    if not anchor:
+        return None
+
+    subclass_phrase = re.search(
+        rf"(?:subclasses?\s+of\s+{re.escape(anchor)}|{re.escape(anchor)}\s+subclasses?)",
+        query,
+        re.IGNORECASE,
+    )
+    override_intent = re.search(
+        r"\b(?:override|implement|provide|define)\w*\b",
+        query,
+        re.IGNORECASE,
+    )
+    if subclass_phrase and override_intent:
+        callable_names = [match.group(1) for match in _CALLABLE_RE.finditer(query)]
+        method_match = re.search(
+            r"\b(?:override|implement|provide|define)\w*\s+"
+            r"(?:(?:the|their)\s+)?(?:own\s+)?(?:private\s+)?"
+            r"(?P<method>_?[A-Za-z][A-Za-z0-9_]*)",
+            query,
+            re.IGNORECASE,
+        )
+        terminal_name = method_match.group("method") if method_match else None
+        if terminal_name in {"method", "methods"}:
+            terminal_name = None
+        if not terminal_name:
+            terminal_name = next(
+                (
+                    entity
+                    for entity in callable_names + entities
+                    if entity != anchor and not entity[:1].isupper()
+                ),
+                None,
+            )
+        return GraphPlan(
+            anchor=anchor,
+            steps=(
+                RelationStep("INHERITS", "in"),
+                RelationStep("DEFINES", "out"),
+            ),
+            result_step=1,
+            terminal_name=terminal_name,
+        )
+
+    if re.search(r"\bmethods?\b.*\binherit\w*\s+from\b", query, re.IGNORECASE):
+        return GraphPlan(
+            anchor=anchor,
+            steps=(
+                RelationStep("INHERITS", "out"),
+                RelationStep("DEFINES", "out"),
+            ),
+            result_step=2,
+        )
+
+    return None
 
 
 def analyze(query: str) -> QueryAnalysis:
@@ -311,6 +393,13 @@ def analyze(query: str) -> QueryAnalysis:
     for m in _SNAKE_RE.finditer(query):
         _add(m.group(1))
 
+    graph_plan = _build_graph_plan(query, entities)
+    if graph_plan:
+        first_step = graph_plan.steps[0]
+        relation = first_step.relation
+        direction = first_step.direction
+        max_hops = first_step.max_hops
+
     # ── keyword extraction ─────────────────────────────────────────
     keywords: list[str] = []
     kw_seen: set[str] = set()
@@ -331,4 +420,5 @@ def analyze(query: str) -> QueryAnalysis:
         relation=relation,
         direction=direction,
         max_hops=max_hops,
+        graph_plan=graph_plan,
     )

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from hybrid_rag.retrieval.context_assembler import ContextAssembler, RetrievalContext
 from hybrid_rag.retrieval.graph_retriever import GraphRetriever
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
-from hybrid_rag.retrieval.query_analyzer import QueryAnalysis, analyze
+from hybrid_rag.retrieval.query_analyzer import GraphPlan, QueryAnalysis, RelationStep, analyze
 from hybrid_rag.retrieval.rrf import reciprocal_rank_fusion
 from hybrid_rag.retrieval.vector_retriever import VectorRetriever, _base_node_id
 
@@ -150,6 +150,47 @@ class TestQueryAnalyzer:
         analysis = analyze("What does QueryEngine call?")
 
         assert (analysis.relation, analysis.direction) == ("CALLS", "out")
+
+    def test_subclass_override_plan(self):
+        analysis = analyze(
+            "Which subclasses of BaseNodePostprocessor override _postprocess_nodes()?"
+        )
+
+        assert analysis.graph_plan == GraphPlan(
+            anchor="BaseNodePostprocessor",
+            steps=(
+                RelationStep("INHERITS", "in"),
+                RelationStep("DEFINES", "out"),
+            ),
+            result_step=1,
+            terminal_name="_postprocess_nodes",
+        )
+
+    def test_subclass_override_plan_extracts_bare_private_method(self):
+        analysis = analyze("Which subclasses of BaseRetriever override the _retrieve method?")
+
+        assert analysis.graph_plan
+        assert analysis.graph_plan.terminal_name == "_retrieve"
+
+    def test_direct_definition_for_subclasses_is_not_overplanned(self):
+        analysis = analyze("What methods does BaseIndex define for its subclasses to inherit?")
+
+        assert analysis.graph_plan is None
+        assert (analysis.relation, analysis.direction) == ("DEFINES", "out")
+
+    def test_inherited_method_plan(self):
+        analysis = analyze(
+            "What methods does VectorStoreIndex inherit from its direct base classes?"
+        )
+
+        assert analysis.graph_plan == GraphPlan(
+            anchor="VectorStoreIndex",
+            steps=(
+                RelationStep("INHERITS", "out"),
+                RelationStep("DEFINES", "out"),
+            ),
+            result_step=2,
+        )
 
 
 # ─── RRF ──────────────────────────────────────────────────────────────────────
@@ -429,6 +470,106 @@ class TestGraphRetriever:
             max_hops=3,
             limit=30,
         )
+
+    def test_composed_plan_projects_only_matching_subclasses(self):
+        store = self._store(nodes=[self._node("base", "BaseRetriever")])
+
+        def neighbors(node_id, **_kwargs):
+            if node_id == "base":
+                return [
+                    {
+                        "rel": "INHERITS",
+                        "dst_id": "matching",
+                        "dst_name": "MatchingRetriever",
+                        "dst_label": "Class",
+                        "dst_file_path": "matching.py",
+                    },
+                    {
+                        "rel": "INHERITS",
+                        "dst_id": "other",
+                        "dst_name": "OtherRetriever",
+                        "dst_label": "Class",
+                        "dst_file_path": "other.py",
+                    },
+                ]
+            method_name = "_retrieve" if node_id == "matching" else "retrieve"
+            return [
+                {
+                    "rel": "DEFINES",
+                    "dst_id": f"{node_id}-method",
+                    "dst_name": method_name,
+                    "dst_label": "Function",
+                    "dst_file_path": f"{node_id}.py",
+                }
+            ]
+
+        store.find_neighbors.side_effect = neighbors
+        analysis = QueryAnalysis(
+            query_type="local",
+            entities=["_retrieve", "BaseRetriever"],
+            relation="INHERITS",
+            direction="in",
+            graph_plan=GraphPlan(
+                anchor="BaseRetriever",
+                steps=(
+                    RelationStep("INHERITS", "in"),
+                    RelationStep("DEFINES", "out"),
+                ),
+                result_step=1,
+                terminal_name="_retrieve",
+            ),
+        )
+
+        results = GraphRetriever(store).retrieve(analysis)
+
+        assert [result["name"] for result in results[:2]] == [
+            "MatchingRetriever",
+            "BaseRetriever",
+        ]
+
+    def test_composed_plan_returns_inherited_methods(self):
+        store = self._store(nodes=[self._node("child", "VectorStoreIndex")])
+        store.find_neighbors.side_effect = [
+            [
+                {
+                    "rel": "INHERITS",
+                    "dst_id": "base",
+                    "dst_name": "BaseIndex",
+                    "dst_label": "Class",
+                    "dst_file_path": "base.py",
+                }
+            ],
+            [
+                {
+                    "rel": "DEFINES",
+                    "dst_id": "method",
+                    "dst_name": "as_query_engine",
+                    "dst_label": "Function",
+                    "dst_file_path": "base.py",
+                }
+            ],
+        ]
+        analysis = QueryAnalysis(
+            query_type="local",
+            entities=["VectorStoreIndex"],
+            relation="INHERITS",
+            direction="out",
+            graph_plan=GraphPlan(
+                anchor="VectorStoreIndex",
+                steps=(
+                    RelationStep("INHERITS", "out"),
+                    RelationStep("DEFINES", "out"),
+                ),
+                result_step=2,
+            ),
+        )
+
+        results = GraphRetriever(store).retrieve(analysis)
+
+        assert [result["name"] for result in results[:2]] == [
+            "as_query_engine",
+            "VectorStoreIndex",
+        ]
 
     def test_no_neighbor_expansion_for_global(self):
         store = self._store(nodes=[self._node("n1")])

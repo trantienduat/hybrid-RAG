@@ -198,6 +198,11 @@ Each query is tagged with:
 Together with Q1-Q20, the partitions contain 10 direct structural, 15
 two-hop, 10 three-hop, 10 semantic/hybrid, and 5 ambiguity/scoping cases.
 
+Subclass override and inherited-method questions use deterministic composed
+plans. The analyzer selects an exact anchor, traverses ordered relationship
+steps such as `INHERITS → DEFINES`, optionally filters the terminal method, and
+projects the answer-bearing stage instead of returning every intermediate node.
+
 ---
 
 ## Acceptance Criteria

@@ -27,10 +27,12 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.eval.corpus import (
     EVAL_CORPUS,
     QueryCase,
 )
+from hybrid_rag.eval.ground_truth import build_reference_answer, compute_ground_truth
 from hybrid_rag.eval.preflight import require_complete_ground_truth, validate_index_provenance
 from hybrid_rag.eval.runner import _extract_names
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
@@ -45,26 +47,6 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
 
 # ── Hit Rate Evaluation ───────────────────────────────────────────────────────
-
-
-def compute_ground_truth(
-    graph: FalkorDBStore,
-    case: QueryCase,
-    repository: str,
-) -> set[str]:
-    """Execute ground truth Cypher and return expected names."""
-    try:
-        raw = graph.query(case.ground_truth_cypher, {"repository": repository})
-        names = set()
-        rows = getattr(raw, "result_set", []) or []
-        for row in rows:
-            val = row[case.gt_col_index] if isinstance(row, (list, tuple)) else row
-            if isinstance(val, str) and val.strip():
-                names.add(val.strip().lower())
-        return names
-    except Exception as exc:
-        logger.warning("Ground truth query failed for %s: %s", case.id, exc)
-        return set()
 
 
 def evaluate_hit_rate(
@@ -417,6 +399,20 @@ def main() -> None:
     parser.add_argument("--hit-at-k", type=int, default=5, help="Hit Rate @K")
     parser.add_argument("--skip-ragas", action="store_true", help="Skip RAGAS scoring")
     parser.add_argument(
+        "--ragas-samples",
+        type=int,
+        default=0,
+        help="Limit RAGAS to the first N cases for smoke testing; 0 evaluates all cases",
+    )
+    parser.add_argument(
+        "--ragas-judge-model",
+        default=os.environ.get("RAGAS_JUDGE_MODEL", DEFAULT_LLM_MODEL),
+    )
+    parser.add_argument(
+        "--ragas-embedding-model",
+        default=os.environ.get("RAGAS_EMBEDDING_MODEL", DEFAULT_EMBED_MODEL),
+    )
+    parser.add_argument(
         "--skip-vector-baseline", action="store_true", help="Skip vector-only baseline"
     )
     parser.add_argument(
@@ -523,18 +519,25 @@ def main() -> None:
         logger.info("=" * 60)
         logger.info("PHASE 3: RAGAS quality evaluation")
         logger.info("=" * 60)
-        try:
-            from hybrid_rag.eval.ragas_runner import RagasRunner
+        from hybrid_rag.eval.ragas_runner import RagasRunner
 
-            runner = RagasRunner(
-                retriever=retriever,
-                ollama_url=args.ollama_url,
-            )
-            report = runner.run(EVAL_CORPUS, top_k=args.top_k)
-            ragas_data = report.as_dict()
-            logger.info("RAGAS results: %s", report.summary())
-        except Exception as exc:
-            logger.warning("RAGAS evaluation failed: %s", exc)
+        ragas_cases = EVAL_CORPUS[: args.ragas_samples] if args.ragas_samples else EVAL_CORPUS
+        references = {
+            case.id: build_reference_answer(case, ground_truth[case.id]) for case in ragas_cases
+        }
+        runner = RagasRunner(
+            retriever=retriever,
+            repository=args.repo,
+            ollama_url=args.ollama_url,
+            judge_model=args.ragas_judge_model,
+            embedding_model=args.ragas_embedding_model,
+        )
+        report = runner.run(
+            ragas_cases,
+            references=references,
+            top_k=args.top_k,
+        )
+        ragas_data = report.as_dict()
 
     # ── Save results ──────────────────────────────────────────────
     full_results = {

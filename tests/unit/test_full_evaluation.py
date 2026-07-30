@@ -1,5 +1,7 @@
 """Unit tests for the standalone full-evaluation report helpers."""
 
+import pytest
+
 from hybrid_rag.eval.corpus import (
     AMBIGUOUS,
     EVAL_CORPUS,
@@ -8,6 +10,7 @@ from hybrid_rag.eval.corpus import (
     THREE_HOP,
     TWO_HOP,
 )
+from hybrid_rag.eval.ground_truth import build_reference_answer
 from scripts.run_full_evaluation import compute_hit_rate
 
 
@@ -40,3 +43,18 @@ def test_compute_hit_rate_excludes_empty_ground_truth():
     assert summary["overall"] == {"hit_rate": 0.5, "hits": 1, "total": 2}
     assert summary["skipped_empty_ground_truth"] == 1
     assert summary["1-hop"]["total"] == 1
+
+
+def test_build_reference_answer_is_deterministic():
+    case = EVAL_CORPUS[0]
+
+    reference = build_reference_answer(case, {"beta", "alpha"})
+
+    assert reference == (
+        f"For the question '{case.question}', the relevant code entities are: alpha, beta."
+    )
+
+
+def test_build_reference_answer_rejects_empty_ground_truth():
+    with pytest.raises(ValueError, match="without ground truth"):
+        build_reference_answer(EVAL_CORPUS[0], set())

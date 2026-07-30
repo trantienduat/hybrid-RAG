@@ -747,6 +747,11 @@ def ragas(
     top_k: int = typer.Option(20, help="Retrieval candidates per query."),
     context_n: int = typer.Option(5, help="Context chunks assembled for LLM."),
     llm_model: str = typer.Option(DEFAULT_LLM_MODEL, envvar="LLM_MODEL"),
+    judge_model: str = typer.Option(
+        None,
+        envvar="RAGAS_JUDGE_MODEL",
+        help="Local model used to judge answers; defaults to --llm-model.",
+    ),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
     graph_port: int = typer.Option(6379, envvar="FALKORDB_PORT"),
     graph_name: str = typer.Option("codebase", envvar="FALKORDB_GRAPH"),
@@ -755,6 +760,11 @@ def ragas(
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
+    repo_name: str = typer.Option(
+        None,
+        "--repo-name",
+        help="Repository namespace to evaluate (required).",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
     subset: str = typer.Option("all", help="Corpus subset: all | 1hop | 2hop | 3hop | hybrid"),
 ) -> None:
@@ -765,6 +775,8 @@ def ragas(
 
     from hybrid_rag.eval.corpus import EVAL_CORPUS, ONE_HOP, THREE_HOP, TWO_HOP
     from hybrid_rag.eval.corpus import HYBRID as HYBRID_CASES
+    from hybrid_rag.eval.ground_truth import build_reference_answer, compute_ground_truth
+    from hybrid_rag.eval.preflight import require_complete_ground_truth, validate_index_provenance
     from hybrid_rag.eval.ragas_runner import RagasRunner
     from hybrid_rag.graph.falkordb_store import FalkorDBStore
     from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
@@ -780,12 +792,24 @@ def ragas(
     }
     corpus = subsets.get(subset, EVAL_CORPUS)
 
+    if not repo_name:
+        err_console.print("[ERROR] --repo-name is required for reproducible RAGAS evaluation.")
+        raise typer.Exit(1)
+
     console.rule("[bold cyan]hybrid-rag ragas[/]")
     console.print(f"Corpus: {len(corpus)} queries  |  llm={llm_model}  top_k={top_k}")
 
     try:
         graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+        validate_index_provenance(graph_store, vector_store, repo_name)
+        ground_truth = {
+            case.id: compute_ground_truth(graph_store, case, repo_name) for case in corpus
+        }
+        require_complete_ground_truth(ground_truth)
+        references = {
+            case.id: build_reference_answer(case, ground_truth[case.id]) for case in corpus
+        }
 
         with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
             retriever = HybridRetriever(
@@ -801,9 +825,19 @@ def ragas(
             ) as progress:
                 task = progress.add_task(f"Generating + scoring {len(corpus)} queries…", total=None)
                 runner = RagasRunner(
-                    retriever=retriever, ollama_url=ollama_url, llm_model=llm_model
+                    retriever=retriever,
+                    repository=repo_name,
+                    ollama_url=ollama_url,
+                    llm_model=llm_model,
+                    judge_model=judge_model,
+                    embedding_model=embed_model,
                 )
-                report = runner.run(corpus, top_k=top_k, context_n=context_n)
+                report = runner.run(
+                    corpus,
+                    references=references,
+                    top_k=top_k,
+                    context_n=context_n,
+                )
                 progress.update(task, description="Done")
 
     except Exception as exc:  # noqa: BLE001
@@ -826,7 +860,9 @@ def ragas(
 
     for s in report.samples:
 
-        def _fmt(v: float) -> str:
+        def _fmt(v: float | None) -> str:
+            if v is None:
+                return "[dim]n/a[/]"
             colour = "green" if v >= 0.7 else ("yellow" if v >= 0.4 else "red")
             return f"[{colour}]{v:.3f}[/]"
 
@@ -844,10 +880,12 @@ def ragas(
     console.print()
 
     d = report.as_dict()
+    context_precision = d.get("context_precision")
+    context_precision_text = f"{context_precision:.3f}" if context_precision is not None else "n/a"
     console.print(
         f"[bold]Overall[/]  faithfulness={d['faithfulness']:.3f}  "
         f"answer_relevancy={d['answer_relevancy']:.3f}  "
-        f"context_precision={d.get('context_precision', 0):.3f}  "
+        f"context_precision={context_precision_text}  "
         f"avg_latency={d['avg_latency_ms']:.0f}ms"
     )
     console.rule()

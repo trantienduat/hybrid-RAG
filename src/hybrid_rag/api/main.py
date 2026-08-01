@@ -1800,8 +1800,25 @@ async def trigger_index(
         )
     req.repo_path = translated
 
-    task_id = str(uuid.uuid4())
     repo_name = req.repo_name or path.name
+    active_task = next(
+        (
+            task
+            for task in app.state.indexing_tasks.values()
+            if task["repository"] == repo_name and task["status"] in ("pending", "running")
+        ),
+        None,
+    )
+    if active_task is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Indexing task {active_task['task_id']} is already active for repository "
+                f"{repo_name}."
+            ),
+        )
+
+    task_id = str(uuid.uuid4())
 
     task = {
         "task_id": task_id,

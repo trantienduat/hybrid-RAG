@@ -164,6 +164,33 @@ class QdrantStore(VectorStore):
             wait=True,
         )
 
+    def delete_repository_except_run(self, repository: str, index_run_id: str) -> None:
+        """Delete stale vectors after replacement data is present."""
+        self._client.delete(
+            collection_name=self._collection,
+            points_selector=Filter(
+                must=[FieldCondition(key="repository", match=MatchValue(value=repository))],
+                must_not=[FieldCondition(key="index_run_id", match=MatchValue(value=index_run_id))],
+            ),
+            wait=True,
+        )
+
+    def delete_file_vectors_except_run(
+        self, file_path: str, repository: str, index_run_id: str
+    ) -> None:
+        """Delete stale vectors for one incrementally replaced file."""
+        self._client.delete(
+            collection_name=self._collection,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(key="file_path", match=MatchValue(value=file_path)),
+                    FieldCondition(key="repository", match=MatchValue(value=repository)),
+                ],
+                must_not=[FieldCondition(key="index_run_id", match=MatchValue(value=index_run_id))],
+            ),
+            wait=True,
+        )
+
     def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
         """Stamp every repository vector after a successful indexing run."""
         self._client.set_payload(

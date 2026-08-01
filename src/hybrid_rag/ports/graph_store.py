@@ -83,6 +83,16 @@ class GraphStore(ABC):
         """Delete graph data for one repository namespace."""
 
     @abstractmethod
+    def delete_repository_except_run(self, repository: str, index_run_id: str) -> None:
+        """Delete stale repository records after replacement data is written."""
+
+    @abstractmethod
+    def delete_file_nodes_except_run(
+        self, file_path: str, repository: str, index_run_id: str
+    ) -> None:
+        """Delete stale file nodes after incremental replacement data is written."""
+
+    @abstractmethod
     def get_repository_commit(self, repository: str) -> str | None:
         """Retrieve the last indexed commit hash for a repository."""
 

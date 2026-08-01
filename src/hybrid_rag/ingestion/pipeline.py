@@ -284,12 +284,6 @@ def run_indexing_pipeline(
     head_commit = git_provenance["source_commit"] if git_provenance else None
     index_run_id = str(uuid.uuid4())
 
-    if rebuild:
-        listener.on_step("cleanup", f"Removing existing {repo_name} index data...", 0.0)
-        graph_store.delete_repository(repo_name)
-        vector_store.delete_repository(repo_name)
-        listener.on_step("cleanup", f"Removed existing {repo_name} index data.", 1.0)
-
     if incremental and not rebuild:
         try:
             last_commit = from_commit or graph_store.get_repository_commit(repo_name)
@@ -313,11 +307,6 @@ def run_indexing_pipeline(
             f"Incremental sync: {len(modified_files)} files modified, {len(deleted_files)} files deleted...",
             0.0,
         )
-
-        # Cleanup deleted & modified files from stores to avoid duplicates/orphans
-        for f in deleted_files | modified_files:
-            graph_store.delete_file_nodes(f, repo_name)
-            vector_store.delete_file_vectors(f, repo_name)
 
         if not modified_files and not deleted_files:
             metadata = _index_metadata(
@@ -462,18 +451,14 @@ def run_indexing_pipeline(
         1.0,
     )
     result = namespace_unresolved_stubs(result, repo_name)
+    for node in result.nodes:
+        node.properties["index_run_id"] = index_run_id
+    for edge in result.edges:
+        edge.properties["index_run_id"] = index_run_id
 
-    # ── 4. Graph Ingest ────────────────────────────────────────────────────────
-    listener.on_step("db_write", "Writing codebase graph data to FalkorDB...", 0.0)
-    with start_span("pipeline_graph_write"):
-        counts = graph_store.ingest(result)
-    listener.on_step(
-        "db_write",
-        f"FalkorDB ingestion complete: upserted {counts['nodes']} nodes and {counts['edges']} edges.",
-        1.0,
-    )
-
-    # ── 5. Chunk + Embed + Vector Ingest ───────────────────────────────────────
+    # Generate every embedding before mutating the active index. Parsing,
+    # extraction, and embedding failures therefore preserve the previous run.
+    # ── 4. Chunk + Embed ───────────────────────────────────────────────────────
     listener.on_step("embed_chunks", "Chunking source files for vector indexing...", 0.0)
 
     from hybrid_rag.ingestion.chunker import chunk_file
@@ -492,7 +477,7 @@ def run_indexing_pipeline(
             chunks_to_embed.extend(file_chunks)
 
     total_chunks = len(chunks_to_embed)
-    upserted = 0
+    vector_batches: list[list[dict[str, Any]]] = []
 
     listener.on_step(
         "embed_chunks",
@@ -551,20 +536,40 @@ def run_indexing_pipeline(
                             }
                         )
 
-                    # Upsert each batch immediately to free RAM
-                    upserted += vector_store.upsert(batch_payload)
-
-                    # Clear variables to allow garbage collection
-                    batch_payload = None
-                    embeddings = None
-                    batch_texts = None
+                    vector_batches.append(batch_payload)
 
                     progress_val = float(min(i + len(batch), total_chunks)) / total_chunks
                     listener.on_step(
                         "embed_chunks",
-                        f"Generated and upserted embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
+                        f"Generated embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
                         progress_val,
                     )
+
+    # ── 5. Publish staged graph and vector data ────────────────────────────────
+    listener.on_step("db_write", "Writing codebase graph data to FalkorDB...", 0.0)
+    with start_span("pipeline_graph_write"):
+        counts = graph_store.ingest(result)
+    listener.on_step(
+        "db_write",
+        f"FalkorDB ingestion complete: upserted {counts['nodes']} nodes and {counts['edges']} edges.",
+        1.0,
+    )
+
+    upserted = 0
+    for batch_payload in vector_batches:
+        upserted += vector_store.upsert(batch_payload)
+
+    # New records are present before stale records are removed, avoiding an
+    # empty-index window during rebuilds and incremental replacements.
+    listener.on_step("cleanup", f"Removing stale {repo_name} index data...", 0.0)
+    if is_incremental:
+        for file_path in deleted_files | modified_files:
+            graph_store.delete_file_nodes_except_run(file_path, repo_name, index_run_id)
+            vector_store.delete_file_vectors_except_run(file_path, repo_name, index_run_id)
+    else:
+        graph_store.delete_repository_except_run(repo_name, index_run_id)
+        vector_store.delete_repository_except_run(repo_name, index_run_id)
+    listener.on_step("cleanup", f"Removed stale {repo_name} index data.", 1.0)
 
     # Trigger garbage collection
     import gc
@@ -575,7 +580,8 @@ def run_indexing_pipeline(
         "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
     )
 
-    # Stamp all old and new vectors before publishing matching graph metadata.
+    # Incremental runs retain unchanged records, so publish one provenance
+    # identity across the repository only after all writes and cleanup succeed.
     vector_store.set_repository_metadata(repo_name, metadata)
     graph_store.set_repository_metadata(repo_name, metadata)
     logger.info("Saved index provenance %s for %s", metadata["index_run_id"], repo_name)

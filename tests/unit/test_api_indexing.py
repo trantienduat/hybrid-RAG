@@ -65,6 +65,33 @@ class TestApiIndexing:
                 assert resp.status_code == 400
                 assert "does not exist or is not a directory" in resp.json()["detail"]
 
+    @patch("hybrid_rag.api.main.process_indexing_task")
+    @patch("pathlib.Path.is_dir", return_value=True)
+    def test_trigger_index_rejects_duplicate_active_repository(
+        self, _mock_is_dir, _mock_process_task
+    ):
+        with TestClient(app) as client:
+            app.state.indexing_tasks["existing"] = {
+                "task_id": "existing",
+                "repository": "test-repo",
+                "status": "running",
+                "created_at": "2026-06-05T12:00:00",
+                "completed_at": None,
+                "logs": [],
+                "error": None,
+                "progress": 0.5,
+                "current_step": "parse",
+                "current_message": "Parsing",
+            }
+
+            response = client.post(
+                "/graph/index",
+                json={"repo_path": "/mock/repo/path", "repo_name": "test-repo"},
+            )
+
+            assert response.status_code == 409
+            assert "already active" in response.json()["detail"]
+
     @patch("pathlib.Path.is_dir", return_value=True)
     def test_list_and_get_tasks(self, mock_is_dir):
         with TestClient(app) as client:

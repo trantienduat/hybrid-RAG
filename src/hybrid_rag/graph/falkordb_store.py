@@ -207,6 +207,41 @@ class FalkorDBStore(GraphStore):
             {"repository": repository},
         )
 
+    def delete_repository_except_run(self, repository: str, index_run_id: str) -> None:
+        """Delete stale relationships and nodes after replacement data is present."""
+        params = {"repository": repository, "index_run_id": index_run_id}
+        self._graph.query(
+            "MATCH (a)-[r]->() WHERE a.repository = $repository "
+            "AND coalesce(r.index_run_id, '') <> $index_run_id DELETE r",
+            params,
+        )
+        self._graph.query(
+            "MATCH (n) WHERE n.repository = $repository "
+            "AND coalesce(n.index_run_id, '') <> $index_run_id DETACH DELETE n",
+            params,
+        )
+
+    def delete_file_nodes_except_run(
+        self, file_path: str, repository: str, index_run_id: str
+    ) -> None:
+        """Delete stale relationships and nodes for one replaced file."""
+        params = {
+            "file_path": file_path,
+            "repository": repository,
+            "index_run_id": index_run_id,
+        }
+        self._graph.query(
+            "MATCH (n)-[r]->() WHERE n.file_path = $file_path "
+            "AND n.repository = $repository "
+            "AND coalesce(r.index_run_id, '') <> $index_run_id DELETE r",
+            params,
+        )
+        self._graph.query(
+            "MATCH (n) WHERE n.file_path = $file_path AND n.repository = $repository "
+            "AND coalesce(n.index_run_id, '') <> $index_run_id DETACH DELETE n",
+            params,
+        )
+
     def get_repository_commit(self, repository: str) -> str | None:
         """Retrieve the last indexed commit hash for a repository."""
         cypher = "MATCH (r:RepositoryMetadata {id: $repo}) RETURN r.last_indexed_commit AS commit"

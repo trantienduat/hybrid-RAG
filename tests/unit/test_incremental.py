@@ -153,6 +153,21 @@ def test_falkordb_store_delete_file_nodes():
         )
 
 
+def test_falkordb_store_deletes_only_stale_run_records():
+    mock_db = MagicMock()
+    mock_graph = MagicMock()
+    mock_db.select_graph.return_value = mock_graph
+
+    with patch("falkordb.FalkorDB", return_value=mock_db):
+        store = FalkorDBStore(host="localhost", port=6379, graph_name="test")
+        store.delete_repository_except_run("repo123", "run-new")
+
+    assert mock_graph.query.call_count == 2
+    for call in mock_graph.query.call_args_list:
+        assert "coalesce" in call.args[0]
+        assert call.args[1] == {"repository": "repo123", "index_run_id": "run-new"}
+
+
 def test_qdrant_store_delete_file_vectors():
     mock_client = MagicMock()
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
@@ -209,6 +224,18 @@ def test_qdrant_store_delete_repository():
     delete_call = mock_client.delete.call_args.kwargs
     assert delete_call["collection_name"] == "test_col"
     assert delete_call["points_selector"].must[0].match.value == "repo123"
+
+
+def test_qdrant_store_deletes_only_stale_run_vectors():
+    mock_client = MagicMock()
+    with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
+        store = QdrantStore(host="localhost", port=6333, collection="test_col")
+        store.delete_repository_except_run("repo123", "run-new")
+
+    selector = mock_client.delete.call_args.kwargs["points_selector"]
+    assert selector.must[0].match.value == "repo123"
+    assert selector.must_not[0].key == "index_run_id"
+    assert selector.must_not[0].match.value == "run-new"
 
 
 @patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
@@ -268,13 +295,6 @@ def test_incremental_indexing_pipeline_run(
             incremental=True,
         )
 
-        # Assert cleanup was called
-        # both src/b.py and src/a.py should be cleaned up
-        mock_graph.delete_file_nodes.assert_any_call("src/a.py", "myrepo")
-        mock_graph.delete_file_nodes.assert_any_call("src/b.py", "myrepo")
-        mock_vector.delete_file_vectors.assert_any_call("src/a.py", "myrepo")
-        mock_vector.delete_file_vectors.assert_any_call("src/b.py", "myrepo")
-
         # Assert only src/a.py was parsed
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
@@ -283,3 +303,10 @@ def test_incremental_indexing_pipeline_run(
         assert metadata["last_indexed_commit"] == "commit456"
         assert metadata["source_identity"].endswith("@commit456")
         mock_vector.set_repository_metadata.assert_called_once_with("myrepo", metadata)
+
+        # New records are written first; cleanup removes only stale records.
+        run_id = metadata["index_run_id"]
+        mock_graph.delete_file_nodes_except_run.assert_any_call("src/a.py", "myrepo", run_id)
+        mock_graph.delete_file_nodes_except_run.assert_any_call("src/b.py", "myrepo", run_id)
+        mock_vector.delete_file_vectors_except_run.assert_any_call("src/a.py", "myrepo", run_id)
+        mock_vector.delete_file_vectors_except_run.assert_any_call("src/b.py", "myrepo", run_id)

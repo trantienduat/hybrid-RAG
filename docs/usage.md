@@ -208,5 +208,9 @@ When developing or running diagnostic evaluations locally, you can use the activ
     ```
 *   **Run RAGAS generation-quality evaluation:**
     ```bash
-    hybrid-rag ragas
+    hybrid-rag ragas --repo-name my-repository
+    ```
+*   **Compare Hybrid and vector-only generated answers:**
+    ```bash
+    python scripts/run_answer_quality_benchmark.py --repeats 3
     ```

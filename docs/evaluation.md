@@ -9,6 +9,69 @@ any case has empty ground truth or if FalkorDB and Qdrant provenance differs.
 Use the versioned RepoQA fixtures for an independent source-file retrieval
 benchmark.
 
+## Independent generated-answer benchmark
+
+The graph diagnostic above does not prove final-answer quality. The independent
+answer benchmark compares Hybrid and vector-only retrieval using the same
+generator, judge, query order, context limit, and random seed:
+
+```bash
+.venv/bin/python scripts/run_answer_quality_benchmark.py \
+  --repeats 3 \
+  --judge-model qwen2.5-coder:7b \
+  --resume
+```
+
+It persists every retrieved context, generated answer, exact Ollama
+prompt/completion token count, latency, source-file hit, faithfulness, answer
+relevance, and reference-based answer correctness. Optional
+`--input-cost-per-million` and `--output-cost-per-million` values convert the
+measured generation tokens into an estimated external API cost without
+presenting local Ollama inference as an API saving.
+
+The runner atomically checkpoints after every generated answer and every fully
+scored answer. `--resume` accepts that checkpoint only when the dataset, exact
+index run/schema/embedding provenance, models, retrieval settings, repeats,
+seed, and cost settings match, and rejects partial, non-finite, or out-of-range scores. The
+final report is also written atomically. Retrieval limits must be positive with
+`context_n <= top_k`; API input/output cost rates must be supplied together as
+finite non-negative values. Local model requests use a bounded 10-minute
+timeout, with up to three attempts for transient timeout or network failures.
+
+Gold cases are tied to an immutable source identity. Codex reviewed all 30
+checked-in cases directly against that exact indexed source snapshot on
+2026-07-30. The dataset records `reviewer_type: ai_source_review`, so reports
+label its evidence `approved_ai_source_review` rather than implying human
+approval. This review is independent of the benchmark's generator and judge,
+but it is not human validation.
+
+The cases are intentionally balanced across 10 simple single-path questions,
+10 medium lifecycle or state questions, and 10 hard recursive, multi-stage, or
+cross-file questions. Reports persist these difficulty counts. Repository-wide
+claims still require additional source-reviewed datasets from diverse
+repositories; case count alone does not provide that generalization.
+
+Difficulty describes how much evidence the answer must combine; it does not
+guarantee that vector retrieval misses the declared source file. `source_hit`
+is therefore a coarse retrieval guard, while faithfulness, relevance, and
+reference-based correctness determine whether the retrieved context was
+sufficient to answer the question.
+
+Future draft datasets are rejected by normal runs. A development-only smoke
+test for such a dataset must opt in explicitly:
+
+```bash
+.venv/bin/python scripts/run_answer_quality_benchmark.py \
+  --allow-draft \
+  --max-cases 1 \
+  --repeats 1 \
+  --output /tmp/answer-quality-smoke.json
+```
+
+Draft output is labeled `evidence_grade: draft` and must not support product
+quality or financial claims. Use `approved_human_review` only when a named
+human has actually reviewed the source-backed references.
+
 Each query is tagged with:
 - **Hops**: number of graph edge traversals required
 - **Path**: expected Cypher traversal pattern
@@ -218,5 +281,6 @@ as passing.
 | MRR (all) | ≥ 0.70 |
 | Faithfulness (RAGAS) | ≥ 0.80 |
 | Answer Relevance (RAGAS) | ≥ 0.75 |
+| Answer Correctness (independent gold references) | Report Hybrid and vector-only delta |
 | Graph outperforms Vector (2-3 hop) | ΔHitRate ≥ +0.20 |
 | Latency (structural queries) | < 1s p95 |

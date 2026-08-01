@@ -5,7 +5,7 @@ No external services required.
 
 from __future__ import annotations
 
-from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+from hybrid_rag.ingestion.entity_resolver import namespace_unresolved_stubs, resolve, stub_count
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -169,6 +169,21 @@ class TestStubCount:
     def test_zero_when_no_stubs(self):
         result = ParseResult(nodes=[_module("a.py", "a", "a.py")])
         assert stub_count(result) == 0
+
+    def test_unresolved_stubs_are_namespaced_before_persistence(self):
+        result = ParseResult(
+            nodes=[_stub("requests"), _call_stub("send")],
+            edges=[_edge("repo-a::client.run", "CALLS", "__call__send")],
+        )
+
+        namespaced = namespace_unresolved_stubs(result, "repo-a")
+
+        assert {node.id for node in namespaced.nodes} == {
+            "repo-a::external::requests",
+            "repo-a::external::__call__send",
+        }
+        assert namespaced.edges[0].dst_id == "repo-a::external::__call__send"
+        assert result.edges[0].dst_id == "__call__send"
 
 
 def _function(node_id: str, name: str, file_path: str) -> NodeData:
@@ -357,3 +372,24 @@ class TestASTCallResolver:
         query_args = mock_graph_store.query.call_args[0]
         assert "UNWIND $stubs AS stub" in query_args[0]
         assert not any(n.id == "ext_module" for n in resolved.nodes)
+
+    def test_resolve_global_leaves_ambiguous_cross_repo_stub_unresolved(self):
+        """A shared simple name must not link arbitrarily to one repository."""
+        from unittest.mock import MagicMock
+
+        from hybrid_rag.ingestion.entity_resolver import resolve_global
+
+        result = ParseResult(
+            nodes=[NodeData(label="Class", id="Config", properties={"type": "external"})],
+            edges=[_edge("repo-c::consumer.Service", "INHERITS", "Config")],
+        )
+        graph_store = MagicMock()
+        graph_store.query.return_value.result_set = [
+            ["Config", "repo-a::pkg.Config"],
+            ["Config", "repo-b::pkg.Config"],
+        ]
+
+        resolved = resolve_global(result, graph_store)
+
+        assert resolved.edges[0].dst_id == "Config"
+        assert any(node.id == "Config" for node in resolved.nodes)

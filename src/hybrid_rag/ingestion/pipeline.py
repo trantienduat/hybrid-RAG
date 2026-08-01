@@ -271,7 +271,7 @@ def run_indexing_pipeline(
         raise ValueError(f"Repository path is not a directory: {repo}")
 
     # Lazy imports to keep execution startups fast
-    from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+    from hybrid_rag.ingestion.entity_resolver import namespace_unresolved_stubs, resolve, stub_count
     from hybrid_rag.ingestion.merger import merge_supplemental
     from hybrid_rag.ingestion.parser import ParseResult, parse_file, parse_repo
     from hybrid_rag.utils.tracing import start_span
@@ -461,6 +461,7 @@ def run_indexing_pipeline(
         f"Global entity resolution complete: resolved {global_resolved} stubs against FalkorDB, {after_global_stubs} remain external.",
         1.0,
     )
+    result = namespace_unresolved_stubs(result, repo_name)
 
     # ── 4. Graph Ingest ────────────────────────────────────────────────────────
     listener.on_step("db_write", "Writing codebase graph data to FalkorDB...", 0.0)
@@ -487,7 +488,7 @@ def run_indexing_pipeline(
         if fp and fp not in seen_files:
             seen_files.add(fp)
             abs_fp = repo / fp
-            file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens)
+            file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens, repo_name=repo_name)
             chunks_to_embed.extend(file_chunks)
 
     total_chunks = len(chunks_to_embed)

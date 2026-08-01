@@ -70,20 +70,22 @@ class ContextAssembler:
         current_chars = query_overhead_len
 
         # Pre-group focus names by file path to support skeletonization consolidation
-        file_focus_names: dict[str, list[str]] = {}
+        file_focus_names: dict[tuple[str, str], list[str]] = {}
         for item in results:
             fp = item.get("file_path", "")
+            repo_name = item.get("repository", "")
             name = item.get("name", "")
             if fp and name:
-                if fp not in file_focus_names:
-                    file_focus_names[fp] = []
-                file_focus_names[fp].append(name)
+                file_key = (repo_name, fp)
+                if file_key not in file_focus_names:
+                    file_focus_names[file_key] = []
+                file_focus_names[file_key].append(name)
                 # Append called siblings if present
                 called_siblings = item.get("called_siblings", [])
                 for sib in called_siblings:
-                    file_focus_names[fp].append(sib)
+                    file_focus_names[file_key].append(sib)
 
-        processed_files: set[str] = set()
+        processed_files: set[tuple[str, str]] = set()
         chunks_included: list[dict[str, Any]] = []
         chunks_excluded: list[dict[str, Any]] = []
         sources_seen: set[str] = set()
@@ -95,16 +97,17 @@ class ContextAssembler:
             # Check if we should skeletonize this file
             skeletonized_text = None
             if file_path and repo_name:
-                if file_path in processed_files:
+                file_key = (repo_name, file_path)
+                if file_key in processed_files:
                     # Skip duplicate class/file blocks to save space and avoid redundancy
                     continue
-                processed_files.add(file_path)
+                processed_files.add(file_key)
 
                 config_path = app_config.get_repo_path(repo_name)
                 if config_path:
                     effective_repo_path = translate_path_for_docker(config_path)
                     abs_file_path = Path(effective_repo_path) / file_path
-                    focus_names = file_focus_names.get(file_path, [])
+                    focus_names = file_focus_names.get(file_key, [])
                     ext = abs_file_path.suffix.lower()
                     lang = "python" if ext == ".py" else ("java" if ext == ".java" else "python")
                     skeletonized_text = skeletonize_file(abs_file_path, focus_names, language=lang)

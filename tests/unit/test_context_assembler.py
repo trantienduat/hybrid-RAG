@@ -104,6 +104,40 @@ def test_context_assembler_custom_token_estimator(sample_results):
     assert ctx.metadata["chunks_included_count"] >= 1
 
 
+def test_context_assembler_keeps_same_path_from_different_repositories(monkeypatch):
+    from hybrid_rag.config import app_config
+
+    monkeypatch.setattr(app_config, "get_repo_path", lambda _repo: None)
+    results = [
+        {
+            "node_id": "repo-a::pkg.service.run::0",
+            "name": "run",
+            "label": "Function",
+            "file_path": "src/service.py",
+            "repository": "repo-a",
+            "text": "return 'repo-a'",
+            "source": "vector",
+            "rrf_score": 0.05,
+        },
+        {
+            "node_id": "repo-b::pkg.service.run::0",
+            "name": "run",
+            "label": "Function",
+            "file_path": "src/service.py",
+            "repository": "repo-b",
+            "text": "return 'repo-b'",
+            "source": "vector",
+            "rrf_score": 0.04,
+        },
+    ]
+
+    ctx = ContextAssembler().assemble(results, top_n=5)
+
+    assert [chunk["repository"] for chunk in ctx.chunks] == ["repo-a", "repo-b"]
+    assert "return 'repo-a'" in ctx.text
+    assert "return 'repo-b'" in ctx.text
+
+
 def test_context_assembler_skeletonized(tmp_path, monkeypatch):
     from hybrid_rag.config import app_config
 

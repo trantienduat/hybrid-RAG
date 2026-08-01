@@ -236,9 +236,27 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
 
     if language == "python":
         res = _extract_python(tree.root_node, src_bytes, rel_path)
-        # Assign repository property to all nodes in the file
+        # Real code entities share one FalkorDB/Qdrant namespace, so their IDs
+        # must include the repository. External stubs stay unqualified until
+        # entity resolution has had a chance to link them.
+        if repo_name:
+            real_ids = {
+                node.id: f"{repo_name}::{node.id}"
+                for node in res.nodes
+                if node.properties.get("type") != "external"
+            }
+            for node in res.nodes:
+                if node.id in real_ids:
+                    node.id = real_ids[node.id]
+            for edge in res.edges:
+                edge.src_id = real_ids.get(edge.src_id, edge.src_id)
+                edge.dst_id = real_ids.get(edge.dst_id, edge.dst_id)
+
+        # Assign repository property to all nodes in the file.
         for node in res.nodes:
             node.properties["repository"] = repo_name
+        for edge in res.edges:
+            edge.properties["repository"] = repo_name
         return res
     return ParseResult(errors=[f"Java extraction not yet implemented: {rel_path}"])
 

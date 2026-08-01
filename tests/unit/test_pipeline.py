@@ -100,6 +100,12 @@ class TestIndexingPipeline:
         mock_parse_repo.assert_called_once()
         mock_graph_store.ingest.assert_called_once()
         mock_vector_store.upsert.assert_called_once()
+        mock_chunk_file.assert_called_once_with(
+            tmp_dir / "a.py",
+            tmp_dir,
+            max_tokens=512,
+            repo_name="test-repo",
+        )
         payload = mock_vector_store.upsert.call_args.args[0][0]
         assert payload["name"] == "foo"
         assert payload["indexed_commit"] == ""

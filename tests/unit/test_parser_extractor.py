@@ -127,6 +127,22 @@ class TestParseFile:
         ids = [n.id for n in result.nodes]
         assert len(ids) == len(set(ids)), "Duplicate node IDs detected"
 
+    def test_python_node_ids_are_namespaced_by_repository(self, tmp_path):
+        source = tmp_path / "same.py"
+        source.write_text("def shared():\n    return 1\n")
+
+        repo_a = parse_file(source, tmp_path, repo_name="repo-a")
+        repo_b = parse_file(source, tmp_path, repo_name="repo-b")
+
+        real_a = {n.id for n in repo_a.nodes if n.properties.get("type") != "external"}
+        real_b = {n.id for n in repo_b.nodes if n.properties.get("type") != "external"}
+        assert real_a == {"repo-a::same", "repo-a::same.shared"}
+        assert real_b == {"repo-b::same", "repo-b::same.shared"}
+        assert real_a.isdisjoint(real_b)
+        assert all(
+            edge.src_id.startswith("repo-a::") for edge in repo_a.edges if edge.src_id != "repo-a"
+        )
+
     def test_function_node_has_line_numbers(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)
         fns = [

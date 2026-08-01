@@ -20,7 +20,7 @@ from hybrid_rag.eval.answer_quality import (
     _write_json_atomic,
     load_gold_dataset,
 )
-from hybrid_rag.eval.preflight import validate_index_provenance
+from hybrid_rag.eval.preflight import require_same_index_run, validate_index_provenance
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.retrieval.hybrid_retriever import HybridRetriever
@@ -88,6 +88,14 @@ def main() -> None:
     parser.add_argument("--input-cost-per-million", type=float)
     parser.add_argument("--output-cost-per-million", type=float)
     args = parser.parse_args()
+    if args.max_cases < 0:
+        parser.error("--max-cases cannot be negative")
+    if args.repeats < 1:
+        parser.error("--repeats must be at least 1")
+    if args.top_k < 1:
+        parser.error("--top-k must be at least 1")
+    if args.context_n < 1 or args.context_n > args.top_k:
+        parser.error("--context-n must be between 1 and --top-k")
     checkpoint_path = args.checkpoint or Path(f"{args.output}.checkpoint.json")
 
     dataset = _limited_dataset(
@@ -110,7 +118,12 @@ def main() -> None:
         port=args.qdrant_port,
         collection=args.qdrant_collection,
     )
-    index_metadata = validate_index_provenance(graph, vector, args.repo)
+    index_metadata = validate_index_provenance(
+        graph,
+        vector,
+        args.repo,
+        expected_embedding_model=args.embedding_model,
+    )
     logging.info("Validated index source identity %s", index_metadata["source_identity"])
 
     with OllamaEmbedder(
@@ -141,6 +154,14 @@ def main() -> None:
             checkpoint_path=checkpoint_path,
             resume=args.resume,
         )
+
+    final_index_metadata = validate_index_provenance(
+        graph,
+        vector,
+        args.repo,
+        expected_embedding_model=args.embedding_model,
+    )
+    require_same_index_run(index_metadata, final_index_metadata)
 
     result = report.as_dict()
     result["generated_at"] = datetime.now(UTC).isoformat()

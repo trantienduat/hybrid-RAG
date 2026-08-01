@@ -149,7 +149,7 @@ def test_generate_answer_requires_exact_ollama_usage(monkeypatch):
     )
 
     result = generate_answer(
-        ollama_url="http://ollama",
+        ollama_url="http://localhost:11434",
         model="answer-model",
         question="Question?",
         contexts=["Context."],
@@ -214,7 +214,7 @@ def test_runner_compares_modes_and_resumes_atomic_checkpoint(monkeypatch, tmp_pa
     runner = AnswerQualityRunner(
         retriever,
         repository="repo",
-        ollama_url="http://ollama",
+        ollama_url="http://localhost:11434",
         answer_model="answer",
         judge_model="judge",
         embedding_model="embed",
@@ -317,12 +317,24 @@ def test_runner_rejects_incomplete_or_invalid_cost_rates(input_cost, output_cost
         AnswerQualityRunner(
             MagicMock(),
             repository="repo",
-            ollama_url="http://ollama",
+            ollama_url="http://localhost:11434",
             answer_model="answer",
             judge_model="judge",
             embedding_model="embed",
             input_cost_per_million=input_cost,
             output_cost_per_million=output_cost,
+        )
+
+
+def test_runner_rejects_remote_ollama_url():
+    with pytest.raises(ValueError, match="OLLAMA_BASE_URL"):
+        AnswerQualityRunner(
+            MagicMock(),
+            repository="repo",
+            ollama_url="https://api.example.com",
+            answer_model="answer",
+            judge_model="judge",
+            embedding_model="embed",
         )
 
 
@@ -340,7 +352,7 @@ def test_runner_rejects_mismatched_source_snapshot():
     runner = AnswerQualityRunner(
         MagicMock(),
         repository="repo",
-        ollama_url="http://ollama",
+        ollama_url="http://localhost:11434",
         answer_model="answer",
         judge_model="judge",
         embedding_model="embed",
@@ -364,7 +376,7 @@ def test_runner_requires_complete_index_provenance():
     runner = AnswerQualityRunner(
         MagicMock(),
         repository="repo",
-        ollama_url="http://ollama",
+        ollama_url="http://localhost:11434",
         answer_model="answer",
         judge_model="judge",
         embedding_model="embed",

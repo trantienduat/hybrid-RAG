@@ -15,6 +15,7 @@ from typing import Any
 
 import httpx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.eval.ragas_runner import _SYSTEM_PROMPT, _format_context
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,7 @@ def generate_answer(
     seed: int,
 ) -> GenerationResult:
     """Generate one deterministic answer and require exact Ollama token counters."""
+    ollama_url = validate_local_ollama_url(ollama_url)
     context = "\n\n".join(contexts) if contexts else "(no code context retrieved)"
     prompt = f"{_SYSTEM_PROMPT}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
     started = time.perf_counter()
@@ -450,7 +452,7 @@ class AnswerQualityRunner:
     ) -> None:
         self._retriever = retriever
         self._repository = repository
-        self._ollama_url = ollama_url
+        self._ollama_url = validate_local_ollama_url(ollama_url)
         self._answer_model = answer_model
         self._judge_model = judge_model
         self._embedding_model = embedding_model

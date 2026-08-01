@@ -4,12 +4,15 @@ Unit tests for the indexing REST API endpoints.
 
 from __future__ import annotations
 
-from unittest.mock import patch
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from hybrid_rag.api.main import app
+from hybrid_rag.api.main import app, process_indexing_task
+from hybrid_rag.api.schemas import IndexRequest
 
 
 @pytest.fixture(autouse=True)
@@ -74,6 +77,44 @@ class TestApiIndexing:
 
         assert resp.status_code == 422
         assert "Only Python indexing is currently supported" in resp.text
+
+    @pytest.mark.asyncio
+    @patch("hybrid_rag.graph.community_builder.CommunityBuilder")
+    @patch("hybrid_rag.ingestion.pipeline.run_indexing_pipeline")
+    async def test_completed_index_bumps_query_cache_generation(
+        self, mock_pipeline, mock_community_builder, tmp_path
+    ):
+        mock_pipeline.return_value = {
+            "elapsed_seconds": 0.1,
+            "nodes_upserted": 2,
+            "edges_upserted": 1,
+            "vectors_upserted": 1,
+        }
+        mock_community_builder.return_value.build_communities.return_value = 0
+        query_cache = MagicMock()
+        query_cache.bump_generation = AsyncMock(return_value=True)
+        task = {
+            "repository": "test-repo",
+            "status": "pending",
+            "logs": [],
+            "progress": 0.0,
+        }
+        state = SimpleNamespace(
+            indexing_tasks={"task-1": task},
+            indexing_lock=asyncio.Lock(),
+            graph_store=MagicMock(),
+            vector_store=MagicMock(),
+            query_cache=query_cache,
+        )
+
+        await process_indexing_task(
+            "task-1",
+            IndexRequest(repo_path=str(tmp_path), languages=["python"]),
+            state,
+        )
+
+        assert task["status"] == "completed"
+        query_cache.bump_generation.assert_awaited_once_with()
 
     @patch("hybrid_rag.api.main.process_indexing_task")
     @patch("pathlib.Path.is_dir", return_value=True)

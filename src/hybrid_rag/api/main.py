@@ -840,6 +840,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     t0 = time.perf_counter()
 
     # 1. Check Redis Cache
+    cache_generation = await app.state.query_cache.get_generation()
     cache_key = RedisQueryCache.generate_key(
         question=req.question,
         codebase_query=req.codebase_query,
@@ -850,6 +851,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         max_tokens=req.max_tokens,
         max_chars=req.max_chars,
         stream=False,
+        cache_generation=cache_generation,
     )
 
     cached_resp = await app.state.query_cache.get(cache_key)
@@ -1054,6 +1056,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     """
     t0 = time.perf_counter()
     # 1. Check Redis Cache
+    cache_generation = await app.state.query_cache.get_generation()
     cache_key = RedisQueryCache.generate_key(
         question=req.question,
         codebase_query=req.codebase_query,
@@ -1064,6 +1067,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         max_tokens=req.max_tokens,
         max_chars=req.max_chars,
         stream=True,
+        cache_generation=cache_generation,
     )
 
     cached_events = await app.state.query_cache.get(cache_key)
@@ -1762,6 +1766,11 @@ async def process_indexing_task(
                 logger.warning(
                     "Auto community-build failed for task %s: %s", task_id, community_exc
                 )
+
+            if await app_state.query_cache.bump_generation():
+                add_log("Invalidated cached query responses for the previous index generation.")
+            else:
+                add_log("Query cache unavailable; caching remains disabled or fail-open.")
 
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()

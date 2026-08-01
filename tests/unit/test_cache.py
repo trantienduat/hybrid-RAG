@@ -1,5 +1,9 @@
 """Unit tests for response-cache key isolation."""
 
+from unittest.mock import AsyncMock
+
+import pytest
+
 from hybrid_rag.utils.cache import RedisQueryCache
 
 
@@ -33,3 +37,29 @@ def test_cache_key_separates_token_budgets():
 
 def test_cache_key_separates_character_budgets():
     assert _key(max_chars=2000) != _key(max_chars=8000)
+
+
+def test_cache_key_separates_index_generations():
+    assert _key(cache_generation="4") != _key(cache_generation="5")
+
+
+@pytest.mark.asyncio
+async def test_bump_generation_atomically_invalidates_prior_keys():
+    cache = RedisQueryCache()
+    cache.client = AsyncMock()
+    cache.is_connected = True
+
+    assert await cache.bump_generation() is True
+
+    cache.client.incr.assert_awaited_once_with("hybrid_rag:query_cache:generation")
+
+
+@pytest.mark.asyncio
+async def test_generation_failure_disables_cache_to_prevent_stale_reads():
+    cache = RedisQueryCache()
+    cache.client = AsyncMock()
+    cache.client.incr.side_effect = RuntimeError("redis unavailable")
+    cache.is_connected = True
+
+    assert await cache.bump_generation() is False
+    assert cache.is_connected is False

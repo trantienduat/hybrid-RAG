@@ -14,6 +14,7 @@ from typing import Any
 import redis.asyncio as aioredis
 
 logger = logging.getLogger(__name__)
+_GENERATION_KEY = "hybrid_rag:query_cache:generation"
 
 
 class RedisQueryCache:
@@ -84,6 +85,29 @@ class RedisQueryCache:
         except Exception as exc:
             logger.warning("Redis SET request failed (failing open): %s", exc)
 
+    async def get_generation(self) -> str:
+        """Return the current index generation used to namespace response keys."""
+        if not self.is_connected or not self.client:
+            return "0"
+        try:
+            return str(await self.client.get(_GENERATION_KEY) or "0")
+        except Exception as exc:
+            self.is_connected = False
+            logger.warning("Redis generation read failed; disabling cache: %s", exc)
+            return "0"
+
+    async def bump_generation(self) -> bool:
+        """Atomically invalidate all prior response keys after index publication."""
+        if not self.is_connected or not self.client:
+            return False
+        try:
+            await self.client.incr(_GENERATION_KEY)
+            return True
+        except Exception as exc:
+            self.is_connected = False
+            logger.warning("Redis generation update failed; disabling cache: %s", exc)
+            return False
+
     @staticmethod
     def generate_key(
         question: str,
@@ -95,10 +119,12 @@ class RedisQueryCache:
         max_tokens: int | None = None,
         max_chars: int | None = None,
         stream: bool = False,
+        cache_generation: str = "0",
     ) -> str:
         """Generate a stable, deterministic cache key from request parameters."""
         params_str = (
-            f"v2|q:{question}|cq:{codebase_query}|repo:{repository or 'all'}|"
+            f"v3|generation:{cache_generation}|q:{question}|cq:{codebase_query}|"
+            f"repo:{repository or 'all'}|"
             f"model:{llm_model}|top:{top_k}|n:{context_n}|"
             f"max_tokens:{max_tokens}|max_chars:{max_chars}|stream:{stream}"
         )

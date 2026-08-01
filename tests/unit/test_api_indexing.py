@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from hybrid_rag.api.main import app, process_indexing_task
+from hybrid_rag.api.main import _is_allowed_index_path, app, app_config, process_indexing_task
 from hybrid_rag.api.schemas import IndexRequest
 
 
@@ -28,9 +28,34 @@ def mock_db_components():
 
 
 class TestApiIndexing:
+    def test_cors_allows_local_ui_but_not_arbitrary_websites(self):
+        headers = {"Access-Control-Request-Method": "POST"}
+        with TestClient(app) as client:
+            local = client.options("/query", headers={**headers, "Origin": "http://localhost:8000"})
+            remote = client.options(
+                "/query", headers={**headers, "Origin": "https://untrusted.example"}
+            )
+
+        assert local.headers["access-control-allow-origin"] == "http://localhost:8000"
+        assert "access-control-allow-origin" not in remote.headers
+
+    def test_index_path_must_be_within_explicit_root(self, monkeypatch, tmp_path):
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        child = allowed_root / "repo"
+        child.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        monkeypatch.setenv("INDEX_ROOTS", str(allowed_root))
+
+        with patch.object(app_config, "config_data", {"repositories": []}):
+            assert _is_allowed_index_path(child) is True
+            assert _is_allowed_index_path(outside) is False
+
     @patch("hybrid_rag.api.main.process_indexing_task")
+    @patch("hybrid_rag.api.main._is_allowed_index_path", return_value=True)
     @patch("pathlib.Path.is_dir", return_value=True)
-    def test_trigger_index_success(self, mock_is_dir, mock_process_task):
+    def test_trigger_index_success(self, mock_is_dir, _mock_allowed, mock_process_task):
         with TestClient(app) as client:
             payload = {
                 "repo_path": "/mock/repo/path",
@@ -117,9 +142,10 @@ class TestApiIndexing:
         query_cache.bump_generation.assert_awaited_once_with()
 
     @patch("hybrid_rag.api.main.process_indexing_task")
+    @patch("hybrid_rag.api.main._is_allowed_index_path", return_value=True)
     @patch("pathlib.Path.is_dir", return_value=True)
     def test_trigger_index_rejects_duplicate_active_repository(
-        self, _mock_is_dir, _mock_process_task
+        self, _mock_is_dir, _mock_allowed, _mock_process_task
     ):
         with TestClient(app) as client:
             app.state.indexing_tasks["existing"] = {
@@ -142,6 +168,20 @@ class TestApiIndexing:
 
             assert response.status_code == 409
             assert "already active" in response.json()["detail"]
+
+    @patch("pathlib.Path.is_dir", return_value=True)
+    def test_trigger_index_rejects_path_outside_configured_roots(self, _mock_is_dir):
+        with (
+            patch("hybrid_rag.api.main._is_allowed_index_path", return_value=False),
+            TestClient(app) as client,
+        ):
+            response = client.post(
+                "/graph/index",
+                json={"repo_path": "/private/unconfigured", "repo_name": "outside"},
+            )
+
+        assert response.status_code == 403
+        assert "outside configured" in response.json()["detail"]
 
     @patch("pathlib.Path.is_dir", return_value=True)
     def test_list_and_get_tasks(self, mock_is_dir):

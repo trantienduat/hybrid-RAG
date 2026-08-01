@@ -11,7 +11,6 @@ dependencies = [
     # AST parsing
     "tree-sitter>=0.22.0",
     "tree-sitter-python>=0.21.0",
-    "tree-sitter-java>=0.21.0",
 
     # Vector / Graph clients
     "qdrant-client>=1.9.0",

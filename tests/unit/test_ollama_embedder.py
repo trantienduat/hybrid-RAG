@@ -34,6 +34,10 @@ def _embedder() -> OllamaEmbedder:
 
 
 class TestOllamaEmbedder:
+    def test_remote_ollama_endpoint_is_rejected(self):
+        with pytest.raises(ValueError, match="OLLAMA_BASE_URL"):
+            OllamaEmbedder(ollama_url="http://192.168.1.20:11434", model="test-model")
+
     def test_embed_query_success(self):
         embedder = _embedder()
         expected = [0.1] * 768

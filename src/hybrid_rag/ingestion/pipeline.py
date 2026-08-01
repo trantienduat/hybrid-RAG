@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from hybrid_rag.config import validate_local_ollama_url, validate_local_provider_configuration
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,6 @@ def _validate_python_repository(
             "__pycache__",
             "node_modules",
             ".agents",
-            ".gemini",
             ".pytest_cache",
             ".ruff_cache",
             ".roo",
@@ -270,7 +270,6 @@ def _detect_git_changes(
                 "__pycache__",
                 "node_modules",
                 ".agents",
-                ".gemini",
                 ".pytest_cache",
                 ".ruff_cache",
                 ".roo",
@@ -331,6 +330,8 @@ def run_indexing_pipeline(
     repo = repo_path.resolve()
     if not repo.is_dir():
         raise ValueError(f"Repository path is not a directory: {repo}")
+    validate_local_provider_configuration()
+    validate_local_ollama_url(ollama_url)
     _validate_python_repository(repo, languages, excludes)
 
     # Lazy imports to keep execution startups fast
@@ -445,8 +446,6 @@ def run_indexing_pipeline(
 
     # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
     if llm_extract:
-        import os
-
         all_extra_edges: list = []
         if is_incremental:
             py_files = sorted(repo.rglob("*.py"))
@@ -462,15 +461,9 @@ def run_indexing_pipeline(
         )
 
         if total_files > 0:
-            is_gemini = llm_model.startswith("gemini") or os.environ.get("LLM_PROVIDER") == "gemini"
-            if is_gemini:
-                from hybrid_rag.ingestion.gemini_llm_extractor import GeminiLLMExtractor
+            from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
 
-                extractor_ctx = GeminiLLMExtractor(model=llm_model)
-            else:
-                from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
-
-                extractor_ctx = OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model)
+            extractor_ctx = OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model)
 
             with extractor_ctx as extractor:
                 with start_span(
@@ -564,21 +557,9 @@ def run_indexing_pipeline(
     )
 
     if total_chunks > 0:
-        import os
+        from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 
-        is_gemini_embed = (
-            embed_model.startswith("gemini")
-            or embed_model == "text-embedding-004"
-            or os.environ.get("EMBED_PROVIDER") == "gemini"
-        )
-        if is_gemini_embed:
-            from hybrid_rag.ingestion.gemini_embedder import GeminiEmbedder
-
-            embedder_ctx = GeminiEmbedder(model=embed_model)
-        else:
-            from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
-
-            embedder_ctx = OllamaEmbedder(ollama_url=ollama_url, model=embed_model)
+        embedder_ctx = OllamaEmbedder(ollama_url=ollama_url, model=embed_model)
 
         with embedder_ctx as embedder:
             with start_span(

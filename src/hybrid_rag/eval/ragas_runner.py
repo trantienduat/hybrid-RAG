@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.eval.corpus import QueryCase
 
@@ -255,7 +256,7 @@ class RagasRunner:
             raise ValueError("repository is required for RAGAS evaluation")
         self._retriever = retriever
         self._repository = repository
-        self._ollama_url = ollama_url
+        self._ollama_url = validate_local_ollama_url(ollama_url)
         self._llm_model = llm_model or DEFAULT_LLM_MODEL
         self._judge_model = judge_model or self._llm_model
         self._embedding_model = embedding_model

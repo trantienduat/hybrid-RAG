@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 import networkx as nx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.ports.graph_store import GraphStore
 
@@ -71,7 +72,7 @@ class CommunityBuilder:
         timeout: float = _HTTP_TIMEOUT,
     ) -> None:
         self._store = graph_store
-        self._ollama_url = (ollama_url or _DEFAULT_OLLAMA_URL).rstrip("/")
+        self._ollama_url = validate_local_ollama_url(ollama_url or _DEFAULT_OLLAMA_URL)
         self._llm_model = llm_model or _DEFAULT_MODEL
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)

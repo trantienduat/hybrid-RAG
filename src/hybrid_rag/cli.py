@@ -227,6 +227,14 @@ def status(
     """Check health of FalkorDB, Qdrant, and Ollama services."""
     import httpx
 
+    from hybrid_rag.config import validate_local_ollama_url
+
+    try:
+        ollama_url = validate_local_ollama_url(ollama_url)
+    except ValueError as exc:
+        err_console.print(f"[ERROR] {exc}")
+        raise typer.Exit(1) from exc
+
     ok = True
 
     # FalkorDB
@@ -710,10 +718,9 @@ def eval(
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", help="Bind host."),
+    host: str = typer.Option("127.0.0.1", help="Bind host."),
     port: int = typer.Option(8000, help="Bind port."),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload (dev mode)."),
-    workers: int = typer.Option(1, help="Number of worker processes (ignored with --reload)."),
     log_level: str = typer.Option("info", help="Uvicorn log level."),
 ) -> None:
     """Start the hybrid-rag FastAPI server (M4 #27)."""
@@ -734,7 +741,7 @@ def serve(
         host=host,
         port=port,
         reload=reload,
-        workers=1 if reload else workers,
+        workers=1,
         log_level=log_level,
     )
 

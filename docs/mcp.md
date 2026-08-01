@@ -171,34 +171,6 @@ Add the server configuration under Cline's MCP settings:
 }
 ```
 
-### Antigravity / Gemini Code Assist
-Create or update the configuration file in your user profile:
-*   **macOS / Linux:** `~/.gemini/settings.json`
-*   **Windows:** `C:\Users\[YourUsername]\.gemini\settings.json`
-
-Add the following configuration:
-
-```json
-{
-  "mcpServers": {
-    "hybrid-rag": {
-      "command": "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/.venv/bin/hybrid-rag",
-      "args": ["mcp", "--transport", "stdio"],
-      "env": {
-        "FALKORDB_HOST": "localhost",
-        "FALKORDB_PORT": "6379",
-        "QDRANT_HOST": "localhost",
-        "QDRANT_PORT": "6333",
-        "OLLAMA_BASE_URL": "http://localhost:11434"
-      }
-    }
-  }
-}
-```
-*(Note: It is recommended to use the absolute path to the virtual environment binary as the `command` value so it executes with all library dependencies loaded).*
-
----
-
 ### 🐳 Alternative: Running the MCP Server inside Docker (Stdio Bridge)
 If you prefer not to install the virtual environment on the host machine and want to run the MCP server strictly inside the Docker container, you can configure the client to communicate via a **docker stdio bridge**. 
 

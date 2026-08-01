@@ -48,7 +48,7 @@ if __name__ == "__main__":
     saved_tokens = max(0, codebase_tokens - rag_avg_tokens)
     saved_pct = (saved_tokens / codebase_tokens) * 100 if codebase_tokens > 0 else 0
     
-    # Cost estimations: Average of Gemini 1.5 Pro and Claude 3.5 Sonnet (~$3 per 1 million input tokens)
+    # Illustrative hosted-model input cost assumption (~$3 per 1 million input tokens)
     cost_per_million = 3.00
     naive_cost_1k = (codebase_tokens / 1_000_000) * cost_per_million * 1000
     rag_cost_1k = (rag_avg_tokens / 1_000_000) * cost_per_million * 1000

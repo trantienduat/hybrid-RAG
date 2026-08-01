@@ -4,8 +4,8 @@ Hybrid-RAG indexes Python codebases into a FalkorDB knowledge graph and a
 Qdrant vector collection, then combines structural and semantic retrieval for
 CLI, REST, web UI, and MCP clients.
 
-The default Ollama path runs locally. Optional Gemini providers send source
-text, queries, embeddings, or assembled context to Google's API.
+All embedding and answer generation runs through a local Ollama service; the
+runtime has no cloud-provider path.
 
 ## Quick start
 
@@ -44,8 +44,8 @@ runs made with the same parameters and environment.
 
 ## Current limitations
 
-- Python AST extraction is implemented. Java is accepted by configuration but
-  its AST-to-graph extraction is not implemented yet.
+- Python AST extraction is implemented. Java repositories and language options
+  are rejected until Java extraction is implemented.
 - The CLI `query` command prints retrieved context; answer generation is
   available through `/query`, `/query/stream`, and the web UI.
 - Live integration tests require FalkorDB, Qdrant, and Ollama.

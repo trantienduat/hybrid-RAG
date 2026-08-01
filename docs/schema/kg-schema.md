@@ -172,7 +172,7 @@ Deduplication key per node type:
 - All `.py` files in the target repository
 - Markdown, YAML, and Dockerfiles when non-code ingestion is enabled
 - Third-party classes appear as stub nodes `{type: "external"}` — no properties beyond name
-- Java files are detected but currently return an implementation error
+- Java language requests and Java-only repositories are rejected before indexing
 
 **Out of scope:**
 - Runtime dynamic attributes (`setattr`, `__dict__`)

@@ -8,10 +8,9 @@ The Hybrid-RAG system is designed with a modular, **Ports and Adapters** (Hexago
 
 ## High-Level Architecture Overview
 
-The default Ollama deployment keeps parsing, embedding, retrieval, and
-generation local. When Gemini is selected through `LLM_PROVIDER`,
-`EMBED_PROVIDER`, or a Gemini model name, source snippets, queries, embeddings,
-or assembled context are sent to Google's API.
+The Ollama deployment keeps parsing, embedding, retrieval, and generation
+local. Provider selection flags are rejected, and inference URLs are restricted
+to loopback or the local container-host bridge.
 
 ```mermaid
 graph TD
@@ -87,7 +86,9 @@ graph TD
 
 ## 🛠️ Ingestion Pipeline (Flow & Architecture)
 
-The ingestion pipeline converts raw source files (Python and Java) into a partitioned, resolved structural graph and high-dimensional vectors.
+The ingestion pipeline converts Python source files into a partitioned,
+resolved structural graph and high-dimensional vectors. Java is a deferred
+scope and is rejected before indexing.
 
 ```mermaid
 sequenceDiagram
@@ -252,12 +253,11 @@ Vectors are partitioned using payload metadata to support fast, targeted scoping
 
 ## 🔒 Privacy Boundary Enforcement
 
-The default provider path is local:
+The inference path is local:
 *   **Ollama:** Local embedding (`nomic-embed-text`) and inference (`gemma4:12b`).
 *   **Storage:** FalkorDB and Qdrant run in the local Docker stack.
-*   **Gemini opt-in:** Gemini adapters are cloud integrations and require a
-    `GEMINI_API_KEY`; selecting them moves relevant request data outside the
-    local boundary.
+*   **Network boundary:** API and database ports publish on loopback only, and
+    the REST indexer accepts only explicitly configured filesystem roots.
 
 Observability services are optional. Start them with the Compose
 `observability` profile; plain `docker compose up` starts the core stack only.

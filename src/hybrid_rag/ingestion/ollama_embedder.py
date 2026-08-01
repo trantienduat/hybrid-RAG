@@ -15,6 +15,7 @@ from typing import Any
 
 import httpx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 from hybrid_rag.ingestion.parser import NodeData
 from hybrid_rag.ports.embedder import BaseEmbedder
@@ -102,8 +103,8 @@ class OllamaEmbedder(BaseEmbedder):
         ollama_url: str | None = None,
         model: str | None = None,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
-            "/"
+        self._url = validate_local_ollama_url(
+            ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)
         )
         self._model = model or os.environ.get("EMBED_MODEL", _DEFAULT_MODEL)
         self._client = httpx.Client(timeout=_HTTP_TIMEOUT)

@@ -65,6 +65,16 @@ class TestApiIndexing:
                 assert resp.status_code == 400
                 assert "does not exist or is not a directory" in resp.json()["detail"]
 
+    def test_trigger_index_rejects_java_during_request_validation(self):
+        with TestClient(app) as client:
+            resp = client.post(
+                "/graph/index",
+                json={"repo_path": "/mock/repo/path", "languages": ["java"]},
+            )
+
+        assert resp.status_code == 422
+        assert "Only Python indexing is currently supported" in resp.text
+
     @patch("hybrid_rag.api.main.process_indexing_task")
     @patch("pathlib.Path.is_dir", return_value=True)
     def test_trigger_index_rejects_duplicate_active_repository(

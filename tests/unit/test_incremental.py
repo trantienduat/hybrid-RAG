@@ -11,7 +11,11 @@ from unittest.mock import MagicMock, patch
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
-from hybrid_rag.ingestion.pipeline import _detect_git_changes, run_indexing_pipeline
+from hybrid_rag.ingestion.pipeline import (
+    INDEX_SCHEMA_VERSION,
+    _detect_git_changes,
+    run_indexing_pipeline,
+)
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
 
@@ -310,3 +314,60 @@ def test_incremental_indexing_pipeline_run(
         mock_graph.delete_file_nodes_except_run.assert_any_call("src/b.py", "myrepo", run_id)
         mock_vector.delete_file_vectors_except_run.assert_any_call("src/a.py", "myrepo", run_id)
         mock_vector.delete_file_vectors_except_run.assert_any_call("src/b.py", "myrepo", run_id)
+
+
+@patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
+@patch("hybrid_rag.ingestion.parser.parse_repo")
+@patch("hybrid_rag.ingestion.pipeline._git_source_provenance")
+def test_incremental_forces_full_replacement_for_embedding_model_change(
+    mock_git_provenance, mock_parse_repo, mock_detect_git, tmp_path
+):
+    (tmp_path / "a.py").write_text("def a(): pass")
+    graph_store = MagicMock()
+    graph_store.get_repository_metadata.return_value = {
+        "index_schema_version": INDEX_SCHEMA_VERSION,
+        "embedding_model": "old-model",
+    }
+    graph_store.ingest.return_value = {"nodes": 1, "edges": 0}
+    vector_store = MagicMock()
+    mock_git_provenance.return_value = {
+        "source_kind": "git",
+        "source_path": str(tmp_path),
+        "source_commit": "commit456",
+        "source_digest": "",
+        "source_identity": "git:repo@commit456",
+        "working_tree_dirty": False,
+    }
+    mock_parse_repo.return_value = ParseResult()
+
+    with (
+        patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda result: result),
+        patch(
+            "hybrid_rag.ingestion.entity_resolver.resolve_global",
+            side_effect=lambda result, _store: result,
+        ),
+        patch("hybrid_rag.ingestion.chunker.chunk_file", return_value=[]),
+    ):
+        run_indexing_pipeline(
+            repo_path=tmp_path,
+            languages=["python"],
+            repo_name="myrepo",
+            graph_store=graph_store,
+            vector_store=vector_store,
+            ollama_url="http://localhost:11434",
+            embed_model="new-model",
+            llm_model=DEFAULT_LLM_MODEL,
+            llm_extract=False,
+            max_tokens=512,
+            incremental=True,
+        )
+
+    mock_detect_git.assert_not_called()
+    mock_parse_repo.assert_called_once()
+    metadata = graph_store.set_repository_metadata.call_args.args[1]
+    graph_store.delete_repository_except_run.assert_called_once_with(
+        "myrepo", metadata["index_run_id"]
+    )
+    vector_store.delete_repository_except_run.assert_called_once_with(
+        "myrepo", metadata["index_run_id"]
+    )

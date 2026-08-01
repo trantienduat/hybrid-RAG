@@ -92,7 +92,7 @@ class TestIndexingPipeline:
         )
 
         # Assertions on pipeline results
-        assert res["nodes_parsed"] == 2
+        assert res["nodes_parsed"] == 3
         assert res["edges_parsed"] == 1
         assert res["nodes_upserted"] == 2
         assert res["edges_upserted"] == 1
@@ -151,6 +151,46 @@ class TestIndexingPipeline:
             assert False, "Should raise ValueError for invalid directory"
         except ValueError as exc:
             assert "Repository path is not a directory" in str(exc)
+
+    def test_pipeline_rejects_java_before_store_access(self, tmp_path):
+        (tmp_path / "Main.java").write_text("class Main {}")
+        graph_store = MagicMock()
+        vector_store = MagicMock()
+
+        with pytest.raises(ValueError, match="Only Python indexing"):
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["java"],
+                repo_name="java-repo",
+                graph_store=graph_store,
+                vector_store=vector_store,
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+            )
+
+        graph_store.get_repository_metadata.assert_not_called()
+        graph_store.ingest.assert_not_called()
+        vector_store.upsert.assert_not_called()
+
+    def test_pipeline_rejects_java_only_repo_with_default_language(self, tmp_path):
+        (tmp_path / "Main.java").write_text("class Main {}")
+
+        with pytest.raises(ValueError, match="Java indexing is not implemented"):
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["python"],
+                repo_name="java-repo",
+                graph_store=MagicMock(),
+                vector_store=MagicMock(),
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+            )
 
     @patch("hybrid_rag.ingestion.parser.parse_repo", side_effect=RuntimeError("parse failed"))
     def test_rebuild_preserves_existing_index_when_parse_fails(self, _mock_parse, tmp_path):

@@ -6,7 +6,7 @@ M4 #28.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 
@@ -142,8 +142,16 @@ class IndexRequest(BaseModel):
 
     repo_path: str = Field(..., description="Absolute path to repository root on filesystem.")
     languages: list[str] = Field(
-        ["python"], description="Source languages to parse (python, java)."
+        ["python"], description="Source languages to parse. Only Python is currently supported."
     )
+
+    @field_validator("languages")
+    @classmethod
+    def validate_languages(cls, languages: list[str]) -> list[str]:
+        if languages != ["python"]:
+            raise ValueError("Only Python indexing is currently supported")
+        return languages
+
     repo_name: str | None = Field(
         None, description="Custom namespace name for the repository. Defaults to directory name."
     )

@@ -7,7 +7,7 @@ Commands:
 
 Usage:
   hybrid-rag index ./path/to/repo
-  hybrid-rag index ./path/to/repo --languages python java
+  hybrid-rag index ./path/to/repo --languages python
   hybrid-rag status
 """
 
@@ -40,7 +40,7 @@ def index(
         ["python"],
         "--languages",
         "-l",
-        help="Source languages to parse (python, java).",
+        help="Source languages to parse (only python is currently supported).",
     ),
     repo_name: str = typer.Option(None, help="Custom namespace name for the repository."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),

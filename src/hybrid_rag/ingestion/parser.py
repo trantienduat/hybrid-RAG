@@ -272,13 +272,15 @@ def parse_repo(
 
     Args:
         repo_root: The root directory of the repository to scan.
-        languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
+        languages: List of languages to include. Only Python is currently supported.
         repo_name: The custom namespace name for the repository.
         excludes: List of folder/file name patterns to exclude from parsing.
     Returns:
         A combined ParseResult containing graph data from all parsed files.
     """
     languages = languages or ["python"]
+    if languages != ["python"]:
+        raise ValueError("Only Python indexing is currently supported")
     exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
 
     exclude_set = (
@@ -394,7 +396,15 @@ def parse_repo(
     # Sort to keep order deterministic
     files_to_parse.sort(key=lambda x: x[0])
 
-    combined = ParseResult()
+    combined = ParseResult(
+        nodes=[
+            NodeData(
+                label="RepositoryMetadata",
+                id=repo_name,
+                properties={"name": repo_name, "repository": repo_name},
+            )
+        ]
+    )
 
     # 2. Parse files concurrently using ThreadPoolExecutor
     # tree-sitter C bindings release the GIL, and most time is spent in IO and tree-sitter parsing

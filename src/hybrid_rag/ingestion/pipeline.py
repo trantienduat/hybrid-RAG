@@ -18,7 +18,69 @@ from typing import Any
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
-INDEX_SCHEMA_VERSION = 2
+INDEX_SCHEMA_VERSION = 3
+
+
+def _validate_python_repository(
+    repo: Path, languages: list[str], excludes: list[str] | None
+) -> None:
+    """Reject unsupported languages and Java-only projects before store access."""
+    if languages != ["python"]:
+        raise ValueError("Only Python indexing is currently supported; Java support is deferred")
+
+    exclude_set = (
+        set(excludes)
+        if excludes is not None
+        else {
+            ".venv",
+            "venv",
+            "fixtures",
+            "experiments",
+            "dist",
+            "build",
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".agents",
+            ".gemini",
+            ".pytest_cache",
+            ".ruff_cache",
+            ".roo",
+            ".clinerules",
+        }
+    )
+
+    def has_source(suffix: str) -> bool:
+        return any(
+            not any(part in exclude_set or part.startswith(".venv") for part in path.parts)
+            for path in repo.rglob(f"*{suffix}")
+        )
+
+    if not has_source(".py") and has_source(".java"):
+        raise ValueError("Java indexing is not implemented; this repository has no Python sources")
+
+
+def _ensure_repository_node(result: Any, repo_name: str) -> None:
+    """Ensure root graph relationships always have a concrete endpoint."""
+    if any(node.label == "RepositoryMetadata" and node.id == repo_name for node in result.nodes):
+        return
+    from hybrid_rag.ingestion.parser import NodeData
+
+    result.nodes.insert(
+        0,
+        NodeData(
+            label="RepositoryMetadata",
+            id=repo_name,
+            properties={"name": repo_name, "repository": repo_name},
+        ),
+    )
+
+
+def _metadata_is_compatible(metadata: dict[str, Any], embed_model: str) -> bool:
+    return (
+        metadata.get("index_schema_version") == INDEX_SCHEMA_VERSION
+        and metadata.get("embedding_model") == embed_model
+    )
 
 
 def _run_git(repo: Path, args: list[str]) -> str:
@@ -269,6 +331,7 @@ def run_indexing_pipeline(
     repo = repo_path.resolve()
     if not repo.is_dir():
         raise ValueError(f"Repository path is not a directory: {repo}")
+    _validate_python_repository(repo, languages, excludes)
 
     # Lazy imports to keep execution startups fast
     from hybrid_rag.ingestion.entity_resolver import namespace_unresolved_stubs, resolve, stub_count
@@ -284,7 +347,20 @@ def run_indexing_pipeline(
     head_commit = git_provenance["source_commit"] if git_provenance else None
     index_run_id = str(uuid.uuid4())
 
-    if incremental and not rebuild:
+    previous_metadata = graph_store.get_repository_metadata(repo_name)
+    incompatible_index = bool(
+        isinstance(previous_metadata, dict)
+        and previous_metadata
+        and not _metadata_is_compatible(previous_metadata, embed_model)
+    )
+    if incompatible_index:
+        listener.on_step(
+            "parse",
+            "Stored index schema or embedding model changed; performing a full replacement.",
+            0.0,
+        )
+
+    if incremental and not rebuild and not incompatible_index:
         try:
             last_commit = from_commit or graph_store.get_repository_commit(repo_name)
             if head_commit and last_commit:
@@ -356,6 +432,8 @@ def run_indexing_pipeline(
             f"AST parsing complete. Found {len(result.nodes)} nodes, {len(result.edges)} edges, {len(result.errors)} errors.",
             1.0,
         )
+
+    _ensure_repository_node(result, repo_name)
 
     metadata = _index_metadata(
         repo,

@@ -45,6 +45,11 @@ label its evidence `approved_ai_source_review` rather than implying human
 approval. This review is independent of the benchmark's generator and judge,
 but it is not human validation.
 
+The snapshot is the `llama-index-core==0.14.21` wheel. The dataset records both
+its wheel SHA-256 and the deterministic SHA-256 of the indexed Python files, so
+a rebuild must match the reviewed source byte-for-byte rather than using the
+latest package release.
+
 The cases are intentionally balanced across 10 simple single-path questions,
 10 medium lifecycle or state questions, and 10 hard recursive, multi-stage, or
 cross-file questions. Reports persist these difficulty counts. Repository-wide

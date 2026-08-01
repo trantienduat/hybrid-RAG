@@ -64,6 +64,9 @@ class GoldAnswerDataset:
     reviewer_type: str
     reviewed_at: str
     cases: tuple[GoldAnswerCase, ...]
+    source_package: str = ""
+    source_version: str = ""
+    source_artifact_sha256: str = ""
 
     @property
     def evidence_grade(self) -> str:
@@ -86,6 +89,17 @@ def load_gold_dataset(path: Path | str, *, allow_draft: bool = False) -> GoldAns
     source_identity = str(payload.get("source_identity", "")).strip()
     if not source_identity.startswith(("sha256:", "git:")):
         raise ValueError("Gold dataset requires an immutable source_identity")
+    source_metadata = payload.get("source", {})
+    if not isinstance(source_metadata, dict):
+        raise ValueError("Gold dataset source must be an object")
+    source_package = str(source_metadata.get("package", "")).strip()
+    source_version = str(source_metadata.get("version", "")).strip()
+    source_artifact_sha256 = str(source_metadata.get("artifact_sha256", "")).strip()
+    source_fields = (source_package, source_version, source_artifact_sha256)
+    if any(source_fields) and not all(source_fields):
+        raise ValueError("Gold dataset source metadata must be complete")
+    if source_artifact_sha256 and not re.fullmatch(r"[0-9a-f]{64}", source_artifact_sha256):
+        raise ValueError("Gold dataset source artifact_sha256 must be a lowercase SHA-256")
 
     review = payload.get("review", {})
     review_status = str(review.get("status", "")).strip()
@@ -169,6 +183,9 @@ def load_gold_dataset(path: Path | str, *, allow_draft: bool = False) -> GoldAns
         reviewer_type=reviewer_type,
         reviewed_at=reviewed_at,
         cases=tuple(cases),
+        source_package=source_package,
+        source_version=source_version,
+        source_artifact_sha256=source_artifact_sha256,
     )
 
 
@@ -332,6 +349,9 @@ class AnswerQualityReport:
             "dataset": {
                 "name": self.dataset.name,
                 "source_identity": self.dataset.source_identity,
+                "source_package": self.dataset.source_package,
+                "source_version": self.dataset.source_version,
+                "source_artifact_sha256": self.dataset.source_artifact_sha256,
                 "case_ids": [case.id for case in self.dataset.cases],
             },
             "config": {
@@ -393,6 +413,9 @@ class AnswerQualityReport:
             "dataset": {
                 "name": self.dataset.name,
                 "source_identity": self.dataset.source_identity,
+                "source_package": self.dataset.source_package,
+                "source_version": self.dataset.source_version,
+                "source_artifact_sha256": self.dataset.source_artifact_sha256,
                 "review_status": self.dataset.review_status,
                 "reviewer": self.dataset.reviewer,
                 "reviewer_type": self.dataset.reviewer_type,

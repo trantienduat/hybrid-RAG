@@ -45,6 +45,9 @@ def _limited_dataset(dataset: GoldAnswerDataset, max_cases: int) -> GoldAnswerDa
         reviewer_type=dataset.reviewer_type,
         reviewed_at=dataset.reviewed_at,
         cases=dataset.cases[:max_cases],
+        source_package=dataset.source_package,
+        source_version=dataset.source_version,
+        source_artifact_sha256=dataset.source_artifact_sha256,
     )
 
 

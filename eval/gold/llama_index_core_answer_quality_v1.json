@@ -2,6 +2,11 @@
   "name": "llama-index-core-answer-quality-v1",
   "schema_version": 1,
   "source_identity": "sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509",
+  "source": {
+    "package": "llama-index-core",
+    "version": "0.14.21",
+    "artifact_sha256": "4a807d31e54d066068e076eb4d066efbf95e2d2a00dcbe0eba3d9340a04cad42"
+  },
   "review": {
     "status": "approved",
     "reviewer": "Codex",

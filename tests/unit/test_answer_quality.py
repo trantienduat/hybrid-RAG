@@ -90,6 +90,11 @@ def test_checked_in_dataset_is_versioned_complete_and_ai_reviewed():
     assert dataset.reviewer == "Codex"
     assert dataset.reviewer_type == "ai_source_review"
     assert dataset.evidence_grade == "approved_ai_source_review"
+    assert dataset.source_package == "llama-index-core"
+    assert dataset.source_version == "0.14.21"
+    assert dataset.source_artifact_sha256 == (
+        "4a807d31e54d066068e076eb4d066efbf95e2d2a00dcbe0eba3d9340a04cad42"
+    )
     assert len(dataset.cases) == 30
     assert len({case.id for case in dataset.cases}) == 30
     assert {
@@ -104,6 +109,17 @@ def test_approved_dataset_requires_review_metadata(tmp_path):
 
     with pytest.raises(ValueError, match="require reviewer"):
         load_gold_dataset(_write_dataset(tmp_path, payload))
+
+
+def test_source_artifact_metadata_must_be_complete_and_valid(tmp_path):
+    payload = _payload()
+    payload["source"] = {"package": "llama-index-core", "version": "0.14.21"}
+    with pytest.raises(ValueError, match="source metadata must be complete"):
+        load_gold_dataset(_write_dataset(tmp_path, payload), allow_draft=True)
+
+    payload["source"]["artifact_sha256"] = "not-a-hash"
+    with pytest.raises(ValueError, match="artifact_sha256"):
+        load_gold_dataset(_write_dataset(tmp_path, payload), allow_draft=True)
 
 
 def test_duplicate_case_ids_are_rejected(tmp_path):

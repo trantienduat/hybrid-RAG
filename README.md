@@ -42,6 +42,17 @@ The JSON output reports batch latency, throughput, completion p50/p95, and
 worst event-loop stall. Results depend on the host CPU and scheduler; compare
 runs made with the same parameters and environment.
 
+Measure a repository's Python token footprint and an explicit hypothetical
+hosted-input-cost scenario with:
+
+```bash
+.venv/bin/python scripts/benchmark_token_savings.py . \
+  --extensions .py --rag-size 3000 --queries 1000 --json
+```
+
+The file/token counts are measured. RAG prompt size and hosted price are input
+assumptions; the output does not claim actual Ollama cost or answer quality.
+
 ## Current limitations
 
 - Python AST extraction is implemented. Java repositories and language options

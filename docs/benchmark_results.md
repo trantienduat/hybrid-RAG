@@ -3,6 +3,10 @@
 > Historical benchmark snapshot. Use `results/evaluation_report.md` as the
 > latest generated evaluation run.
 
+> **Invalid for current claims:** this snapshot predates repository-scoped,
+> fail-fast benchmarking and index schema v3. Preserve it only as history; do
+> not cite its latency or accuracy numbers as current evidence.
+
 ## 1. Environment & Setup
 *   **Vector Database**: Qdrant (`localhost:6333`, collection: `code_chunks`)
 *   **Graph Database**: FalkorDB (`localhost:6379`, graph: `codebase`)

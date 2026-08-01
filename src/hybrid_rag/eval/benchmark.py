@@ -5,7 +5,7 @@ Measures p50 / p95 / p99 retrieval latency (ms) across query types.
 
 Usage::
 
-    runner = BenchmarkRunner(retriever)
+    runner = BenchmarkRunner(retriever, repository="llama-core")
     report = runner.run(n_runs=5, top_k=20)
     print(report.summary())
 """
@@ -93,8 +93,11 @@ class BenchmarkReport:
 class BenchmarkRunner:
     """Measure retrieval latency across structural / hybrid / semantic queries."""
 
-    def __init__(self, retriever: Any) -> None:
+    def __init__(self, retriever: Any, *, repository: str) -> None:
+        if not repository.strip():
+            raise ValueError("repository is required for a reproducible latency benchmark")
         self._retriever = retriever
+        self._repository = repository
 
     def run(
         self,
@@ -112,7 +115,15 @@ class BenchmarkRunner:
             warmup_runs:  Untimed warm-up runs to prime caches.
             queries:      Override default benchmark queries.
         """
+        if n_runs < 1:
+            raise ValueError("n_runs must be at least 1")
+        if warmup_runs < 0:
+            raise ValueError("warmup_runs cannot be negative")
+        if top_k < 1:
+            raise ValueError("top_k must be at least 1")
         query_map = queries or _BENCH_QUERIES
+        if not query_map or any(not query_list for query_list in query_map.values()):
+            raise ValueError("queries must contain at least one query per query type")
         stats: list[LatencyStats] = []
 
         for qtype, qs in query_map.items():
@@ -121,16 +132,16 @@ class BenchmarkRunner:
                 # Warm-up
                 for _ in range(warmup_runs):
                     try:
-                        self._retriever.retrieve(q, top_k=top_k)
-                    except Exception:  # noqa: BLE001
-                        pass
+                        self._retriever.retrieve(q, top_k=top_k, repository=self._repository)
+                    except Exception as exc:  # noqa: BLE001
+                        raise RuntimeError(f"Benchmark warm-up retrieval failed for {q!r}") from exc
                 # Timed runs
                 for _ in range(n_runs):
                     t0 = time.perf_counter()
                     try:
-                        self._retriever.retrieve(q, top_k=top_k)
+                        self._retriever.retrieve(q, top_k=top_k, repository=self._repository)
                     except Exception as exc:  # noqa: BLE001
-                        logger.warning("Retrieval failed during benchmark: %s", exc)
+                        raise RuntimeError(f"Benchmark timed retrieval failed for {q!r}") from exc
                     elapsed = (time.perf_counter() - t0) * 1000
                     all_ms.append(elapsed)
 

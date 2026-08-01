@@ -67,11 +67,6 @@ from hybrid_rag.vector.qdrant_store import QdrantStore
 logger = logging.getLogger(__name__)
 
 # Define Prometheus metrics
-RAG_TOKENS_SAVED = Counter(
-    "rag_tokens_saved_total",
-    "Total input tokens saved by using RAG instead of full codebase context",
-    ["model", "query_type"],
-)
 QUERY_CACHE_HITS = Counter(
     "query_cache_hits_total", "Total number of query hits resolved from Redis cache"
 )
@@ -920,24 +915,6 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
 
     QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
 
-    if req.codebase_query:
-        try:
-            import tiktoken
-
-            try:
-                count_res = app.state.vector_store._client.count(
-                    collection_name=app.state.vector_store._collection, exact=True
-                )
-                codebase_tokens = count_res.count * 300
-            except Exception:
-                codebase_tokens = 160000
-
-            prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
-            saved_tokens = max(0, codebase_tokens - prompt_tokens)
-            RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
-        except Exception as e:
-            logger.warning("Failed to count RAG tokens saved: %s", e)
-
     try:
         await app.state.query_cache.set(cache_key, response.model_dump())
     except Exception as exc:
@@ -1166,26 +1143,6 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
             QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(
                 time.perf_counter() - t0
             )
-
-            if req.codebase_query:
-                try:
-                    import tiktoken
-
-                    try:
-                        count_res = app.state.vector_store._client.count(
-                            collection_name=app.state.vector_store._collection, exact=True
-                        )
-                        codebase_tokens = count_res.count * 300
-                    except Exception:
-                        codebase_tokens = 160000
-
-                    prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
-                    saved_tokens = max(0, codebase_tokens - prompt_tokens)
-                    RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(
-                        saved_tokens
-                    )
-                except Exception as e:
-                    logger.warning("Failed to count RAG tokens saved: %s", e)
 
             # Cache the successful stream
             try:

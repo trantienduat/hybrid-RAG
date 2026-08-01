@@ -206,9 +206,9 @@ When developing or running diagnostic evaluations locally, you can use the activ
     ```
 *   **Run latency benchmarks (p50/p95/p99):**
     ```bash
-    hybrid-rag bench --corpus
+    hybrid-rag bench --corpus --repo-name hybrid-rag
     ```
 *   **Run RAGAS generation-quality evaluation:**
     ```bash
-    hybrid-rag ragas
+    hybrid-rag ragas --repo-name hybrid-rag
     ```

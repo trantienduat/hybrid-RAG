@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from qdrant_client.models import PayloadSchemaType
+
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
@@ -199,6 +201,8 @@ def test_qdrant_store_repository_metadata():
         MagicMock(hits=[MagicMock(value="abc")]),
         MagicMock(hits=[MagicMock(value="run-1")]),
         MagicMock(hits=[MagicMock(value="git:repo@abc")]),
+        MagicMock(hits=[MagicMock(value=INDEX_SCHEMA_VERSION)]),
+        MagicMock(hits=[MagicMock(value="nomic-embed-text")]),
     ]
 
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
@@ -213,10 +217,18 @@ def test_qdrant_store_repository_metadata():
         "indexed_commit": {"abc"},
         "index_run_id": {"run-1"},
         "source_identity": {"git:repo@abc"},
+        "index_schema_version": {INDEX_SCHEMA_VERSION},
+        "embedding_model": {"nomic-embed-text"},
     }
     set_payload = mock_client.set_payload.call_args.kwargs
     assert set_payload["payload"]["index_run_id"] == "run-1"
-    assert mock_client.facet.call_count == 3
+    assert mock_client.facet.call_count == 5
+    payload_indexes = {
+        call.kwargs["field_name"]: call.kwargs["field_schema"]
+        for call in mock_client.create_payload_index.call_args_list
+    }
+    assert payload_indexes["embedding_model"] == PayloadSchemaType.KEYWORD
+    assert payload_indexes["index_schema_version"] == PayloadSchemaType.INTEGER
 
 
 def test_qdrant_store_delete_repository():

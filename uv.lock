@@ -1203,6 +1203,7 @@ dev = [
 eval = [
     { name = "langchain-community" },
     { name = "ragas" },
+    { name = "tiktoken" },
 ]
 mcp = [
     { name = "mcp" },
@@ -1236,6 +1237,7 @@ requires-dist = [
     { name = "redis", specifier = ">=5.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
+    { name = "tiktoken", marker = "extra == 'eval'", specifier = ">=0.7.0" },
     { name = "tree-sitter", specifier = ">=0.22.0" },
     { name = "tree-sitter-python", specifier = ">=0.21.0" },
     { name = "typer", specifier = ">=0.12.0" },

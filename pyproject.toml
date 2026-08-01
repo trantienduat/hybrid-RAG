@@ -42,6 +42,7 @@ api = [
 eval = [
     "ragas==0.4.3",
     "langchain-community==0.4.1",
+    "tiktoken>=0.7.0",
 ]
 mcp = [
     "mcp>=0.1.0",

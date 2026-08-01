@@ -206,7 +206,13 @@ class QdrantStore(VectorStore):
 
     def get_repository_metadata(self, repository: str) -> dict[str, set[Any]]:
         """Return distinct provenance values across all vectors in a repository."""
-        fields = ("indexed_commit", "index_run_id", "source_identity")
+        fields = (
+            "indexed_commit",
+            "index_run_id",
+            "source_identity",
+            "index_schema_version",
+            "embedding_model",
+        )
         values: dict[str, set[Any]] = {field: set() for field in fields}
         repository_filter = Filter(
             must=[
@@ -234,18 +240,21 @@ class QdrantStore(VectorStore):
                 vectors_config=VectorParams(size=self._vector_size, distance=Distance.COSINE),
             )
             logger.info("Created Qdrant collection: %s", self._collection)
-        for field_name in (
-            "repository",
-            "file_type",
-            "indexed_commit",
-            "index_run_id",
-            "source_identity",
-        ):
+        payload_indexes = {
+            "repository": PayloadSchemaType.KEYWORD,
+            "file_type": PayloadSchemaType.KEYWORD,
+            "indexed_commit": PayloadSchemaType.KEYWORD,
+            "index_run_id": PayloadSchemaType.KEYWORD,
+            "source_identity": PayloadSchemaType.KEYWORD,
+            "embedding_model": PayloadSchemaType.KEYWORD,
+            "index_schema_version": PayloadSchemaType.INTEGER,
+        }
+        for field_name, field_schema in payload_indexes.items():
             try:
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name=field_name,
-                    field_schema=PayloadSchemaType.KEYWORD,
+                    field_schema=field_schema,
                     wait=True,
                 )
             except Exception as exc:

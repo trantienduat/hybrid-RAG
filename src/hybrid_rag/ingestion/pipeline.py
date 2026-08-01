@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Any
 
 from hybrid_rag.config import validate_local_ollama_url, validate_local_provider_configuration
+from hybrid_rag.constants import INDEX_SCHEMA_VERSION
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
-INDEX_SCHEMA_VERSION = 3
 
 
 def _validate_python_repository(

@@ -18,6 +18,7 @@ import argparse
 import json
 import logging
 import os
+import platform
 import sys
 import time
 from collections import defaultdict
@@ -27,13 +28,18 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from hybrid_rag.config import app_config
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.eval.corpus import (
     EVAL_CORPUS,
     QueryCase,
 )
 from hybrid_rag.eval.ground_truth import build_reference_answer, compute_ground_truth
-from hybrid_rag.eval.preflight import require_complete_ground_truth, validate_index_provenance
+from hybrid_rag.eval.preflight import (
+    require_complete_ground_truth,
+    require_same_index_run,
+    validate_index_provenance,
+)
 from hybrid_rag.eval.runner import _extract_names
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
@@ -64,41 +70,13 @@ def evaluate_hit_rate(
             raise ValueError("repository is required for evaluation")
         gt_names = compute_ground_truth(graph, case, repository)
         if not gt_names:
-            logger.warning("%s: empty ground truth, skipping", case.id)
-            results.append(
-                {
-                    "id": case.id,
-                    "hops": case.hops,
-                    "query_type": case.query_type,
-                    "question": case.question,
-                    "hit": False,
-                    "gt_count": 0,
-                    "retrieved_names": [],
-                    "latency_ms": 0,
-                    "error": "empty ground truth",
-                }
-            )
-            continue
+            raise RuntimeError(f"Ground truth is empty for {case.id}")
 
         t0 = time.perf_counter()
         try:
             retrieved = retriever.retrieve(case.question, top_k=top_k, repository=repository)
         except Exception as exc:
-            logger.warning("Retrieval failed for %s: %s", case.id, exc)
-            results.append(
-                {
-                    "id": case.id,
-                    "hops": case.hops,
-                    "query_type": case.query_type,
-                    "question": case.question,
-                    "hit": False,
-                    "gt_count": len(gt_names),
-                    "retrieved_names": [],
-                    "latency_ms": 0,
-                    "error": str(exc),
-                }
-            )
-            continue
+            raise RuntimeError(f"Hybrid retrieval failed for {case.id}") from exc
         latency_ms = (time.perf_counter() - t0) * 1000
 
         # Check top-K for any match with ground truth
@@ -139,41 +117,24 @@ def evaluate_hit_rate(
 def evaluate_vector_only(
     vector_store: QdrantStore,
     graph: FalkorDBStore,
+    embedder: OllamaEmbedder,
     cases: list[QueryCase],
     top_k: int = 20,
     hit_at_k: int = 5,
-    ollama_url: str = "http://localhost:11434",
     repository: str | None = None,
 ) -> list[dict]:
     """Evaluate Hit Rate using vector-only retrieval (no graph)."""
-    import httpx
-
     results = []
     for case in cases:
         if not repository:
             raise ValueError("repository is required for evaluation")
         gt_names = compute_ground_truth(graph, case, repository)
         if not gt_names:
-            results.append(
-                {
-                    "id": case.id,
-                    "hops": case.hops,
-                    "hit": False,
-                    "gt_count": 0,
-                }
-            )
-            continue
+            raise RuntimeError(f"Ground truth is empty for {case.id}")
 
         t0 = time.perf_counter()
         try:
-            # Embed query
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.post(
-                    f"{ollama_url}/api/embeddings",
-                    json={"model": "nomic-embed-text", "prompt": case.question},
-                )
-                resp.raise_for_status()
-                query_vector = resp.json()["embedding"]
+            query_vector = embedder.embed_query(case.question)
 
             # Vector search only
             filter_payload = {"repository": repository} if repository else None
@@ -183,17 +144,7 @@ def evaluate_vector_only(
                 filter_payload=filter_payload,
             )
         except Exception as exc:
-            logger.warning("Vector-only retrieval failed for %s: %s", case.id, exc)
-            results.append(
-                {
-                    "id": case.id,
-                    "hops": case.hops,
-                    "hit": False,
-                    "gt_count": len(gt_names),
-                    "error": str(exc),
-                }
-            )
-            continue
+            raise RuntimeError(f"Vector-only retrieval failed for {case.id}") from exc
         latency_ms = (time.perf_counter() - t0) * 1000
 
         retrieved_names = [name.lower() for name in _extract_names(vector_results[:hit_at_k])]
@@ -251,6 +202,13 @@ def generate_report(
     latency_data: list[dict],
     ragas_data: dict | None,
     timestamp: str,
+    environment: str,
+    *,
+    top_k: int,
+    hit_at_k: int,
+    rrf_k: int,
+    rrf_structural_weight: float,
+    index_metadata: dict,
 ) -> str:
     """Generate a human-readable Markdown report in English."""
     hybrid_summary = compute_hit_rate(hybrid_results, "Hybrid-RAG")
@@ -265,12 +223,16 @@ def generate_report(
         f"**Dataset:** LlamaIndex core ({len(hybrid_results)} queries)",
         f"**Ground-truth coverage:** {valid_queries}/{total_queries} "
         f"({'valid' if valid_queries == total_queries else 'incomplete'})",
-        "**Hardware:** Apple Mac Studio (M2 Max, 64GB RAM)",
-        "**Config:** `top_k=20, rrf_k=60, structural_weight=3.0, hybrid_weight=1.5`",
+        f"**Environment:** {environment}",
+        f"**Index run:** `{index_metadata.get('index_run_id', 'unknown')}` "
+        f"(schema {index_metadata.get('index_schema_version', 'unknown')}, "
+        f"embedding `{index_metadata.get('embedding_model', 'unknown')}`)",
+        f"**Config:** `top_k={top_k}, hit_at_k={hit_at_k}, rrf_k={rrf_k}, "
+        f"structural_weight={rrf_structural_weight}`",
         "",
         "---",
         "",
-        "## 1. Hit Rate @5 Comparison",
+        f"## 1. Hit Rate @{hit_at_k} Comparison",
         "",
         "| Hop Category | Vector-only RAG | Hybrid-RAG | Delta (Δ) |",
         "|---|---|---|---|",
@@ -366,7 +328,7 @@ def generate_report(
         "",
         "| Criterion | Target | Actual | Status |",
         "|---|---|---|---|",
-        f"| Hit Rate @5 (overall) | ≥ 0.60 | {h_overall['hit_rate']:.3f} | {'✅ PASS' if h_overall['hit_rate'] >= 0.60 else '❌ FAIL'} |",
+        f"| Hit Rate @{hit_at_k} (overall) | ≥ 0.60 | {h_overall['hit_rate']:.3f} | {'✅ PASS' if h_overall['hit_rate'] >= 0.60 else '❌ FAIL'} |",
     ]
 
     if all_lats:
@@ -397,6 +359,13 @@ def main() -> None:
     parser.add_argument("--repo", default="llama-core", help="Repository namespace")
     parser.add_argument("--top-k", type=int, default=20, help="Top-K retrieval")
     parser.add_argument("--hit-at-k", type=int, default=5, help="Hit Rate @K")
+    parser.add_argument("--rrf-k", type=int, default=app_config.rrf_k, help="RRF rank constant")
+    parser.add_argument(
+        "--rrf-structural-weight",
+        type=float,
+        default=app_config.rrf_structural_weight,
+        help="Graph-list weight during rank fusion",
+    )
     parser.add_argument("--skip-ragas", action="store_true", help="Skip RAGAS scoring")
     parser.add_argument(
         "--ragas-samples",
@@ -411,9 +380,6 @@ def main() -> None:
     parser.add_argument(
         "--ragas-embedding-model",
         default=os.environ.get("RAGAS_EMBEDDING_MODEL", DEFAULT_EMBED_MODEL),
-    )
-    parser.add_argument(
-        "--skip-vector-baseline", action="store_true", help="Skip vector-only baseline"
     )
     parser.add_argument(
         "--falkordb-host",
@@ -446,9 +412,18 @@ def main() -> None:
         default=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
     )
     args = parser.parse_args()
+    if args.top_k < 1:
+        parser.error("--top-k must be at least 1")
+    if args.hit_at_k < 1 or args.hit_at_k > args.top_k:
+        parser.error("--hit-at-k must be between 1 and --top-k")
+    if args.ragas_samples < 0:
+        parser.error("--ragas-samples cannot be negative")
+    if args.rrf_k < 1 or args.rrf_structural_weight <= 0:
+        parser.error("RRF parameters must be positive")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    environment = platform.platform()
 
     # ── Connect to stores ─────────────────────────────────────────
     logger.info("Connecting to FalkorDB at %s:%d ...", args.falkordb_host, args.falkordb_port)
@@ -465,16 +440,26 @@ def main() -> None:
         collection=args.qdrant_collection,
     )
 
-    logger.info("Creating OllamaEmbedder at %s ...", args.ollama_url)
-    embedder = OllamaEmbedder(ollama_url=args.ollama_url)
+    index_metadata = validate_index_provenance(graph, vector, args.repo)
+    indexed_embedding_model = str(index_metadata["embedding_model"])
+    logger.info(
+        "Creating OllamaEmbedder at %s with indexed model %s ...",
+        args.ollama_url,
+        indexed_embedding_model,
+    )
+    embedder = OllamaEmbedder(
+        ollama_url=args.ollama_url,
+        model=indexed_embedding_model,
+    )
 
     logger.info("Creating HybridRetriever ...")
     retriever = HybridRetriever(
         graph_store=graph,
         vector_store=vector,
         embedder=embedder,
+        rrf_k=args.rrf_k,
+        rrf_structural_weight=args.rrf_structural_weight,
     )
-    index_metadata = validate_index_provenance(graph, vector, args.repo)
     ground_truth = {case.id: compute_ground_truth(graph, case, args.repo) for case in EVAL_CORPUS}
     require_complete_ground_truth(ground_truth)
 
@@ -492,26 +477,18 @@ def main() -> None:
     )
 
     # ── 2. Vector-only Baseline ───────────────────────────────────
-    vector_results = []
-    if not args.skip_vector_baseline:
-        logger.info("=" * 60)
-        logger.info("PHASE 2: Vector-only Baseline Hit Rate @%d", args.hit_at_k)
-        logger.info("=" * 60)
-        vector_results = evaluate_vector_only(
-            vector,
-            graph,
-            EVAL_CORPUS,
-            top_k=args.top_k,
-            hit_at_k=args.hit_at_k,
-            ollama_url=args.ollama_url,
-            repository=args.repo,
-        )
-    else:
-        # Placeholder
-        vector_results = [
-            {"id": c.id, "hops": c.hops, "query_type": c.query_type, "hit": False, "gt_count": 0}
-            for c in EVAL_CORPUS
-        ]
+    logger.info("=" * 60)
+    logger.info("PHASE 2: Vector-only Baseline Hit Rate @%d", args.hit_at_k)
+    logger.info("=" * 60)
+    vector_results = evaluate_vector_only(
+        vector,
+        graph,
+        embedder,
+        EVAL_CORPUS,
+        top_k=args.top_k,
+        hit_at_k=args.hit_at_k,
+        repository=args.repo,
+    )
 
     # ── 3. RAGAS (optional) ───────────────────────────────────────
     ragas_data = None
@@ -539,6 +516,9 @@ def main() -> None:
         )
         ragas_data = report.as_dict()
 
+    final_metadata = validate_index_provenance(graph, vector, args.repo)
+    require_same_index_run(index_metadata, final_metadata)
+
     # ── Save results ──────────────────────────────────────────────
     full_results = {
         "timestamp": timestamp,
@@ -546,11 +526,19 @@ def main() -> None:
             "repo": args.repo,
             "top_k": args.top_k,
             "hit_at_k": args.hit_at_k,
+            "rrf_k": args.rrf_k,
+            "rrf_structural_weight": args.rrf_structural_weight,
             "dataset": "LlamaIndex core",
             "n_queries": len(EVAL_CORPUS),
             "falkordb_graph": args.falkordb_graph,
             "qdrant_collection": args.qdrant_collection,
             "index_metadata": index_metadata,
+            "environment": environment,
+            "ollama_url": args.ollama_url,
+            "ragas_enabled": not args.skip_ragas,
+            "ragas_samples": args.ragas_samples or len(EVAL_CORPUS),
+            "ragas_judge_model": args.ragas_judge_model,
+            "ragas_embedding_model": args.ragas_embedding_model,
         },
         "hybrid_hit_rate": compute_hit_rate(hybrid_results, "Hybrid-RAG"),
         "vector_hit_rate": compute_hit_rate(vector_results, "Vector-only RAG"),
@@ -571,6 +559,12 @@ def main() -> None:
         hybrid_results,
         ragas_data,
         timestamp,
+        environment,
+        top_k=args.top_k,
+        hit_at_k=args.hit_at_k,
+        rrf_k=args.rrf_k,
+        rrf_structural_weight=args.rrf_structural_weight,
+        index_metadata=index_metadata,
     )
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(report_md)

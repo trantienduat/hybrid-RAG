@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 import networkx as nx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.ports.graph_store import GraphStore
 
@@ -71,7 +72,7 @@ class CommunityBuilder:
         timeout: float = _HTTP_TIMEOUT,
     ) -> None:
         self._store = graph_store
-        self._ollama_url = (ollama_url or _DEFAULT_OLLAMA_URL).rstrip("/")
+        self._ollama_url = validate_local_ollama_url(ollama_url or _DEFAULT_OLLAMA_URL)
         self._llm_model = llm_model or _DEFAULT_MODEL
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
@@ -116,36 +117,38 @@ class CommunityBuilder:
 
         import os
 
-        dir_to_nodes: dict[str, set[str]] = {}
+        dir_to_nodes: dict[tuple[str, str], set[str]] = {}
         for node in code_nodes:
             fp = node.get("file_path", "")
+            repository = node.get("repository", "")
             if fp:
                 dir_path = os.path.dirname(fp)
                 if not dir_path:
                     dir_path = "."
             else:
                 dir_path = "root"
-            dir_to_nodes.setdefault(dir_path, set()).add(node["id"])
+            dir_to_nodes.setdefault((repository, dir_path), set()).add(node["id"])
 
         logger.info("Grouped codebase into %d directory-based communities", len(dir_to_nodes))
 
         # Map each code node ID to its community index
         node_to_comm: dict[str, int] = {}
-        dir_paths = list(dir_to_nodes.keys())
-        for comm_idx, dir_path in enumerate(dir_paths):
-            for nid in dir_to_nodes[dir_path]:
+        community_keys = list(dir_to_nodes.keys())
+        for comm_idx, community_key in enumerate(community_keys):
+            for nid in dir_to_nodes[community_key]:
                 node_to_comm[nid] = comm_idx
 
         # ── 3. Compile and Summarize each Community ──────────────────────────
         compiled_communities = []
 
-        for comm_idx, dir_path in enumerate(dir_paths):
+        for comm_idx, community_key in enumerate(community_keys):
+            repository, dir_path = community_key
             comm_id = f"community_lvl_0_{comm_idx}"
-            comm_nodes = dir_to_nodes[dir_path]
+            comm_nodes = dir_to_nodes[community_key]
             logger.info(
                 "Summarizing community %d/%d (%s, Path: %s) with %d nodes…",
                 comm_idx + 1,
-                len(dir_paths),
+                len(community_keys),
                 comm_id,
                 dir_path,
                 len(comm_nodes),
@@ -206,6 +209,7 @@ class CommunityBuilder:
                     "name": title,
                     "summary": summary,
                     "nodes": list(comm_nodes),
+                    "repository": repository,
                 }
             )
 

@@ -4,12 +4,15 @@ Unit tests for the indexing REST API endpoints.
 
 from __future__ import annotations
 
-from unittest.mock import patch
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from hybrid_rag.api.main import app
+from hybrid_rag.api.main import _is_allowed_index_path, app, app_config, process_indexing_task
+from hybrid_rag.api.schemas import IndexRequest
 
 
 @pytest.fixture(autouse=True)
@@ -25,9 +28,34 @@ def mock_db_components():
 
 
 class TestApiIndexing:
+    def test_cors_allows_local_ui_but_not_arbitrary_websites(self):
+        headers = {"Access-Control-Request-Method": "POST"}
+        with TestClient(app) as client:
+            local = client.options("/query", headers={**headers, "Origin": "http://localhost:8000"})
+            remote = client.options(
+                "/query", headers={**headers, "Origin": "https://untrusted.example"}
+            )
+
+        assert local.headers["access-control-allow-origin"] == "http://localhost:8000"
+        assert "access-control-allow-origin" not in remote.headers
+
+    def test_index_path_must_be_within_explicit_root(self, monkeypatch, tmp_path):
+        allowed_root = tmp_path / "allowed"
+        allowed_root.mkdir()
+        child = allowed_root / "repo"
+        child.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        monkeypatch.setenv("INDEX_ROOTS", str(allowed_root))
+
+        with patch.object(app_config, "config_data", {"repositories": []}):
+            assert _is_allowed_index_path(child) is True
+            assert _is_allowed_index_path(outside) is False
+
     @patch("hybrid_rag.api.main.process_indexing_task")
+    @patch("hybrid_rag.api.main._is_allowed_index_path", return_value=True)
     @patch("pathlib.Path.is_dir", return_value=True)
-    def test_trigger_index_success(self, mock_is_dir, mock_process_task):
+    def test_trigger_index_success(self, mock_is_dir, _mock_allowed, mock_process_task):
         with TestClient(app) as client:
             payload = {
                 "repo_path": "/mock/repo/path",
@@ -64,6 +92,96 @@ class TestApiIndexing:
                 resp = client.post("/graph/index", json=payload)
                 assert resp.status_code == 400
                 assert "does not exist or is not a directory" in resp.json()["detail"]
+
+    def test_trigger_index_rejects_java_during_request_validation(self):
+        with TestClient(app) as client:
+            resp = client.post(
+                "/graph/index",
+                json={"repo_path": "/mock/repo/path", "languages": ["java"]},
+            )
+
+        assert resp.status_code == 422
+        assert "Only Python indexing is currently supported" in resp.text
+
+    @pytest.mark.asyncio
+    @patch("hybrid_rag.graph.community_builder.CommunityBuilder")
+    @patch("hybrid_rag.ingestion.pipeline.run_indexing_pipeline")
+    async def test_completed_index_bumps_query_cache_generation(
+        self, mock_pipeline, mock_community_builder, tmp_path
+    ):
+        mock_pipeline.return_value = {
+            "elapsed_seconds": 0.1,
+            "nodes_upserted": 2,
+            "edges_upserted": 1,
+            "vectors_upserted": 1,
+        }
+        mock_community_builder.return_value.build_communities.return_value = 0
+        query_cache = MagicMock()
+        query_cache.bump_generation = AsyncMock(return_value=True)
+        task = {
+            "repository": "test-repo",
+            "status": "pending",
+            "logs": [],
+            "progress": 0.0,
+        }
+        state = SimpleNamespace(
+            indexing_tasks={"task-1": task},
+            indexing_lock=asyncio.Lock(),
+            graph_store=MagicMock(),
+            vector_store=MagicMock(),
+            query_cache=query_cache,
+        )
+
+        await process_indexing_task(
+            "task-1",
+            IndexRequest(repo_path=str(tmp_path), languages=["python"]),
+            state,
+        )
+
+        assert task["status"] == "completed"
+        query_cache.bump_generation.assert_awaited_once_with()
+
+    @patch("hybrid_rag.api.main.process_indexing_task")
+    @patch("hybrid_rag.api.main._is_allowed_index_path", return_value=True)
+    @patch("pathlib.Path.is_dir", return_value=True)
+    def test_trigger_index_rejects_duplicate_active_repository(
+        self, _mock_is_dir, _mock_allowed, _mock_process_task
+    ):
+        with TestClient(app) as client:
+            app.state.indexing_tasks["existing"] = {
+                "task_id": "existing",
+                "repository": "test-repo",
+                "status": "running",
+                "created_at": "2026-06-05T12:00:00",
+                "completed_at": None,
+                "logs": [],
+                "error": None,
+                "progress": 0.5,
+                "current_step": "parse",
+                "current_message": "Parsing",
+            }
+
+            response = client.post(
+                "/graph/index",
+                json={"repo_path": "/mock/repo/path", "repo_name": "test-repo"},
+            )
+
+            assert response.status_code == 409
+            assert "already active" in response.json()["detail"]
+
+    @patch("pathlib.Path.is_dir", return_value=True)
+    def test_trigger_index_rejects_path_outside_configured_roots(self, _mock_is_dir):
+        with (
+            patch("hybrid_rag.api.main._is_allowed_index_path", return_value=False),
+            TestClient(app) as client,
+        ):
+            response = client.post(
+                "/graph/index",
+                json={"repo_path": "/private/unconfigured", "repo_name": "outside"},
+            )
+
+        assert response.status_code == 403
+        assert "outside configured" in response.json()["detail"]
 
     @patch("pathlib.Path.is_dir", return_value=True)
     def test_list_and_get_tasks(self, mock_is_dir):

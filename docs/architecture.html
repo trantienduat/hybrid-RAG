@@ -199,7 +199,6 @@
     <div class="sidebar-title">Codebase Explorer</div>
     <div class="sidebar-menu">
       <a href="architecture.html" class="sidebar-link active">System Architecture</a>
-      <a href="benchmark_flow.html" class="sidebar-link">Benchmark Flow</a>
     </div>
   </div>
 
@@ -304,7 +303,7 @@
   <g class="node" data-k="source">
     <rect x="60" y="180" width="180" height="80"/>
     <text class="t" x="80" y="215">Local Codebase</text>
-    <text class="m" x="80" y="235">Python / Java files</text>
+    <text class="m" x="80" y="235">Python files</text>
     <text class="m" x="80" y="249">namespace partition</text>
   </g>
   <g class="node" data-k="query">
@@ -398,7 +397,7 @@
     <rect x="770" y="840" width="180" height="70"/>
     <text class="t" x="785" y="868">Local LLM</text>
     <text class="m" x="785" y="888">Ollama (gemma4:12b)</text>
-    <text class="m" x="785" y="900">Gemini fallback/API</text>
+    <text class="m" x="785" y="900">loopback-only inference</text>
   </g>
 
   <!-- ── nodes: observability ──────────────── -->
@@ -461,10 +460,10 @@
 const DETAIL = {
   source: { t:"Local Codebase", m:"Input", b:"Your target code repositories. Indexed folder-by-folder, extracting syntax trees and building namespace partitions so multiple repos can coexist in the same graph database without namespace conflicts." },
   query: { t:"CLI / API Client", m:"Input", b:"The entrypoint for system interactions. Supports CLI queries like <code>hybrid-rag search</code> or API requests sent to the FastAPI server, scoping requests to specific repositories using the <code>--repo-name</code> parameter." },
-  parser: { t:"AST Parser (tree-sitter)", m:"Ingestion Module", b:"Uses Tree-Sitter to parse Python and Java source code. Extracts syntax nodes: classes, methods, modules, imports, and inheritances. Forms fully qualified namespace paths (FQN) for each node." },
+  parser: { t:"AST Parser (tree-sitter)", m:"Ingestion Module", b:"Uses Tree-Sitter to parse Python source code. Extracts syntax nodes: classes, methods, modules, imports, and inheritances. Forms fully qualified namespace paths (FQN) for each node." },
   resolver: { t:"Global Entity Resolver", m:"Ingestion Module", b:"Resolves external references. If an import or base class points to an FQN that exists in another repository loaded in FalkorDB, it dynamically rewrites graph edges to form cross-repository connections." },
   chunker: { t:"AST Chunker", m:"Ingestion Module", b:"Splits raw file contents based on semantic AST structure boundaries rather than simple character counts. Ensures class and function bodies stay unified within single chunks." },
-  embedder: { t:"Batch Embedder", m:"Ingestion Module", b:"Embeds chunk text concurrently using a <code>ThreadPoolExecutor</code> talking to Ollama or Gemini. Features batch-size limits to guarantee local inference stability." },
+  embedder: { t:"Batch Embedder", m:"Ingestion Module", b:"Embeds chunk text concurrently through local Ollama. Features batch-size limits to guarantee local inference stability." },
   community_builder: { t:"Community Builder", m:"Hierarchical Clustering", b:"Executes Microsoft GraphRAG Option A. Groups code nodes based on directory-based partitions and generates summary reports using an LLM. Summaries are indexed back to FalkorDB for global queries." },
   falkordb: { t:"FalkorDB Graph", m:"Storage Engine", b:"A graph database optimized for ultra-fast Cypher querying. Stores code inheritance, dependency trees, and community structures. Supports multi-hop node searches." },
   qdrant: { t:"Qdrant Vector DB", m:"Storage Engine", b:"Stores vector embeddings and payloads locally. Employs payload partitioning so queries can filter results exclusively to specific repositories." },
@@ -473,7 +472,7 @@ const DETAIL = {
   graph_retriever: { t:"Graph Retriever", m:"Retrieval Module", b:"Queries FalkorDB using Cypher. Performs localized ego-network traversals starting from search entities, or retrieves community summaries for global inquiries." },
   rrf: { t:"RRF Merger", m:"Reciprocal Rank Fusion", b:"Merges candidate lists from vector and graph retrievers using reciprocal rank scoring. Configured with a default constant <code>k=60</code>, weighting graph scores higher to prioritize structural relevance." },
   assembler: { t:"Context Assembler", m:"Retrieval Module", b:"Combines high-ranking RRF candidates. Monitors and limits output using a token-budget threshold, packing the prompt efficiently up to maximum constraints." },
-  llm: { t:"Local LLM", m:"Inference Engine", b:"Synthesizes context inputs to output clean answers. Runs completely offline via local Ollama deployments or integrates with Gemini APIs." },
+  llm: { t:"Local LLM", m:"Inference Engine", b:"Synthesizes context inputs to output clean answers through a local Ollama deployment." },
   api: { t:"hybrid-rag-api", m:"Observability Client", b:"FastAPI web server decorated with OpenTelemetry. Records telemetry metrics, spans, and traces, injecting correlation IDs directly into system log streams." },
   collector: { t:"OTel Collector", m:"Observability Gateway", b:"Runs locally as a Docker service. Receives OpenTelemetry traces and logs on port 4317/4318, routes them to storage backends, and translates protocols." },
   prometheus: { t:"Prometheus", m:"Metrics Store", b:"Collects CPU metrics, memory allocations, request latencies, and count indicators from the OpenTelemetry collector." },

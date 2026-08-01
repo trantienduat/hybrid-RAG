@@ -52,9 +52,10 @@ def chunk_file(
     repo_root: Path,
     max_tokens: int = _DEFAULT_MAX_TOKENS,
     overlap_tokens: int = _DEFAULT_OVERLAP_TOKENS,
+    repo_name: str = "",
 ) -> list[Chunk]:
     """Parse file and return source-code chunks for every KG node."""
-    result = parse_file(file_path, repo_root)
+    result = parse_file(file_path, repo_root, repo_name=repo_name)
     if result.errors and not result.nodes:
         return []
 

@@ -7,7 +7,7 @@ You are a principal backend and database engineer. Your task is to implement ind
 
 ## 🏛️ Tech Stack & Service Dependencies
 *   **Caching Store:** Redis (accessed via async `redis.asyncio` client).
-*   **Inference Server:** Ollama (local) or Gemini API (cloud).
+*   **Inference Server:** Ollama (local only).
 *   **Ingestion Pipeline:** Tree-sitter, FalkorDB, Qdrant.
 
 ---

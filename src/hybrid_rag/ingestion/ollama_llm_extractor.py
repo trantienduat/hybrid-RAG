@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ports.llm_extractor import BaseLLMExtractor
@@ -163,8 +164,8 @@ class OllamaLLMExtractor(BaseLLMExtractor):
         model: str | None = None,
         timeout: float = _HTTP_TIMEOUT,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
-            "/"
+        self._url = validate_local_ollama_url(
+            ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)
         )
         self._model = model or os.environ.get("LLM_MODEL", _DEFAULT_MODEL)
         self._timeout = timeout

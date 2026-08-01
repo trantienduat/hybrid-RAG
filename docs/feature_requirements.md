@@ -7,7 +7,8 @@ This document defines the functional and non-functional requirements implemented
 ## 📋 Functional Requirements
 
 ### 1. AST Multi-Language Parsing
-*   **Req 1.1:** The system must parse both **Python** and **Java** source code.
+*   **Req 1.1:** The system must parse **Python** source code. Java indexing is
+    deferred and must fail explicitly until its extractor is implemented.
 *   **Req 1.2:** The parser must extract structural entities: **Modules**, **Classes**, and **Functions**.
 *   **Req 1.3:** The parser must extract AST-based relationships:
     *   `DEFINES` (e.g. Module defines Class/Function)
@@ -56,9 +57,8 @@ This document defines the functional and non-functional requirements implemented
 ## ⚡ Non-Functional Requirements
 
 ### 1. Data Privacy & Sovereignty
-*   **Req 1.4:** The default Ollama configuration keeps code, embeddings,
-    queries, and LLM contexts local. Cloud providers such as Gemini must be
-    explicitly selected and documented as sending relevant data externally.
+*   **Req 1.4:** The Ollama-only configuration keeps code, embeddings, queries,
+    and LLM contexts local. Cloud inference providers are outside project scope.
 *   **Req 1.5:** Databases and model servers must run offline within standard localhost Docker and process boundaries.
 
 ### 2. High-Performance Indexing and Querying

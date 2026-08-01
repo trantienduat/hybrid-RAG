@@ -44,10 +44,9 @@ hybrid-rag index ./fixtures/dependent_repo --repo-name main-app
 hybrid-rag community-build
 ```
 
-### Step D: Connect to Antigravity IDE (MCP Integration)
-To enable the IDE agent to use the hybrid RAG index, copy and paste the configuration block below into your Gemini Code Assist / Antigravity IDE configuration file:
-*   **Path (macOS / Linux):** `~/.gemini/settings.json`
-*   **Path (Windows):** `C:\Users\[YourUsername]\.gemini\settings.json`
+### Step D: Connect an MCP client
+Add the following stdio server definition to an MCP-compatible client, using
+the client's documented configuration location:
 
 ```json
 {
@@ -80,7 +79,7 @@ To enable the IDE agent to use the hybrid RAG index, copy and paste the configur
 > }
 > ```
 
-*Once saved, reload the IDE window (e.g. `Developer: Reload Window` in VS Code) to activate the 5 new codebase tools in your chat agent.*
+*Once saved, reload the client to activate the codebase tools.*
 
 ### Step E: Alternative - Trigger Indexing via REST API (Background Service)
 
@@ -88,6 +87,9 @@ Instead of running the indexing synchronously via the CLI on your host, you can 
 
 Indexing runs in the background with bounded concurrency. Up to three tasks run
 at once by default; set `INDEXING_CONCURRENCY` to change the limit.
+The API accepts repositories only beneath configured `repositories` paths,
+`INDEX_ROOTS`, or the `/codebases` container mount. Use the CLI for an ad-hoc
+local path or add its root explicitly before starting the API.
 
 #### 1. Trigger an Indexing Task
 Send a `POST` request to `/graph/index` with the absolute path of the repository:
@@ -204,11 +206,11 @@ When developing or running diagnostic evaluations locally, you can use the activ
     ```
 *   **Run latency benchmarks (p50/p95/p99):**
     ```bash
-    hybrid-rag bench --corpus
+    hybrid-rag bench --corpus --repo-name hybrid-rag
     ```
 *   **Run RAGAS generation-quality evaluation:**
     ```bash
-    hybrid-rag ragas --repo-name my-repository
+    hybrid-rag ragas --repo-name hybrid-rag
     ```
 *   **Compare Hybrid and vector-only generated answers:**
     ```bash

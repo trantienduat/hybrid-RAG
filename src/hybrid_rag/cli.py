@@ -7,7 +7,7 @@ Commands:
 
 Usage:
   hybrid-rag index ./path/to/repo
-  hybrid-rag index ./path/to/repo --languages python java
+  hybrid-rag index ./path/to/repo --languages python
   hybrid-rag status
 """
 
@@ -40,7 +40,7 @@ def index(
         ["python"],
         "--languages",
         "-l",
-        help="Source languages to parse (python, java).",
+        help="Source languages to parse (only python is currently supported).",
     ),
     repo_name: str = typer.Option(None, help="Custom namespace name for the repository."),
     graph_host: str = typer.Option("localhost", envvar="FALKORDB_HOST"),
@@ -226,6 +226,14 @@ def status(
 ) -> None:
     """Check health of FalkorDB, Qdrant, and Ollama services."""
     import httpx
+
+    from hybrid_rag.config import validate_local_ollama_url
+
+    try:
+        ollama_url = validate_local_ollama_url(ollama_url)
+    except ValueError as exc:
+        err_console.print(f"[ERROR] {exc}")
+        raise typer.Exit(1) from exc
 
     ok = True
 
@@ -455,7 +463,12 @@ def eval(
             )
             from hybrid_rag.eval.preflight import validate_index_provenance
 
-            validate_index_provenance(graph_store, vector_store, repo_name)
+            validate_index_provenance(
+                graph_store,
+                vector_store,
+                repo_name,
+                expected_embedding_model=embed_model,
+            )
 
             with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
                 runner = RepoQAEvalRunner(
@@ -582,7 +595,12 @@ def eval(
         vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
         from hybrid_rag.eval.preflight import validate_index_provenance
 
-        validate_index_provenance(graph_store, vector_store, repo_name)
+        validate_index_provenance(
+            graph_store,
+            vector_store,
+            repo_name,
+            expected_embedding_model=embed_model,
+        )
 
         with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
             runner = EvalRunner(
@@ -710,10 +728,9 @@ def eval(
 
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", help="Bind host."),
+    host: str = typer.Option("127.0.0.1", help="Bind host."),
     port: int = typer.Option(8000, help="Bind port."),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload (dev mode)."),
-    workers: int = typer.Option(1, help="Number of worker processes (ignored with --reload)."),
     log_level: str = typer.Option("info", help="Uvicorn log level."),
 ) -> None:
     """Start the hybrid-rag FastAPI server (M4 #27)."""
@@ -734,7 +751,7 @@ def serve(
         host=host,
         port=port,
         reload=reload,
-        workers=1 if reload else workers,
+        workers=1,
         log_level=log_level,
     )
 
@@ -802,7 +819,12 @@ def ragas(
     try:
         graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
-        validate_index_provenance(graph_store, vector_store, repo_name)
+        validate_index_provenance(
+            graph_store,
+            vector_store,
+            repo_name,
+            expected_embedding_model=embed_model,
+        )
         ground_truth = {
             case.id: compute_ground_truth(graph_store, case, repo_name) for case in corpus
         }
@@ -909,6 +931,7 @@ def bench(
     qdrant_collection: str = typer.Option("code_chunks", envvar="QDRANT_COLLECTION"),
     ollama_url: str = typer.Option("http://localhost:11434", envvar="OLLAMA_BASE_URL"),
     embed_model: str = typer.Option(DEFAULT_EMBED_MODEL, envvar="EMBED_MODEL"),
+    repo_name: str = typer.Option(..., "--repo-name", help="Repository namespace to benchmark."),
     json_out: bool = typer.Option(False, "--json", help="Emit raw JSON to stdout."),
 ) -> None:
     """Measure p50/p95/p99 retrieval latency per query type (M4 #32)."""
@@ -923,11 +946,19 @@ def bench(
     from hybrid_rag.vector.qdrant_store import QdrantStore
 
     console.rule("[bold cyan]hybrid-rag bench[/]")
-    console.print(f"n_runs={n_runs}  top_k={top_k}  corpus={corpus}")
+    console.print(f"repo={repo_name}  n_runs={n_runs}  top_k={top_k}  corpus={corpus}")
 
     try:
         graph_store = FalkorDBStore(host=graph_host, port=graph_port, graph_name=graph_name)
         vector_store = QdrantStore(host=qdrant_host, port=qdrant_port, collection=qdrant_collection)
+        from hybrid_rag.eval.preflight import require_same_index_run, validate_index_provenance
+
+        benchmark_metadata = validate_index_provenance(
+            graph_store,
+            vector_store,
+            repo_name,
+            expected_embedding_model=embed_model,
+        )
 
         with OllamaEmbedder(ollama_url=ollama_url, model=embed_model) as embedder:
             retriever = HybridRetriever(
@@ -935,7 +966,7 @@ def bench(
                 vector_store=vector_store,
                 embedder=embedder,
             )
-            runner = BenchmarkRunner(retriever)
+            runner = BenchmarkRunner(retriever, repository=repo_name)
             with Progress(
                 SpinnerColumn(),
                 TextColumn("{task.description}"),
@@ -948,6 +979,13 @@ def bench(
                 else:
                     report = runner.run(n_runs=n_runs, top_k=top_k)
                 progress.update(task, description="Done")
+            final_metadata = validate_index_provenance(
+                graph_store,
+                vector_store,
+                repo_name,
+                expected_embedding_model=embed_model,
+            )
+            require_same_index_run(benchmark_metadata, final_metadata)
 
     except Exception as exc:  # noqa: BLE001
         err_console.print(f"[ERROR] Benchmark failed: {exc}")

@@ -122,10 +122,49 @@ class TestParseFile:
         assert "math_utils" in module_names
         assert "string_helpers" in module_names
 
+    def test_parse_repo_includes_repository_root_for_top_level_modules(self):
+        result = parse_repo(_FIXTURE_REPO, languages=["python"], repo_name="fixture")
+
+        roots = [node for node in result.nodes if node.label == "RepositoryMetadata"]
+        assert [(node.id, node.properties["repository"]) for node in roots] == [
+            ("fixture", "fixture")
+        ]
+        root_triples = [
+            triple
+            for triple in extract_triples(result)
+            if triple.src_id == "fixture" and triple.rel == "DEFINES"
+        ]
+        assert root_triples
+        assert {triple.src_label for triple in root_triples} == {"RepositoryMetadata"}
+
+    def test_parse_repo_rejects_java_language(self):
+        try:
+            parse_repo(_FIXTURE_REPO, languages=["java"], repo_name="fixture")
+        except ValueError as exc:
+            assert "Only Python indexing" in str(exc)
+        else:
+            assert False, "Java indexing must be rejected until implemented"
+
     def test_node_ids_are_unique_per_file(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)
         ids = [n.id for n in result.nodes]
         assert len(ids) == len(set(ids)), "Duplicate node IDs detected"
+
+    def test_python_node_ids_are_namespaced_by_repository(self, tmp_path):
+        source = tmp_path / "same.py"
+        source.write_text("def shared():\n    return 1\n")
+
+        repo_a = parse_file(source, tmp_path, repo_name="repo-a")
+        repo_b = parse_file(source, tmp_path, repo_name="repo-b")
+
+        real_a = {n.id for n in repo_a.nodes if n.properties.get("type") != "external"}
+        real_b = {n.id for n in repo_b.nodes if n.properties.get("type") != "external"}
+        assert real_a == {"repo-a::same", "repo-a::same.shared"}
+        assert real_b == {"repo-b::same", "repo-b::same.shared"}
+        assert real_a.isdisjoint(real_b)
+        assert all(
+            edge.src_id.startswith("repo-a::") for edge in repo_a.edges if edge.src_id != "repo-a"
+        )
 
     def test_function_node_has_line_numbers(self):
         result = parse_file(_MATH_UTILS, _FIXTURE_REPO)

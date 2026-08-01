@@ -8,11 +8,14 @@ Swap this file for a different adapter (e.g. openai_embedder.py) to change backe
 from __future__ import annotations
 
 import logging
+import math
 import os
+from numbers import Real
 from typing import Any
 
 import httpx
 
+from hybrid_rag.config import validate_local_ollama_url
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL
 from hybrid_rag.ingestion.parser import NodeData
 from hybrid_rag.ports.embedder import BaseEmbedder
@@ -22,6 +25,33 @@ logger = logging.getLogger(__name__)
 _DEFAULT_OLLAMA_URL = "http://localhost:11434"
 _DEFAULT_MODEL = DEFAULT_EMBED_MODEL
 _HTTP_TIMEOUT = 30.0
+
+
+def _validate_embedding(embedding: Any, expected_dimension: int | None = None) -> list[float]:
+    """Reject malformed vectors before they can enter or query the index."""
+    if not isinstance(embedding, list) or not embedding:
+        raise ValueError("Ollama returned an empty or non-list embedding")
+    if expected_dimension is not None and len(embedding) != expected_dimension:
+        raise ValueError(
+            f"Ollama returned embedding dimension {len(embedding)}; expected {expected_dimension}"
+        )
+    if any(isinstance(value, bool) or not isinstance(value, Real) for value in embedding):
+        raise ValueError("Ollama returned a non-numeric embedding")
+    vector = [float(value) for value in embedding]
+    if not all(math.isfinite(value) for value in vector):
+        raise ValueError("Ollama returned a non-finite embedding")
+    if not any(value != 0.0 for value in vector):
+        raise ValueError("Ollama returned an all-zero embedding")
+    return vector
+
+
+def _validate_embedding_batch(embeddings: Any, expected_count: int) -> list[list[float]]:
+    if not isinstance(embeddings, list) or len(embeddings) != expected_count:
+        raise ValueError("Ollama returned an invalid embedding batch size")
+    dimension = len(embeddings[0]) if embeddings and isinstance(embeddings[0], list) else None
+    if not dimension:
+        raise ValueError("Ollama returned an empty embedding")
+    return [_validate_embedding(embedding, dimension) for embedding in embeddings]
 
 
 def _node_to_text(node: NodeData) -> str:
@@ -73,8 +103,8 @@ class OllamaEmbedder(BaseEmbedder):
         ollama_url: str | None = None,
         model: str | None = None,
     ) -> None:
-        self._url = (ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)).rstrip(
-            "/"
+        self._url = validate_local_ollama_url(
+            ollama_url or os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_URL)
         )
         self._model = model or os.environ.get("EMBED_MODEL", _DEFAULT_MODEL)
         self._client = httpx.Client(timeout=_HTTP_TIMEOUT)
@@ -139,12 +169,7 @@ class OllamaEmbedder(BaseEmbedder):
                 },
             )
             resp.raise_for_status()
-            embeddings = resp.json().get("embeddings")
-            if embeddings and len(embeddings) == len(texts):
-                return embeddings
-            logger.warning(
-                "Batch embedding response format invalid or mismatched length. Falling back to single embeds."
-            )
+            return _validate_embedding_batch(resp.json().get("embeddings"), len(texts))
         except Exception as exc:
             logger.warning(
                 "Batch embedding via /api/embed failed: %s. Falling back to single/concurrent embeds.",
@@ -187,7 +212,7 @@ class OllamaEmbedder(BaseEmbedder):
                     },
                 )
                 resp.raise_for_status()
-                return resp.json()["embedding"]
+                return _validate_embedding(resp.json()["embedding"])
             except Exception as exc:
                 logger.warning(
                     "Ollama embedding attempt %d/%d failed for text (len=%d): %s",
@@ -209,16 +234,12 @@ class OllamaEmbedder(BaseEmbedder):
                             },
                         )
                         resp.raise_for_status()
-                        return resp.json()["embedding"]
+                        return _validate_embedding(resp.json()["embedding"])
                     except Exception as fallback_exc:
-                        logger.error(
-                            "All embedding attempts failed: %s. Returning zero-vector.",
-                            fallback_exc,
-                        )
-                        return [0.0] * 768
+                        raise RuntimeError(
+                            f"Ollama failed to produce a valid embedding after retries: {fallback_exc}"
+                        ) from fallback_exc
                 time.sleep(backoff**attempt)
-
-        return [0.0] * 768
 
     def close(self) -> None:
         self._client.close()

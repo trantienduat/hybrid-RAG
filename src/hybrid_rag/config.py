@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +20,34 @@ DEFAULT_EMBED_MODEL = "nomic-embed-text"
 DEFAULT_RRF_K = 60
 DEFAULT_RRF_STRUCTURAL_W = 3.0
 DEFAULT_RRF_HYBRID_W = 1.5
+_LOCAL_OLLAMA_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal"}
+
+
+def validate_local_ollama_url(url: str) -> str:
+    """Require inference traffic to stay on this host (or its container bridge)."""
+    parsed = urlparse(url)
+    if parsed.scheme != "http" or parsed.hostname not in _LOCAL_OLLAMA_HOSTS:
+        raise ValueError(
+            "OLLAMA_BASE_URL must use http with localhost, 127.0.0.1, ::1, or host.docker.internal"
+        )
+    return url.rstrip("/")
+
+
+def validate_local_provider_configuration() -> None:
+    """Reject obsolete provider-selection flags instead of silently ignoring them."""
+    configured = [name for name in ("LLM_PROVIDER", "EMBED_PROVIDER") if os.environ.get(name)]
+    if configured:
+        raise ValueError(
+            f"Provider selection is no longer supported; remove {', '.join(configured)}. "
+            "Hybrid-RAG uses local Ollama only."
+        )
 
 
 class Config:
     """Centralized configuration manager supporting config.json and env overrides."""
 
     def __init__(self, config_path: str | None = None) -> None:
+        validate_local_provider_configuration()
         self.config_data: dict[str, Any] = {}
         self.config_file_path = self._resolve_config_path(config_path)
         self.load_config()
@@ -132,11 +155,12 @@ class Config:
 
     @property
     def ollama_url(self) -> str:
-        return (
+        url = (
             os.environ.get("OLLAMA_BASE_URL")
             or self.get_val("ollama.base_url")
             or DEFAULT_OLLAMA_URL
         )
+        return validate_local_ollama_url(url)
 
     @property
     def llm_model(self) -> str:

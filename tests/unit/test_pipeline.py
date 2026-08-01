@@ -7,6 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 from hybrid_rag.ingestion.pipeline import IndexingListener, run_indexing_pipeline
@@ -90,7 +92,7 @@ class TestIndexingPipeline:
         )
 
         # Assertions on pipeline results
-        assert res["nodes_parsed"] == 2
+        assert res["nodes_parsed"] == 3
         assert res["edges_parsed"] == 1
         assert res["nodes_upserted"] == 2
         assert res["edges_upserted"] == 1
@@ -100,6 +102,12 @@ class TestIndexingPipeline:
         mock_parse_repo.assert_called_once()
         mock_graph_store.ingest.assert_called_once()
         mock_vector_store.upsert.assert_called_once()
+        mock_chunk_file.assert_called_once_with(
+            tmp_dir / "a.py",
+            tmp_dir,
+            max_tokens=512,
+            repo_name="test-repo",
+        )
         payload = mock_vector_store.upsert.call_args.args[0][0]
         assert payload["name"] == "foo"
         assert payload["indexed_commit"] == ""
@@ -144,6 +152,128 @@ class TestIndexingPipeline:
         except ValueError as exc:
             assert "Repository path is not a directory" in str(exc)
 
+    def test_pipeline_rejects_java_before_store_access(self, tmp_path):
+        (tmp_path / "Main.java").write_text("class Main {}")
+        graph_store = MagicMock()
+        vector_store = MagicMock()
+
+        with pytest.raises(ValueError, match="Only Python indexing"):
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["java"],
+                repo_name="java-repo",
+                graph_store=graph_store,
+                vector_store=vector_store,
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+            )
+
+        graph_store.get_repository_metadata.assert_not_called()
+        graph_store.ingest.assert_not_called()
+        vector_store.upsert.assert_not_called()
+
+    def test_pipeline_rejects_java_only_repo_with_default_language(self, tmp_path):
+        (tmp_path / "Main.java").write_text("class Main {}")
+
+        with pytest.raises(ValueError, match="Java indexing is not implemented"):
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["python"],
+                repo_name="java-repo",
+                graph_store=MagicMock(),
+                vector_store=MagicMock(),
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+            )
+
+    @patch("hybrid_rag.ingestion.parser.parse_repo", side_effect=RuntimeError("parse failed"))
+    def test_rebuild_preserves_existing_index_when_parse_fails(self, _mock_parse, tmp_path):
+        graph_store = MagicMock()
+        vector_store = MagicMock()
+
+        try:
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["python"],
+                repo_name="repo-one",
+                graph_store=graph_store,
+                vector_store=vector_store,
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+                rebuild=True,
+            )
+            assert False, "Expected parsing failure"
+        except RuntimeError as exc:
+            assert str(exc) == "parse failed"
+
+        graph_store.delete_repository.assert_not_called()
+        vector_store.delete_repository.assert_not_called()
+        graph_store.delete_repository_except_run.assert_not_called()
+        vector_store.delete_repository_except_run.assert_not_called()
+
+    @patch("hybrid_rag.ingestion.parser.parse_repo")
+    @patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda result: result)
+    @patch(
+        "hybrid_rag.ingestion.entity_resolver.resolve_global",
+        side_effect=lambda result, _store: result,
+    )
+    @patch("hybrid_rag.ingestion.chunker.chunk_file")
+    @patch("hybrid_rag.ingestion.ollama_embedder.OllamaEmbedder")
+    def test_rebuild_preserves_existing_index_when_embedding_fails(
+        self,
+        mock_embedder_class,
+        mock_chunk_file,
+        _mock_resolve_global,
+        _mock_resolve,
+        mock_parse_repo,
+        tmp_path,
+    ):
+        mock_parse_repo.return_value = ParseResult(
+            nodes=[NodeData(label="Function", id="repo::mod.run", properties={"file_path": "a.py"})]
+        )
+        chunk = MagicMock(
+            node_id="repo::mod.run",
+            chunk_index=0,
+            text="def run(): pass",
+            label="Function",
+            file_path="a.py",
+        )
+        mock_chunk_file.return_value = [chunk]
+        mock_embedder_class.return_value.__enter__.return_value.embed_texts.side_effect = (
+            RuntimeError("embedding failed")
+        )
+        graph_store = MagicMock()
+        vector_store = MagicMock()
+
+        with pytest.raises(RuntimeError, match="embedding failed"):
+            run_indexing_pipeline(
+                repo_path=tmp_path,
+                languages=["python"],
+                repo_name="repo-one",
+                graph_store=graph_store,
+                vector_store=vector_store,
+                ollama_url="http://localhost:11434",
+                embed_model=DEFAULT_EMBED_MODEL,
+                llm_model=DEFAULT_LLM_MODEL,
+                llm_extract=False,
+                max_tokens=512,
+                rebuild=True,
+            )
+
+        graph_store.ingest.assert_not_called()
+        vector_store.upsert.assert_not_called()
+        graph_store.delete_repository_except_run.assert_not_called()
+        vector_store.delete_repository_except_run.assert_not_called()
+
     @patch("hybrid_rag.ingestion.parser.parse_repo")
     @patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda result: result)
     @patch(
@@ -176,5 +306,10 @@ class TestIndexingPipeline:
             rebuild=True,
         )
 
-        graph_store.delete_repository.assert_called_once_with("repo-one")
-        vector_store.delete_repository.assert_called_once_with("repo-one")
+        metadata = graph_store.set_repository_metadata.call_args.args[1]
+        graph_store.delete_repository_except_run.assert_called_once_with(
+            "repo-one", metadata["index_run_id"]
+        )
+        vector_store.delete_repository_except_run.assert_called_once_with(
+            "repo-one", metadata["index_run_id"]
+        )

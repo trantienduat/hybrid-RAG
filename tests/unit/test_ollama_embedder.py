@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 from hybrid_rag.ingestion.parser import NodeData
 
@@ -32,6 +34,10 @@ def _embedder() -> OllamaEmbedder:
 
 
 class TestOllamaEmbedder:
+    def test_remote_ollama_endpoint_is_rejected(self):
+        with pytest.raises(ValueError, match="OLLAMA_BASE_URL"):
+            OllamaEmbedder(ollama_url="http://192.168.1.20:11434", model="test-model")
+
     def test_embed_query_success(self):
         embedder = _embedder()
         expected = [0.1] * 768
@@ -107,7 +113,7 @@ class TestOllamaEmbedder:
             assert res == expected
             assert mock_post.call_count == 3
 
-    def test_embed_failsafe_permanent_failure(self):
+    def test_embed_permanent_failure_raises(self):
         embedder = _embedder()
 
         # Mock connection failure on every attempt
@@ -115,14 +121,37 @@ class TestOllamaEmbedder:
             embedder._client, "post", side_effect=Exception("Connection refused")
         ) as mock_post:
             with patch("time.sleep") as mock_sleep:  # Mock sleep so tests are fast
-                res = embedder.embed_query("hello")
+                with pytest.raises(RuntimeError, match="failed to produce a valid embedding"):
+                    embedder.embed_query("hello")
 
-                # Should return zero-vector of length 768
-                assert res == [0.0] * 768
                 # 3 regular attempts + 1 fallback attempt = 4 total attempts
                 assert mock_post.call_count == 4
                 # Should have slept between retries (2 sleeps)
                 assert mock_sleep.call_count == 2
+
+    @pytest.mark.parametrize(
+        "invalid_embedding",
+        [[], [0.0] * 768, [float("nan")] * 768, ["bad"] * 768],
+    )
+    def test_embed_rejects_invalid_vectors(self, invalid_embedding):
+        embedder = _embedder()
+        with patch.object(
+            embedder._client, "post", return_value=_mock_response(invalid_embedding)
+        ) as mock_post:
+            with patch("time.sleep"):
+                with pytest.raises(RuntimeError, match="failed to produce a valid embedding"):
+                    embedder.embed_query("hello")
+        assert mock_post.call_count == 4
+
+    def test_batch_rejects_mixed_dimensions_and_falls_back(self):
+        embedder = _embedder()
+        responses = [
+            _mock_batch_response([[0.1, 0.2], [0.3]]),
+            _mock_response([0.1, 0.2]),
+            _mock_response([0.3, 0.4]),
+        ]
+        with patch.object(embedder._client, "post", side_effect=responses):
+            assert embedder.embed_texts(["one", "two"]) == [[0.1, 0.2], [0.3, 0.4]]
 
     def test_embed_nodes_filter_external_stubs(self):
         embedder = _embedder()

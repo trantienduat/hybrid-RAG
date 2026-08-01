@@ -56,6 +56,16 @@ class VectorStore(ABC):
         """Delete vectors for one repository namespace."""
 
     @abstractmethod
+    def delete_repository_except_run(self, repository: str, index_run_id: str) -> None:
+        """Delete stale repository vectors after replacement data is written."""
+
+    @abstractmethod
+    def delete_file_vectors_except_run(
+        self, file_path: str, repository: str, index_run_id: str
+    ) -> None:
+        """Delete stale file vectors after incremental replacement data is written."""
+
+    @abstractmethod
     def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
         """Stamp all vectors for a repository with the current index provenance."""
 

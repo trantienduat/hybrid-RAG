@@ -222,6 +222,32 @@ def stub_count(result: ParseResult) -> int:
     )
 
 
+def namespace_unresolved_stubs(result: ParseResult, repository: str) -> ParseResult:
+    """Keep unresolved placeholders isolated after local/global resolution."""
+    stub_ids = {
+        node.id
+        for node in result.nodes
+        if node.properties.get("type") == "external" or node.id.startswith("__call__")
+    }
+    if not repository or not stub_ids:
+        return result
+
+    redirects = {stub_id: f"{repository}::external::{stub_id}" for stub_id in stub_ids}
+    namespaced = ParseResult(
+        nodes=copy.deepcopy(result.nodes),
+        edges=copy.deepcopy(result.edges),
+        errors=list(result.errors),
+    )
+    for node in namespaced.nodes:
+        node.id = redirects.get(node.id, node.id)
+        node.properties["repository"] = repository
+    for edge in namespaced.edges:
+        edge.src_id = redirects.get(edge.src_id, edge.src_id)
+        edge.dst_id = redirects.get(edge.dst_id, edge.dst_id)
+        edge.properties["repository"] = repository
+    return namespaced
+
+
 def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
     """
     Query FalkorDB to resolve remaining external stubs against real nodes in previously indexed repositories.
@@ -237,7 +263,7 @@ def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
     if not external_stubs:
         return result
 
-    redirect: dict[str, str] = {}
+    candidates: dict[str, set[str]] = {}
 
     # Query FalkorDB in a single batched query
     query = (
@@ -251,11 +277,19 @@ def resolve_global(result: ParseResult, graph_store: Any) -> ParseResult:
         if res.result_set:
             for row in res.result_set:
                 stub_id, real_id = row[0], row[1]
-                redirect[stub_id] = real_id
+                candidates.setdefault(stub_id, set()).add(real_id)
     except Exception:
         # Skip gracefully if database isn't initialized or query fails
         pass
 
+    # A simple external name can exist in several repositories. Resolve only
+    # when the graph provides exactly one target; arbitrary cross-repo links
+    # are worse than leaving the stub explicit.
+    redirect = {
+        stub_id: next(iter(real_ids))
+        for stub_id, real_ids in candidates.items()
+        if len(real_ids) == 1
+    }
     if not redirect:
         return result
 

@@ -15,10 +15,72 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from hybrid_rag.config import validate_local_ollama_url, validate_local_provider_configuration
+from hybrid_rag.constants import INDEX_SCHEMA_VERSION
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
-INDEX_SCHEMA_VERSION = 2
+
+
+def _validate_python_repository(
+    repo: Path, languages: list[str], excludes: list[str] | None
+) -> None:
+    """Reject unsupported languages and Java-only projects before store access."""
+    if languages != ["python"]:
+        raise ValueError("Only Python indexing is currently supported; Java support is deferred")
+
+    exclude_set = (
+        set(excludes)
+        if excludes is not None
+        else {
+            ".venv",
+            "venv",
+            "fixtures",
+            "experiments",
+            "dist",
+            "build",
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".agents",
+            ".pytest_cache",
+            ".ruff_cache",
+            ".roo",
+            ".clinerules",
+        }
+    )
+
+    def has_source(suffix: str) -> bool:
+        return any(
+            not any(part in exclude_set or part.startswith(".venv") for part in path.parts)
+            for path in repo.rglob(f"*{suffix}")
+        )
+
+    if not has_source(".py") and has_source(".java"):
+        raise ValueError("Java indexing is not implemented; this repository has no Python sources")
+
+
+def _ensure_repository_node(result: Any, repo_name: str) -> None:
+    """Ensure root graph relationships always have a concrete endpoint."""
+    if any(node.label == "RepositoryMetadata" and node.id == repo_name for node in result.nodes):
+        return
+    from hybrid_rag.ingestion.parser import NodeData
+
+    result.nodes.insert(
+        0,
+        NodeData(
+            label="RepositoryMetadata",
+            id=repo_name,
+            properties={"name": repo_name, "repository": repo_name},
+        ),
+    )
+
+
+def _metadata_is_compatible(metadata: dict[str, Any], embed_model: str) -> bool:
+    return (
+        metadata.get("index_schema_version") == INDEX_SCHEMA_VERSION
+        and metadata.get("embedding_model") == embed_model
+    )
 
 
 def _run_git(repo: Path, args: list[str]) -> str:
@@ -208,7 +270,6 @@ def _detect_git_changes(
                 "__pycache__",
                 "node_modules",
                 ".agents",
-                ".gemini",
                 ".pytest_cache",
                 ".ruff_cache",
                 ".roo",
@@ -269,9 +330,12 @@ def run_indexing_pipeline(
     repo = repo_path.resolve()
     if not repo.is_dir():
         raise ValueError(f"Repository path is not a directory: {repo}")
+    validate_local_provider_configuration()
+    validate_local_ollama_url(ollama_url)
+    _validate_python_repository(repo, languages, excludes)
 
     # Lazy imports to keep execution startups fast
-    from hybrid_rag.ingestion.entity_resolver import resolve, stub_count
+    from hybrid_rag.ingestion.entity_resolver import namespace_unresolved_stubs, resolve, stub_count
     from hybrid_rag.ingestion.merger import merge_supplemental
     from hybrid_rag.ingestion.parser import ParseResult, parse_file, parse_repo
     from hybrid_rag.utils.tracing import start_span
@@ -284,13 +348,20 @@ def run_indexing_pipeline(
     head_commit = git_provenance["source_commit"] if git_provenance else None
     index_run_id = str(uuid.uuid4())
 
-    if rebuild:
-        listener.on_step("cleanup", f"Removing existing {repo_name} index data...", 0.0)
-        graph_store.delete_repository(repo_name)
-        vector_store.delete_repository(repo_name)
-        listener.on_step("cleanup", f"Removed existing {repo_name} index data.", 1.0)
+    previous_metadata = graph_store.get_repository_metadata(repo_name)
+    incompatible_index = bool(
+        isinstance(previous_metadata, dict)
+        and previous_metadata
+        and not _metadata_is_compatible(previous_metadata, embed_model)
+    )
+    if incompatible_index:
+        listener.on_step(
+            "parse",
+            "Stored index schema or embedding model changed; performing a full replacement.",
+            0.0,
+        )
 
-    if incremental and not rebuild:
+    if incremental and not rebuild and not incompatible_index:
         try:
             last_commit = from_commit or graph_store.get_repository_commit(repo_name)
             if head_commit and last_commit:
@@ -313,11 +384,6 @@ def run_indexing_pipeline(
             f"Incremental sync: {len(modified_files)} files modified, {len(deleted_files)} files deleted...",
             0.0,
         )
-
-        # Cleanup deleted & modified files from stores to avoid duplicates/orphans
-        for f in deleted_files | modified_files:
-            graph_store.delete_file_nodes(f, repo_name)
-            vector_store.delete_file_vectors(f, repo_name)
 
         if not modified_files and not deleted_files:
             metadata = _index_metadata(
@@ -368,6 +434,8 @@ def run_indexing_pipeline(
             1.0,
         )
 
+    _ensure_repository_node(result, repo_name)
+
     metadata = _index_metadata(
         repo,
         result,
@@ -378,8 +446,6 @@ def run_indexing_pipeline(
 
     # ── 2. LLM-assisted extraction (optional) ─────────────────────────────────
     if llm_extract:
-        import os
-
         all_extra_edges: list = []
         if is_incremental:
             py_files = sorted(repo.rglob("*.py"))
@@ -395,15 +461,9 @@ def run_indexing_pipeline(
         )
 
         if total_files > 0:
-            is_gemini = llm_model.startswith("gemini") or os.environ.get("LLM_PROVIDER") == "gemini"
-            if is_gemini:
-                from hybrid_rag.ingestion.gemini_llm_extractor import GeminiLLMExtractor
+            from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
 
-                extractor_ctx = GeminiLLMExtractor(model=llm_model)
-            else:
-                from hybrid_rag.ingestion.ollama_llm_extractor import OllamaLLMExtractor
-
-                extractor_ctx = OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model)
+            extractor_ctx = OllamaLLMExtractor(ollama_url=ollama_url, model=llm_model)
 
             with extractor_ctx as extractor:
                 with start_span(
@@ -461,18 +521,15 @@ def run_indexing_pipeline(
         f"Global entity resolution complete: resolved {global_resolved} stubs against FalkorDB, {after_global_stubs} remain external.",
         1.0,
     )
+    result = namespace_unresolved_stubs(result, repo_name)
+    for node in result.nodes:
+        node.properties["index_run_id"] = index_run_id
+    for edge in result.edges:
+        edge.properties["index_run_id"] = index_run_id
 
-    # ── 4. Graph Ingest ────────────────────────────────────────────────────────
-    listener.on_step("db_write", "Writing codebase graph data to FalkorDB...", 0.0)
-    with start_span("pipeline_graph_write"):
-        counts = graph_store.ingest(result)
-    listener.on_step(
-        "db_write",
-        f"FalkorDB ingestion complete: upserted {counts['nodes']} nodes and {counts['edges']} edges.",
-        1.0,
-    )
-
-    # ── 5. Chunk + Embed + Vector Ingest ───────────────────────────────────────
+    # Generate every embedding before mutating the active index. Parsing,
+    # extraction, and embedding failures therefore preserve the previous run.
+    # ── 4. Chunk + Embed ───────────────────────────────────────────────────────
     listener.on_step("embed_chunks", "Chunking source files for vector indexing...", 0.0)
 
     from hybrid_rag.ingestion.chunker import chunk_file
@@ -487,11 +544,11 @@ def run_indexing_pipeline(
         if fp and fp not in seen_files:
             seen_files.add(fp)
             abs_fp = repo / fp
-            file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens)
+            file_chunks = chunk_file(abs_fp, repo, max_tokens=max_tokens, repo_name=repo_name)
             chunks_to_embed.extend(file_chunks)
 
     total_chunks = len(chunks_to_embed)
-    upserted = 0
+    vector_batches: list[list[dict[str, Any]]] = []
 
     listener.on_step(
         "embed_chunks",
@@ -500,21 +557,9 @@ def run_indexing_pipeline(
     )
 
     if total_chunks > 0:
-        import os
+        from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
 
-        is_gemini_embed = (
-            embed_model.startswith("gemini")
-            or embed_model == "text-embedding-004"
-            or os.environ.get("EMBED_PROVIDER") == "gemini"
-        )
-        if is_gemini_embed:
-            from hybrid_rag.ingestion.gemini_embedder import GeminiEmbedder
-
-            embedder_ctx = GeminiEmbedder(model=embed_model)
-        else:
-            from hybrid_rag.ingestion.ollama_embedder import OllamaEmbedder
-
-            embedder_ctx = OllamaEmbedder(ollama_url=ollama_url, model=embed_model)
+        embedder_ctx = OllamaEmbedder(ollama_url=ollama_url, model=embed_model)
 
         with embedder_ctx as embedder:
             with start_span(
@@ -550,20 +595,40 @@ def run_indexing_pipeline(
                             }
                         )
 
-                    # Upsert each batch immediately to free RAM
-                    upserted += vector_store.upsert(batch_payload)
-
-                    # Clear variables to allow garbage collection
-                    batch_payload = None
-                    embeddings = None
-                    batch_texts = None
+                    vector_batches.append(batch_payload)
 
                     progress_val = float(min(i + len(batch), total_chunks)) / total_chunks
                     listener.on_step(
                         "embed_chunks",
-                        f"Generated and upserted embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
+                        f"Generated embeddings for {min(i + len(batch), total_chunks)}/{total_chunks} chunks.",
                         progress_val,
                     )
+
+    # ── 5. Publish staged graph and vector data ────────────────────────────────
+    listener.on_step("db_write", "Writing codebase graph data to FalkorDB...", 0.0)
+    with start_span("pipeline_graph_write"):
+        counts = graph_store.ingest(result)
+    listener.on_step(
+        "db_write",
+        f"FalkorDB ingestion complete: upserted {counts['nodes']} nodes and {counts['edges']} edges.",
+        1.0,
+    )
+
+    upserted = 0
+    for batch_payload in vector_batches:
+        upserted += vector_store.upsert(batch_payload)
+
+    # New records are present before stale records are removed, avoiding an
+    # empty-index window during rebuilds and incremental replacements.
+    listener.on_step("cleanup", f"Removing stale {repo_name} index data...", 0.0)
+    if is_incremental:
+        for file_path in deleted_files | modified_files:
+            graph_store.delete_file_nodes_except_run(file_path, repo_name, index_run_id)
+            vector_store.delete_file_vectors_except_run(file_path, repo_name, index_run_id)
+    else:
+        graph_store.delete_repository_except_run(repo_name, index_run_id)
+        vector_store.delete_repository_except_run(repo_name, index_run_id)
+    listener.on_step("cleanup", f"Removed stale {repo_name} index data.", 1.0)
 
     # Trigger garbage collection
     import gc
@@ -574,7 +639,8 @@ def run_indexing_pipeline(
         "vector_write", f"Qdrant ingestion complete: upserted {upserted} vectors.", 1.0
     )
 
-    # Stamp all old and new vectors before publishing matching graph metadata.
+    # Incremental runs retain unchanged records, so publish one provenance
+    # identity across the repository only after all writes and cleanup succeed.
     vector_store.set_repository_metadata(repo_name, metadata)
     graph_store.set_repository_metadata(repo_name, metadata)
     logger.info("Saved index provenance %s for %s", metadata["index_run_id"], repo_name)

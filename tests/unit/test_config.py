@@ -2,7 +2,14 @@ import json
 import os
 import tempfile
 
-from hybrid_rag.config import DEFAULT_FALKORDB_HOST, DEFAULT_LLM_MODEL, Config
+import pytest
+
+from hybrid_rag.config import (
+    DEFAULT_FALKORDB_HOST,
+    DEFAULT_LLM_MODEL,
+    Config,
+    validate_local_ollama_url,
+)
 
 
 def test_default_fallbacks():
@@ -61,3 +68,32 @@ def test_config_file_loading():
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost:11434",
+        "http://127.0.0.1:11434",
+        "http://[::1]:11434",
+        "http://host.docker.internal:11434",
+    ],
+)
+def test_local_ollama_urls_are_accepted(url):
+    assert validate_local_ollama_url(url) == url
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://localhost:11434", "http://192.168.1.20:11434", "https://example.com"],
+)
+def test_remote_or_tls_inference_urls_are_rejected(url):
+    with pytest.raises(ValueError, match="OLLAMA_BASE_URL"):
+        validate_local_ollama_url(url)
+
+
+def test_obsolete_provider_selection_is_rejected(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "cloud")
+
+    with pytest.raises(ValueError, match="Provider selection is no longer supported"):
+        Config(config_path="/nonexistent/config.json")

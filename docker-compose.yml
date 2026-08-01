@@ -3,11 +3,7 @@ services:
     image: falkordb/falkordb:latest
     container_name: falkordb
     ports:
-      - "6379:6379"
-      - "8008:3000" # FalkorDB Browser UI
-    environment:
-      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      - NEXTAUTH_SECRET=super_secret_nextauth_string_12345
+      - "127.0.0.1:6379:6379"
     volumes:
       - falkordb_data:/var/lib/falkordb/data
     restart: unless-stopped
@@ -21,8 +17,8 @@ services:
     image: qdrant/qdrant:latest
     container_name: qdrant
     ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC
+      - "127.0.0.1:6333:6333"   # REST API
+      - "127.0.0.1:6334:6334"   # gRPC
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
@@ -38,12 +34,12 @@ services:
       dockerfile: Dockerfile
     container_name: hybrid-rag-api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - FALKORDB_HOST=falkordb
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - FALKORDB_GRAPH=$FALKORDB_GRAPH
+      - FALKORDB_GRAPH=${FALKORDB_GRAPH:-codebase}
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
@@ -72,12 +68,12 @@ services:
     container_name: hybrid-rag-mcp
     command: ["hybrid-rag", "mcp", "--transport", "sse", "--host", "0.0.0.0", "--port", "8001"]
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     environment:
       - FALKORDB_HOST=falkordb
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - FALKORDB_GRAPH=$FALKORDB_GRAPH
+      - FALKORDB_GRAPH=${FALKORDB_GRAPH:-codebase}
       - REDIS_HOST=falkordb
       - TRACING_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
@@ -104,8 +100,7 @@ services:
     image: arizephoenix/phoenix:latest
     container_name: phoenix
     ports:
-      - "6006:6006"   # Web UI
-      - "4317"        # Internal gRPC receiver
+      - "127.0.0.1:6006:6006"   # Web UI
     volumes:
       - phoenix_data:/root/.phoenix
     restart: unless-stopped
@@ -115,7 +110,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -128,7 +123,7 @@ services:
     image: grafana/loki:latest
     container_name: loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - loki_data:/loki
@@ -140,7 +135,7 @@ services:
     container_name: tempo
     command: -config.file=/etc/tempo/tempo-local.yaml
     ports:
-      - "3200:3200"   # Tempo API / UI
+      - "127.0.0.1:3200:3200"   # Tempo API / UI
     volumes:
       - tempo_data:/var/tempo
     restart: unless-stopped
@@ -153,8 +148,8 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
     depends_on:
       - loki
       - tempo
@@ -166,7 +161,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3010:3000"
+      - "127.0.0.1:3010:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false

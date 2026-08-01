@@ -8,10 +8,16 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from qdrant_client.models import PayloadSchemaType
+
 from hybrid_rag.constants import DEFAULT_LLM_MODEL
 from hybrid_rag.graph.falkordb_store import FalkorDBStore
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
-from hybrid_rag.ingestion.pipeline import _detect_git_changes, run_indexing_pipeline
+from hybrid_rag.ingestion.pipeline import (
+    INDEX_SCHEMA_VERSION,
+    _detect_git_changes,
+    run_indexing_pipeline,
+)
 from hybrid_rag.vector.qdrant_store import QdrantStore
 
 
@@ -153,6 +159,21 @@ def test_falkordb_store_delete_file_nodes():
         )
 
 
+def test_falkordb_store_deletes_only_stale_run_records():
+    mock_db = MagicMock()
+    mock_graph = MagicMock()
+    mock_db.select_graph.return_value = mock_graph
+
+    with patch("falkordb.FalkorDB", return_value=mock_db):
+        store = FalkorDBStore(host="localhost", port=6379, graph_name="test")
+        store.delete_repository_except_run("repo123", "run-new")
+
+    assert mock_graph.query.call_count == 2
+    for call in mock_graph.query.call_args_list:
+        assert "coalesce" in call.args[0]
+        assert call.args[1] == {"repository": "repo123", "index_run_id": "run-new"}
+
+
 def test_qdrant_store_delete_file_vectors():
     mock_client = MagicMock()
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
@@ -180,6 +201,8 @@ def test_qdrant_store_repository_metadata():
         MagicMock(hits=[MagicMock(value="abc")]),
         MagicMock(hits=[MagicMock(value="run-1")]),
         MagicMock(hits=[MagicMock(value="git:repo@abc")]),
+        MagicMock(hits=[MagicMock(value=INDEX_SCHEMA_VERSION)]),
+        MagicMock(hits=[MagicMock(value="nomic-embed-text")]),
     ]
 
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
@@ -194,10 +217,18 @@ def test_qdrant_store_repository_metadata():
         "indexed_commit": {"abc"},
         "index_run_id": {"run-1"},
         "source_identity": {"git:repo@abc"},
+        "index_schema_version": {INDEX_SCHEMA_VERSION},
+        "embedding_model": {"nomic-embed-text"},
     }
     set_payload = mock_client.set_payload.call_args.kwargs
     assert set_payload["payload"]["index_run_id"] == "run-1"
-    assert mock_client.facet.call_count == 3
+    assert mock_client.facet.call_count == 5
+    payload_indexes = {
+        call.kwargs["field_name"]: call.kwargs["field_schema"]
+        for call in mock_client.create_payload_index.call_args_list
+    }
+    assert payload_indexes["embedding_model"] == PayloadSchemaType.KEYWORD
+    assert payload_indexes["index_schema_version"] == PayloadSchemaType.INTEGER
 
 
 def test_qdrant_store_delete_repository():
@@ -209,6 +240,18 @@ def test_qdrant_store_delete_repository():
     delete_call = mock_client.delete.call_args.kwargs
     assert delete_call["collection_name"] == "test_col"
     assert delete_call["points_selector"].must[0].match.value == "repo123"
+
+
+def test_qdrant_store_deletes_only_stale_run_vectors():
+    mock_client = MagicMock()
+    with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
+        store = QdrantStore(host="localhost", port=6333, collection="test_col")
+        store.delete_repository_except_run("repo123", "run-new")
+
+    selector = mock_client.delete.call_args.kwargs["points_selector"]
+    assert selector.must[0].match.value == "repo123"
+    assert selector.must_not[0].key == "index_run_id"
+    assert selector.must_not[0].match.value == "run-new"
 
 
 @patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
@@ -268,13 +311,6 @@ def test_incremental_indexing_pipeline_run(
             incremental=True,
         )
 
-        # Assert cleanup was called
-        # both src/b.py and src/a.py should be cleaned up
-        mock_graph.delete_file_nodes.assert_any_call("src/a.py", "myrepo")
-        mock_graph.delete_file_nodes.assert_any_call("src/b.py", "myrepo")
-        mock_vector.delete_file_vectors.assert_any_call("src/a.py", "myrepo")
-        mock_vector.delete_file_vectors.assert_any_call("src/b.py", "myrepo")
-
         # Assert only src/a.py was parsed
         mock_parse_file.assert_called_once_with(tmp_path / "src/a.py", tmp_path, repo_name="myrepo")
 
@@ -283,3 +319,67 @@ def test_incremental_indexing_pipeline_run(
         assert metadata["last_indexed_commit"] == "commit456"
         assert metadata["source_identity"].endswith("@commit456")
         mock_vector.set_repository_metadata.assert_called_once_with("myrepo", metadata)
+
+        # New records are written first; cleanup removes only stale records.
+        run_id = metadata["index_run_id"]
+        mock_graph.delete_file_nodes_except_run.assert_any_call("src/a.py", "myrepo", run_id)
+        mock_graph.delete_file_nodes_except_run.assert_any_call("src/b.py", "myrepo", run_id)
+        mock_vector.delete_file_vectors_except_run.assert_any_call("src/a.py", "myrepo", run_id)
+        mock_vector.delete_file_vectors_except_run.assert_any_call("src/b.py", "myrepo", run_id)
+
+
+@patch("hybrid_rag.ingestion.pipeline._detect_git_changes")
+@patch("hybrid_rag.ingestion.parser.parse_repo")
+@patch("hybrid_rag.ingestion.pipeline._git_source_provenance")
+def test_incremental_forces_full_replacement_for_embedding_model_change(
+    mock_git_provenance, mock_parse_repo, mock_detect_git, tmp_path
+):
+    (tmp_path / "a.py").write_text("def a(): pass")
+    graph_store = MagicMock()
+    graph_store.get_repository_metadata.return_value = {
+        "index_schema_version": INDEX_SCHEMA_VERSION,
+        "embedding_model": "old-model",
+    }
+    graph_store.ingest.return_value = {"nodes": 1, "edges": 0}
+    vector_store = MagicMock()
+    mock_git_provenance.return_value = {
+        "source_kind": "git",
+        "source_path": str(tmp_path),
+        "source_commit": "commit456",
+        "source_digest": "",
+        "source_identity": "git:repo@commit456",
+        "working_tree_dirty": False,
+    }
+    mock_parse_repo.return_value = ParseResult()
+
+    with (
+        patch("hybrid_rag.ingestion.entity_resolver.resolve", side_effect=lambda result: result),
+        patch(
+            "hybrid_rag.ingestion.entity_resolver.resolve_global",
+            side_effect=lambda result, _store: result,
+        ),
+        patch("hybrid_rag.ingestion.chunker.chunk_file", return_value=[]),
+    ):
+        run_indexing_pipeline(
+            repo_path=tmp_path,
+            languages=["python"],
+            repo_name="myrepo",
+            graph_store=graph_store,
+            vector_store=vector_store,
+            ollama_url="http://localhost:11434",
+            embed_model="new-model",
+            llm_model=DEFAULT_LLM_MODEL,
+            llm_extract=False,
+            max_tokens=512,
+            incremental=True,
+        )
+
+    mock_detect_git.assert_not_called()
+    mock_parse_repo.assert_called_once()
+    metadata = graph_store.set_repository_metadata.call_args.args[1]
+    graph_store.delete_repository_except_run.assert_called_once_with(
+        "myrepo", metadata["index_run_id"]
+    )
+    vector_store.delete_repository_except_run.assert_called_once_with(
+        "myrepo", metadata["index_run_id"]
+    )

@@ -2,7 +2,8 @@
 AST-based source code parser using tree-sitter.
 
 Extracts raw node data (modules, classes, functions, variables) from Python
-and Java files. Output is NodeData and EdgeData dataclasses that match
+files. Java inputs are rejected until extraction is implemented. Output uses
+NodeData and EdgeData dataclasses that match
 the KG schema in docs/schema/kg-schema.md.
 """
 
@@ -13,17 +14,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import tree_sitter_java as tsjava
 import tree_sitter_python as tspython
 from tree_sitter import Language, Node, Parser
 
 # ── Language setup ────────────────────────────────────────────────
 _PY_LANG = Language(tspython.language())
-_JAVA_LANG = Language(tsjava.language())
 
 _PARSERS: dict[str, Parser] = {
     "python": Parser(_PY_LANG),
-    "java": Parser(_JAVA_LANG),
 }
 
 # Mapping of file extensions to their respective languages
@@ -223,6 +221,8 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
     language = LANGUAGE_BY_EXT.get(ext)
     if language is None:
         return ParseResult(errors=[f"Unsupported extension: {ext}"])
+    if language != "python":
+        return ParseResult(errors=[f"Java extraction not yet implemented: {file_path.name}"])
 
     try:
         src_bytes = file_path.read_bytes()
@@ -233,14 +233,29 @@ def parse_file(file_path: Path, repo_root: Path, repo_name: str = "") -> ParseRe
     tree = parser.parse(src_bytes)
 
     rel_path = str(file_path.relative_to(repo_root))
-
-    if language == "python":
-        res = _extract_python(tree.root_node, src_bytes, rel_path)
-        # Assign repository property to all nodes in the file
+    res = _extract_python(tree.root_node, src_bytes, rel_path)
+    # Real code entities share one FalkorDB/Qdrant namespace, so their IDs
+    # must include the repository. External stubs stay unqualified until
+    # entity resolution has had a chance to link them.
+    if repo_name:
+        real_ids = {
+            node.id: f"{repo_name}::{node.id}"
+            for node in res.nodes
+            if node.properties.get("type") != "external"
+        }
         for node in res.nodes:
-            node.properties["repository"] = repo_name
-        return res
-    return ParseResult(errors=[f"Java extraction not yet implemented: {rel_path}"])
+            if node.id in real_ids:
+                node.id = real_ids[node.id]
+        for edge in res.edges:
+            edge.src_id = real_ids.get(edge.src_id, edge.src_id)
+            edge.dst_id = real_ids.get(edge.dst_id, edge.dst_id)
+
+    # Assign repository property to all nodes in the file.
+    for node in res.nodes:
+        node.properties["repository"] = repo_name
+    for edge in res.edges:
+        edge.properties["repository"] = repo_name
+    return res
 
 
 def parse_repo(
@@ -254,13 +269,15 @@ def parse_repo(
 
     Args:
         repo_root: The root directory of the repository to scan.
-        languages: List of languages to include (e.g., ["python", "java"]). Defaults to ["python"].
+        languages: List of languages to include. Only Python is currently supported.
         repo_name: The custom namespace name for the repository.
         excludes: List of folder/file name patterns to exclude from parsing.
     Returns:
         A combined ParseResult containing graph data from all parsed files.
     """
     languages = languages or ["python"]
+    if languages != ["python"]:
+        raise ValueError("Only Python indexing is currently supported")
     exts = {ext for ext, lang in LANGUAGE_BY_EXT.items() if lang in languages}
 
     exclude_set = (
@@ -277,7 +294,6 @@ def parse_repo(
             "__pycache__",
             "node_modules",
             ".agents",
-            ".gemini",
             ".pytest_cache",
             ".ruff_cache",
             ".roo",
@@ -376,7 +392,15 @@ def parse_repo(
     # Sort to keep order deterministic
     files_to_parse.sort(key=lambda x: x[0])
 
-    combined = ParseResult()
+    combined = ParseResult(
+        nodes=[
+            NodeData(
+                label="RepositoryMetadata",
+                id=repo_name,
+                properties={"name": repo_name, "repository": repo_name},
+            )
+        ]
+    )
 
     # 2. Parse files concurrently using ThreadPoolExecutor
     # tree-sitter C bindings release the GIL, and most time is spent in IO and tree-sitter parsing

@@ -3,7 +3,7 @@ services:
     image: falkordb/falkordb:latest
     container_name: falkordb
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - falkordb_data:/var/lib/falkordb/data
     restart: unless-stopped
@@ -17,7 +17,7 @@ services:
     image: qdrant/qdrant:latest
     container_name: qdrant
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
@@ -31,12 +31,12 @@ services:
     image: ghcr.io/trantienduat/hybrid-rag:develop-SNAPSHOT
     container_name: hybrid-rag-api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - FALKORDB_HOST=falkordb
       - QDRANT_HOST=qdrant
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - FALKORDB_GRAPH=$FALKORDB_GRAPH
+      - FALKORDB_GRAPH=${FALKORDB_GRAPH:-codebase}
     depends_on:
       falkordb:
         condition: service_healthy

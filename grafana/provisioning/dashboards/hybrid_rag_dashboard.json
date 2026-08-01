@@ -30,7 +30,7 @@
         "y": 0
       },
       "id": 1,
-      "title": "Total Tokens Saved by RAG",
+      "title": "LLM Tokens Consumed",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -44,7 +44,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rag_tokens_saved_total) or vector(0)",
+          "expr": "sum(llm_tokens_consumed_total) or vector(0)",
           "instant": true,
           "range": false,
           "refId": "A"

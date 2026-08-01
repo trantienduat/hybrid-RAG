@@ -15,7 +15,7 @@ Endpoints:
 Start with:
   hybrid-rag serve
   # or:
-  uvicorn hybrid_rag.api.main:app --reload --host 0.0.0.0 --port 8000
+  uvicorn hybrid_rag.api.main:app --reload --host 127.0.0.1 --port 8000
 """
 
 from __future__ import annotations
@@ -67,11 +67,6 @@ from hybrid_rag.vector.qdrant_store import QdrantStore
 logger = logging.getLogger(__name__)
 
 # Define Prometheus metrics
-RAG_TOKENS_SAVED = Counter(
-    "rag_tokens_saved_total",
-    "Total input tokens saved by using RAG instead of full codebase context",
-    ["model", "query_type"],
-)
 QUERY_CACHE_HITS = Counter(
     "query_cache_hits_total", "Total number of query hits resolved from Redis cache"
 )
@@ -89,13 +84,18 @@ QUERY_DURATION = Histogram(
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
-def _is_gemini_provider(model: str, provider_env_var: str | None = None) -> bool:
-    """Check if the given model or environment override indicates Gemini provider."""
-    if model.startswith("gemini") or model == "text-embedding-004":
-        return True
-    if provider_env_var and os.environ.get(provider_env_var) == "gemini":
-        return True
-    return False
+def _allowed_index_roots() -> list[Path]:
+    """Return explicitly configured filesystem roots available to the REST indexer."""
+    raw_roots = [value for value in os.environ.get("INDEX_ROOTS", "").split(os.pathsep) if value]
+    raw_roots.extend(repo["path"] for repo in app_config.repositories)
+    if Path("/codebases").is_dir():
+        raw_roots.append("/codebases")
+    return [Path(translate_path_for_docker(root)).resolve() for root in raw_roots]
+
+
+def _is_allowed_index_path(path: Path) -> bool:
+    resolved = path.resolve()
+    return any(resolved == root or resolved.is_relative_to(root) for root in _allowed_index_roots())
 
 
 # ── Configuration from environment/config file ──────────────────────────────────
@@ -111,6 +111,15 @@ _EMBED_MODEL = app_config.embed_model
 _RRF_K = app_config.rrf_k
 _RRF_STRUCTURAL_W = app_config.rrf_structural_weight
 _RRF_HYBRID_W = app_config.rrf_hybrid_weight
+_CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000"
+    ).split(",")
+    if origin.strip()
+]
+if "*" in _CORS_ORIGINS:
+    raise ValueError("Wildcard CORS origins are not allowed for the local API")
 
 
 async def _run_periodic_sync(app_state: Any) -> None:
@@ -249,14 +258,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         host=_QDRANT_HOST, port=_QDRANT_PORT, collection=_QDRANT_COLLECTION
     )
 
-    if _is_gemini_provider(_EMBED_MODEL, "EMBED_PROVIDER"):
-        from hybrid_rag.ingestion.gemini_embedder import GeminiEmbedder
-
-        app.state.embedder = GeminiEmbedder(model=_EMBED_MODEL)
-        logger.info("Initialized GeminiEmbedder with model %s", _EMBED_MODEL)
-    else:
-        app.state.embedder = OllamaEmbedder(ollama_url=_OLLAMA_URL, model=_EMBED_MODEL)
-        logger.info("Initialized OllamaEmbedder with model %s", _EMBED_MODEL)
+    app.state.embedder = OllamaEmbedder(ollama_url=_OLLAMA_URL, model=_EMBED_MODEL)
+    logger.info("Initialized OllamaEmbedder with model %s", _EMBED_MODEL)
 
     app.state.retriever = HybridRetriever(
         graph_store=app.state.graph_store,
@@ -300,7 +303,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
@@ -565,165 +568,61 @@ def _build_prompt(
 
 
 async def _llm_generate(prompt: str, model: str) -> str:
-    """Unified LLM generate helper supporting Ollama and Gemini with full tracing."""
-    is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
-
-    with start_span(
-        "llm_generate", {"model": model, "provider": "gemini" if is_gemini else "ollama"}
-    ):
+    """Generate an answer through the local Ollama service with full tracing."""
+    with start_span("llm_generate", {"model": model, "provider": "ollama"}):
         client = app.state.http_client
-        if is_gemini:
-            api_key = os.environ.get("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError(
-                    "GEMINI_API_KEY environment variable is not set. Please set GEMINI_API_KEY to use Gemini models, or switch to an Ollama model."
-                )
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.0},
-            }
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            res_json = resp.json()
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+            "options": {"num_ctx": _estimate_num_ctx(prompt)},
+        }
+        resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
+        resp.raise_for_status()
+        res_json = resp.json()
+        prompt_tokens = res_json.get("prompt_eval_count", 0)
+        candidates_tokens = res_json.get("eval_count", 0)
+        if prompt_tokens > 0:
+            LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
+        if candidates_tokens > 0:
+            LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(candidates_tokens)
+        return res_json.get("response", "")
 
-            usage = res_json.get("usageMetadata") or res_json.get("usage_metadata") or {}
-            if usage:
-                prompt_tokens = (
-                    usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
-                )
-                candidates_tokens = (
-                    usage.get("candidatesTokenCount") or usage.get("candidates_token_count") or 0
-                )
-                total_tokens = usage.get("totalTokenCount") or usage.get("total_token_count") or 0
-                logger.info(
-                    "Gemini generation tokens: prompt=%d, completion=%d, total=%d",
-                    prompt_tokens,
-                    candidates_tokens,
-                    total_tokens,
-                )
+
+async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
+    """Stream an answer from the local Ollama service in event-stream format."""
+    client = app.state.http_client
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": True,
+        "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
+        "options": {"num_ctx": _estimate_num_ctx(prompt)},
+    }
+    async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
+        resp.raise_for_status()
+        async for line in resp.aiter_lines():
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            token = data.get("response", "")
+            if data.get("done", False):
+                prompt_tokens = data.get("prompt_eval_count", 0)
+                candidates_tokens = data.get("eval_count", 0)
                 if prompt_tokens > 0:
                     LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
                 if candidates_tokens > 0:
                     LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
                         candidates_tokens
                     )
-
-            candidates = res_json.get("candidates", [])
-            if candidates:
-                content = candidates[0].get("content", {})
-                parts = content.get("parts", [])
-                if parts:
-                    return parts[0].get("text", "")
-            return ""
-        else:
-            payload = {
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-                "options": {"num_ctx": _estimate_num_ctx(prompt)},
-            }
-            resp = await client.post(f"{_OLLAMA_URL}/api/generate", json=payload)
-            resp.raise_for_status()
-            res_json = resp.json()
-            prompt_tokens = res_json.get("prompt_eval_count", 0)
-            candidates_tokens = res_json.get("eval_count", 0)
-            if prompt_tokens > 0:
-                LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(prompt_tokens)
-            if candidates_tokens > 0:
-                LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
-                    candidates_tokens
-                )
-            return res_json.get("response", "")
-
-
-async def _llm_stream(prompt: str, model: str) -> AsyncIterator[str]:
-    """Unified LLM streaming helper supporting Ollama and Gemini (yielding event-stream format)."""
-    is_gemini = _is_gemini_provider(model, "LLM_PROVIDER")
-    client = app.state.http_client
-
-    if is_gemini:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY environment variable is not set. Please set GEMINI_API_KEY to use Gemini models, or switch to an Ollama model."
-            )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.0},
-        }
-        async with client.stream("POST", url, json=payload) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line or not line.startswith("data: "):
-                    continue
-                try:
-                    data = json.loads(line[6:])
-                except json.JSONDecodeError:
-                    continue
-
-                usage = data.get("usageMetadata") or data.get("usage_metadata")
-                if usage:
-                    prompt_tokens = (
-                        usage.get("promptTokenCount") or usage.get("prompt_token_count") or 0
-                    )
-                    candidates_tokens = (
-                        usage.get("candidatesTokenCount")
-                        or usage.get("candidates_token_count")
-                        or 0
-                    )
-                    if prompt_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(
-                            prompt_tokens
-                        )
-                    if candidates_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
-                            candidates_tokens
-                        )
-
-                candidates = data.get("candidates", [])
-                if candidates:
-                    content = candidates[0].get("content", {})
-                    parts = content.get("parts", [])
-                    if parts:
-                        token = parts[0].get("text", "")
-                        yield f"data: {json.dumps({'token': token, 'done': False})}\n\n"
-            yield f"data: {json.dumps({'token': '', 'done': True})}\n\n"
-    else:
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": True,
-            "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", "5m"),
-            "options": {"num_ctx": _estimate_num_ctx(prompt)},
-        }
-        async with client.stream("POST", f"{_OLLAMA_URL}/api/generate", json=payload) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                token = data.get("response", "")
-                if data.get("done", False):
-                    prompt_tokens = data.get("prompt_eval_count", 0)
-                    candidates_tokens = data.get("eval_count", 0)
-                    if prompt_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="prompt").inc(
-                            prompt_tokens
-                        )
-                    if candidates_tokens > 0:
-                        LLM_TOKENS_CONSUMED.labels(model=model, token_type="completion").inc(
-                            candidates_tokens
-                        )
-                done = bool(data.get("done", False))
-                yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
-                if done:
-                    break
+            done = bool(data.get("done", False))
+            yield f"data: {json.dumps({'token': token, 'done': done})}\n\n"
+            if done:
+                break
 
 
 # ── GET / ──────────────────────────────────────────────────────────────────────
@@ -840,6 +739,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
     t0 = time.perf_counter()
 
     # 1. Check Redis Cache
+    cache_generation = await app.state.query_cache.get_generation()
     cache_key = RedisQueryCache.generate_key(
         question=req.question,
         codebase_query=req.codebase_query,
@@ -850,6 +750,7 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
         max_tokens=req.max_tokens,
         max_chars=req.max_chars,
         stream=False,
+        cache_generation=cache_generation,
     )
 
     cached_resp = await app.state.query_cache.get(cache_key)
@@ -1014,24 +915,6 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
 
     QUERY_DURATION.labels(query_type=q_type, cache_status="miss").observe(time.perf_counter() - t0)
 
-    if req.codebase_query:
-        try:
-            import tiktoken
-
-            try:
-                count_res = app.state.vector_store._client.count(
-                    collection_name=app.state.vector_store._collection, exact=True
-                )
-                codebase_tokens = count_res.count * 300
-            except Exception:
-                codebase_tokens = 160000
-
-            prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
-            saved_tokens = max(0, codebase_tokens - prompt_tokens)
-            RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(saved_tokens)
-        except Exception as e:
-            logger.warning("Failed to count RAG tokens saved: %s", e)
-
     try:
         await app.state.query_cache.set(cache_key, response.model_dump())
     except Exception as exc:
@@ -1054,6 +937,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
     """
     t0 = time.perf_counter()
     # 1. Check Redis Cache
+    cache_generation = await app.state.query_cache.get_generation()
     cache_key = RedisQueryCache.generate_key(
         question=req.question,
         codebase_query=req.codebase_query,
@@ -1064,6 +948,7 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
         max_tokens=req.max_tokens,
         max_chars=req.max_chars,
         stream=True,
+        cache_generation=cache_generation,
     )
 
     cached_events = await app.state.query_cache.get(cache_key)
@@ -1259,26 +1144,6 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 time.perf_counter() - t0
             )
 
-            if req.codebase_query:
-                try:
-                    import tiktoken
-
-                    try:
-                        count_res = app.state.vector_store._client.count(
-                            collection_name=app.state.vector_store._collection, exact=True
-                        )
-                        codebase_tokens = count_res.count * 300
-                    except Exception:
-                        codebase_tokens = 160000
-
-                    prompt_tokens = len(tiktoken.get_encoding("cl100k_base").encode(prompt))
-                    saved_tokens = max(0, codebase_tokens - prompt_tokens)
-                    RAG_TOKENS_SAVED.labels(model=req.llm_model, query_type=q_type).inc(
-                        saved_tokens
-                    )
-                except Exception as e:
-                    logger.warning("Failed to count RAG tokens saved: %s", e)
-
             # Cache the successful stream
             try:
                 await app.state.query_cache.set(cache_key, events_accumulated)
@@ -1327,7 +1192,6 @@ async def get_master_graph() -> dict[str, Any]:
         _NOISE_PATTERNS = [
             "node_modules",
             ".agents",
-            ".gemini",
             ".venv",
             "venv",
             "__pycache__",
@@ -1763,6 +1627,11 @@ async def process_indexing_task(
                     "Auto community-build failed for task %s: %s", task_id, community_exc
                 )
 
+            if await app_state.query_cache.bump_generation():
+                add_log("Invalidated cached query responses for the previous index generation.")
+            else:
+                add_log("Query cache unavailable; caching remains disabled or fail-open.")
+
             task["status"] = "completed"
             task["completed_at"] = datetime.datetime.now().isoformat()
             add_log(
@@ -1798,10 +1667,32 @@ async def trigger_index(
             status_code=400,
             detail=f"Provided repo_path does not exist or is not a directory: {req.repo_path}",
         )
+    if not _is_allowed_index_path(path):
+        raise HTTPException(
+            status_code=403,
+            detail="repo_path is outside configured INDEX_ROOTS or repositories",
+        )
     req.repo_path = translated
 
-    task_id = str(uuid.uuid4())
     repo_name = req.repo_name or path.name
+    active_task = next(
+        (
+            task
+            for task in app.state.indexing_tasks.values()
+            if task["repository"] == repo_name and task["status"] in ("pending", "running")
+        ),
+        None,
+    )
+    if active_task is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Indexing task {active_task['task_id']} is already active for repository "
+                f"{repo_name}."
+            ),
+        )
+
+    task_id = str(uuid.uuid4())
 
     task = {
         "task_id": task_id,

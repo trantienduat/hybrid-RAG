@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from hybrid_rag.eval.answer_quality import (
+    RAGAS_JUDGE_MAX_TOKENS,
     AnswerQualityRunner,
     GenerationResult,
     GoldAnswerCase,
@@ -352,6 +353,10 @@ def test_runner_rejects_remote_ollama_url():
             judge_model="judge",
             embedding_model="embed",
         )
+
+
+def test_ragas_judge_has_room_for_structured_scores():
+    assert RAGAS_JUDGE_MAX_TOKENS == 4096
 
 
 def test_runner_rejects_mismatched_source_snapshot():

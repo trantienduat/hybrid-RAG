@@ -26,6 +26,7 @@ _CHECKPOINT_INDEX_FIELDS = (
     "index_schema_version",
     "embedding_model",
 )
+RAGAS_JUDGE_MAX_TOKENS = 4096
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
@@ -300,6 +301,7 @@ def _build_answer_metrics(
         provider="openai",
         client=client,
         temperature=0,
+        max_tokens=RAGAS_JUDGE_MAX_TOKENS,
     )
     embeddings = OpenAIEmbeddings(client=client, model=embedding_model)
     return (

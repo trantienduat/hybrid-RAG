@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hybrid-RAG — project presentation</title>
+  <style>
+    :root {
+      --bg: #0a0f1f;
+      --panel: #111a31;
+      --panel-2: #172341;
+      --ink: #f5f7ff;
+      --muted: #a9b5d0;
+      --cyan: #6ce7f5;
+      --orange: #ffb86b;
+      --green: #93e6a7;
+      --line: rgba(255,255,255,.16);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .deck { width: 100vw; height: 100vh; position: relative; }
+    .slide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      padding: 7vh 8vw 8vh;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2.4vh;
+      background:
+        radial-gradient(circle at 88% 10%, rgba(108,231,245,.12), transparent 28%),
+        radial-gradient(circle at 8% 90%, rgba(255,184,107,.10), transparent 25%),
+        var(--bg);
+    }
+    .slide.active { display: flex; }
+    .slide::after {
+      content: "HYBRID-RAG / LOCAL CODE INTELLIGENCE";
+      position: absolute;
+      right: 8vw;
+      bottom: 3vh;
+      color: rgba(245,247,255,.36);
+      font-size: 11px;
+      letter-spacing: .16em;
+    }
+    .kicker { color: var(--cyan); text-transform: uppercase; letter-spacing: .18em; font-size: 15px; font-weight: 700; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { max-width: 980px; font-size: clamp(42px, 6vw, 76px); line-height: 1.02; letter-spacing: -.045em; }
+    h2 { max-width: 1080px; font-size: clamp(31px, 4vw, 50px); line-height: 1.06; letter-spacing: -.035em; }
+    h3 { font-size: clamp(20px, 2vw, 28px); line-height: 1.15; }
+    .lead { max-width: 920px; color: var(--muted); font-size: clamp(19px, 2.1vw, 29px); line-height: 1.35; }
+    .small { color: var(--muted); font-size: 15px; line-height: 1.45; }
+    .accent { color: var(--orange); }
+    .green { color: var(--green); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; align-items: start; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5vw; align-items: stretch; }
+    .rule { width: 110px; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--orange)); }
+    .line-list { display: grid; gap: 1.1rem; }
+    .line-list p { padding-left: 1.1rem; border-left: 3px solid var(--cyan); color: var(--muted); font-size: clamp(17px, 1.6vw, 23px); line-height: 1.35; }
+    .line-list strong { color: var(--ink); }
+    .note-box { padding: 1.3rem 1.5rem; border: 1px solid var(--line); border-radius: 14px; background: rgba(23,35,65,.7); }
+    .note-box p { color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .65rem; margin-top: 1rem; }
+    .node { min-width: 150px; padding: 1rem 1.1rem; border: 1px solid rgba(108,231,245,.5); border-radius: 12px; background: var(--panel); text-align: center; color: var(--ink); font-size: 17px; line-height: 1.2; }
+    .node span { display: block; color: var(--muted); font-size: 13px; margin-top: .35rem; }
+    .arrow { color: var(--orange); font-size: 29px; }
+    .metric-table { width: 100%; border-collapse: collapse; font-size: clamp(15px, 1.5vw, 20px); }
+    .metric-table th, .metric-table td { text-align: left; padding: .8rem .95rem; border-bottom: 1px solid var(--line); }
+    .metric-table th { color: var(--cyan); font-size: .82em; text-transform: uppercase; letter-spacing: .11em; }
+    .metric-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+    .callout { padding: 1.1rem 1.3rem; border-left: 4px solid var(--orange); background: rgba(255,184,107,.08); color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .steps { counter-reset: step; display: grid; gap: .8rem; }
+    .step { counter-increment: step; display: grid; grid-template-columns: 2.3rem 1fr; gap: .7rem; align-items: start; color: var(--muted); font-size: 18px; line-height: 1.35; }
+    .step::before { content: counter(step); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--cyan); color: var(--bg); font-weight: 800; }
+    code { color: var(--green); font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; }
+    .progress { position: fixed; z-index: 5; left: 0; top: 0; width: 100%; height: 4px; background: rgba(255,255,255,.08); }
+    .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--orange)); transition: width .2s ease; }
+    .counter { position: fixed; z-index: 5; left: 8vw; bottom: 3vh; color: rgba(245,247,255,.5); font-size: 13px; letter-spacing: .1em; }
+    .hint { position: fixed; z-index: 5; right: 8vw; top: 3vh; color: rgba(245,247,255,.46); font-size: 12px; }
+    .notes { display: none; }
+    body.show-notes .notes { display: block; position: fixed; z-index: 10; left: 8vw; right: 8vw; bottom: 8vh; padding: 1rem; border: 1px solid var(--orange); border-radius: 10px; background: #15101a; color: #ffe4c4; font-size: 15px; }
+    @media (max-width: 800px) {
+      .two-col, .three-col { grid-template-columns: 1fr; gap: 1rem; }
+      .slide { padding: 6vh 7vw 9vh; }
+      .slide::after { display: none; }
+      .flow { justify-content: flex-start; }
+      .arrow { transform: rotate(90deg); }
+    }
+    @media print {
+      body { overflow: visible; background: white; color: black; }
+      .slide { display: flex !important; position: relative; min-height: 100vh; page-break-after: always; background: white; color: black; }
+      .slide::after, .progress, .counter, .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress"><span id="progress"></span></div>
+  <div class="counter" id="counter"></div>
+  <div class="hint">← → navigate · N speaker notes · H help</div>
+  <main class="deck">
+    <section class="slide active">
+      <div class="kicker">Project presentation</div>
+      <h1>Hybrid-RAG gives codebase questions two kinds of memory.</h1>
+      <div class="rule"></div>
+      <p class="lead">Graph structure explains how code is connected. Vector search explains what code means. Local Ollama turns the combined evidence into an answer.</p>
+      <p class="small">A repository-scoped, Python-first system with reproducible evaluation and explicit safety boundaries.</p>
+      <aside class="notes">Open with the user problem: understanding a codebase is not only semantic search. The project combines relationships and meaning while keeping data and models local.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">The problem</div>
+      <h2>Code search alone cannot reliably explain execution paths.</h2>
+      <div class="three-col">
+        <div class="note-box"><h3>Vector-only</h3><p>Finds language-similar chunks, but can miss callers, inheritance, and dependency edges.</p></div>
+        <div class="note-box"><h3>Graph-only</h3><p>Finds explicit relationships, but does not understand every natural-language question.</p></div>
+        <div class="note-box"><h3>Whole-repository prompts</h3><p>Are noisy, expensive, and difficult to fit into a local model context window.</p></div>
+      </div>
+      <div class="callout">The design goal: retrieve a small, relevant context that is both semantically close and structurally connected.</div>
+      <aside class="notes">Do not claim that one retrieval method is universally bad. Explain the failure modes that motivate the combined design.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Architecture</div>
+      <h2>The query takes two paths before the model speaks.</h2>
+      <div class="flow">
+        <div class="node">CLI / API / MCP<span>one repository-scoped question</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Query analyzer<span>structural + semantic signals</span></div>
+        <div class="arrow">→</div>
+        <div class="node">FalkorDB graph<span>calls, imports, classes</span></div>
+        <div class="arrow">+</div>
+        <div class="node">Qdrant vectors<span>meaning-similar chunks</span></div>
+        <div class="arrow">→</div>
+        <div class="node">RRF + context budget<span>rank, deduplicate, fit</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Ollama<span>grounded local answer</span></div>
+      </div>
+      <p class="small">Reciprocal Rank Fusion combines independent ranked lists without requiring their raw scores to be comparable.</p>
+      <aside class="notes">Point to the two middle branches. The contribution is not inventing graph databases or vector databases; it is integrating them around code-specific retrieval and operational safeguards.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Indexing</div>
+      <h2>Indexing creates complementary views of the same source snapshot.</h2>
+      <div class="two-col">
+        <div class="line-list">
+          <p><strong>AST parser → graph.</strong> Modules, classes, functions, imports, calls, inheritance, and containment edges become queryable structure.</p>
+          <p><strong>Source chunks → vectors.</strong> Embeddings preserve semantic similarity for natural-language questions.</p>
+          <p><strong>One provenance boundary.</strong> Graph and vectors must agree on source identity, index run, schema, and embedding model.</p>
+        </div>
+        <div class="note-box">
+          <h3>Scope boundary</h3>
+          <p>Python is the supported semantic language. Java projects are rejected instead of being indexed as if they were supported.</p>
+          <p style="margin-top:1rem">Optional YAML, Markdown, and Dockerfile ingestion is generic document/configuration chunking—not AST-level semantics.</p>
+        </div>
+      </div>
+      <aside class="notes">This is an important honesty slide. Unsupported Java is a deliberate fail-closed behavior, not a hidden partial-success path.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Reliability work</div>
+      <h2>The system now fails closed around stale, mixed, or unsafe data.</h2>
+      <div class="two-col">
+        <div class="line-list">
+          <p><strong>Repository isolation.</strong> Retrieval cannot silently cross namespace boundaries.</p>
+          <p><strong>Atomic indexing.</strong> New data is published before stale data is removed.</p>
+          <p><strong>Provenance validation.</strong> Schema, embedding model, source digest, and index run must match.</p>
+        </div>
+        <div class="line-list">
+          <p><strong>Cache invalidation.</strong> Response variants and index generations are separated.</p>
+          <p><strong>Local-only provider.</strong> Gemini was removed from scope; Ollama is the enforced provider boundary.</p>
+          <p><strong>Evaluation guardrails.</strong> Missing sources, wrong metadata, or incomplete judge output fail visibly.</p>
+        </div>
+      </div>
+      <aside class="notes">Frame these as engineering improvements that make measurements and demos trustworthy. They are as important as retrieval quality.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Demo scenario</div>
+      <h2>One question shows retrieval, grounding, and the safety boundary.</h2>
+      <div class="steps">
+        <div class="step">Run a health check and open the already-indexed LlamaIndex snapshot.</div>
+        <div class="step">Ask: “What sequence does <code>BaseRetriever.retrieve</code> follow for a plain query string?”</div>
+        <div class="step">Show the answer’s source files and the retrieved callback/recursive-retrieval context.</div>
+        <div class="step">Explain where graph relationships and vector similarity each contribute.</div>
+        <div class="step">Attempt to index a tiny Java fixture and show the explicit rejection.</div>
+      </div>
+      <div class="callout">If the quality benchmark is still running, use recorded output or wait; live generation competes for the same local Ollama capacity.</div>
+      <aside class="notes">The full command sequence is in the companion demo runbook. Keep the live path short; use recorded output if local generation is slow.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Evidence checkpoint · 2026-08-02</div>
+      <h2>Quality measurement is repeatable, but the final score is still running.</h2>
+      <div class="two-col">
+        <div class="note-box">
+          <h3>Coverage</h3>
+          <p><span class="green">180/180</span> answers generated</p>
+          <p><span class="accent">42/180</span> runs scored so far</p>
+          <p>21/30 cases represented; hard cases are not yet complete</p>
+          <p>Vector vs hybrid · 3 repeats · seed 42</p>
+        </div>
+        <table class="metric-table">
+          <thead><tr><th>Judge score</th><th>Overall</th><th>Hybrid</th><th>Vector</th></tr></thead>
+          <tbody>
+            <tr><td>Faithfulness</td><td>0.907</td><td>0.920</td><td>0.895</td></tr>
+            <tr><td>Relevancy</td><td>0.792</td><td>0.847</td><td>0.737</td></tr>
+            <tr><td>Correctness</td><td>0.705</td><td>0.742</td><td>0.668</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">These are preliminary local-judge scores, not literal accuracy percentages. The final result requires all 180 scored runs.</p>
+      <aside class="notes">Say “preliminary” clearly. The current hybrid lead is encouraging, but the hard cases and repeated runs are still required before making a final claim.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">What is new here?</div>
+      <h2>The contribution is the reliability loop around known techniques.</h2>
+      <div class="line-list">
+        <p><strong>Known building blocks:</strong> hybrid retrieval, graph retrieval, RRF, AST parsing, vector search, and local LLMs.</p>
+        <p><strong>Project enhancement:</strong> combine them for code-specific questions with repository isolation, provenance checks, atomic updates, local-only enforcement, and reproducible answer-quality measurement.</p>
+        <p><strong>Practical outcome:</strong> a developer can inspect why an answer was produced, which source snapshot it used, and whether the benchmark actually completed.</p>
+      </div>
+      <aside class="notes">This answer is more credible than claiming a new retrieval algorithm. The novelty is an integrated, operationally reliable system and evaluation discipline.</aside>
+    </section>
+
+    <section class="slide">
+      <div class="kicker">Close</div>
+      <h2>Today we can demonstrate a local, code-aware retrieval system with measurable safeguards.</h2>
+      <div class="two-col">
+        <div class="line-list">
+          <p><strong>Ready to show:</strong> architecture, live query, source grounding, graph/vector roles, and Java rejection.</p>
+          <p><strong>Evidence in progress:</strong> complete 180-run answer-quality report.</p>
+        </div>
+        <div class="note-box">
+          <h3>Next validation</h3>
+          <p>Repeat the same benchmark on one additional pinned Python repository, such as Hugging Face Transformers, to test portability.</p>
+        </div>
+      </div>
+      <p class="lead">The goal is not only to answer code questions—it is to know when the answer and the measurement deserve trust.</p>
+      <aside class="notes">End by separating demonstrated capabilities from pending evidence. Invite questions about retrieval, graph/vector storage, or evaluation design.</aside>
+    </section>
+  </main>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const progress = document.getElementById('progress');
+    const counter = document.getElementById('counter');
+    let index = 0;
+    function show(next) {
+      index = Math.max(0, Math.min(slides.length - 1, next));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      counter.textContent = `${String(index + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+      history.replaceState(null, '', `#${index + 1}`);
+    }
+    function help() { alert('Arrow keys or Space: navigate\nHome / End: first or last slide\nN: toggle speaker notes\nP: print the deck'); }
+    window.addEventListener('keydown', event => {
+      if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(index + 1); }
+      if (event.key === 'ArrowLeft') { event.preventDefault(); show(index - 1); }
+      if (event.key === 'Home') show(0);
+      if (event.key === 'End') show(slides.length - 1);
+      if (event.key.toLowerCase() === 'n') document.body.classList.toggle('show-notes');
+      if (event.key.toLowerCase() === 'h') help();
+      if (event.key.toLowerCase() === 'p') window.print();
+    });
+    const initial = Number.parseInt(location.hash.slice(1), 10);
+    show(Number.isFinite(initial) && initial > 0 ? initial - 1 : 0);
+  </script>
+</body>
+</html>

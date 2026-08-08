@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hybrid-RAG — master's thesis showcase</title>
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --deep: #fbfaf7;
+      --panel: #fffdf8;
+      --ink: #1d2a34;
+      --muted: #586671;
+      --cyan: #2d6f78;
+      --orange: #b65c3c;
+      --green: #3d6f58;
+      --line: rgba(29,42,52,.18);
+      --shadow: 0 12px 30px rgba(29,42,52,.08);
+      --svg-source: #e8f0ee;
+      --svg-graph: #dcebed;
+      --svg-vector: #e6eef5;
+      --svg-process: #fffdf8;
+      --svg-decision: #f8eadf;
+      --svg-evidence: #e3f0e6;
+      --svg-limit: #f4e2da;
+      --svg-edge: #71808a;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .deck { width: 100vw; height: 100vh; position: relative; }
+    .slide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      padding: 7vh 8vw 8vh;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2.2vh;
+      background:
+        linear-gradient(90deg, rgba(45,111,120,.035) 1px, transparent 1px),
+        linear-gradient(rgba(45,111,120,.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 4rem 4rem, 4rem 4rem, auto;
+    }
+    .slide.active { display: flex; }
+    .slide::after {
+      content: "HYBRID-RAG / MASTER'S THESIS";
+      position: absolute;
+      right: 8vw;
+      bottom: 3vh;
+      color: rgba(29,42,52,.46);
+      font-size: 11px;
+      letter-spacing: .16em;
+    }
+    .slide.depth { background: var(--deep); }
+    .slide.depth::after { content: "HYBRID-RAG / SUPPORTING DETAIL"; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; }
+    h1 { max-width: 1080px; font-size: clamp(44px, 6vw, 78px); line-height: 1.02; letter-spacing: -.045em; }
+    h2 { max-width: 1160px; font-size: clamp(31px, 4vw, 52px); line-height: 1.06; letter-spacing: -.035em; }
+    h3 { font-size: clamp(20px, 2vw, 28px); line-height: 1.15; }
+    .kicker { display: flex; align-items: center; gap: .65rem; color: var(--cyan); text-transform: uppercase; letter-spacing: .18em; font-size: 15px; font-weight: 800; }
+    .kicker::before { content: ""; width: 2.1rem; height: 2px; background: var(--orange); flex: 0 0 auto; }
+    .depth .kicker { color: var(--cyan); }
+    .lead { max-width: 980px; color: var(--muted); font-size: clamp(20px, 2.1vw, 29px); line-height: 1.38; }
+    .small { color: var(--muted); font-size: 15px; line-height: 1.45; }
+    .rule { width: 110px; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--orange)); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; align-items: start; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.7vw; align-items: start; }
+    .line-list { display: grid; gap: 1rem; }
+    .line-list p { padding-left: 1.1rem; border-left: 3px solid var(--cyan); color: var(--muted); font-size: clamp(17px, 1.55vw, 23px); line-height: 1.35; }
+    .line-list strong { color: var(--ink); }
+    .note-box { padding: 1.2rem 1.45rem; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,253,248,.88); box-shadow: var(--shadow); }
+    .note-box p { color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .label { color: var(--cyan); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; }
+    .callout { padding: 1rem 1.3rem; border-left: 4px solid var(--orange); background: rgba(182,92,60,.09); color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .flow { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: .65rem; }
+    .node { flex: 1 1 0; min-width: 125px; padding: .9rem .75rem; border: 1px solid rgba(108,231,245,.5); border-radius: 12px; background: var(--panel); text-align: center; color: var(--ink); font-size: 17px; line-height: 1.2; }
+    .node span { display: block; color: var(--muted); font-size: 13px; margin-top: .35rem; }
+    .arrow { flex: 0 0 auto; color: var(--orange); font-size: 28px; }
+    .metric-table { width: 100%; border-collapse: collapse; font-size: clamp(15px, 1.45vw, 20px); }
+    .metric-table th, .metric-table td { text-align: left; padding: .72rem .9rem; border-bottom: 1px solid var(--line); }
+    .metric-table th { color: var(--cyan); font-size: .82em; text-transform: uppercase; letter-spacing: .1em; }
+    .metric-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+    .green { color: var(--green); }
+    .orange { color: var(--orange); }
+    .formula { padding: 1rem 1.2rem; border: 1px solid rgba(147,230,167,.35); border-radius: 12px; background: rgba(147,230,167,.07); color: var(--green); font: 18px/1.45 "SFMono-Regular", Consolas, monospace; }
+    .steps { counter-reset: step; display: grid; gap: .75rem; }
+    .step { counter-increment: step; display: grid; grid-template-columns: 2.3rem minmax(0, 1fr); gap: .7rem; align-items: start; color: var(--muted); font-size: 18px; line-height: 1.35; }
+    .step::before { content: counter(step); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--cyan); color: var(--bg); font-weight: 800; }
+    .diagram { width: 100%; display: grid; gap: 1rem; }
+    .diagram-row { display: grid; grid-template-columns: 8.5rem 1fr; gap: 1.1rem; align-items: center; }
+    .lane-title { color: var(--cyan); font-size: 13px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .lane { display: flex; align-items: stretch; min-width: 0; }
+    .d-node { position: relative; flex: 1 1 0; min-width: 0; padding: .8rem .75rem; border: 1px solid rgba(108,231,245,.42); background: rgba(21,32,59,.8); color: var(--ink); text-align: center; font-size: 16px; line-height: 1.18; }
+    .d-node:first-child { border-radius: 12px 0 0 12px; }
+    .d-node:last-child { border-radius: 0 12px 12px 0; }
+    .d-node:only-child { border-radius: 12px; }
+    .d-node + .d-node { border-left: 0; }
+    .d-node + .d-node::before { content: "→"; position: absolute; z-index: 2; left: 0; top: 50%; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; transform: translate(-50%,-50%); border-radius: 50%; background: var(--bg); color: var(--orange); font-weight: 900; }
+    .d-node span { display: block; margin-top: .3rem; color: var(--muted); font-size: 12px; }
+    .d-node.graph { border-color: rgba(255,184,107,.5); background: rgba(255,184,107,.08); }
+    .d-node.vector { border-color: rgba(108,231,245,.5); background: rgba(108,231,245,.08); }
+    .d-node.merge { border-color: rgba(147,230,167,.55); background: rgba(147,230,167,.09); }
+    .split-stage { display: grid; grid-template-columns: .8fr 1.4fr 1.4fr .9fr; gap: .65rem; align-items: stretch; }
+    .split-stage > * { position: relative; }
+    .split-stage > *:not(:last-child)::after { content: "→"; position: absolute; z-index: 3; right: -.72rem; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--bg); color: var(--orange); font-weight: 900; }
+    .split-stage .d-node + .d-node::before { display: none; }
+    .split-source, .split-target { display: grid; place-items: center; }
+    .branch-stack { display: grid; gap: .55rem; position: relative; }
+    .branch-stack::before { content: ""; position: absolute; left: -.35rem; top: 25%; bottom: 25%; border-left: 2px solid var(--line); }
+    .branch { padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 10px; background: rgba(21,32,59,.72); font-size: 15px; line-height: 1.2; }
+    .branch.graph { border-color: rgba(255,184,107,.55); }
+    .branch.vector { border-color: rgba(108,231,245,.55); }
+    .branch small { display: block; margin-top: .25rem; color: var(--muted); font-size: 12px; }
+    .between-arrow { display: grid; place-items: center; color: var(--orange); font-size: 25px; }
+    .evidence-map { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 1.2rem; align-items: stretch; }
+    .evidence-column { display: grid; align-content: center; gap: .65rem; }
+    .evidence-column .branch { min-height: 62px; }
+    .focus-symbol { display: grid; place-items: center; align-content: center; gap: .65rem; padding: 1.2rem; border: 2px solid var(--green); border-radius: 18px; background: rgba(147,230,167,.08); text-align: center; }
+    .focus-symbol strong { font: 600 20px/1.25 "SFMono-Regular", Consolas, monospace; color: var(--green); }
+    .focus-symbol span { color: var(--muted); font-size: 14px; }
+    .edge-tag { color: var(--orange); font: 700 11px/1.1 "SFMono-Regular", Consolas, monospace; letter-spacing: .06em; }
+    .fusion { display: grid; grid-template-columns: 1fr 1fr .85fr 1fr; gap: .8rem; align-items: stretch; }
+    .rank-list { padding: .75rem; border: 1px solid var(--line); border-radius: 12px; background: rgba(21,32,59,.66); }
+    .rank-list.graph { border-top: 3px solid var(--orange); }
+    .rank-list.vector { border-top: 3px solid var(--cyan); }
+    .rank-list.merge { border-top: 3px solid var(--green); }
+    .rank-list ol { margin: .55rem 0 0; padding-left: 1.6rem; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .rank-list li::marker { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .fusion-op { display: grid; place-items: center; align-content: center; gap: .5rem; text-align: center; color: var(--muted); }
+    .fusion-op { position: relative; }
+    .fusion-op::before, .fusion-op::after { position: absolute; top: 44%; color: var(--orange); font-size: 24px; font-weight: 900; }
+    .fusion-op::before { content: "⇢"; left: -.75rem; }
+    .fusion-op::after { content: "→"; right: -.7rem; }
+    .fusion-op strong { display: grid; place-items: center; width: 4.2rem; height: 4.2rem; border-radius: 50%; border: 2px solid var(--green); color: var(--green); font-size: 20px; }
+    .gate-flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: .65rem; align-items: stretch; }
+    .gate { position: relative; min-height: 116px; padding: .8rem; border-top: 3px solid var(--cyan); background: rgba(21,32,59,.68); color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .gate:not(:last-child)::after { content: "→"; position: absolute; right: -.62rem; top: 43%; z-index: 2; color: var(--orange); font-size: 21px; }
+    .gate strong { display: block; margin-bottom: .4rem; color: var(--ink); font-size: 16px; }
+    .gate .reject { display: block; margin-top: .5rem; padding-top: .4rem; border-top: 1px solid rgba(255,184,107,.35); color: var(--orange); font-size: 12px; }
+    .gate.publish { border-top-color: var(--green); }
+    .demo-sequence { display: grid; grid-template-columns: 4.8rem 1fr 1.1fr; border-top: 1px solid var(--line); }
+    .demo-sequence > div { padding: .62rem .8rem; border-bottom: 1px solid var(--line); }
+    .demo-head { color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; font-weight: 800; }
+    .demo-number { color: var(--orange); font: 800 20px/1 "SFMono-Regular", Consolas, monospace; }
+    .demo-action { color: var(--ink); font-size: 16px; }
+    .demo-proof { color: var(--muted); font-size: 15px; }
+    .schema-map { display: grid; grid-template-columns: 1.2fr .8fr; gap: 1.5rem; align-items: stretch; }
+    .schema-tree { display: grid; gap: .6rem; padding: 1rem; border-left: 3px solid var(--cyan); background: rgba(21,32,59,.56); }
+    .schema-level { display: flex; align-items: center; gap: .5rem; }
+    .schema-level:nth-child(2) { padding-left: 1.6rem; }
+    .schema-level:nth-child(3) { padding-left: 3.2rem; }
+    .schema-level:nth-child(4) { padding-left: 4.8rem; }
+    .schema-node { padding: .45rem .7rem; border: 1px solid rgba(108,231,245,.45); border-radius: 8px; color: var(--ink); font-size: 15px; }
+    .schema-edge { color: var(--orange); font: 700 11px/1 "SFMono-Regular", Consolas, monospace; }
+    .dependency-path { display: grid; align-content: center; gap: .65rem; padding: 1rem; border: 1px solid rgba(255,184,107,.45); border-radius: 14px; background: rgba(255,184,107,.06); }
+    .path-line { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+    .path-line strong { color: var(--ink); }
+    code { color: var(--green); font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; background: rgba(61,111,88,.08); padding: .05em .2em; }
+    .progress { position: fixed; z-index: 5; left: 0; top: 0; width: 100%; height: 4px; background: rgba(29,42,52,.10); }
+    .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--orange)); transition: width .2s ease; }
+    .counter { position: fixed; z-index: 5; left: 8vw; bottom: 3vh; color: rgba(29,42,52,.62); font-size: 13px; letter-spacing: .1em; }
+    .hint { position: fixed; z-index: 5; right: 8vw; top: 3vh; color: rgba(29,42,52,.62); font-size: 12px; }
+    .depth-cue { position: absolute; z-index: 3; left: 50%; bottom: 2.6vh; transform: translateX(-50%); color: rgba(45,111,120,.78); font-size: 12px; letter-spacing: .08em; white-space: nowrap; }
+    .depth-cue strong { color: var(--cyan); }
+    .depth-parent { position: absolute; z-index: 3; left: 8vw; top: 3vh; color: rgba(45,111,120,.78); font-size: 12px; letter-spacing: .08em; }
+    .notes { display: none; }
+    body.show-notes .notes { display: block; position: fixed; z-index: 10; left: 8vw; right: 8vw; bottom: 7vh; max-height: 34vh; overflow: auto; padding: 1.1rem 1.25rem; border: 1px solid var(--cyan); border-radius: 6px; background: rgba(29,42,52,.98); color: #f7f4ec; font-size: 16px; line-height: 1.5; box-shadow: 0 18px 50px rgba(29,42,52,.25); }
+
+    /* Thesis-defense diagram system: geometry carries meaning; color confirms it. */
+    .svg-diagram { display: block; width: 100%; height: auto; max-height: 36vh; min-height: 220px; overflow: visible; }
+    .svg-diagram text { font-family: Inter, ui-sans-serif, system-ui, sans-serif; fill: var(--ink); }
+    .svg-diagram .svg-edge { fill: none; stroke: var(--svg-edge); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+    .svg-diagram .svg-edge.graph { stroke: var(--cyan); }
+    .svg-diagram .svg-edge.vector { stroke: var(--orange); }
+    .svg-diagram .svg-edge.limit { stroke: var(--orange); stroke-dasharray: 5 5; }
+    .svg-diagram .svg-arrow { fill: var(--svg-edge); }
+    .svg-diagram .svg-source { fill: var(--svg-source); stroke: var(--cyan); stroke-width: 1.5; }
+    .svg-diagram .svg-store { stroke-width: 1.5; }
+    .svg-diagram .svg-store.graph { fill: var(--svg-graph); stroke: var(--cyan); }
+    .svg-diagram .svg-store.vector { fill: var(--svg-vector); stroke: var(--orange); }
+    .svg-diagram .svg-process { fill: var(--svg-process); stroke: var(--ink); stroke-width: 1.5; }
+    .svg-diagram .svg-decision { fill: var(--svg-decision); stroke: var(--orange); stroke-width: 1.5; }
+    .svg-diagram .svg-evidence { fill: var(--svg-evidence); stroke: var(--green); stroke-width: 1.5; }
+    .svg-diagram .svg-limit { fill: var(--svg-limit); stroke: var(--orange); stroke-width: 1.5; }
+    .svg-diagram .svg-merge { fill: var(--svg-evidence); stroke: var(--green); stroke-width: 1.5; }
+    .svg-diagram .svg-title { font-size: 16px; font-weight: 800; }
+    .svg-diagram .svg-subtitle { font-size: 12px; fill: var(--muted); }
+    .svg-diagram .svg-small { font-size: 11px; fill: var(--muted); }
+    .svg-diagram .svg-code { font: 700 12px "SFMono-Regular", Consolas, monospace; fill: var(--green); }
+    .svg-diagram .svg-route { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .svg-diagram .svg-edge-label { font: 700 10px "SFMono-Regular", Consolas, monospace; fill: var(--muted); letter-spacing: .04em; }
+    .svg-diagram .svg-uncertain { fill: var(--orange); }
+    .svg-diagram:focus { outline: 2px solid var(--cyan); outline-offset: 6px; }
+    .svg-caption { margin-top: .35rem; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
+    .process-note { display: grid; grid-template-columns: auto 1fr; gap: .65rem; align-items: center; }
+    .process-note strong { color: var(--orange); font: 700 12px "SFMono-Regular", Consolas, monospace; letter-spacing: .05em; }
+    .metric-table tbody tr:first-child td { border-top: 1px solid var(--line); }
+    .metric-table td:first-child { color: var(--ink); font-weight: 650; }
+    .metric-table .green { color: var(--green); font-weight: 800; }
+    .metric-table .orange { color: var(--orange); font-weight: 800; }
+    .diagram, .fusion, .gate-flow, .schema-map { position: relative; }
+    .node, .d-node, .branch, .rank-list, .gate, .schema-tree, .dependency-path, .focus-symbol { background: var(--panel); border-color: var(--line); box-shadow: var(--shadow); }
+    .d-node.graph, .branch.graph, .rank-list.graph { background: var(--svg-graph); border-color: rgba(45,111,120,.45); }
+    .d-node.vector, .branch.vector, .rank-list.vector { background: var(--svg-vector); border-color: rgba(182,92,60,.45); }
+    .d-node.merge, .rank-list.merge { background: var(--svg-evidence); border-color: rgba(61,111,88,.48); }
+    .focus-symbol { border-color: var(--green); background: var(--svg-evidence); }
+    .focus-symbol strong { color: var(--green); }
+    .formula { background: var(--svg-evidence); border-color: rgba(61,111,88,.42); }
+    .gate { border-top-color: var(--cyan); }
+    .gate.publish { border-top-color: var(--green); }
+    .schema-tree { border-left-color: var(--cyan); }
+    .dependency-path { border-color: rgba(182,92,60,.45); background: var(--svg-limit); }
+    .demo-sequence { border-color: var(--line); }
+    .demo-sequence > div { border-color: var(--line); }
+    .demo-head { color: var(--cyan); }
+    .demo-number { color: var(--orange); }
+    .demo-action { color: var(--ink); }
+    .demo-proof { color: var(--muted); }
+    @media (prefers-reduced-motion: reduce) { .progress span, .direction, .svg-diagram * { transition: none !important; animation: none !important; } }
+    @media (max-width: 800px) {
+      .two-col, .three-col { grid-template-columns: 1fr; gap: 1rem; }
+      .slide { padding: 6vh 7vw 9vh; }
+      .counter { bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
+      .hint { left: 7vw; right: 7vw; top: 3vh; text-align: center; font-size: 10px; line-height: 1.25; }
+      .depth-cue { left: 7vw; right: 7vw; bottom: 1.4vh; transform: none; max-width: 86vw; white-space: normal; text-align: center; font-size: 10px; line-height: 1.25; }
+      .depth-parent { top: 6vh; font-size: 10px; }
+      .svg-diagram { max-height: 32vh; min-height: 180px; }
+      .slide::after { display: none; }
+      .flow { flex-wrap: wrap; justify-content: flex-start; }
+      .arrow { transform: rotate(90deg); }
+      .diagram-row { grid-template-columns: 1fr; }
+      .split-stage, .evidence-map, .fusion, .gate-flow, .schema-map { grid-template-columns: 1fr; }
+      .demo-sequence { grid-template-columns: 3rem 1fr; }
+      .demo-proof { grid-column: 2; }
+    }
+    @media print {
+      body { overflow: visible; background: white; color: black; }
+      .slide { display: flex !important; position: relative; min-height: 100vh; page-break-after: always; background: white; color: black; }
+      .slide::after, .progress, .counter, .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress"><span id="progress"></span></div>
+  <div class="counter" id="counter"></div>
+  <div class="hint">← → core argument · ↓ supporting detail · ↑ return · N transcript · H help</div>
+  <main class="deck">
+    <section class="slide active" data-axis="core">
+      <div class="kicker">Master's thesis showcase</div>
+      <h1>Code Retrieval with Hybrid-RAG</h1>
+      <div class="rule"></div>
+      <p class="lead">Combining AST-derived knowledge graphs and semantic search for repository-scoped code questions.</p>
+      <p class="small">Tran Tien Doat · Computer Science · 2026</p>
+      <aside class="notes"><strong>Transcript:</strong> This thesis studies code retrieval for questions that cannot be answered by text similarity alone. The system combines semantic search with relationships extracted from Python source code. My goal is not to claim a new retrieval algorithm. It is to show that these techniques can be integrated into a repository-scoped system whose evidence, behavior and limitations are inspectable.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 02 / 15 · motivation</div>
+      <h2>A code question is often a relationship question.</h2>
+      <div class="two-col">
+        <div class="note-box">
+          <div class="label">Representative question</div>
+          <p>“What sequence does <code>BaseRetriever.retrieve</code> follow for a plain query string, including callbacks and recursive retrieval?”</p>
+        </div>
+        <div class="line-list">
+          <p><strong>Semantic evidence</strong> finds code about retrievers, callbacks and query bundles.</p>
+          <p><strong>Structural evidence</strong> connects the methods and events that form the execution path.</p>
+        </div>
+      </div>
+      <div class="callout">A semantically similar chunk can mention retrieval without containing the relationships needed to explain the sequence.</div>
+      <aside class="notes"><strong>Transcript:</strong> Consider this question about <code>BaseRetriever.retrieve</code>. A vector search can find code containing words such as retrieval, callback or query. However, the answer also depends on which method calls another method and where callback events occur. That is the gap: semantic similarity finds relevant neighborhoods, while structural relationships help reconstruct the execution sequence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 03 / 15 · investigation</div>
+      <h2>Three questions connect usefulness, cost and evidence strength.</h2>
+      <div class="line-list">
+        <p><strong>RQ1 · Answer quality:</strong> How do Faithfulness, Answer Relevancy and Answer Correctness change versus vector-only retrieval?</p>
+        <p><strong>RQ2 · Efficiency trade-off:</strong> What changes in retrieval latency, local generation latency and token counts?</p>
+        <p><strong>RQ3 · Evidence strength:</strong> Which observed differences remain above or below zero under paired 95% confidence intervals?</p>
+      </div>
+      <p class="small">Scope: Python semantic indexing · one pinned LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
+      <aside class="notes"><strong>Transcript:</strong> The evaluation asks three connected questions. First, does hybrid context improve the generated answer? Second, what latency and token trade-off accompanies that change? Third, how certain are the observed differences when the same thirty questions are compared as pairs? This framing prevents a positive average from being presented as proof when its confidence interval still includes zero.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 04 / 15 · claim boundary</div>
+      <h2>The experiment is controlled—but deliberately narrow.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Dimension</th><th>Executed</th><th>Not established</th></tr></thead>
+        <tbody>
+          <tr><td>Repository</td><td><code>llama-index-core==0.14.21</code></td><td>Cross-repository generality</td></tr>
+          <tr><td>Language</td><td>Python AST semantics</td><td>Java or Go indexing</td></tr>
+          <tr><td>Baseline</td><td>Vector-only under matched settings</td><td>BM25, graph-only, external GraphRAG</td></tr>
+          <tr><td>Ground truth</td><td>30 AI source-reviewed references</td><td>Independent human accuracy</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">The valid claim is “better on this pinned paired workload,” not “universally better RAG.”</div>
+      <aside class="notes"><strong>Transcript:</strong> This experiment is controlled because both modes use the same source snapshot, questions, models and repeats. It is narrow because it covers one Python repository and one executed baseline. The reference answers were checked against source by an AI reviewer, not independently adjudicated by humans. I therefore report a workload-specific comparison and keep cross-repository, cross-language and human-accuracy claims open.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 05 / 15 · proposed system</div>
+      <h2>One indexed source supports three query-aware retrieval paths.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 385" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
+        <title id="routing-title">Hybrid-RAG indexing and query routing</title>
+        <desc id="routing-desc">A pinned source creates graph and vector representations. A query analyzer selects exact relation, generic local, or global community retrieval.</desc>
+        <defs>
+          <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
+        </defs>
+        <text x="36" y="20" class="svg-route">INDEX ONCE</text>
+        <path d="M236 78 H288 V51 H322" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M236 78 H288 V133 H322" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <path d="M502 51 H550 V82 H592" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M502 133 H550 V102 H592" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <rect x="36" y="44" width="200" height="68" rx="5" class="svg-source" />
+        <text x="56" y="71" class="svg-title">Pinned Python source</text><text x="56" y="92" class="svg-subtitle">digest + repository namespace</text>
+        <rect x="322" y="17" width="180" height="68" rx="5" class="svg-store graph" />
+        <text x="342" y="44" class="svg-title">AST graph</text><text x="342" y="65" class="svg-subtitle">FalkorDB · explicit edges</text>
+        <rect x="322" y="99" width="180" height="68" rx="5" class="svg-store vector" />
+        <text x="342" y="126" class="svg-title">Semantic chunks</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
+        <rect x="592" y="69" width="214" height="68" rx="5" class="svg-merge" />
+        <text x="612" y="96" class="svg-title">One index identity</text><text x="612" y="117" class="svg-subtitle">schema · model · run</text>
+
+        <text x="36" y="194" class="svg-route">ROUTE PER QUESTION</text>
+        <path d="M236 252 H322" class="svg-edge" marker-end="url(#routing-arrow)" />
+        <path d="M502 252 H548" class="svg-edge" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 H676 V220 H710" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 H710" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 H676 V304 H710" class="svg-edge" marker-end="url(#routing-arrow)" />
+        <rect x="36" y="218" width="200" height="68" rx="5" class="svg-process" />
+        <text x="56" y="245" class="svg-title">User question</text><text x="56" y="266" class="svg-subtitle">repository scope optional</text>
+        <rect x="322" y="218" width="180" height="68" rx="5" class="svg-process" />
+        <text x="342" y="245" class="svg-title">Query analyzer</text><text x="342" y="266" class="svg-subtitle">intent + entity signals</text>
+        <polygon points="595,207 642,252 595,297 548,252" class="svg-decision" />
+        <text x="570" y="248" class="svg-title">route?</text>
+        <rect x="710" y="198" width="334" height="46" rx="5" class="svg-process" />
+        <text x="730" y="218" class="svg-route">EXACT RELATION</text><text x="880" y="218" class="svg-small">graph plan · vector fallback</text>
+        <rect x="710" y="264" width="334" height="46" rx="5" class="svg-evidence" />
+        <text x="730" y="284" class="svg-route">GENERIC LOCAL</text><text x="864" y="284" class="svg-small">graph + vector → weighted RRF</text>
+        <rect x="710" y="330" width="334" height="46" rx="5" class="svg-process" />
+        <text x="730" y="350" class="svg-route">GLOBAL</text><text x="812" y="350" class="svg-small">directory communities → summary</text>
+      </svg>
+      <p class="svg-caption">The stores share one source identity; the query path is selected per question.</p>
+      <div class="callout">Parallel graph–vector fusion is one route, not the universal control flow.</div>
+      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. It writes the new records before removing stale records and records one provenance identity after the operation succeeds; this reduces empty-index windows but is not a reader-isolated generation cutover. Query analysis then chooses a route. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. A generic local question searches both stores concurrently and fuses their ranks. A global question reads repository-scoped community summaries. This routing is more precise than describing every query as parallel hybrid retrieval.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 06 / 15 · representation</div>
+      <h2>One function becomes two different kinds of evidence.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="evidence-title evidence-desc">
+        <title id="evidence-title">Graph and vector evidence for one function</title>
+        <desc id="evidence-desc">Graph relationships and semantic vector context converge on the BaseRetriever.retrieve question.</desc>
+        <defs>
+          <marker id="evidence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
+        </defs>
+        <text x="36" y="22" class="svg-route">GRAPH · EXPLICIT STRUCTURE</text>
+        <text x="756" y="22" class="svg-route">VECTOR · SEMANTIC MEANING</text>
+        <path d="M160 73 H188" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
+        <path d="M312 73 H340" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
+        <path d="M404 73 H430 V114 H468" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
+        <rect x="36" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="54" y="78" class="svg-title">Module</text>
+        <rect x="188" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="206" y="78" class="svg-title">Class</text>
+        <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">retrieve</text>
+        <text x="194" y="116" class="svg-edge-label">DEFINES</text><text x="348" y="116" class="svg-edge-label">DEFINES · CALLS</text>
+
+        <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
+        <text x="492" y="117" class="svg-small">QUESTION FOCUS</text>
+        <text x="492" y="145" class="svg-code">BaseRetriever.retrieve</text>
+        <text x="492" y="169" class="svg-subtitle">What sequence does this method follow?</text>
+
+        <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
+        <path d="M740 239 H752 V202 H828 V98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
+        <path d="M764 73 H740 V152 H722" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
+        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title">Metadata</text><text x="934" y="87" class="svg-small">repo · file · digest</text>
+        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title">Embedding</text>
+        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + callbacks</text>
+        <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
+      </svg>
+      <p class="svg-caption">Graph edges explain relationships; vector context locates semantically relevant source.</p>
+      <div class="callout">Vector search finds the relevant neighborhood; graph traversal makes the execution relationships explicit.</div>
+      <aside class="notes"><strong>Transcript:</strong> The same function is represented in two ways. The graph records explicit facts, such as a module defining a class and <code>retrieve</code> calling <code>_retrieve</code>. The vector record captures the source text and its semantic meaning. Neither representation replaces the other: vector search locates relevant code, and graph traversal exposes the relationships needed to explain it.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 07 / 15 · retrieval</div>
+      <h2>Generic local queries fuse complementary rankings—then select context.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
+        <title id="rrf-title">Reciprocal rank fusion</title>
+        <desc id="rrf-desc">Graph and vector ranked candidates converge at RRF and become a budgeted context list.</desc>
+        <defs>
+          <marker id="rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
+        </defs>
+        <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
+        <text x="50" y="50" class="svg-route">GRAPH RANK</text>
+        <text x="54" y="78" class="svg-code">01  retrieve</text><text x="54" y="100" class="svg-code">02  _retrieve</text><text x="54" y="122" class="svg-small">03  callback event</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
+        <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
+        <text x="50" y="194" class="svg-route">VECTOR RANK</text>
+        <text x="54" y="222" class="svg-code">01  callback manager</text><text x="54" y="244" class="svg-code">02  retrieve</text><text x="54" y="266" class="svg-small">03  recursive retrieval</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
+        <path d="M298 82 H346 V120 H414" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
+        <path d="M298 226 H346 V190 H414" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
+        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank, not score</text>
+        <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
+        <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
+        <text x="584" y="78" class="svg-route">CONTEXT TO OLLAMA</text>
+        <text x="588" y="116" class="svg-title">fuse top-k 20</text><text x="588" y="147" class="svg-title">deduplicate by base node</text><text x="588" y="178" class="svg-title">keep best 5 for benchmark</text><text x="588" y="214" class="svg-edge-label">optional API token/character budget</text>
+      </svg>
+      <p class="svg-caption">RRF merges rank positions; weights vary by route and are not raw-score calibration.</p>
+      <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
+      <p class="small">Generic local: graph weight capped at 1.0, vector weight 1.0 · exact relation: graph-only weight 3.0 · vector-only: (0, 1).</p>
+      <aside class="notes"><strong>Transcript:</strong> On the generic local route, graph and vector scores are not directly comparable, so RRF uses rank positions instead. The current implementation caps the generic graph contribution at one and gives vector rank weight one, preventing noisy neighborhood expansion from dominating semantic evidence. A successful exact-relation route is graph-only with configured graph weight three. The answer-quality benchmark then keeps the first five fused results and formats them directly; the API also supports optional dynamic token or character budgets, but that path is not what this benchmark measured.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 08 / 15 · trustworthy execution</div>
+      <h2>Unsupported states fail at explicit boundaries; replacement reduces index gaps.</h2>
+      <div class="gate-flow">
+        <div class="gate"><strong>1 · Accept input</strong>Python repository + local Ollama only<span class="reject">Java or remote provider → reject</span></div>
+        <div class="gate"><strong>2 · Bind identity</strong>Repository, digest, schema and embedding model<span class="reject">Metadata mismatch → abort</span></div>
+        <div class="gate"><strong>3 · Prepare data</strong>Parse and embed before database mutation<span class="reject">Parse/embed failure → prior data untouched</span></div>
+        <div class="gate publish"><strong>4 · Replace before cleanup</strong>Write new records before stale removal<span class="reject">Reduces empty-index window</span></div>
+        <div class="gate publish"><strong>5 · Rotate cache</strong>New generation creates a new namespace<span class="reject">Stale answers cannot cross runs</span></div>
+      </div>
+      <div class="callout">Latest merged validation: 313 tests passed, 27 integration cases skipped explicitly and 2 warnings.</div>
+      <aside class="notes"><strong>Transcript:</strong> Reliability means that unsupported states fail visibly at their boundaries. The system rejects unsupported Java input and non-local generation providers. It verifies repository and index identity before retrieval or evaluation. Parsing and embedding happen before database mutation, and replacement writes new records before stale cleanup, which reduces an empty-index window. This is not a reader-isolated atomic cutover. Finally, the cache generation changes with the index, preventing an answer from an older snapshot from appearing current.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 09 / 15 · experimental design</div>
+      <h2>The confirmatory workload preserves pairing from question to conclusion.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
+        <title id="experiment-title">Paired answer-quality experiment</title>
+        <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
+        <defs>
+          <marker id="experiment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
+        </defs>
+        <text x="36" y="20" class="svg-route">RAW WORKLOAD</text>
+        <path d="M236 77 H286" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M486 77 H536" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M736 77 H786" class="svg-edge" marker-end="url(#experiment-arrow)" />
+        <rect x="36" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="58" y="69" class="svg-title">30 questions</text><text x="58" y="91" class="svg-subtitle">10 simple · 10 medium · 10 hard</text>
+        <rect x="286" y="40" width="200" height="74" rx="5" class="svg-store vector" /><text x="308" y="69" class="svg-title">2 modes</text><text x="308" y="91" class="svg-subtitle">vector · hybrid</text>
+        <rect x="536" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="558" y="69" class="svg-title">3 repeats</text><text x="558" y="91" class="svg-subtitle">average within case</text>
+        <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 raw records</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, retained for audit</text>
+
+        <path d="M915 114 V164 H680" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
+        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 paired question means</text><text x="424" y="212" class="svg-subtitle">average repeats before inference</text>
+        <path d="M680 197 H740" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
+        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 paired bootstraps</text><text x="764" y="212" class="svg-subtitle">resample 30 pairs · seed 42</text>
+        <path d="M892 230 V268" class="svg-edge" marker-end="url(#experiment-arrow)" />
+        <rect x="740" y="268" width="304" height="34" rx="5" class="svg-process" /><text x="764" y="290" class="svg-route">PAIRED 95% CONFIDENCE INTERVAL</text>
+      </svg>
+      <p class="svg-caption">The raw-record count is 180; the inferential unit is 30 paired question differences.</p>
+      <p class="small">Answer model: <code>gemma4:12b</code> · independent judge: <code>qwen2.5-coder:7b</code> · embedding: <code>nomic-embed-text</code>.</p>
+      <div class="callout">180 raw records are retained, but the statistical unit is 30 independent question pairs—not 180 answers.</div>
+      <aside class="notes"><strong>Transcript:</strong> The confirmatory workload has thirty reviewed questions, split evenly across three difficulty levels. Each question runs in vector and hybrid mode three times, giving 180 raw records. For statistics, the repeats are averaged inside each question and mode. The bootstrap then resamples the thirty paired question differences ten thousand times with seed forty-two. This avoids pretending that repeated generations of the same question are independent evidence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 10 / 15 · answer quality</div>
+      <h2>All point estimates favor Hybrid—but the intervals tell the real story.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Metric</th><th>Vector mean</th><th>Hybrid mean</th><th>Hybrid − vector · 95% CI</th></tr></thead>
+        <tbody>
+          <tr><td>Faithfulness</td><td>0.896</td><td>0.924</td><td>+0.029 · [−0.069, 0.115]</td></tr>
+          <tr><td>Answer Relevancy</td><td>0.729</td><td>0.808</td><td>+0.079 · [−0.0001, 0.175]</td></tr>
+          <tr><td>Answer Correctness</td><td>0.652</td><td class="green">0.698</td><td class="green">+0.046 · [0.002, 0.094]</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">Only Answer Correctness has a paired 95% interval entirely above zero.</div>
+      <aside class="notes"><strong>Transcript:</strong> Hybrid has a higher average on all three judged metrics. That is the point-estimate result. The confidence intervals change how strongly each difference can be stated. Faithfulness includes negative and positive values. Answer Relevancy is almost entirely positive but still touches zero. Only Answer Correctness has an interval fully above zero. These are automated judge scores, not literal percentages of objectively correct answers.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 11 / 15 · interpretation</div>
+      <h2>“Positive average” and “reliable improvement” are different claims.</h2>
+      <div class="three-col">
+        <div class="note-box"><div class="label">Inconclusive</div><h3>Faithfulness</h3><p>The data remain compatible with a small decrease or a larger increase.</p></div>
+        <div class="note-box"><div class="label">Borderline</div><h3>Relevancy</h3><p>The interval lower bound is −0.000074: effectively at zero, but not above it.</p></div>
+        <div class="note-box"><div class="label">Supported here</div><h3>Correctness</h3><p>The full interval is positive for this pinned workload.</p></div>
+      </div>
+      <div class="callout">This uncertainty is a property of the available evidence—not a software defect.</div>
+      <aside class="notes"><strong>Transcript:</strong> A positive mean says what happened on average in this sample. A confidence interval asks how stable that paired difference is under resampling of the questions. Faithfulness remains inconclusive. Relevancy is borderline because its lower bound is slightly negative. Correctness is the only metric whose full interval remains positive. This does not make the other features broken; it means more independent questions are needed before stronger claims are justified.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 12 / 15 · engineering trade-offs</div>
+      <h2>Hybrid spends more retrieval time, while local generation dominates the response.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Case-level mean</th><th>Vector</th><th>Hybrid</th><th>Hybrid − vector · 95% CI</th></tr></thead>
+        <tbody>
+          <tr><td>Retrieval latency</td><td>134 ms</td><td>371 ms</td><td class="orange">+237 · [208, 266] ms</td></tr>
+          <tr><td>Generation latency</td><td>96.8 s</td><td>87.3 s</td><td>−9.5 · [−23.0, 1.4] s</td></tr>
+          <tr><td>Prompt tokens</td><td>1,841</td><td>1,740</td><td>−101 · [−282, 77]</td></tr>
+          <tr><td>Completion tokens</td><td>934</td><td>834</td><td>−100 · [−259, 30]</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">Retrieval overhead is supported; token and generation reductions are observations whose intervals include zero.</div>
+      <aside class="notes"><strong>Transcript:</strong> Hybrid retrieval adds 237 milliseconds on average, and its paired interval from 208 to 266 milliseconds is entirely positive. That overhead is supported by the data. Local generation still dominates at roughly 87 to 97 seconds per answer. Hybrid used fewer tokens and generated faster on average, but all three reduction intervals include zero, so I do not claim a proven cost or generation-speed improvement. No hosted API was used; the benchmark cost fields are null, and electricity and hardware cost were not measured.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 13 / 15 · demonstration</div>
+      <h2>The demo exposes one claim, one mechanism and one failure boundary.</h2>
+      <div class="demo-sequence">
+        <div class="demo-head">Step</div><div class="demo-head">Action</div><div class="demo-head">What the audience can verify</div>
+        <div class="demo-number">01</div><div class="demo-action">Check FalkorDB, Qdrant and Ollama</div><div class="demo-proof">The local system is ready before querying</div>
+        <div class="demo-number">02</div><div class="demo-action">Ask the <code>BaseRetriever.retrieve</code> sequence question</div><div class="demo-proof">The question requires semantic and structural evidence</div>
+        <div class="demo-number">03</div><div class="demo-action">Inspect graph and vector candidates</div><div class="demo-proof">Each retrieval path contributes different evidence</div>
+        <div class="demo-number">04</div><div class="demo-action">Call <code>POST /query</code> and inspect answer + sources</div><div class="demo-proof">The API assembles five context items, then generates locally</div>
+        <div class="demo-number">05</div><div class="demo-action">Attempt Java indexing</div><div class="demo-proof">Unsupported scope fails explicitly</div>
+      </div>
+      <div class="callout">One successful demo illustrates the mechanism; the benchmark—not the demo—supports the aggregate claim.</div>
+      <aside class="notes"><strong>Transcript:</strong> The demo follows one complete and inspectable path. I first confirm that the three local services are healthy, then call the API with the execution-sequence question. The API returns a locally generated answer together with source records, so the audience can inspect both the answer and its evidence. Finally, I try to index Java and show the explicit rejection. The demo explains the mechanism; the benchmark supports the broader measurement.<br><br><span class="small">[Sources] presentation/hybrid_rag_demo_scenario.md; src/hybrid_rag/api/main.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 14 / 15 · contribution</div>
+      <h2>The contribution is a trustworthy code-retrieval system, not a new primitive.</h2>
+      <div class="two-col">
+        <div class="line-list">
+          <p><strong>Retrieval integration:</strong> deterministic relation plans, concurrent local fusion, global community summaries and budgeted context.</p>
+          <p><strong>Codebase model:</strong> Python AST relations plus optional generic Markdown, YAML and Dockerfile evidence.</p>
+          <p><strong>Exploration:</strong> repository-scoped community graph and multi-repository 3D/2D portal.</p>
+        </div>
+        <div class="line-list">
+          <p><strong>Reliability contribution:</strong> provenance, replacement-before-cleanup indexing, cache generations, local-only enforcement and fail-closed language support.</p>
+          <p><strong>Execution contribution:</strong> bounded repository indexing, AST parsing and local embedding concurrency.</p>
+          <p><strong>Evaluation contribution:</strong> checked-in raw records, deterministic paired confidence intervals and explicit evidence limits.</p>
+        </div>
+      </div>
+      <aside class="notes"><strong>Transcript:</strong> The thesis does not claim to invent AST parsing, graph retrieval, vector search or RRF. Its contribution is the integrated, local and auditable system. It routes different question types differently, keeps graph and vector indexes tied to one source identity, adds directory communities and an exploration portal, and fails closed for unsupported languages. It also checks in the workload, raw records and deterministic uncertainty analysis so the reported result can be reproduced and challenged.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; repository implementation and evaluation artifacts</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Core argument · 15 / 15 · conclusion</div>
+      <h2>Hybrid improves answer correctness here—at a measured retrieval cost.</h2>
+      <div class="two-col">
+        <div class="line-list">
+          <p><strong>Quality:</strong> correctness Δ +0.046 with 95% CI [0.002, 0.094].</p>
+          <p><strong>Cost:</strong> retrieval Δ +237 ms with 95% CI [208, 266] ms.</p>
+          <p><strong>Uncertain:</strong> faithfulness, relevancy, generation latency and token reductions.</p>
+        </div>
+        <div class="line-list">
+          <p><strong>Trust boundary:</strong> one pinned Python repository, vector-only baseline, AI-reviewed references.</p>
+          <p><strong>Next validation:</strong> human review, more independent questions, a second pinned Python repository and additional baselines.</p>
+        </div>
+      </div>
+      <p class="lead">The engineering is broad; the proven experimental claim is intentionally precise.</p>
+      <aside class="notes"><strong>Transcript:</strong> The strongest result is precise: on this paired LlamaIndex workload, hybrid retrieval improves judged answer correctness by 0.046, with a confidence interval that remains above zero. The measured price is 237 milliseconds of additional retrieval time. Other positive averages are not yet conclusive. The system contribution is broader than this one experiment, but its generality still needs human review, more questions, more repositories and stronger baselines.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="4" data-depth="1" data-depth-title="Excluded diagnostic">
+      <div class="kicker">Core 04 · supporting detail · 1 / 1</div>
+      <h2>The older 50-case structural result is diagnostic—not confirmatory.</h2>
+      <div class="two-col">
+        <div class="note-box"><div class="label">Historical result</div><h3>Vector 26/50 · Hybrid 50/50</h3><p>Useful for detecting regressions in graph traversal and multi-hop plans.</p></div>
+        <div class="note-box"><div class="label">Why excluded</div><h3>Schema 2 · RAGAS null</h3><p>It predates the schema-3 identity repair and fails the current provenance preflight.</p></div>
+      </div>
+      <div class="callout">It can explain system behavior, but it cannot support the current answer-quality conclusion or a SOTA claim.</div>
+      <aside class="notes"><strong>Transcript:</strong> The repository contains a fifty-case structural report where hybrid found the expected entity in all cases and vector found twenty-six. That result is still useful as a historical regression diagnostic. However, it was produced against a schema-two index before the identity repair, and its RAGAS field is null. The audited thesis therefore excludes it from confirmatory evidence instead of mixing it with the completed schema-three benchmark.<br><br><span class="small">[Sources] results/README.md; results/evaluation_results.json</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Routing decisions">
+      <div class="kicker">Core 05 · supporting detail · 1 / 2</div>
+      <h2>Routing avoids unnecessary work and preserves deterministic answers.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Question signal</th><th>Primary path</th><th>Fallback</th></tr></thead>
+        <tbody>
+          <tr><td>Supported relation + entity</td><td>Deterministic graph plan</td><td>Vector only if no relation target</td></tr>
+          <tr><td>Generic local behavior</td><td>Concurrent graph + vector</td><td>Weighted RRF</td></tr>
+          <tr><td>Architecture / repository-wide</td><td>Community summaries</td><td>Generic retrieval if unavailable</td></tr>
+          <tr><td>Vector-only benchmark mode</td><td>Qdrant</td><td>No graph contribution</td></tr>
+        </tbody>
+      </table>
+      <aside class="notes"><strong>Transcript:</strong> The query analyzer identifies whether a question is global, local with a supported relation, or generic local. Exact relation questions run a deterministic graph plan and return immediately when a relation target exists. Generic local questions run graph and vector retrieval concurrently. Global questions read community summaries scoped to the selected repository. Vector-only mode disables graph contribution so it remains a meaningful paired baseline.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Global communities">
+      <div class="kicker">Core 05 · supporting detail · 2 / 2</div>
+      <h2>Directory communities provide a deterministic architectural layer.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 190" role="img" tabindex="0" aria-labelledby="community-title community-desc">
+        <title id="community-title">Directory-based community summaries</title>
+        <desc id="community-desc">Repository-scoped code nodes are grouped by directory, summarized locally, and used for global retrieval.</desc>
+        <defs><marker id="community-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
+        <path d="M236 88 H286" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M486 88 H536" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M736 88 H786" class="svg-edge" marker-end="url(#community-arrow)" />
+        <rect x="36" y="51" width="200" height="74" rx="5" class="svg-source" /><text x="58" y="80" class="svg-title">Code nodes</text><text x="58" y="102" class="svg-subtitle">repository scoped</text>
+        <rect x="286" y="51" width="200" height="74" rx="5" class="svg-process" /><text x="308" y="80" class="svg-title">Directory groups</text><text x="308" y="102" class="svg-subtitle">deterministic partition</text>
+        <rect x="536" y="51" width="200" height="74" rx="5" class="svg-evidence" /><text x="558" y="80" class="svg-title">Local summaries</text><text x="558" y="102" class="svg-subtitle">Ollama architectural report</text>
+        <rect x="786" y="51" width="258" height="74" rx="5" class="svg-merge" /><text x="808" y="80" class="svg-title">Global retrieval</text><text x="808" y="102" class="svg-subtitle">community context</text>
+        <text x="286" y="151" class="svg-edge-label">repository + directory define identity</text>
+      </svg>
+      <p class="svg-caption">Community identity follows repository and directory; the implementation does not use Louvain clustering.</p>
+      <div class="callout">This implementation does not use Louvain clustering; community identity follows repository and directory.</div>
+      <aside class="notes"><strong>Transcript:</strong> Low-level call and import edges are useful for local questions but do not directly summarize architecture. The community builder groups nodes by repository and directory, generates a local summary with Ollama, and persists membership and dependency edges. Global retrieval uses those summaries. The partition is deterministic and directory-based; the final implementation does not use Louvain clustering.<br><br><span class="small">[Sources] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="Graph schema">
+      <div class="kicker">Core 06 · supporting detail · 1 / 2</div>
+      <h2>The graph separates ownership from cross-code dependencies.</h2>
+      <div class="schema-map">
+        <div class="schema-tree">
+          <div class="label">Ownership hierarchy</div>
+          <div class="schema-level"><span class="schema-node">Directory</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">Module</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">Class</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">Function</span></div>
+        </div>
+        <div class="dependency-path">
+          <div class="label">Traceable dependency path</div>
+          <div class="path-line"><strong>Module A</strong><span class="edge-tag">IMPORTS</span><strong>Module B</strong></div>
+          <div class="path-line"><strong>Class</strong><span class="edge-tag">INHERITS</span><strong>Base class</strong></div>
+          <div class="path-line"><strong>Function</strong><span class="edge-tag">CALLS</span><strong>Function</strong></div>
+          <div class="path-line"><strong>Code node</strong><span class="edge-tag">IN_COMMUNITY</span><strong>Community</strong></div>
+        </div>
+      </div>
+      <div class="callout">The AST parser emits Module, Class and Function nodes; Variable is reserved compatibility metadata, not a normal emitted node.</div>
+      <aside class="notes"><strong>Transcript:</strong> This view explains what graph retrieval can traverse. Ownership runs from directory to module, class and function. Imports, inheritance and calls provide dependency paths. Community membership adds an architectural layer. Optional Markdown, YAML and Dockerfile ingestion creates generic Document or Configuration nodes and vector chunks; it does not provide Python-style AST semantics. Repository filtering scopes a query when a repository is supplied; without that optional scope, retrieval may search across indexed repositories.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/schemas.py; tests/unit/test_non_code_ingestion.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="Entity resolution">
+      <div class="kicker">Core 06 · supporting detail · 2 / 2</div>
+      <h2>Call targets are resolved conservatively, not guessed.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="resolution-title resolution-desc">
+        <title id="resolution-title">Conservative call-target resolution</title>
+        <desc id="resolution-desc">A call stub is matched through increasingly broader scopes; ambiguity or missing targets remain explicit stubs.</desc>
+        <defs><marker id="resolution-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
+        <path d="M196 86 H226" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M396 86 H426" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M596 86 H626" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M796 86 H826" class="svg-edge limit" marker-end="url(#resolution-arrow)" />
+        <rect x="36" y="49" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="78" class="svg-title">Call stub</text><text x="56" y="100" class="svg-subtitle">bare · self · cls</text>
+        <rect x="226" y="49" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="78" class="svg-title">Same class</text><text x="246" y="100" class="svg-subtitle">method match</text>
+        <rect x="426" y="49" width="170" height="74" rx="5" class="svg-process" /><text x="446" y="78" class="svg-title">Same module</text><text x="446" y="100" class="svg-subtitle">module function</text>
+        <rect x="626" y="49" width="170" height="74" rx="5" class="svg-evidence" /><text x="646" y="78" class="svg-title">Unique target</text><text x="646" y="100" class="svg-subtitle">import / graph exact match</text>
+        <rect x="826" y="49" width="218" height="74" rx="5" class="svg-limit" /><text x="846" y="78" class="svg-title">Keep stub</text><text x="846" y="100" class="svg-subtitle">ambiguous or missing</text>
+        <path d="M735 123 V173 H826" class="svg-edge limit" marker-end="url(#resolution-arrow)" /><text x="642" y="193" class="svg-edge-label svg-uncertain">only exactly one target is redirected</text>
+      </svg>
+      <p class="svg-caption">The resolver widens its search only when the previous scope has no unique answer.</p>
+      <div class="callout">Ambiguity remains visible and repository-namespaced instead of creating an arbitrary CALLS edge.</div>
+      <aside class="notes"><strong>Transcript:</strong> A parsed call that cannot be bound immediately is stored as an explicit stub. The resolver first checks a same-class method, then a module-level function in the caller’s module, then an import-aware unique candidate. Remaining stubs are queried against existing graph nodes in one batch and redirected only when exactly one target exists. Ambiguous or missing targets remain namespaced stubs, preserving uncertainty rather than inventing structure.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="RRF mechanism">
+      <div class="kicker">Core 07 · supporting detail · 1 / 1</div>
+      <h2>RRF combines ranks without pretending raw graph and vector scores are calibrated.</h2>
+      <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
+      <div class="three-col">
+        <div class="note-box"><div class="label">Exact relation</div><p>Graph-only fusion uses configured graph weight 3.0 after a relation target is found.</p></div>
+        <div class="note-box"><div class="label">Generic local</div><p>Graph contribution is capped at 1.0; vector weight is 1.0.</p></div>
+        <div class="note-box"><div class="label">Vector baseline</div><p>Weights are (0, 1). Legacy <code>hybrid_weight</code> is retained but unused.</p></div>
+      </div>
+      <aside class="notes"><strong>Transcript:</strong> RRF gives each candidate a contribution based on its rank with smoothing constant sixty. The weight depends on the route. A successful exact relation is graph-only with weight three. Generic local fusion caps graph weight at one and uses vector weight one, because neighborhood expansion can be noisy. Vector-only mode sets graph weight to zero. The older hybrid-weight setting remains for compatibility but is not used by the current retriever.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="Index lifecycle">
+      <div class="kicker">Core 08 · supporting detail · 1 / 2</div>
+      <h2>Provenance is checked before measurements are allowed to proceed.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
+        <title id="provenance-title">Evaluation provenance gates</title>
+        <desc id="provenance-desc">Source identity and index metadata pass through preflight before evaluation, or stop at an explicit abort branch.</desc>
+        <defs><marker id="provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
+        <path d="M196 76 H226" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M396 76 H426" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M596 76 H626" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M796 76 H826" class="svg-edge graph" marker-end="url(#provenance-arrow)" />
+        <rect x="36" y="39" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="68" class="svg-title">Source artifact</text><text x="56" y="90" class="svg-subtitle">version + wheel hash</text>
+        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title">Source digest</text><text x="246" y="90" class="svg-subtitle">content identity</text>
+        <rect x="426" y="39" width="170" height="74" rx="5" class="svg-store graph" /><text x="446" y="68" class="svg-title">Index run</text><text x="446" y="90" class="svg-subtitle">graph + vector metadata</text>
+        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Preflight</text><text x="646" y="90" class="svg-subtitle">schema + model match</text>
+        <rect x="826" y="39" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="68" class="svg-title">Evaluation</text><text x="846" y="90" class="svg-subtitle">measure or report</text>
+        <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">MISMATCH → EXPLICIT ABORT</text>
+      </svg>
+      <p class="svg-caption">Preflight is a gate: mixed or stale graph/vector evidence cannot become a benchmark result.</p>
+      <div class="callout">A benchmark cannot compare graph and vector stores from different index runs or embedding models.</div>
+      <aside class="notes"><strong>Transcript:</strong> Repeatability starts before the benchmark runs. The source package and its hash define the input. The index run records the repository, digest, schema and embedding model used by both stores. Preflight compares those values with the expected workload metadata. If they disagree, evaluation stops instead of producing numbers from mixed or stale indexes.<br><br><span class="small">[Sources] src/hybrid_rag/eval/preflight.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Source identity">
+      <div class="kicker">Core 09 · supporting detail · 1 / 3</div>
+      <h2>The answer-quality workload is tied to one immutable package artifact.</h2>
+      <div class="line-list">
+        <p><strong>Package:</strong> <code>llama-index-core==0.14.21</code></p>
+        <p><strong>Wheel SHA256:</strong> <code>4a807d31…cad42</code></p>
+        <p><strong>Extracted source identity:</strong> <code>sha256:13b55bcf…509</code></p>
+        <p><strong>Index:</strong> schema 3 · <code>nomic-embed-text</code> · run <code>9ca6e68a…af5</code></p>
+      </div>
+      <aside class="notes"><strong>Transcript:</strong> The workload is tied to a specific LlamaIndex Core wheel and extracted source digest. The result also records the graph schema, embedding model and index-run identifier. These values make the experiment auditable and prevent a later source version or a mismatched graph and vector index from being treated as the same run.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="Evidence credibility">
+      <div class="kicker">Core 09 · supporting detail · 2 / 3</div>
+      <h2>The reference answers are source-anchored—but not human-adjudicated.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Control</th><th>Implemented evidence</th><th>Remaining limitation</th></tr></thead>
+        <tbody>
+          <tr><td>Question set</td><td>30 fixed cases with difficulty labels</td><td>One repository</td></tr>
+          <tr><td>References</td><td>Answers checked against pinned source</td><td>Reviewer was Codex</td></tr>
+          <tr><td>Judge</td><td><code>qwen2.5-coder:7b</code>, separate from answer model</td><td>Still automated evaluation</td></tr>
+          <tr><td>Retrieval evidence</td><td>All 180 records have source hit 1.0</td><td>Source hit alone does not guarantee a correct answer</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">Call the result controlled local evidence—not independent human accuracy.</div>
+      <aside class="notes"><strong>Transcript:</strong> Each question has a fixed reference answer and expected source files tied to the pinned artifact. A separate local model judges the answer, and all 180 records have valid scores and a source hit. The important limitation is that Codex performed the source review; there was no independent human adjudication. The result is therefore auditable automated evidence, not a human-measured production accuracy rate.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="Paired bootstrap">
+      <div class="kicker">Core 09 · supporting detail · 3 / 3</div>
+      <h2>The analysis resamples questions, not repeated generations.</h2>
+      <div class="steps">
+        <div class="step">For each case and mode, average the three repeated generations.</div>
+        <div class="step">Compute Hybrid minus vector for the same thirty questions.</div>
+        <div class="step">Sample thirty question indexes with replacement, 10,000 times.</div>
+        <div class="step">Report the 2.5th and 97.5th percentiles as the paired 95% interval.</div>
+      </div>
+      <div class="callout">The checked-in analysis is deterministic with seed 42 and reproduced byte-for-byte during this audit.</div>
+      <aside class="notes"><strong>Transcript:</strong> The three runs of one question are repeated measurements, not three independent questions. The analysis first averages those repeats inside each case and mode. It then resamples the thirty paired cases ten thousand times. For each sample it computes the hybrid-minus-vector mean. The outer two-and-a-half percent on each side form the confidence interval. Seed forty-two makes the output deterministic, and the generated statistics file reproduced exactly during verification.<br><br><span class="small">[Source] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="Defect controls">
+      <div class="kicker">Core 08 · supporting detail · 2 / 2</div>
+      <h2>Each critical failure mode now has an observable contract.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Failure mode</th><th>Control</th><th>Expected behavior</th></tr></thead>
+        <tbody>
+          <tr><td>Cross-repository leakage</td><td>Repository namespace filtering</td><td>Foreign results excluded when scope is supplied</td></tr>
+          <tr><td>Mixed index metadata</td><td>Provenance preflight</td><td>Evaluation aborts</td></tr>
+          <tr><td>Partial publication</td><td>Replacement before stale cleanup</td><td>Empty-index window reduced; no reader cutover guarantee</td></tr>
+          <tr><td>Stale cached answer</td><td>Cache generation key</td><td>New index gets new cache namespace</td></tr>
+          <tr><td>Unsupported Java</td><td>Language gate</td><td>Indexing rejects explicitly</td></tr>
+        </tbody>
+      </table>
+      <aside class="notes"><strong>Transcript:</strong> Each reliability concern has a visible contract. Repository filters exclude foreign results when a repository scope is supplied. Provenance mismatches abort evaluation. Replacement writes new records before stale cleanup, reducing an empty-index window, but it does not guarantee reader-isolated generations. Cache generations prevent stale answers from crossing index updates. Java is rejected at the language boundary because semantic Java extraction is not implemented. These behaviors are covered by executable tests.<br><br><span class="small">[Sources] tests; src/hybrid_rag</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="System breadth">
+      <div class="kicker">Core 14 · supporting detail · 1 / 1</div>
+      <h2>The prototype extends beyond a two-retriever wrapper.</h2>
+      <table class="metric-table">
+        <thead><tr><th>Layer</th><th>Implemented capability</th><th>Evidence boundary</th></tr></thead>
+        <tbody>
+          <tr><td>Ingestion</td><td>AST symbols, incremental sync, bounded parsing and embedding</td><td>No controlled indexing speedup</td></tr>
+          <tr><td>Non-code</td><td>Optional Markdown, YAML and Dockerfile chunks/nodes</td><td>Generic semantics; disabled by default</td></tr>
+          <tr><td>Architecture</td><td>Directory communities and dependency summaries</td><td>Not Louvain clustering</td></tr>
+          <tr><td>Exploration</td><td>Multi-repository 3D and 2D drill-down portal</td><td>Visualization, not retrieval accuracy</td></tr>
+        </tbody>
+      </table>
+      <aside class="notes"><strong>Transcript:</strong> The prototype includes more than graph and vector retrieval. It supports incremental indexing, bounded parallel parsing and embedding, deterministic directory communities, global architectural summaries and a multi-repository exploration portal. It can optionally index Markdown, YAML and Dockerfiles as generic documents or configuration. These features matter to system usefulness, but they must keep their own evidence boundaries: generic non-code chunks are not AST semantics, and implemented concurrency is not a measured speedup.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/static/index.html</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="15" data-depth="1" data-depth-title="Deferred claims">
+      <div class="kicker">Core 15 · supporting detail · 1 / 1</div>
+      <h2>Broader thesis claims remain future experiments.</h2>
+      <div class="line-list">
+        <p><strong>Independent accuracy:</strong> human-review reference answers and adjudicate disagreements.</p>
+        <p><strong>Statistical power:</strong> add more independent questions to narrow faithfulness and relevancy intervals.</p>
+        <p><strong>Cross-repository generalization:</strong> repeat on pinned Transformers and LangChain workloads.</p>
+        <p><strong>Baseline coverage:</strong> compare BM25, graph-only and a documented external GraphRAG design.</p>
+        <p><strong>Language support:</strong> implement and test a Java extractor before accepting Java repositories.</p>
+        <p><strong>Resource claims:</strong> benchmark VRAM, energy and concurrency before claiming efficiency improvements.</p>
+      </div>
+      <aside class="notes"><strong>Transcript:</strong> The paired confidence intervals are now complete, so the next statistical need is more independent questions, not merely more repeated generations. Human reviewers should adjudicate the references. The same protocol should then run on additional pinned Python repositories and stronger baselines. Java must remain rejected until a real extractor and language-specific tests exist. Hardware, energy and concurrency measurements are also required before claiming resource efficiency.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+    </section>
+  </main>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const coreSlides = slides.filter(slide => slide.dataset.axis === 'core');
+    const depthSlides = slides.filter(slide => slide.dataset.axis === 'depth');
+    const progress = document.getElementById('progress');
+    const counter = document.getElementById('counter');
+    const depthsByCore = new Map();
+    depthSlides.forEach(slide => {
+      const parent = Number(slide.dataset.parent);
+      if (!depthsByCore.has(parent)) depthsByCore.set(parent, []);
+      depthsByCore.get(parent).push(slide);
+    });
+    depthsByCore.forEach(items => items.sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth)));
+    depthsByCore.forEach((items, coreNumber) => {
+      const cue = document.createElement('div');
+      cue.className = 'depth-cue';
+      const names = items.map(item => item.dataset.depthTitle).join(' · ');
+      cue.innerHTML = `<strong>↓ supporting detail</strong> · ${names}`;
+      coreSlides[coreNumber - 1].appendChild(cue);
+      items.forEach(item => {
+        const parentCue = document.createElement('div');
+        parentCue.className = 'depth-parent';
+        parentCue.textContent = `↑ return to core ${String(coreNumber).padStart(2, '0')}`;
+        item.appendChild(parentCue);
+      });
+    });
+    let currentCore = 1;
+    let currentDepth = 0;
+    function show(coreNumber, depthNumber = 0) {
+      currentCore = Math.max(1, Math.min(coreSlides.length, coreNumber));
+      const depths = depthsByCore.get(currentCore) || [];
+      currentDepth = Math.max(0, Math.min(depths.length, depthNumber));
+      const target = currentDepth === 0 ? coreSlides[currentCore - 1] : depths[currentDepth - 1];
+      slides.forEach(slide => slide.classList.toggle('active', slide === target));
+      progress.style.width = `${(currentCore / coreSlides.length) * 100}%`;
+      const coreLabel = `CORE ${String(currentCore).padStart(2, '0')} / ${String(coreSlides.length).padStart(2, '0')}`;
+      counter.textContent = currentDepth === 0
+        ? coreLabel
+        : `${coreLabel} · DETAIL ${currentDepth} / ${depths.length}`;
+      history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
+    }
+    function help() {
+      alert('Left / Right or Space: previous or next core argument\nDown or D: open the supporting detail below this core slide\nUp or Escape: return to the parent core slide\nHome / End: first or last core slide\nN or T: toggle the presenter transcript\nP: print the deck');
+    }
+    window.addEventListener('keydown', event => {
+      if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(currentCore + 1, 0); }
+      if (event.key === 'ArrowLeft') show(currentCore - 1, 0);
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 'd') show(currentCore, currentDepth + 1);
+      if (event.key === 'ArrowUp' || event.key === 'Escape' || event.key.toLowerCase() === 'c') show(currentCore, 0);
+      if (event.key === 'Home') show(1, 0);
+      if (event.key === 'End') show(coreSlides.length, 0);
+      if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 't') document.body.classList.toggle('show-notes');
+      if (event.key.toLowerCase() === 'h') help();
+      if (event.key.toLowerCase() === 'p') window.print();
+    });
+    const initial = location.hash.slice(1).split('.').map(Number);
+    show(Number.isFinite(initial[0]) && initial[0] > 0 ? initial[0] : 1, Number.isFinite(initial[1]) ? initial[1] : 0);
+  </script>
+</body>
+</html>

@@ -29,9 +29,9 @@ The prepared answer-quality index uses:
 
 ```bash
 REPO=llama-core-answer-v3
-GRAPH=llama_core_answer_v3_20260801
-COLLECTION=llama_core_answer_v3_20260801
 ```
+
+The API uses the graph and Qdrant collection configured by the running service; the request supplies the repository scope.
 
 If the long answer-quality benchmark is still using Ollama, prefer the recorded output below or wait for it to finish. A live demo query competes for the same local model capacity.
 
@@ -41,12 +41,12 @@ Run one question about a source flow the audience can follow:
 
 ```bash
 QUESTION='What sequence does BaseRetriever.retrieve follow when it receives a plain query string, including callbacks and recursive retrieval?'
-.venv/bin/hybrid-rag query "$QUESTION" \
-  --repo-name "$REPO" \
-  --graph-name "$GRAPH" \
-  --qdrant-collection "$COLLECTION" \
-  --top-k 20 \
-  --context-n 5
+jq -n --arg question "$QUESTION" --arg repository "$REPO" \
+  '{question:$question, repository:$repository, top_k:20, context_n:5, codebase_query:true, stream:false}' \
+  | curl -sS http://127.0.0.1:8000/query \
+    -H 'Content-Type: application/json' \
+    -d @- \
+  | jq '{answer, sources, query_type, latency_ms}'
 ```
 
 Narrate the output in this order:
@@ -55,8 +55,8 @@ Narrate the output in this order:
 2. Vector retrieval finds semantically related retriever code.
 3. Graph retrieval contributes callback and recursive-retrieval relationships.
 4. RRF combines the ranked candidates.
-5. The context assembler limits what reaches local Ollama.
-6. The answer explains the sequence and exposes source paths.
+5. The API context assembler limits what reaches local Ollama.
+6. The response contains the generated answer and source paths.
 
 Do not claim that the answer is universally correct from one demo. Say that the independent answer-quality benchmark measures faithfulness, relevancy, and correctness across repeated cases.
 
@@ -85,17 +85,17 @@ rm -rf "$DEMO_JAVA_DIR"
 
 ## Optional evidence slide
 
-Show the current benchmark checkpoint, but label it as incomplete:
+Show the completed benchmark artifact, with its generated and scored counts:
 
 ```bash
 jq -r '
   .records as $r |
   ([ $r[] | select(.faithfulness != null and .answer_relevancy != null and .answer_correctness != null) ] | length) as $s |
   "generated=" + (($r|length)|tostring) + ", scored=" + ($s|tostring)
-' results/answer_quality_benchmark_schema3.json.checkpoint.json
+' results/answer_quality_benchmark_schema3.json
 ```
 
-Current checkpoint at preparation time: 180 answers generated, 42 scored. The final quality claim waits for all 180 runs, especially the hard cases and repeats.
+Expected completed artifact: `generated=180, scored=180`. Use the checked-in statistics file for the confidence intervals; do not present a stale checkpoint as final evidence.
 
 ## Recovery plan
 

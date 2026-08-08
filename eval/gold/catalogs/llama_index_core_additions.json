@@ -64,7 +64,7 @@
       "id": "AQ35",
       "difficulty": "simple",
       "question": "What do SimpleChatStore.delete_message and delete_last_message return when their requested key cannot be used?",
-      "reference_answer": "delete_message returns None if the key is missing or the requested index is beyond the stored list, otherwise it pops that index. delete_last_message returns None for a missing key and otherwise pops the final message.",
+      "reference_answer": "delete_message returns None if the key is missing or idx is at least the stored-list length. Otherwise it calls list.pop(idx): valid negative indexes address messages from the end, while an index below the negative bound is left to list.pop and raises IndexError. delete_last_message returns None for a missing key and otherwise pops the final message.",
       "source_files": [
         "storage/chat_store/simple_chat_store.py"
       ],
@@ -72,7 +72,7 @@
         "storage/chat_store/simple_chat_store.py:64-76"
       ],
       "reference_contexts": [
-        "Both methods use None to signal a missing key; indexed deletion also guards indexes at or beyond the current message count."
+        "Both methods use None to signal a missing key. Indexed deletion guards only an upper-bound index before directly delegating to Python list.pop(idx), so its negative-index behavior is not separately guarded."
       ]
     },
     {
@@ -758,7 +758,7 @@
       "id": "AQ81",
       "difficulty": "hard",
       "question": "How does RetryQueryEngine recursively turn a failed response evaluation into another bounded query attempt?",
-      "reference_answer": "It calls the wrapped engine's _query, rejects AsyncStreamingResponse, and returns immediately when no retries remain. Otherwise it converts non-Response output, evaluates it against the original query, and returns passing output unchanged. On failure it creates another RetryQueryEngine with max_retries reduced by one, builds a feedback-aware query through FeedbackQueryTransformation, and invokes the new engine, so each recursive failure consumes one retry.",
+      "reference_answer": "It calls the wrapped engine's _query, rejects AsyncStreamingResponse, and returns immediately when no retries remain. Otherwise it converts non-Response output, evaluates it against the current attempt's query_bundle.query_str, and returns passing output unchanged. On failure it creates another RetryQueryEngine with max_retries reduced by one, builds a feedback-aware query through FeedbackQueryTransformation, and invokes the new engine. Thus only the first attempt evaluates the original query; later attempts evaluate the transformed query carried by their own bundle, and each recursive failure consumes one retry.",
       "source_files": [
         "query_engine/retry_query_engine.py"
       ],
@@ -766,7 +766,7 @@
         "query_engine/retry_query_engine.py:50-75"
       ],
       "reference_contexts": [
-        "A failing evaluation produces a transformed query and a new wrapper with a decremented retry budget; passing or exhausted paths terminate recursion."
+        "Each invocation obtains the evaluation string from its own query bundle. A failing evaluation produces a transformed query and a new wrapper with a decremented retry budget; passing or exhausted paths terminate recursion."
       ]
     },
     {
@@ -789,16 +789,18 @@
       "id": "AQ83",
       "difficulty": "hard",
       "question": "How does Generation synthesize an answer while intentionally ignoring retrieved text but retaining source provenance?",
-      "reference_answer": "get_response and aget_response discard text_chunks and call the LLM with only the simple input prompt and query, choosing prediction or streaming by configuration. synthesize and asynthesize still convert a string query to QueryBundle, open synthesis instrumentation, extract node text only to pass into those response methods, combine retrieved and additional source nodes, wrap the generated value with _prepare_response_output, close callback and dispatcher events, and return the provenance-bearing response.",
+      "reference_answer": "get_response and aget_response discard text_chunks and call the LLM with only the simple input prompt and query, choosing prediction or streaming by configuration. synthesize and asynthesize still convert a string query to QueryBundle, open synthesis instrumentation, extract node text only to invoke those response methods, combine retrieved and additional source nodes, and pass that combined list to _prepare_response_output. The base implementation places those source nodes and their metadata on each supported response type, then the Generation wrappers close callback and dispatcher events and return the provenance-bearing response.",
       "source_files": [
-        "response_synthesizers/generation.py"
+        "response_synthesizers/generation.py",
+        "response_synthesizers/base.py"
       ],
       "source_anchors": [
         "response_synthesizers/generation.py:55-97",
-        "response_synthesizers/generation.py:102-188"
+        "response_synthesizers/generation.py:102-188",
+        "response_synthesizers/base.py:145-185"
       ],
       "reference_contexts": [
-        "Generation does not condition the LLM on node text, yet the synthesis wrappers preserve those nodes as response sources and emit full lifecycle events."
+        "Generation does not condition the LLM on node text, yet its synthesis wrappers pass the combined nodes to the base response constructor, which attaches source_nodes and source-derived metadata to supported responses."
       ]
     },
     {
@@ -932,18 +934,15 @@
       "id": "AQ92",
       "difficulty": "hard",
       "question": "How does CompactAndRefine choose a packing limit before delegating to Refine?",
-      "reference_answer": "It partially binds the query into both the initial QA and refine templates, chooses the larger prompt with get_biggest_prompt, and repacks all source chunks against that prompt so the chunks fit either stage. Its synchronous and asynchronous response methods then delegate those compacted chunks, the prior response, and remaining arguments to the corresponding Refine implementation, which performs the iterative answer lifecycle.",
+      "reference_answer": "It partially binds the query into both the initial QA and refine templates, chooses the larger of those static bound prompts with get_biggest_prompt, and repacks source chunks against that prompt. Its synchronous and asynchronous response methods then delegate the compacted chunks, prior response, and remaining arguments to Refine. This is only a temporary packing strategy: the selected refine template does not account for the previous answer's size, so it does not guarantee later refinement prompts fit once that answer is bound.",
       "source_files": [
-        "response_synthesizers/compact_and_refine.py",
-        "response_synthesizers/refine.py"
+        "response_synthesizers/compact_and_refine.py"
       ],
       "source_anchors": [
-        "response_synthesizers/compact_and_refine.py:11-57",
-        "response_synthesizers/refine.py:162-199",
-        "response_synthesizers/refine.py:346-380"
+        "response_synthesizers/compact_and_refine.py:11-57"
       ],
       "reference_contexts": [
-        "Compaction uses the most restrictive of the two prompts, then reuses Refine's sync or async iteration rather than implementing a separate synthesis algorithm."
+        "Compaction selects the larger of two query-bound templates and delegates both execution modes to Refine; the source explicitly notes that previous-answer size is excluded from the refine-template calculation."
       ]
     },
     {
@@ -957,7 +956,7 @@
       "source_anchors": [
         "query_engine/citation_query_engine.py:190-211",
         "query_engine/citation_query_engine.py:217-252",
-        "query_engine/citation_query_engine.py:259-280"
+        "query_engine/citation_query_engine.py:259-283"
       ],
       "reference_contexts": [
         "The engine composes retrieval, postprocessing, content splitting, numbered node cloning, and citation-prompt synthesis while preserving original scores."
@@ -982,16 +981,18 @@
     {
       "id": "AQ95",
       "difficulty": "hard",
-      "question": "How does RetrySourceQueryEngine rebuild retrieval from only source nodes that pass evaluation?",
-      "reference_answer": "It queries the wrapped RetrieverQueryEngine and returns immediately for an exhausted retry budget or passing overall evaluation. On failure it evaluates each source node separately against the query and response, keeps passing sources as new Documents, and raises if none survive. It builds a SummaryIndex from those documents, wraps its retriever in a new RetrieverQueryEngine, creates another RetrySourceQueryEngine with one fewer retry, and recursively queries the original bundle.",
+      "question": "How does RetrySourceQueryEngine rebuild retrieval after a failed overall evaluation, and what does its per-source condition actually retain?",
+      "reference_answer": "It queries the wrapped RetrieverQueryEngine and returns immediately for an exhausted retry budget or passing overall evaluation. On failure it evaluates each source node separately against the query and response, but its loop tests the EvaluationResult object itself rather than eval_result.passing. Because EvaluationResult is a Pydantic model, evaluated source entries—including those whose passing field is False—are truthy and are converted to new Documents; a nonempty evaluated source list therefore does not filter failed sources by that field. It raises only when no documents were appended, then builds a SummaryIndex, wraps its retriever in a new RetrieverQueryEngine, creates another RetrySourceQueryEngine with one fewer retry, and recursively queries the original bundle.",
       "source_files": [
-        "query_engine/retry_source_query_engine.py"
+        "query_engine/retry_source_query_engine.py",
+        "evaluation/base.py"
       ],
       "source_anchors": [
-        "query_engine/retry_source_query_engine.py:46-92"
+        "query_engine/retry_source_query_engine.py:46-92",
+        "evaluation/base.py:10-37"
       ],
       "reference_contexts": [
-        "A failed answer causes per-source filtering and complete retriever reconstruction, with each recursive attempt consuming the retry budget."
+        "A failed answer triggers per-source evaluation and retriever reconstruction, but the loop checks model-object truthiness instead of the passing field; therefore it does not perform the intended passing-only filter."
       ]
     },
     {

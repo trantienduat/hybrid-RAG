@@ -141,6 +141,7 @@ def _resolve_calls(
     real_functions: dict[str, list[str]],
 ) -> dict[int, str]:
     """Return edge-index redirects for safely resolved calls across Tiers A–C."""
+    function_ids = {node.id for node in result.nodes if node.label == "Function"}
     module_imports: dict[str, set[str]] = {}
     for edge in result.edges:
         if edge.rel == "IMPORTS":
@@ -170,13 +171,13 @@ def _resolve_calls(
             if len(parts) >= 3 and is_sibling_call:
                 class_fqn = ".".join(parts[:-1])
                 target_method_fqn = f"{class_fqn}.{callee_name}"
-                if any(n.id == target_method_fqn and n.label == "Function" for n in result.nodes):
+                if target_method_fqn in function_ids:
                     resolved_id = target_method_fqn
 
             # Tier B. Same module resolution
             if not resolved_id and is_bare_call and module_fqn:
                 target_func_fqn = f"{module_fqn}.{callee_name}"
-                if any(n.id == target_func_fqn and n.label == "Function" for n in result.nodes):
+                if target_func_fqn in function_ids:
                     resolved_id = target_func_fqn
 
             # Tier C. Import-based resolution

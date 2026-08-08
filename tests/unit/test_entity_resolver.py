@@ -5,7 +5,12 @@ No external services required.
 
 from __future__ import annotations
 
-from hybrid_rag.ingestion.entity_resolver import namespace_unresolved_stubs, resolve, stub_count
+from hybrid_rag.ingestion.entity_resolver import (
+    _resolve_calls,
+    namespace_unresolved_stubs,
+    resolve,
+    stub_count,
+)
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -202,6 +207,34 @@ def _call_stub(name: str) -> NodeData:
 
 
 class TestASTCallResolver:
+    def test_call_resolution_indexes_function_nodes_once(self):
+        """Large repositories must not rescan all nodes for every call edge."""
+
+        class CountingNodes(list):
+            iterations = 0
+
+            def __iter__(self):
+                self.iterations += 1
+                return super().__iter__()
+
+        nodes = CountingNodes(
+            [
+                _module("a.py", "a", "a.py"),
+                _function("a.py::MyClass.helper", "helper", "a.py"),
+            ]
+        )
+        result = ParseResult(
+            nodes=nodes,
+            edges=[
+                _edge("a.py::MyClass.main", "CALLS", "__call__helper"),
+                _edge("a.py::MyClass.run", "CALLS", "__call__helper"),
+            ],
+        )
+
+        _resolve_calls(result, {"a.py": "a.py"}, {})
+
+        assert nodes.iterations == 1
+
     def test_resolve_sibling_class_method(self):
         """__call__helper inside class context should resolve to sibling method."""
         result = ParseResult(

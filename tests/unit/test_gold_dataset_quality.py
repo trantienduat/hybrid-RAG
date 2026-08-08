@@ -12,6 +12,7 @@ from hybrid_rag.eval.gold_validation import (
     assert_preserved_cases,
     validate_case_quality,
     validate_distribution,
+    validate_review_evidence,
 )
 
 
@@ -60,6 +61,13 @@ def test_rejects_numbered_component_template():
         validate_case_quality(cases, source_root=FIXTURE_ROOT)
 
 
+def test_rejects_generic_component_name_template():
+    cases = [case("How does the component work?")]
+
+    with pytest.raises(ValueError, match="normalized question"):
+        validate_case_quality(cases, source_root=FIXTURE_ROOT)
+
+
 def test_rejects_duplicate_normalized_questions():
     cases = [
         case("What does Widget 1 return?", case_id="AQ01"),
@@ -88,6 +96,91 @@ def test_rejects_source_file_concentration():
 
     with pytest.raises(ValueError, match="15"):
         validate_case_quality(cases, source_root=FIXTURE_ROOT, min_source_files=1)
+
+
+def test_rejects_unanchored_invented_source_files_from_diversity_count():
+    candidate = case("What does Calculator.add return?")
+    candidate["source_files"] = [
+        "math_utils.py",
+        *(f"invented_{index}.py" for index in range(19)),
+    ]
+
+    with pytest.raises(ValueError, match="source file|anchor"):
+        validate_case_quality([candidate], source_root=FIXTURE_ROOT)
+
+
+def test_rejects_source_files_outside_the_source_root():
+    source_file = str(Path(__file__).resolve())
+    candidate = case(
+        "What does Calculator.add return?",
+        file=source_file,
+        anchor=f"{source_file}:7-9",
+    )
+
+    with pytest.raises(ValueError, match="outside source root"):
+        validate_case_quality([candidate], source_root=FIXTURE_ROOT)
+
+
+def test_rejects_synthetic_sliding_anchors():
+    cases = [
+        case(
+            f"What does symbol {chr(ord('a') + index)} do?",
+            case_id=f"AQ{index:02d}",
+            anchor=f"math_utils.py:{index + 7}-{index + 9}",
+        )
+        for index in range(4)
+    ]
+
+    with pytest.raises(ValueError, match="synthetic|anchor"):
+        validate_case_quality(cases, source_root=FIXTURE_ROOT)
+
+
+def test_rejects_draft_review_without_approved_evidence():
+    with pytest.raises(ValueError, match="draft|evidence"):
+        validate_review_evidence(
+            {"status": "draft", "evidence_grade": "draft"},
+            source_validated=True,
+        )
+
+
+def test_rejects_approved_review_without_evidence_grade():
+    with pytest.raises(ValueError, match="evidence"):
+        validate_review_evidence(
+            {
+                "status": "approved",
+                "reviewer": "Codex",
+                "reviewer_type": "ai_source_review",
+                "reviewed_at": "2026-08-08",
+            },
+            source_validated=True,
+        )
+
+
+def test_rejects_approved_ai_review_without_source_validation():
+    with pytest.raises(ValueError, match="source validation"):
+        validate_review_evidence(
+            {
+                "status": "approved",
+                "evidence_grade": "approved_ai_source_review",
+                "reviewer": "Codex",
+                "reviewer_type": "ai_source_review",
+                "reviewed_at": "2026-08-08",
+            },
+            source_validated=False,
+        )
+
+
+def test_accepts_approved_ai_review_after_source_validation():
+    validate_review_evidence(
+        {
+            "status": "approved",
+            "evidence_grade": "approved_ai_source_review",
+            "reviewer": "Codex",
+            "reviewer_type": "ai_source_review",
+            "reviewed_at": "2026-08-08",
+        },
+        source_validated=True,
+    )
 
 
 @pytest.mark.parametrize(

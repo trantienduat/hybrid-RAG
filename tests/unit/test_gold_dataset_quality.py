@@ -147,6 +147,18 @@ def test_git_snapshot_identity_rejects_untracked_python_source(tmp_path: Path):
         generator.verify_snapshot_identity(snapshot_root, snapshot_root, source_identity)
 
 
+def test_git_snapshot_identity_rejects_quoted_untracked_python_source(tmp_path: Path):
+    generator = _load_generator_module()
+    snapshot_root, commit = _initialize_git_snapshot(tmp_path)
+    source_identity = f"git:https://example.test/repo.git@{commit}:."
+    (snapshot_root / "untracked source.py").write_text(
+        "VALUE = 'new'\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="clean"):
+        generator.verify_snapshot_identity(snapshot_root, snapshot_root, source_identity)
+
+
 def test_historical_fixture_hash_rejects_modified_known_fixture(tmp_path: Path):
     generator = _load_generator_module()
     filename = "llama_index_core_answer_quality_v1.json"

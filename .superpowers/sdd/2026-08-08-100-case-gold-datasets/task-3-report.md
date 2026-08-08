@@ -23,6 +23,17 @@
 - `PYTHONPATH=src .venv/bin/python scripts/create_100_gold_datasets.py --llama-root /private/tmp/hybrid-rag-gold-sources/llama-index-core-0.14.21 --only llama-index --review-status approved` — snapshot identity and source-root resolution passed; the intentionally empty catalog then stopped at the required 100-case distribution gate before writing.
 - `git diff --check` — no whitespace errors.
 
+## Fix Round 2
+
+- Replaced porcelain-text parsing for untracked source detection with NUL-delimited `git ls-files --others --exclude-standard -z`, scoped to the selected source root. This preserves rejection of ordinary untracked Python files and handles Git-quoted paths containing spaces.
+- Added `test_git_snapshot_identity_rejects_quoted_untracked_python_source` using the untracked filename `untracked source.py`.
+
+### Fix-Round-2 Verification
+
+- RED: the new quoted-path regression test failed before the parser fix because no `ValueError` was raised.
+- GREEN: `PYTHONPATH=src .venv/bin/pytest -q tests/unit/test_gold_dataset_quality.py -k 'snapshot_identity'` — 3 passed.
+- `git diff --check` — no whitespace errors.
+
 ## Known Concerns
 
 - The current Transformers and LangChain Core 100-case outputs remain invalid against the minimum-20-source-file diversity gate (6 and 5 files respectively). These are the expected Task 5 and Task 6 placeholders.

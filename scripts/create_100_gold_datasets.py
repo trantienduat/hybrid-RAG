@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -173,20 +174,27 @@ def verify_snapshot_identity(
 
     source_relative = source_root.relative_to(snapshot_root)
     untracked = subprocess.run(
-        ["git", "-C", str(snapshot_root), "status", "--porcelain", "--untracked-files=all"],
+        [
+            "git",
+            "-C",
+            str(snapshot_root),
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            "." if source_relative == Path(".") else source_relative.as_posix(),
+        ],
         capture_output=True,
         check=False,
-        text=True,
     )
     if untracked.returncode:
         raise ValueError("Git snapshot must be clean: unable to inspect untracked files")
-    for line in untracked.stdout.splitlines():
-        if not line.startswith("?? "):
+    for raw_path in untracked.stdout.split(b"\0"):
+        if not raw_path:
             continue
-        candidate = Path(line[3:])
-        if candidate.suffix == ".py" and (
-            source_relative == Path(".") or source_relative in candidate.parents
-        ):
+        candidate = Path(os.fsdecode(raw_path))
+        if candidate.suffix == ".py":
             raise ValueError("Git snapshot must be clean: untracked Python source found")
 
 

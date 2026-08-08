@@ -32,4 +32,18 @@
 
 No historical or existing generated dataset file changed. This task is limited to the assembler, its tests, empty catalogs, and this report.
 
-Commit: pending.
+Commit: `eb0d993 refactor(eval): assemble curated gold cases`.
+
+## Fix Round
+
+- Git-backed snapshots now reject any tracked modification and untracked Python files under the selected source root, after confirming the pinned commit.
+- Production historical fixtures are SHA-256 checked against all three immutable pinned hashes before assembly.
+- `assemble_dataset` deep-copies metadata as well as cases.
+- Output is now rendered to a same-directory temporary file, schema-loaded there, and atomically replaced only after that succeeds; a loader failure leaves an existing output intact.
+
+### Fix-Round Verification
+
+- RED: `PYTHONPATH=src .venv/bin/pytest -q tests/unit/test_gold_dataset_quality.py -k 'assemble or snapshot_identity or historical_fixture_hash or loader_failure'` — 5 failed before the fixes (metadata aliasing, dirty tracked and untracked Git sources accepted, absent fixture hash verification, and output overwrite on loader failure).
+- GREEN: same focused command — 5 passed.
+- `PYTHONPATH=src .venv/bin/pytest -q tests/unit/test_gold_dataset_quality.py` — 26 passed; 2 expected placeholder diversity failures remain for Transformers (6/20) and LangChain Core (5/20).
+- `git diff --check` — no whitespace errors.

@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 from typing import Any, Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +27,18 @@ from hybrid_rag.eval.gold_validation import (
 
 GOLD_DIR = ROOT / "eval" / "gold"
 CATALOG_DIR = GOLD_DIR / "catalogs"
+
+HISTORICAL_FIXTURE_SHA256 = {
+    "llama_index_core_answer_quality_v1.json": (
+        "c11a4d3fb7dd9645e81a8e060a5c0a719fd3b005b81c9827677717918f03ec37"
+    ),
+    "transformers_v5_9_answer_quality_v1.json": (
+        "066914fed173337ee78c1f644348c252091275101faad2d8b414bb15fcf4c894"
+    ),
+    "langchain_core_v1_4_7_answer_quality_v1.json": (
+        "8f6e61fd2bf1f22bfd8adaa5513283d35a4a68ca2f2df382e10de1cf8b718d95"
+    ),
+}
 
 DATASETS: dict[str, dict[str, Any]] = {
     "llama-index": {
@@ -76,7 +89,21 @@ def assemble_dataset(
     additions = json.loads(additions_path.read_text(encoding="utf-8"))
     cases = [copy.deepcopy(case) for case in historical["cases"]]
     cases.extend(copy.deepcopy(case) for case in additions["cases"])
-    return {**metadata, "schema_version": 1, "cases": cases}
+    assembled = copy.deepcopy(dict(metadata))
+    assembled.update({"schema_version": 1, "cases": cases})
+    return assembled
+
+
+def verify_historical_fixture(historical_path: Path) -> None:
+    """Require a production historical fixture to match its pinned bytes."""
+    expected = HISTORICAL_FIXTURE_SHA256.get(historical_path.name)
+    if expected is None:
+        raise ValueError(f"Unknown historical fixture: {historical_path.name}")
+    actual = hashlib.sha256(historical_path.read_bytes()).hexdigest()
+    if actual != expected:
+        raise ValueError(
+            f"Historical fixture hash mismatch: expected {expected}, got {actual}"
+        )
 
 
 def _review_metadata(review_status: str) -> dict[str, str]:
@@ -135,6 +162,33 @@ def verify_snapshot_identity(
     if result.returncode or actual != expected:
         raise ValueError(f"Snapshot identity mismatch: expected {expected}, got {actual}")
 
+    tracked = subprocess.run(
+        ["git", "-C", str(snapshot_root), "status", "--porcelain", "--untracked-files=no"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if tracked.returncode or tracked.stdout.strip():
+        raise ValueError("Git snapshot must be clean: tracked modifications found")
+
+    source_relative = source_root.relative_to(snapshot_root)
+    untracked = subprocess.run(
+        ["git", "-C", str(snapshot_root), "status", "--porcelain", "--untracked-files=all"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if untracked.returncode:
+        raise ValueError("Git snapshot must be clean: unable to inspect untracked files")
+    for line in untracked.stdout.splitlines():
+        if not line.startswith("?? "):
+            continue
+        candidate = Path(line[3:])
+        if candidate.suffix == ".py" and (
+            source_relative == Path(".") or source_relative in candidate.parents
+        ):
+            raise ValueError("Git snapshot must be clean: untracked Python source found")
+
 
 def validate_and_write_dataset(
     dataset: Mapping[str, Any],
@@ -154,11 +208,22 @@ def validate_and_write_dataset(
     if review["status"] == "approved":
         validate_review_evidence(review, source_validated=True)
 
-    output_path.write_text(
-        json.dumps(dataset, indent=2, ensure_ascii=False) + "\n",
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
         encoding="utf-8",
-    )
-    load_gold_dataset(output_path, allow_draft=review["status"] == "draft")
+        dir=output_path.parent,
+        prefix=f".{output_path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as stream:
+        temporary = Path(stream.name)
+        stream.write(json.dumps(dataset, indent=2, ensure_ascii=False) + "\n")
+    try:
+        load_gold_dataset(temporary, allow_draft=review["status"] == "draft")
+        temporary.replace(output_path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -194,6 +259,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     for dataset_name in selected:
         spec = DATASETS[dataset_name]
+        verify_historical_fixture(spec["historical"])
         metadata = {**spec["metadata"], "review": _review_metadata(args.review_status)}
         dataset = assemble_dataset(spec["historical"], spec["additions"], metadata)
         source_root = resolve_source_root(roots[dataset_name], spec)

@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -68,7 +69,11 @@ def test_assemble_dataset_is_deterministic_preserves_prefix_and_copies_cases(tmp
         "cases": [{"id": "AQ01", "nested": {"value": "preserved"}}],
     }
     additions = {"cases": [{"id": "AQ02", "nested": {"value": "addition"}}]}
-    metadata = {"name": "assembled", "source_identity": "sha256:" + "a" * 64}
+    metadata = {
+        "name": "assembled",
+        "source_identity": "sha256:" + "a" * 64,
+        "source": {"package": "example", "details": {"version": "1.0"}},
+    }
     historical_path = tmp_path / "historical.json"
     additions_path = tmp_path / "additions.json"
     historical_path.write_text(json.dumps(historical), encoding="utf-8")
@@ -85,9 +90,93 @@ def test_assemble_dataset_is_deterministic_preserves_prefix_and_copies_cases(tmp
     assert canonical(first).encode("utf-8") == canonical(second).encode("utf-8")
     assert first["cases"][: len(historical["cases"])] == historical["cases"]
     first["cases"][0]["nested"]["value"] = "changed"
+    first["source"]["details"]["version"] = "changed"
     assert historical == historical_before
     assert additions == additions_before
     assert metadata == metadata_before
+
+
+def _initialize_git_snapshot(tmp_path: Path) -> tuple[Path, str]:
+    snapshot_root = tmp_path / "snapshot"
+    snapshot_root.mkdir()
+    tracked = snapshot_root / "tracked.py"
+    tracked.write_text("VALUE = 'committed'\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(snapshot_root)], check=True)
+    subprocess.run(["git", "-C", str(snapshot_root), "add", "tracked.py"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(snapshot_root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-qm",
+            "snapshot",
+        ],
+        check=True,
+    )
+    commit = subprocess.run(
+        ["git", "-C", str(snapshot_root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return snapshot_root, commit
+
+
+def test_git_snapshot_identity_rejects_dirty_tracked_python_source(tmp_path: Path):
+    generator = _load_generator_module()
+    snapshot_root, commit = _initialize_git_snapshot(tmp_path)
+    source_identity = f"git:https://example.test/repo.git@{commit}:."
+    (snapshot_root / "tracked.py").write_text("VALUE = 'modified'\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="clean"):
+        generator.verify_snapshot_identity(snapshot_root, snapshot_root, source_identity)
+
+
+def test_git_snapshot_identity_rejects_untracked_python_source(tmp_path: Path):
+    generator = _load_generator_module()
+    snapshot_root, commit = _initialize_git_snapshot(tmp_path)
+    source_identity = f"git:https://example.test/repo.git@{commit}:."
+    (snapshot_root / "untracked.py").write_text("VALUE = 'new'\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="clean"):
+        generator.verify_snapshot_identity(snapshot_root, snapshot_root, source_identity)
+
+
+def test_historical_fixture_hash_rejects_modified_known_fixture(tmp_path: Path):
+    generator = _load_generator_module()
+    filename = "llama_index_core_answer_quality_v1.json"
+    fixture = tmp_path / filename
+    fixture.write_bytes((GOLD_DIR / filename).read_bytes() + b"\n")
+
+    with pytest.raises(ValueError, match="Historical fixture hash mismatch"):
+        generator.verify_historical_fixture(fixture)
+
+
+def _valid_cases(source_root: Path) -> list[dict]:
+    cases = []
+    for index in range(100):
+        source_file = f"source_{index % 20}.py"
+        (source_root / source_file).write_text("documented behavior\n", encoding="utf-8")
+        difficulty = "simple" if index < 35 else "medium" if index < 70 else "hard"
+        cases.append(
+            {
+                "id": f"AQ{index:03d}",
+                "difficulty": difficulty,
+                "question": (
+                    f"What does operation {chr(97 + index // 26)}{chr(97 + index % 26)} return?"
+                ),
+                "reference_answer": "It returns the documented result.",
+                "source_files": [source_file],
+                "source_anchors": [f"{source_file}:1-1"],
+                "reference_contexts": ["The source documents the behavior."],
+            }
+        )
+    return cases
 
 
 def test_generator_requires_only_the_selected_source_root(tmp_path: Path):
@@ -118,22 +207,7 @@ def test_approved_generation_rejects_missing_review_evidence_after_source_valida
     generator = _load_generator_module()
     source_root = tmp_path / "source"
     source_root.mkdir()
-    cases = []
-    for index in range(100):
-        source_file = f"source_{index % 20}.py"
-        (source_root / source_file).write_text("documented behavior\n", encoding="utf-8")
-        difficulty = "simple" if index < 35 else "medium" if index < 70 else "hard"
-        cases.append(
-            {
-                "id": f"AQ{index:03d}",
-                "difficulty": difficulty,
-                "question": f"What does operation {chr(97 + index // 26)}{chr(97 + index % 26)} return?",
-                "reference_answer": "It returns the documented result.",
-                "source_files": [source_file],
-                "source_anchors": [f"{source_file}:1-1"],
-                "reference_contexts": ["The source documents the behavior."],
-            }
-        )
+    cases = _valid_cases(source_root)
     historical_path = tmp_path / "historical.json"
     historical_path.write_text(json.dumps({"cases": cases}), encoding="utf-8")
     output_path = tmp_path / "output.json"
@@ -159,6 +233,35 @@ def test_approved_generation_rejects_missing_review_evidence_after_source_valida
         )
 
     assert not output_path.exists()
+
+
+def test_loader_failure_keeps_existing_output_unchanged(tmp_path: Path):
+    generator = _load_generator_module()
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    cases = _valid_cases(source_root)
+    historical_path = tmp_path / "historical.json"
+    historical_path.write_text(json.dumps({"cases": cases}), encoding="utf-8")
+    output_path = tmp_path / "output.json"
+    original = b"existing output\n"
+    output_path.write_bytes(original)
+    dataset = {
+        "name": "invalid-loader-schema",
+        "schema_version": 1,
+        "source_identity": "not-an-immutable-identity",
+        "review": {"status": "draft"},
+        "cases": cases,
+    }
+
+    with pytest.raises(ValueError, match="immutable source_identity"):
+        generator.validate_and_write_dataset(
+            dataset,
+            historical_path=historical_path,
+            output_path=output_path,
+            source_root=source_root,
+        )
+
+    assert output_path.read_bytes() == original
 
 
 def test_rejects_numbered_component_template():

@@ -1,0 +1,103 @@
+{
+  "name": "transformers-v5.9-answer-quality-v1",
+  "schema_version": 1,
+  "source_identity": "git:https://github.com/huggingface/transformers.git@0a2757da521a7a49b8143d9e0c938f08747d682e:.",
+  "review": {
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-07"
+  },
+  "cases": [
+    {
+      "id": "transformers-t01",
+      "difficulty": "simple",
+      "question": "What kinds of inputs can PreTrainedConfig.from_pretrained accept?",
+      "reference_answer": "It accepts a model identifier hosted on Hugging Face, a directory containing a configuration saved with save_pretrained, or a path to a saved configuration JSON file. It also supports cache, download, local-only, token, and revision options.",
+      "source_files": ["src/transformers/configuration_utils.py"],
+      "source_anchors": ["src/transformers/configuration_utils.py:555-580"],
+      "reference_contexts": ["PreTrainedConfig.from_pretrained documents model IDs, saved configuration directories, and saved JSON files as valid sources."]
+    },
+    {
+      "id": "transformers-t02",
+      "difficulty": "simple",
+      "question": "What does PreTrainedConfig.to_dict include when serializing a configuration?",
+      "reference_answer": "It deep-copies the configuration attributes, adds the model_type when defined, records the Transformers version, and removes the unpacked kwargs entry before returning a dictionary.",
+      "source_files": ["src/transformers/configuration_utils.py"],
+      "source_anchors": ["src/transformers/configuration_utils.py:1004-1015"],
+      "reference_contexts": ["to_dict creates a deep copy, adds model_type and transformers_version, and removes kwargs."]
+    },
+    {
+      "id": "transformers-t03",
+      "difficulty": "simple",
+      "question": "How does BatchEncoding indexing behave for string, integer, and slice keys?",
+      "reference_answer": "A string key returns the corresponding value from the data dictionary, an integer returns the fast-tokenizer encoding for that batch item when encodings are available, and a slice returns sliced dictionary values.",
+      "source_files": ["src/transformers/tokenization_utils_base.py"],
+      "source_anchors": ["src/transformers/tokenization_utils_base.py:193-262"],
+      "reference_contexts": ["BatchEncoding is dictionary-like and exposes token-to-word and token-to-character mappings; __getitem__ dispatches on string, integer, or slice."]
+    },
+    {
+      "id": "transformers-t04",
+      "difficulty": "simple",
+      "question": "What happens when BatchEncoding.convert_to_tensors is called with tensor_type=None?",
+      "reference_answer": "It returns the BatchEncoding unchanged. When a tensor type is supplied, it converts the value to the corresponding TensorType and then performs the requested backend conversion.",
+      "source_files": ["src/transformers/tokenization_utils_base.py"],
+      "source_anchors": ["src/transformers/tokenization_utils_base.py:673-705"],
+      "reference_contexts": ["convert_to_tensors exits early for None, otherwise normalizes the requested backend and checks its availability before conversion."]
+    },
+    {
+      "id": "transformers-t05",
+      "difficulty": "medium",
+      "question": "How does PreTrainedTokenizerBase.add_tokens handle existing and special tokens?",
+      "reference_answer": "It appends only tokens that are not already in the vocabulary. AddedToken objects can customize matching and whitespace behavior, and special_tokens changes normalization behavior. The method returns the number of tokens added.",
+      "source_files": ["src/transformers/tokenization_utils_base.py"],
+      "source_anchors": ["src/transformers/tokenization_utils_base.py:1216-1245"],
+      "reference_contexts": ["add_tokens accepts strings or AddedToken objects, avoids duplicates, supports a special_tokens flag, and returns the count added."]
+    },
+    {
+      "id": "transformers-t06",
+      "difficulty": "medium",
+      "question": "What is the main responsibility of PreTrainedTokenizerBase.__call__?",
+      "reference_answer": "It is the main tokenization entry point for one or more sequences or sequence pairs. It supports padding, truncation, overflow and offset options, optional target text, and returns a BatchEncoding.",
+      "source_files": ["src/transformers/tokenization_utils_base.py"],
+      "source_anchors": ["src/transformers/tokenization_utils_base.py:2419-2455"],
+      "reference_contexts": ["The tokenizer call accepts single or batched text and pairs, with padding, truncation, tensor, overflow, offset, and target options."]
+    },
+    {
+      "id": "transformers-t07",
+      "difficulty": "medium",
+      "question": "Which options change the parameter count returned by PreTrainedModel.num_parameters?",
+      "reference_answer": "only_trainable restricts the count to parameters with gradients enabled, while exclude_embeddings removes parameters belonging to embedding modules from the count.",
+      "source_files": ["src/transformers/modeling_utils.py"],
+      "source_anchors": ["src/transformers/modeling_utils.py:1028-1055"],
+      "reference_contexts": ["num_parameters documents only_trainable and exclude_embeddings flags and identifies embedding weight names when exclusion is requested."]
+    },
+    {
+      "id": "transformers-t08",
+      "difficulty": "hard",
+      "question": "How does resize_token_embeddings change a pretrained model?",
+      "reference_answer": "It resizes the input embedding matrix when the requested vocabulary size differs, can pad to a multiple, optionally initializes added rows using the old embedding statistics, and re-ties weights through tie_weights when the model supports it.",
+      "source_files": ["src/transformers/modeling_utils.py"],
+      "source_anchors": ["src/transformers/modeling_utils.py:2728-2775"],
+      "reference_contexts": ["resize_token_embeddings delegates to the internal resize operation, handles optional padding and mean resizing, then updates model embedding state and weight tying."]
+    },
+    {
+      "id": "transformers-t09",
+      "difficulty": "hard",
+      "question": "How does Pipeline.__call__ prepare batched or chat-style inputs?",
+      "reference_answer": "It detects list, tuple, generator, or dataset-like inputs, converts valid message collections into Chat objects, chooses configured or default worker and batch sizes, and routes the data through a DataLoader and PipelineIterator stages.",
+      "source_files": ["src/transformers/pipelines/base.py"],
+      "source_anchors": ["src/transformers/pipelines/base.py:1188-1220"],
+      "reference_contexts": ["Pipeline.__call__ normalizes chat inputs, defaults num_workers and batch_size, and uses the iterator pipeline for batched execution."]
+    },
+    {
+      "id": "transformers-t10",
+      "difficulty": "hard",
+      "question": "What does Trainer.train return and which controls are exposed at its entry point?",
+      "reference_answer": "Trainer.train runs the training loop and returns a TrainOutput. Its entry point accepts an optional checkpoint to resume from, an optional hyperparameter-optimization trial, and keys to ignore during evaluation.",
+      "source_files": ["src/transformers/trainer.py"],
+      "source_anchors": ["src/transformers/trainer.py:1325-1360"],
+      "reference_contexts": ["The train method exposes resume_from_checkpoint, trial, and ignore_keys_for_eval parameters and documents a TrainOutput return."]
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "name": "langchain-core-v1.4.7-answer-quality-v1",
+  "schema_version": 1,
+  "source_identity": "git:https://github.com/langchain-ai/langchain.git@51578289bb1f696a643e0740be1441039d8af8ce:libs/core",
+  "review": {
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-07"
+  },
+  "cases": [
+    {
+      "id": "langchain-l01",
+      "difficulty": "simple",
+      "question": "What does the Runnable | operator create?",
+      "reference_answer": "It coerces the right-hand object into a Runnable and returns a RunnableSequence containing the current runnable followed by that object.",
+      "source_files": ["langchain_core/runnables/base.py"],
+      "source_anchors": ["langchain_core/runnables/base.py:628-654"],
+      "reference_contexts": ["Runnable.__or__ composes the current runnable with another runnable-like object by returning RunnableSequence(self, coerce_to_runnable(other))."]
+    },
+    {
+      "id": "langchain-l02",
+      "difficulty": "simple",
+      "question": "What is Runnable.invoke responsible for?",
+      "reference_answer": "It is the abstract synchronous entry point that transforms one input into one output and accepts optional RunnableConfig and keyword arguments.",
+      "source_files": ["langchain_core/runnables/base.py"],
+      "source_anchors": ["langchain_core/runnables/base.py:874-905"],
+      "reference_contexts": ["Runnable.invoke is abstract, transforms a single input into an output, and accepts configuration such as tags, metadata, and max_concurrency."]
+    },
+    {
+      "id": "langchain-l03",
+      "difficulty": "simple",
+      "question": "How does the default Runnable.batch implementation execute inputs?",
+      "reference_answer": "The default batch implementation runs invoke in parallel using a thread-pool executor and is intended for IO-bound runnables; subclasses can override it for more efficient native batching.",
+      "source_files": ["langchain_core/runnables/base.py"],
+      "source_anchors": ["langchain_core/runnables/base.py:919-955"],
+      "reference_contexts": ["Runnable.batch documents parallel invoke execution with a thread pool and notes that API-native batch implementations may override it."]
+    },
+    {
+      "id": "langchain-l04",
+      "difficulty": "simple",
+      "question": "What does BasePromptTemplate.validate_variable_names reject?",
+      "reference_answer": "It rejects an input or partial variable named stop and rejects overlap between input_variables and partial_variables.",
+      "source_files": ["langchain_core/prompts/base.py"],
+      "source_anchors": ["langchain_core/prompts/base.py:78-100"],
+      "reference_contexts": ["The validator treats stop as reserved and raises when input and partial variable sets intersect."]
+    },
+    {
+      "id": "langchain-l05",
+      "difficulty": "medium",
+      "question": "What does Runnable.with_retry return and what controls does it expose?",
+      "reference_answer": "It returns a wrapper that retries the original runnable on selected exception types, with controls for exponential-jitter waiting, jitter parameters, and the maximum number of attempts.",
+      "source_files": ["langchain_core/runnables/base.py"],
+      "source_anchors": ["langchain_core/runnables/base.py:2089-2120"],
+      "reference_contexts": ["with_retry creates a retrying Runnable and accepts retry_if_exception_type, wait_exponential_jitter, exponential_jitter_params, and stop_after_attempt."]
+    },
+    {
+      "id": "langchain-l06",
+      "difficulty": "medium",
+      "question": "How does BasePromptTemplate.partial change a prompt template?",
+      "reference_answer": "It copies the template state, removes the supplied names from input_variables, merges them into partial_variables, and constructs a new instance of the same prompt type.",
+      "source_files": ["langchain_core/prompts/base.py"],
+      "source_anchors": ["langchain_core/prompts/base.py:286-306"],
+      "reference_contexts": ["partial copies __dict__, subtracts supplied keys from required inputs, merges them into partial variables, and returns type(self)(**prompt_dict)."]
+    },
+    {
+      "id": "langchain-l07",
+      "difficulty": "medium",
+      "question": "How does BaseMessage.text handle structured content blocks?",
+      "reference_answer": "It exposes text content through a TextAccessor that can be used as a property or legacy method, and it extracts only blocks whose type is text while ignoring non-text blocks.",
+      "source_files": ["langchain_core/messages/base.py"],
+      "source_anchors": ["langchain_core/messages/base.py:200-275"],
+      "reference_contexts": ["BaseMessage.content_blocks normalizes string and provider-specific content, while text extracts only text blocks and ignores other block types."]
+    },
+    {
+      "id": "langchain-l08",
+      "difficulty": "hard",
+      "question": "What lifecycle does BaseRetriever.invoke implement around _get_relevant_documents?",
+      "reference_answer": "It ensures configuration, merges tracing metadata, starts a retriever callback run, calls _get_relevant_documents with supported arguments, reports errors through the run manager, reports successful results, and returns the documents.",
+      "source_files": ["langchain_core/retrievers.py"],
+      "source_anchors": ["langchain_core/retrievers.py:179-235"],
+      "reference_contexts": ["BaseRetriever.invoke configures callbacks and metadata, invokes the abstract retrieval method, sends retriever start/end/error events, and returns the document list."]
+    },
+    {
+      "id": "langchain-l09",
+      "difficulty": "hard",
+      "question": "What invariant does RunnableSequence enforce when it is constructed?",
+      "reference_answer": "It flattens nested RunnableSequence objects, coerces each step to a Runnable, and requires at least two steps; otherwise it raises ValueError.",
+      "source_files": ["langchain_core/runnables/base.py"],
+      "source_anchors": ["langchain_core/runnables/base.py:3063-3200"],
+      "reference_contexts": ["RunnableSequence flattens nested sequences, coerces runnable-like steps, and raises when fewer than the minimum two steps remain."]
+    },
+    {
+      "id": "langchain-l10",
+      "difficulty": "hard",
+      "question": "How does VectorStore define similarity relevance normalization?",
+      "reference_answer": "It provides static normalization helpers that map Euclidean distance to 1 - distance/sqrt(2), cosine distance to 1 - distance, and max-inner-product distance to a sign-aware score; concrete stores select the appropriate function.",
+      "source_files": ["langchain_core/vectorstores/base.py"],
+      "source_anchors": ["langchain_core/vectorstores/base.py:361-420"],
+      "reference_contexts": ["VectorStore defines similarity_search and relevance-score helpers for Euclidean, cosine, and max-inner-product distance scales, while _select_relevance_score_fn remains store-specific."]
+    }
+  ]
+}

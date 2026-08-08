@@ -228,3 +228,7 @@ fixtures/
 .kilocode/
 .roo/
 
+# Git worktrees
+.worktrees/
+worktrees/
+

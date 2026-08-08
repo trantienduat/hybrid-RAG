@@ -11,6 +11,8 @@
 ## Global Constraints
 
 - `eval/gold/llama_index_core_answer_quality_v1.json` remains byte-for-byte unchanged.
+- Supplementary v2 corrects only the over-broad AQ08 and AQ23 anchor end lines
+  documented in the design; every other historical case field remains exact.
 - Historical Transformers and LangChain ten-case datasets remain byte-for-byte unchanged.
 - Final datasets contain exactly 100 cases with `35 simple / 35 medium / 30 hard`.
 - LlamaIndex reuses 30 historical cases and adds 70 new cases.
@@ -272,6 +274,9 @@ Run:
 `PYTHONPATH=src .venv/bin/python scripts/create_100_gold_datasets.py --llama-root /private/tmp/hybrid-rag-gold-sources/llama-index-core-0.14.21 --only llama-index --review-status approved`
 
 Expected: 100 cases, `35/35/30`, 30 preserved, zero invalid anchors.
+Preservation uses the audited supplementary-v2 semantics: only AQ08
+`33-170 -> 33-151` and AQ23 `232-320 -> 232-317` differ from v1, and only in
+`source_anchors`.
 
 - [ ] **Step 7: Commit the LlamaIndex catalog and output**
 

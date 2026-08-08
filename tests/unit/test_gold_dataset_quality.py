@@ -96,6 +96,73 @@ def test_assemble_dataset_is_deterministic_preserves_prefix_and_copies_cases(tmp
     assert metadata == metadata_before
 
 
+def test_llama_supplementary_v2_corrects_only_two_historical_anchor_lists(
+    tmp_path: Path,
+):
+    generator = _load_generator_module()
+    historical_path = GOLD_DIR / "llama_index_core_answer_quality_v1.json"
+    historical_cases = json.loads(historical_path.read_text(encoding="utf-8"))["cases"]
+    additions_path = tmp_path / "additions.json"
+    additions_path.write_text('{"cases": []}', encoding="utf-8")
+
+    assembled = generator.assemble_dataset(
+        historical_path,
+        additions_path,
+        generator.DATASETS["llama-index"]["metadata"],
+    )
+    assembled_cases = assembled["cases"][: len(historical_cases)]
+
+    changed_ids = [
+        historical["id"]
+        for historical, supplementary in zip(historical_cases, assembled_cases)
+        if historical != supplementary
+    ]
+    assert changed_ids == ["AQ08", "AQ23"]
+
+    for historical, supplementary in zip(historical_cases, assembled_cases):
+        historical_without_anchors = {
+            key: value for key, value in historical.items() if key != "source_anchors"
+        }
+        supplementary_without_anchors = {
+            key: value for key, value in supplementary.items() if key != "source_anchors"
+        }
+        assert supplementary_without_anchors == historical_without_anchors
+
+    by_id = {item["id"]: item for item in assembled_cases}
+    assert by_id["AQ08"]["source_anchors"] == [
+        "response_synthesizers/factory.py:33-151"
+    ]
+    assert by_id["AQ23"]["source_anchors"] == [
+        "retrievers/fusion_retriever.py:96-148",
+        "retrievers/fusion_retriever.py:232-317",
+    ]
+
+
+def test_llama_supplementary_v2_requires_the_pinned_historical_anchor(
+    tmp_path: Path,
+):
+    generator = _load_generator_module()
+    historical = json.loads(
+        (GOLD_DIR / "llama_index_core_answer_quality_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    historical["cases"][7]["source_anchors"] = [
+        "response_synthesizers/factory.py:33-151"
+    ]
+    historical_path = tmp_path / "llama_index_core_answer_quality_v1.json"
+    historical_path.write_text(json.dumps(historical), encoding="utf-8")
+    additions_path = tmp_path / "additions.json"
+    additions_path.write_text('{"cases": []}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="expected historical source anchor"):
+        generator.assemble_dataset(
+            historical_path,
+            additions_path,
+            generator.DATASETS["llama-index"]["metadata"],
+        )
+
+
 def _initialize_git_snapshot(tmp_path: Path) -> tuple[Path, str]:
     snapshot_root = tmp_path / "snapshot"
     snapshot_root.mkdir()

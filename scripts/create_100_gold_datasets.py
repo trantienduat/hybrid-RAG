@@ -41,6 +41,21 @@ HISTORICAL_FIXTURE_SHA256 = {
     ),
 }
 
+SUPPLEMENTARY_V2_ANCHOR_CORRECTIONS = {
+    "sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509": {
+        "AQ08": {
+            "response_synthesizers/factory.py:33-170": (
+                "response_synthesizers/factory.py:33-151"
+            ),
+        },
+        "AQ23": {
+            "retrievers/fusion_retriever.py:232-320": (
+                "retrievers/fusion_retriever.py:232-317"
+            ),
+        },
+    },
+}
+
 DATASETS: dict[str, dict[str, Any]] = {
     "llama-index": {
         "source_subdir": Path("llama_index/core"),
@@ -89,10 +104,35 @@ def assemble_dataset(
     historical = json.loads(historical_path.read_text(encoding="utf-8"))
     additions = json.loads(additions_path.read_text(encoding="utf-8"))
     cases = [copy.deepcopy(case) for case in historical["cases"]]
+    _apply_supplementary_v2_anchor_corrections(
+        cases, str(metadata.get("source_identity", ""))
+    )
     cases.extend(copy.deepcopy(case) for case in additions["cases"])
     assembled = copy.deepcopy(dict(metadata))
     assembled.update({"schema_version": 1, "cases": cases})
     return assembled
+
+
+def _apply_supplementary_v2_anchor_corrections(
+    cases: Sequence[dict[str, Any]], source_identity: str
+) -> None:
+    """Correct audited over-broad historical anchors in supplementary output."""
+    corrections = SUPPLEMENTARY_V2_ANCHOR_CORRECTIONS.get(source_identity, {})
+    if not corrections:
+        return
+
+    cases_by_id = {case["id"]: case for case in cases}
+    for case_id, anchor_replacements in corrections.items():
+        if case_id not in cases_by_id:
+            raise ValueError(f"Missing historical case required for correction: {case_id}")
+        anchors = cases_by_id[case_id]["source_anchors"]
+        for original, corrected in anchor_replacements.items():
+            if anchors.count(original) != 1:
+                raise ValueError(
+                    f"{case_id} expected historical source anchor exactly once: "
+                    f"{original}"
+                )
+            anchors[anchors.index(original)] = corrected
 
 
 def verify_historical_fixture(historical_path: Path) -> None:
@@ -207,8 +247,14 @@ def validate_and_write_dataset(
 ) -> None:
     """Validate a complete dataset, then write canonical JSON and reload it."""
     historical = json.loads(historical_path.read_text(encoding="utf-8"))
+    expected_historical_cases = [
+        copy.deepcopy(case) for case in historical["cases"]
+    ]
+    _apply_supplementary_v2_anchor_corrections(
+        expected_historical_cases, str(dataset.get("source_identity", ""))
+    )
     cases = dataset["cases"]
-    assert_preserved_cases(cases, historical["cases"])
+    assert_preserved_cases(cases, expected_historical_cases)
     validate_distribution(cases)
     validate_case_quality(cases, source_root=source_root)
 

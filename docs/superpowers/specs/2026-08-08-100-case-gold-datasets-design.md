@@ -27,7 +27,8 @@ Each new dataset contains exactly 100 unique cases with 35 simple, 35 medium,
 and 30 hard cases.
 
 - LlamaIndex: copy the 30 thesis cases exactly, preserving their IDs and case
-  contents, then add 70 source-reviewed cases with IDs `AQ31` through `AQ100`.
+  contents except for the two audited supplementary-v2 source-anchor corrections
+  below, then add 70 source-reviewed cases with IDs `AQ31` through `AQ100`.
 - Transformers: copy the ten v1 cases exactly, preserving IDs and case contents,
   then add 90 source-reviewed cases with IDs `transformers-t11` through
   `transformers-t100`.
@@ -38,6 +39,23 @@ and 30 hard cases.
 The final difficulty counts apply to the complete 100-case dataset. Preserved
 cases retain their existing difficulty labels; new cases fill the remaining
 counts.
+
+### Supplementary-v2 provenance corrections
+
+Source validation against the pinned `llama-index-core==0.14.21` wheel found two
+historical anchors whose end lines extend past the real files. The submitted v1
+fixture remains byte-for-byte unchanged. Only the assembled supplementary v2
+output corrects these provenance ranges:
+
+- `AQ08`: `response_synthesizers/factory.py:33-170` becomes
+  `response_synthesizers/factory.py:33-151`.
+- The second `AQ23` anchor, `retrievers/fusion_retriever.py:232-320`, becomes
+  `retrievers/fusion_retriever.py:232-317`.
+
+All other fields in the first 30 cases, including IDs, difficulties, questions,
+answers, source files, contexts, and all other anchors, remain exactly equal to
+the historical fixture. The assembler fails if either expected old anchor is
+missing or duplicated; generic source validation is unchanged.
 
 ## Case Quality Contract
 

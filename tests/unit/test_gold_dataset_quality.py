@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 
@@ -27,6 +28,15 @@ HISTORICAL_SHA256 = {
 }
 
 
+def _load_generator_module():
+    script_path = ROOT / "scripts" / "create_100_gold_datasets.py"
+    spec = importlib.util.spec_from_file_location("create_100_gold_datasets", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def case(
     question: str,
     *,
@@ -49,6 +59,106 @@ def test_historical_gold_files_are_unchanged():
     for filename, expected in HISTORICAL_SHA256.items():
         payload = (GOLD_DIR / filename).read_bytes()
         assert hashlib.sha256(payload).hexdigest() == expected
+
+
+def test_assemble_dataset_is_deterministic_preserves_prefix_and_copies_cases(tmp_path: Path):
+    historical = {
+        "name": "historical",
+        "schema_version": 1,
+        "cases": [{"id": "AQ01", "nested": {"value": "preserved"}}],
+    }
+    additions = {"cases": [{"id": "AQ02", "nested": {"value": "addition"}}]}
+    metadata = {"name": "assembled", "source_identity": "sha256:" + "a" * 64}
+    historical_path = tmp_path / "historical.json"
+    additions_path = tmp_path / "additions.json"
+    historical_path.write_text(json.dumps(historical), encoding="utf-8")
+    additions_path.write_text(json.dumps(additions), encoding="utf-8")
+    historical_before = json.loads(json.dumps(historical))
+    additions_before = json.loads(json.dumps(additions))
+    metadata_before = json.loads(json.dumps(metadata))
+
+    generator = _load_generator_module()
+    first = generator.assemble_dataset(historical_path, additions_path, metadata)
+    second = generator.assemble_dataset(historical_path, additions_path, metadata)
+
+    canonical = lambda payload: json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    assert canonical(first).encode("utf-8") == canonical(second).encode("utf-8")
+    assert first["cases"][: len(historical["cases"])] == historical["cases"]
+    first["cases"][0]["nested"]["value"] = "changed"
+    assert historical == historical_before
+    assert additions == additions_before
+    assert metadata == metadata_before
+
+
+def test_generator_requires_only_the_selected_source_root(tmp_path: Path):
+    generator = _load_generator_module()
+
+    args = generator.parse_args(["--only", "llama-index", "--llama-root", str(tmp_path)])
+
+    assert args.only == "llama-index"
+    assert args.llama_root == tmp_path
+    with pytest.raises(SystemExit):
+        generator.parse_args(["--only", "transformers"])
+
+
+def test_generator_resolves_source_root_inside_snapshot(tmp_path: Path):
+    generator = _load_generator_module()
+    expected = tmp_path / "llama_index" / "core"
+    expected.mkdir(parents=True)
+
+    assert (
+        generator.resolve_source_root(tmp_path, generator.DATASETS["llama-index"])
+        == expected
+    )
+
+
+def test_approved_generation_rejects_missing_review_evidence_after_source_validation(
+    tmp_path: Path,
+):
+    generator = _load_generator_module()
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    cases = []
+    for index in range(100):
+        source_file = f"source_{index % 20}.py"
+        (source_root / source_file).write_text("documented behavior\n", encoding="utf-8")
+        difficulty = "simple" if index < 35 else "medium" if index < 70 else "hard"
+        cases.append(
+            {
+                "id": f"AQ{index:03d}",
+                "difficulty": difficulty,
+                "question": f"What does operation {chr(97 + index // 26)}{chr(97 + index % 26)} return?",
+                "reference_answer": "It returns the documented result.",
+                "source_files": [source_file],
+                "source_anchors": [f"{source_file}:1-1"],
+                "reference_contexts": ["The source documents the behavior."],
+            }
+        )
+    historical_path = tmp_path / "historical.json"
+    historical_path.write_text(json.dumps({"cases": cases}), encoding="utf-8")
+    output_path = tmp_path / "output.json"
+    dataset = {
+        "name": "approved",
+        "schema_version": 1,
+        "source_identity": "sha256:" + "b" * 64,
+        "review": {
+            "status": "approved",
+            "reviewer": "Codex",
+            "reviewer_type": "ai_source_review",
+            "reviewed_at": "2026-08-08",
+        },
+        "cases": cases,
+    }
+
+    with pytest.raises(ValueError, match="evidence grade"):
+        generator.validate_and_write_dataset(
+            dataset,
+            historical_path=historical_path,
+            output_path=output_path,
+            source_root=source_root,
+        )
+
+    assert not output_path.exists()
 
 
 def test_rejects_numbered_component_template():

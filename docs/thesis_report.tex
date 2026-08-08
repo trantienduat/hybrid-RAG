@@ -1,0 +1,888 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{geometry}
+\geometry{left=3cm,right=2cm,top=2.5cm,bottom=2.5cm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage[acronym,toc]{glossaries}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+
+% Algorithm Vietnamese translations
+\floatname{algorithm}{Thuật toán}
+\renewcommand{\listalgorithmname}{Danh mục thuật toán}
+
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Thesis Report - Hybrid RAG},
+}
+
+% Vietnamese labels
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\lstlistingname}{Mã nguồn}
+\renewcommand{\contentsname}{Mục lục}
+\renewcommand{\listfigurename}{Danh mục hình ảnh}
+\renewcommand{\listtablename}{Danh mục bảng biểu}
+
+% 1.5 line spacing
+\onehalfspacing
+
+% Definition of colors for code blocks
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% TikZ styles for architecture diagrams
+\tikzset{
+    component/.style={rectangle, draw=black!60, fill=blue!8, thick, minimum height=1cm, minimum width=3.5cm, text centered, font=\small},
+    storage/.style={cylinder, draw=black!60, fill=purple!8, thick, minimum height=1cm, minimum width=2.5cm, text centered, font=\small, shape border rotate=90, aspect=0.25},
+    process/.style={rectangle, rounded corners, draw=black!60, fill=green!8, thick, minimum height=0.8cm, minimum width=3cm, text centered, font=\small},
+    arrow/.style={-{Stealth[length=3mm]}, thick},
+    dasharrow/.style={-{Stealth[length=3mm]}, thick, dashed},
+    groupbox/.style={rectangle, rounded corners, draw=black!40, dashed, inner sep=0.4cm},
+}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% GLOSSARY / ABBREVIATIONS
+% ──────────────────────────────────────────────────────────────────────────────
+\newacronym{rag}{RAG}{Retrieval-Augmented Generation}
+\newacronym{llm}{LLM}{Large Language Model}
+\newacronym{ast}{AST}{Abstract Syntax Tree}
+\newacronym{rrf}{RRF}{Reciprocal Rank Fusion}
+\newacronym{fqn}{FQN}{Fully Qualified Name}
+\newacronym{kg}{KG}{Knowledge Graph}
+
+\newacronym{sla}{SLA}{Service Level Agreement}
+\newacronym{dod}{DOD}{Definition of Done}
+\newacronym{api}{API}{Application Programming Interface}
+\newacronym{mrr}{MRR}{Mean Reciprocal Rank}
+\newacronym{mro}{MRO}{Method Resolution Order}
+
+\makeglossaries
+
+\begin{document}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TRANG BÌA (COVER PAGE)
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \begin{center}
+        \large BỘ GIÁO DỤC VÀ ĐÀO TẠO \\
+        \textbf{\large TRƯỜNG ĐẠI HỌC FPT} \\
+        \vfill
+        \textbf{\Large LUẬN VĂN THẠC SĨ} \\
+        \vfill
+        \begin{singlespace}
+            \textbf{\Large NGHIÊN CỨU VÀ XÂY DỰNG HỆ THỐNG TRUY VẤN MÃ NGUỒN DỰA TRÊN KIẾN TRÚC HYBRID-RAG KẾT HỢP ĐỒ THỊ TRI THỨC VÀ TÌM KIẾM NGỮ NGHĨA}
+        \end{singlespace}
+        \vfill
+        \vspace{1.5cm}
+        \begin{tabular}{rll}
+            Học viên: & Trần Tiến Duật \\
+            MSHV: & XXXXXXXX \\
+            Chuyên ngành: & Kỹ thuật Phần mềm \\
+            Giáo viên hướng dẫn: & Đoàn Xuân Huy Minh \\
+        \end{tabular}
+        \vfill
+        \large TP. HỒ CHÍ MINH, NĂM 2026
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+\printglossary[type=\acronymtype, title=Danh mục từ viết tắt]
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TÓM TẮT (ABSTRACT)
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter*{Tóm tắt Luận văn}
+\addcontentsline{toc}{chapter}{Tóm tắt Luận văn}
+Truy vấn mã nguồn là một bài toán phức tạp do mã nguồn chứa cả thông tin cấu trúc tĩnh (gọi hàm, kế thừa lớp, định nghĩa module) và thông tin ngữ nghĩa. Vector-only \gls{rag} có thể biểu diễn tương đồng ngữ nghĩa nhưng không cung cấp trực tiếp các quan hệ mã nguồn có kiểu cho câu hỏi nặng về cấu trúc.
+
+Luận văn thiết kế và đánh giá kiến trúc \textbf{Hybrid-RAG} kết hợp \gls{kg} sinh từ \gls{ast} trong FalkorDB với truy xuất vector mật độ cao trong Qdrant. Hiện thực sử dụng truy xuất đồ thị theo loại truy vấn, tìm kiếm vector, \gls{rrf} có trọng số \cite{cormack2009rrf} và lắp ghép ngữ cảnh theo giới hạn token. Benchmark ghép cặp trên 30 câu hỏi đã rà soát từ một snapshot LlamaIndex Core được ghim tạo ra 180 câu trả lời được sinh và chấm. Hybrid-RAG đạt Faithfulness 0.924, Answer Relevancy 0.808 và Answer Correctness 0.698; vector-only lần lượt đạt 0.896, 0.729 và 0.652. Khoảng tin cậy bootstrap 95\% theo từng case cho chênh lệch Hybrid trừ vector lần lượt là $[-0.069, 0.115]$, $[-0.0001, 0.175]$ và $[0.002, 0.094]$. Vì vậy chỉ chênh lệch Answer Correctness không chứa giá trị 0 ở mức 95\%. Toàn bộ thao tác nhúng, sinh và chấm dùng Ollama cục bộ. Bằng chứng hiện chỉ giới hạn ở một repository Python và một baseline thực thi, chưa chứng minh khả năng tổng quát xuyên repository hoặc ngôn ngữ.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Code querying is a complex problem because source code contains both static structural information (function calls, class inheritance, and module definitions) and semantic information. A vector-only \gls{rag} index can represent semantic similarity, but it does not directly expose typed code relations for relation-heavy questions.
+
+This thesis designs and evaluates a \textbf{Hybrid-RAG} architecture that combines an \gls{ast}-derived \gls{kg} in FalkorDB with dense retrieval in Qdrant. The implementation uses query-aware graph traversal, vector search, weighted \gls{rrf} \cite{cormack2009rrf}, and token-budgeted context assembly. A paired benchmark on 30 reviewed questions from one pinned LlamaIndex Core snapshot produced 180 generated and scored answers. Hybrid-RAG obtained mean Faithfulness 0.924, Answer Relevancy 0.808, and Answer Correctness 0.698, versus 0.896, 0.729, and 0.652 for vector-only retrieval. Paired case-level 95\% bootstrap intervals for the Hybrid-minus-vector differences were $[-0.069, 0.115]$, $[-0.0001, 0.175]$, and $[0.002, 0.094]$, respectively. Thus, only the observed Answer Correctness difference excludes zero at the 95\% level. All embedding, generation, and judging calls used local Ollama services. The evidence is limited to one Python repository and one executed baseline; it does not establish cross-repository or cross-language generality.
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 1: MỞ ĐẦU
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Mở đầu}
+
+\section{Ngữ cảnh hệ thống (Context)}
+Bảo trì phần mềm hiện đại đòi hỏi lập trình viên điều hướng các codebase lớn, thay đổi liên tục và khôi phục các quan hệ phân tán qua nhiều tệp và module. Sự phát triển của \gls{llm} mở ra tiềm năng hỗ trợ lập trình \cite{chen2021codex}; tuy nhiên việc đưa toàn bộ repository vào một prompt bị giới hạn bởi ngân sách context hữu hạn và hiện tượng mô hình sử dụng kém thông tin nằm giữa ngữ cảnh dài \cite{liu2023lost}.
+
+Kỹ thuật \gls{rag} \cite{lewis2020rag} giải quyết bài toán này bằng cách truy xuất một tập bằng chứng mã nguồn có giới hạn và đưa vào ngữ cảnh \gls{llm}. Vector-only RAG có thể tìm các đoạn mã tương đồng ngữ nghĩa, nhưng index của nó không biểu diễn trực tiếp các cạnh gọi hàm, import, định nghĩa hoặc kế thừa. Điều này tạo động lực kiểm tra xem một kênh đồ thị sinh từ AST có bổ sung bằng chứng hữu ích so với cùng hệ thống chạy ở chế độ vector-only hay không.
+
+\section{Đặc tả bài toán và Điểm nghẽn (Problem Statement)}
+Vấn đề nghiên cứu là truy xuất bằng chứng cho các câu hỏi kết hợp ý định ngữ nghĩa và cấu trúc riêng của repository, đồng thời giữ mã nguồn và các lời gọi model ở môi trường cục bộ. Bốn khoảng trống chính gồm:
+
+\begin{itemize}
+    \item \textbf{Khoảng trống biểu diễn:} chunk mật độ cao mã hóa tương đồng ngữ nghĩa nhưng không biểu diễn topology của repository.
+    \item \textbf{Giới hạn ngữ cảnh:} bằng chứng nguồn phải được chọn và tuần tự hóa trong một ngân sách prompt hữu hạn.
+    \item \textbf{Tính toàn vẹn index:} định danh repository, phiên bản nguồn, schema và embedding model phải nhất quán giữa graph store và vector store.
+    \item \textbf{Khoảng trống bằng chứng:} các point estimate dương trên một repository chưa đủ cho kết luận rộng nếu thiếu khoảng tin cậy ghép cặp, repository bổ sung và baseline mạnh hơn.
+\end{itemize}
+
+\section{Đánh giá các giải pháp hiện hành (Related Works)}
+Để giải quyết bài toán truy vấn mã nguồn, các công nghệ hiện hành có những ưu và nhược điểm khác nhau. Bảng~\ref{tab:related_works} trình bày chi tiết ma trận so sánh đối chiếu giữa các giải pháp:
+
+\begin{table}[H]
+    \centering
+    \caption{Ma trận so sánh các giải pháp truy vấn mã nguồn hiện hành}
+    \label{tab:related_works}
+    \small
+    \begin{tabular}{p{2.5cm}p{3cm}p{3cm}p{4cm}}
+        \toprule
+        \textbf{Giải pháp} & \textbf{Cơ chế cốt lõi} & \textbf{Vai trò trong luận văn} & \textbf{Đánh đổi chính} \\
+        \midrule
+        \textbf{BM25 / lexical retrieval} \cite{bm25} & Xếp hạng theo từ khóa chính xác & Baseline từ tài liệu; chưa chạy & Mạnh với symbol chính xác / yếu với diễn đạt tương đương. \\
+        \midrule
+        \textbf{Vector-only RAG} \cite{lewis2020rag} & Dense chunks + cosine similarity & Baseline đã chạy & Khớp ngữ nghĩa / không có topology trực tiếp. \\
+        \midrule
+        \textbf{Code encoders} (CodeBERT \cite{feng2020codebert}, GraphCodeBERT \cite{guo2024graphcodebert}) & Biểu diễn code tiền huấn luyện & So sánh tài liệu; chưa chạy & Học ngữ nghĩa code / cần index theo model. \\
+        \midrule
+        \textbf{Microsoft GraphRAG} \cite{edge2024graphrag} & Entity graph + community summaries & So sánh kiến trúc; chưa chạy & Tổng hợp toàn cục / thêm công đoạn indexing và tóm tắt. \\
+        \midrule
+        \textbf{Prototype của luận văn} & AST graph + dense retrieval + weighted \gls{rrf} & So với vector-only & Bằng chứng cấu trúc và ngữ nghĩa / tăng độ trễ truy xuất và độ phức tạp index. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Ma trận trên tách các phương pháp liên quan khỏi baseline đã thực thi. Chỉ vector-only được chạy trên cùng snapshot nguồn, model, câu hỏi và giao thức lặp. BM25, graph-only, code encoder và Microsoft GraphRAG vẫn là khoảng trống so sánh cần bổ sung.
+
+\section{Giải pháp đề xuất (Proposed Solution)}
+Giải pháp Hybrid-RAG sử dụng FalkorDB \cite{falkordb2024} và Qdrant \cite{qdrant2024} theo loại truy vấn. Câu hỏi quan hệ chính xác ưu tiên graph traversal xác định khi tìm được đích; câu hỏi local khác có thể chạy graph và vector đồng thời rồi trộn hạng bằng \gls{rrf}; câu hỏi global lấy community summary đã lọc theo repository. Bằng chứng cuối được lắp ghép theo giới hạn token hoặc ký tự trước pha sinh cục bộ.
+
+\section{Khoảng trống nghiên cứu và Đóng góp kỹ thuật}
+Hybrid retrieval, AST parsing, graph retrieval và RRF đều là kỹ thuật đã có. Luận văn không tuyên bố một thuật toán truy xuất mới; đóng góp nằm ở thiết kế hệ thống và tích hợp có bằng chứng cho bài toán hiểu codebase riêng tư:
+\begin{itemize}
+    \item dual index theo namespace repository, ánh xạ thực thể và quan hệ Python AST vào FalkorDB đồng thời lưu semantic chunk đồng bộ nguồn trong Qdrant;
+    \item truy xuất theo loại câu hỏi kết hợp relation traversal xác định, graph--vector đồng thời, rank fusion có trọng số, sibling expansion và lắp ghép context theo ngân sách;
+    \item các cơ chế toàn vẹn gồm entity resolution thận trọng, cập nhật index mới trước khi dọn dữ liệu cũ, kiểm tra provenance nguồn/schema/model, cache generation và ranh giới Ollama cục bộ; và
+    \item benchmark chất lượng câu trả lời ghép cặp có raw records và khoảng tin cậy theo case, kèm giới hạn rõ ràng về repository, ngôn ngữ và baseline.
+\end{itemize}
+
+\section{Mục tiêu và Câu hỏi nghiên cứu (Research Objectives \& Questions)}
+
+\subsection{Mục tiêu nghiên cứu (Research Objectives)}
+Mục tiêu chính là xác định việc bổ sung truy xuất cấu trúc sinh từ AST vào cùng một pipeline vector-RAG có cải thiện câu trả lời bám nguồn về codebase Python trong điều kiện thực thi cục bộ hay không. Các mục tiêu cụ thể gồm:
+\begin{itemize}
+    \item hiện thực pipeline graph--vector theo namespace repository với provenance nguồn lặp lại được và context có giới hạn;
+    \item so sánh Hybrid-RAG với vector-only trên cùng câu hỏi, snapshot nguồn, model và số lần lặp; và
+    \item lượng hóa chất lượng câu trả lời, độ trễ truy xuất/sinh và số token bằng khoảng tin cậy ghép cặp, đồng thời mô tả threats to validity.
+\end{itemize}
+
+\subsection{Câu hỏi nghiên cứu (Research Questions)}
+Luận văn trả lời ba câu hỏi nghiên cứu phù hợp với số liệu hiện có:
+\begin{itemize}
+    \item \textbf{RQ1 --- Chất lượng câu trả lời:} Trên workload LlamaIndex đã ghim, Hybrid-RAG thay đổi Faithfulness, Answer Relevancy và Answer Correctness như thế nào so với vector-only?
+    \item \textbf{RQ2 --- Đánh đổi hiệu năng:} Hybrid-RAG làm thay đổi độ trễ truy xuất, độ trễ sinh cục bộ và số prompt/completion token như thế nào?
+    \item \textbf{RQ3 --- Độ mạnh của bằng chứng:} Chênh lệch nào còn nằm trên hoặc dưới 0 dưới khoảng tin cậy ghép cặp 95\% theo case, và các giới hạn tổng quát hóa là gì?
+\end{itemize}
+
+\section{Phạm vi nghiên cứu và Tiêu chí hoàn thành (Scope \& DoD)}
+\subsection{Phạm vi nghiên cứu (Scope)}
+Hiện thực được đánh giá chỉ hỗ trợ Python. Java indexing bị từ chối vì chưa có entity extractor và resolver Java, dù context skeletonizer riêng có dùng Java grammar. Benchmark hoàn chỉnh chỉ dùng một repository đã ghim (\texttt{llama-index-core==0.14.21}) và một baseline đã chạy (vector-only), với \texttt{nomic-embed-text}, \texttt{gemma4:12b} và judge \texttt{qwen2.5-coder:7b}. Không có kết quả cho Transformers, LangChain, Kubernetes, BM25, graph-only hoặc Microsoft GraphRAG; luận văn không suy diễn các kết quả đó.
+
+\subsection{Tiêu chí hoàn thành (Definition of Done - DoD)}
+Prototype được đánh giá theo các tiêu chí bằng chứng sau:
+\begin{enumerate}
+    \item lưu đầy đủ raw records của hai chế độ dưới source identity và index schema đã ghim;
+    \item báo cáo Faithfulness, Answer Relevancy và Answer Correctness cùng khoảng tin cậy ghép cặp 95\% theo case;
+    \item tách độ trễ truy xuất khỏi độ trễ sinh cục bộ và số token; và
+    \item xem kết luận xuyên repository, xuyên ngôn ngữ và baseline bổ sung là chưa kiểm chứng cho tới khi có thí nghiệm riêng.
+\end{enumerate}
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 2: KIẾN TRÚC HỆ THỐNG
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Cơ sở lý thuyết và Kiến trúc hệ thống}
+
+\section{Cơ sở lý thuyết và Tổng quan tài liệu}
+
+\subsection{Lý thuyết Truy xuất Thông tin (Information Retrieval Theory)}
+Truy xuất thông tin (IR) là quá trình tìm kiếm các tài liệu có cấu trúc hoặc phi cấu trúc (thường là văn bản) đáp ứng nhu cầu thông tin từ trong các bộ sưu tập lớn. Có hai trường phái IR chính:
+\begin{itemize}
+    \item \textbf{Truy xuất từ khóa cổ điển (Lexical Retrieval):} Dựa trên thuật toán so khớp chuỗi ký tự như TF-IDF hoặc BM25 \cite{bm25}. BM25 tính toán điểm số phù hợp của tài liệu $D$ đối với truy vấn $Q$ chứa các từ khóa $q_i$ theo công thức:
+    \begin{equation}
+        \text{Score}(D, Q) = \sum_{i=1}^{n} \text{IDF}(q_i) \cdot \frac{f(q_i, D) \cdot (k_1 + 1)}{f(q_i, D) + k_1 \cdot \left(1 - b + b \cdot \frac{|D|}{\text{avgdl}}\right)}
+    \end{equation}
+    Trong đó $f(q_i, D)$ là tần suất của từ khóa trong tài liệu, $|D|$ là độ dài tài liệu, và $\text{avgdl}$ là độ dài trung bình của tài liệu trong tập hợp. BM25 khớp chính xác tên hàm, biến hoặc ký hiệu mã nguồn cụ thể, nhưng thất bại hoàn toàn khi người dùng truy vấn bằng các từ đồng nghĩa hoặc mô tả ngữ nghĩa không trùng khớp ký tự cụ thể.
+    
+    \item \textbf{Truy xuất ngữ nghĩa mật độ cao (Dense Retrieval):} Sử dụng mô hình nhúng (Embedding Models) để chuyển đổi văn bản thành các vector số học trong không gian nhiều chiều. Độ tương tự ngữ nghĩa giữa câu hỏi $\mathbf{u}$ và đoạn mã $\mathbf{v}$ được tính bằng độ tương tự Cosine (Cosine Similarity):
+    \begin{equation}
+        \text{Similarity}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\| \|\mathbf{v}\|}
+    \end{equation}
+    Phương pháp này giải quyết được bài toán đồng nghĩa và truy vấn mô tả ý định, nhưng dễ bị nhiễu do mất thông tin về cấu trúc logic và các ký hiệu cú pháp đặc thù của mã nguồn.
+\end{itemize}
+
+\subsection{Các mô hình tìm kiếm mã nguồn (Code Search Models)}
+Mã nguồn khác biệt cơ bản so với ngôn ngữ tự nhiên do tính cấu trúc cao và ràng buộc logic nghiêm ngặt. Việc biểu diễn mã nguồn đã trải qua ba giai đoạn phát triển chính:
+\begin{enumerate}
+    \item \textbf{Biểu diễn dưới dạng văn bản (Text-based):} Coi mã nguồn như tài liệu văn bản thông thường, sử dụng BM25 hoặc tìm kiếm cụm từ. Phương pháp này bỏ qua hoàn toàn ngữ pháp mã nguồn.
+    \item \textbf{Mô hình tiền huấn luyện học sâu (Deep Learning Pre-trained Models):} Các mô hình như CodeBERT \cite{feng2020codebert} và GraphCodeBERT \cite{guo2024graphcodebert} học biểu diễn mã nguồn từ corpus lớn; GraphCodeBERT còn tích hợp cấu trúc dòng dữ liệu. Chúng xử lý đầu vào có giới hạn và tự thân không duy trì một đồ thị quan hệ repository tường minh, có thể cập nhật.
+    \item \textbf{Mô hình dựa trên đồ thị phụ thuộc (Dependency Graph-based):} Sử dụng các công cụ phân tích cú pháp tĩnh để dựng đồ thị phụ thuộc lớp, lời gọi hàm và import. Định nghĩa hình thức đồ thị tri thức mã nguồn dưới dạng đồ thị có hướng đa cạnh $G = (V, E, \phi, \psi)$, trong đó:
+    \begin{itemize}
+        \item $V$ là tập hợp các nút thực thể mã nguồn do AST parser hiện tại sinh ra (Module, Class, Function).
+        \item $E$ là tập hợp các cạnh quan hệ cấu trúc giữa các thực thể.
+        \item $\phi: V \rightarrow L_V$ là hàm gán nhãn thực thể, với $L_V = \{\text{Module}, \text{Class}, \text{Function}\}$.
+        \item $\psi: E \rightarrow L_E$ là hàm gán loại quan hệ phụ thuộc cú pháp, với $L_E = \{\text{DEFINES}, \text{CALLS}, \text{INHERITS}, \text{IMPORTS}\}$.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Thế hệ truy xuất tăng cường (RAG) và Graph RAG}
+Truy xuất tăng cường thế hệ (RAG) \cite{lewis2020rag} bổ sung bằng chứng được truy xuất vào prompt trước pha sinh. Các dạng triển khai liên quan gồm:
+\begin{itemize}
+    \item \textbf{Naive RAG:} Phân mảnh mã nguồn theo cửa sổ văn bản cố định và lưu vào Vector DB. Các cửa sổ này có thể cắt ngang hàm hoặc lớp và làm mất ngữ cảnh cấu trúc.
+    \item \textbf{Advanced RAG:} Áp dụng phân mảnh theo cấu trúc AST (Function/Class boundaries) và cải tiến thuật toán trích xuất context.
+    \item \textbf{Graph RAG:} Dùng đồ thị tri thức làm chỉ mục. Các framework như Microsoft GraphRAG \cite{edge2024graphrag} sử dụng entity extraction và community summary phân cấp cho câu hỏi toàn cục. Cách tiếp cận này bổ sung công đoạn indexing và tóm tắt; chất lượng, độ trễ và chi phí tính toán phụ thuộc model và corpus.
+\end{itemize}
+Để kết hợp ưu điểm của cả hai kênh tìm kiếm, chúng tôi đề xuất hệ thống Hybrid-RAG sử dụng thuật toán trộn thứ hạng Reciprocal Rank Fusion (RRF) \cite{cormack2009rrf}:
+\begin{equation}
+    RRF\_Score(d \in D) = \sum_{m \in M} \frac{w_m}{k + r_m(d)}
+\end{equation}
+Trong đó $M = \{\text{vector}, \text{graph}\}$, $r_m(d)$ là thứ hạng của tài liệu $d$ trong kênh tìm kiếm $m$, $w_m$ là trọng số tương ứng, và $k$ là hằng số làm mịn được đặt bằng 60 trong hiện thực. Rank fusion tránh giả định điểm vector và điểm graph đã được hiệu chuẩn trên cùng một thang số.
+
+\subsection{Tổng hợp tài liệu và Hàm ý thiết kế}
+Các hướng tiếp cận được khảo sát có tính bổ sung: lexical retrieval phù hợp với identifier chính xác; dense retrieval xử lý cách diễn đạt tương đương; AST và dependency graph biểu diễn quan hệ có kiểu; còn RAG giới hạn pha sinh theo bằng chứng được chọn. Từ đó, luận văn đưa ra năm quyết định thiết kế: (i) phân mảnh theo biên symbol thay vì cửa sổ ký tự cố định, (ii) lưu semantic chunk và quan hệ graph trong hai index riêng, (iii) định tuyến câu hỏi quan hệ rõ ràng vào graph plan xác định, (iv) dùng rank fusion khi cả hai kênh tạo candidate, và (v) lắp ghép bằng chứng cuối theo ngân sách context kèm source metadata. Hiện thực chỉ đánh giá giá trị bổ sung của kênh graph so với vector-only; BM25, graph-only, code encoder và Microsoft GraphRAG vẫn là khoảng trống so sánh, không phải các phương pháp đã được chứng minh kém hơn.
+
+\section{Kiến trúc hệ thống}
+
+\section{Đặc tả yêu cầu hệ thống (System Requirements)}
+\begin{itemize}
+    \item \textbf{Yêu cầu chức năng:} Hệ thống phải hỗ trợ phân tích mã nguồn tĩnh tạo đồ thị quan hệ, tìm kiếm ngữ nghĩa theo cosine similarity, hỗ trợ truy vấn lai (Hybrid Query) kết hợp cấu trúc đồ thị và văn bản, và trả về câu trả lời kèm mã nguồn tham chiếu chính xác.
+    \item \textbf{Yêu cầu phi chức năng (\gls{sla}):} Độ trễ truy xuất mục tiêu $< 1s$, khả năng xử lý đồng thời khi sinh embeddings và ranh giới nhà cung cấp model chỉ dùng cục bộ.
+\end{itemize}
+
+\section{Kiến trúc tổng quan (High-level Architecture)}
+Hệ thống Hybrid-RAG được thiết kế theo kiến trúc Lục giác (Ports and Adapters) \cite{cockburn2005hexagonal} giúp phân tách các tầng hạ tầng cơ sở dữ liệu vật lý khỏi logic nghiệp vụ của công cụ tìm kiếm. Sơ đồ kiến trúc tổng quan và luồng dữ liệu của hệ thống được mô tả trong Hình~\ref{fig:architecture_overview}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[node distance=0.8cm and 1.5cm, font=\small]
+        % Ingestion Pipeline
+        \node[component, minimum width=8cm] (codebase) {Mã nguồn dự án (Codebases)};
+        \node[component, minimum width=8cm, below=of codebase] (ingestion) {1. AST Parser (tree-sitter) $\to$ 2. Global Entity Resolver};
+
+        % Storage
+        \node[storage, below left=1.2cm and 0.5cm of ingestion] (falkor) {FalkorDB (Graph)};
+        \node[storage, below right=1.2cm and 0.5cm of ingestion] (qdrant) {Qdrant (Vector)};
+
+        % Retrieval
+        \node[component, minimum width=8cm, below=3.5cm of ingestion] (retrieval) {3. Query Analyzer $\to$ 4. Routed Graph/Vector Retrieval};
+
+        % Inference
+        \node[component, minimum width=8cm, below=of retrieval] (inference) {5. Token-Budget Assembler $\to$ 6. Local LLM Inference};
+
+        % Arrows
+        \draw[arrow] (codebase) -- node[right, font=\scriptsize] {Ingestion Pipeline} (ingestion);
+        \draw[arrow] (ingestion) -- node[left, font=\scriptsize] {Đồ thị quan hệ} (falkor);
+        \draw[arrow] (ingestion) -- node[right, font=\scriptsize] {Phân mảnh code} (qdrant);
+        \draw[arrow] (falkor) -- (retrieval);
+        \draw[arrow] (qdrant) -- (retrieval);
+        \draw[arrow] (retrieval) -- node[right, font=\scriptsize] {Context} (inference);
+    \end{tikzpicture}
+    \caption{Sơ đồ luồng dữ liệu tổng quan hệ thống Hybrid-RAG}
+    \label{fig:architecture_overview}
+\end{figure}
+
+\section{Đường ống nạp dữ liệu chi tiết (Ingestion Pipeline)}
+Đường ống nạp dữ liệu chuyển đổi mã nguồn thô thành đồ thị quan hệ cấu trúc và vector nhúng ngữ nghĩa. Quá trình này bao gồm 4 pha chính, được mô tả chi tiết trong Hình~\ref{fig:ingestion_sequence}:
+
+\begin{enumerate}
+    \item \textbf{Pha 1 --- Phân tích cú pháp \gls{ast}:} Thư viện Tree-Sitter \cite{treesitter} phân tích mã nguồn Python thành cây cú pháp trừu tượng. Hệ thống trích xuất các thực thể (Module, Class, Function) và tự động gán \gls{fqn} dạng ký hiệu chấm (\texttt{package.module.Class.method}) để đảm bảo tính duy nhất xuyên suốt toàn bộ repository. Repository Java bị từ chối tại ranh giới nạp cho tới khi bộ trích xuất Java được hiện thực.
+    \item \textbf{Pha 2 --- Giải quyết thực thể toàn cục:} Các call stub chưa xác định được giải quyết thận trọng dựa trên ngữ cảnh bên gọi: (i) phương thức trong cùng lớp, (ii) hàm cấp module trong module của bên gọi và (iii) ứng viên import duy nhất. Các stub còn lại được đối chiếu theo một truy vấn theo lô với các node đã được index trong đồ thị và chỉ chuyển hướng khi tồn tại đúng một đích. Chi tiết thuật toán được trình bày tại Mục~\ref{sec:entity_resolution}.
+    \item \textbf{Pha 3 --- Phân mảnh mã nguồn:} Mã nguồn được chia tại biên Function/Class của \gls{ast} thay vì cửa sổ ký tự cố định, giúp bảo toàn biên symbol khi parsing thành công.
+    \item \textbf{Pha 4 --- Nhúng song song:} Các chunk được nhúng qua \texttt{ThreadPoolExecutor} có giới hạn; \texttt{EMBED\_CONCURRENCY} mặc định là 8. Mô hình \texttt{nomic-embed-text} \cite{nussbaum2024nomic} sinh vector 768 chiều qua Ollama cục bộ \cite{ollama2024}. Luận văn chưa có benchmark kiểm soát giữa nhúng tuần tự và song song.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[node distance=0.6cm and 0.8cm, font=\small]
+        % Nodes
+        \node[process] (cli) {CLI / Developer};
+        \node[component, right=2cm of cli] (parser) {AST Parser};
+        \node[component, below=of parser] (resolver) {Entity Resolver};
+        \node[storage, below left=1cm and -0.5cm of resolver] (fdb) {FalkorDB};
+        \node[component, right=2.5cm of parser] (chunker) {Chunker};
+        \node[component, below=of chunker] (embedder) {Embedder};
+        \node[storage, below=of embedder] (qdr) {Qdrant};
+
+        % Arrows
+        \draw[arrow] (cli) -- node[above, font=\scriptsize] {\texttt{index repo}} (parser);
+        \draw[arrow] (parser) -- node[left, font=\scriptsize] {Triplets} (resolver);
+        \draw[arrow] (resolver) -- node[left, font=\scriptsize] {MERGE} (fdb);
+        \draw[arrow] (parser) -- node[above, font=\scriptsize] {Files} (chunker);
+        \draw[arrow] (chunker) -- node[right, font=\scriptsize] {Chunks} (embedder);
+        \draw[arrow] (embedder) -- node[right, font=\scriptsize] {Vectors} (qdr);
+        \draw[dasharrow] (resolver) to[bend right=20] node[below, font=\scriptsize] {resolve\_global()} (fdb);
+    \end{tikzpicture}
+    \caption{Sơ đồ luồng xử lý tuần tự của đường ống nạp dữ liệu (Ingestion Pipeline)}
+    \label{fig:ingestion_sequence}
+\end{figure}
+
+\subsection{Cơ chế nạp dữ liệu tăng dần và đồng bộ (Incremental Indexing \& Synchronization)}
+Để tránh việc phân tích cú pháp và tính toán vector nhúng lại toàn bộ dự án mỗi khi có thay đổi (tiêu tốn tài nguyên GPU và thời gian), hệ thống hỗ trợ cơ chế nạp dữ liệu tăng dần (Incremental Indexing):
+\begin{itemize}
+    \item \textbf{Lưu trữ trạng thái Commit:} Hệ thống lưu trữ mã băm commit gần nhất đã được nạp của mỗi repository trong cơ sở dữ liệu đồ thị FalkorDB.
+    \item \textbf{Phát hiện thay đổi:} Khi thực hiện nạp dữ liệu mới, hệ thống tự động gọi lệnh so khớp Git để xác định danh sách các tệp tin bị thay đổi (Modified), thêm mới (Added), đổi tên (Renamed) hoặc xóa (Deleted).
+    \item \textbf{Xóa dữ liệu cũ cục bộ:} Trước khi nạp các thay đổi mới, hệ thống thực hiện truy vấn xóa mục tiêu các thực thể đồ thị tương ứng của tệp thay đổi trong FalkorDB và các điểm vector tương ứng trong Qdrant.
+    \item \textbf{Đồng bộ hóa thay đổi:} Chỉ các tệp mới hoặc thay đổi được đưa qua đường ống nạp. Cơ chế này giảm công việc lặp lại theo thiết kế, nhưng luận văn chưa báo cáo tỷ lệ giảm được đo bằng thí nghiệm kiểm soát.
+\end{itemize}
+
+\subsection{Hỗ trợ cấu trúc Mono-repo và thư mục con}
+Để đáp ứng các yêu cầu thực tế trong môi trường phát triển phần mềm doanh nghiệp hiện đại, đường ống nạp dữ liệu tích hợp thuật toán tìm kiếm ngược thư mục gốc Git. Trong các dự án mono-repo đa gói (multi-package monorepos), các đường dẫn kho mã nguồn được cấu hình thường trỏ thẳng tới các thư mục gói con cụ thể thay vì thư mục gốc của toàn bộ kho Git. Bằng cách duyệt đệ quy ngược lên các thư mục cha từ đường dẫn gói con cho đến khi phát hiện thư mục \texttt{.git} hợp lệ, hệ thống có thể xác định chính xác gốc của kho Git mono-repo. Điều này đảm bảo cơ chế phát hiện thay đổi, theo dõi commit, và đồng bộ hóa tăng dần hoạt động chính xác, trong suốt đối với từng thành phần mono-repo riêng lẻ mà không yêu cầu cấu hình Git độc lập cho mỗi gói.
+
+\section{Kiến trúc truy xuất lai (Hybrid Retrieval Architecture)}
+Query Analyzer chọn một trong ba đường xử lý đã hiện thực. Câu hỏi toàn cục trả về community summary đã lọc theo repository. Câu hỏi quan hệ tường minh chạy graph plan xác định trước và chỉ fallback sang vector khi không tìm thấy relation target. Câu hỏi cục bộ tổng quát tìm kiếm đồng thời trên graph và vector rồi trộn thứ hạng. Hình~\ref{fig:retrieval_flow} mô tả đường xử lý thứ ba này:
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[node distance=0.7cm and 1cm, font=\small]
+        % Query
+        \node[process] (query) {User Query};
+        \node[component, below=of query] (analyzer) {Query Analyzer};
+
+        % Parallel paths
+        \node[component, below left=1.2cm and 1.5cm of analyzer] (graphret) {Graph Retriever};
+        \node[component, below right=1.2cm and 1.5cm of analyzer] (vectorret) {Vector Retriever};
+
+        \node[storage, below=0.8cm of graphret] (fdb2) {FalkorDB};
+        \node[storage, below=0.8cm of vectorret] (qdr2) {Qdrant};
+
+        % RRF
+        \node[component, below=3.8cm of analyzer, minimum width=5cm] (rrf) {Reciprocal Rank Fusion (RRF)};
+        \node[component, below=of rrf, minimum width=5cm] (assembler) {Token-Budget Context Assembler};
+        \node[process, below=of assembler] (llm) {Local LLM (gemma4:12b)};
+
+        % Arrows
+        \draw[arrow] (query) -- (analyzer);
+        \draw[arrow] (analyzer) -- node[left, font=\scriptsize] {Structural} (graphret);
+        \draw[arrow] (analyzer) -- node[right, font=\scriptsize] {Semantic} (vectorret);
+        \draw[arrow] (graphret) -- (fdb2);
+        \draw[arrow] (vectorret) -- (qdr2);
+        \draw[arrow] (fdb2) -- (rrf);
+        \draw[arrow] (qdr2) -- (rrf);
+        \draw[arrow] (rrf) -- (assembler);
+        \draw[arrow] (assembler) -- (llm);
+    \end{tikzpicture}
+    \caption{Đường truy xuất graph--vector đồng thời cho câu hỏi cục bộ tổng quát}
+    \label{fig:retrieval_flow}
+\end{figure}
+
+Hình trên không biểu diễn toàn bộ control flow: global community retrieval và exact-relation traversal thành công sẽ bỏ qua nhánh trộn song song. Cơ chế định tuyến này tránh chi phí không cần thiết và tránh pha loãng một câu trả lời graph xác định khi truy vấn nêu rõ quan hệ được hỗ trợ.
+
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 3: THIẾT KẾ CHI TIẾT
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Thiết kế chi tiết}
+
+\section{Mô hình hóa dữ liệu (Database Schema)}
+Hệ thống lưu trữ song song hai cấu trúc dữ liệu:
+\begin{enumerate}
+    \item \textbf{Đồ thị quan hệ tĩnh (FalkorDB \cite{falkordb2024}):} Sơ đồ cấu trúc đồ thị bao gồm các nhãn Node và Edge được trình bày chi tiết trong Bảng~\ref{tab:graph_schema}.
+    \item \textbf{Phân mảnh Vector (Qdrant \cite{qdrant2024}):} Mỗi điểm vector lưu trữ 768 chiều vector sinh từ \texttt{nomic-embed-text} \cite{nussbaum2024nomic} kèm payload metadata bao gồm: \texttt{node\_id}, \texttt{file\_path}, \texttt{text\_content}, và \texttt{repository} (dùng cho namespace filter).
+\end{enumerate}
+
+\begin{table}[H]
+    \centering
+    \caption{Các nhãn node FalkorDB và vai trò đã hiện thực}
+    \label{tab:graph_schema}
+    \small
+    \begin{tabular}{p{3.1cm}p{4.5cm}p{5.5cm}}
+        \toprule
+        \textbf{Nhãn node} & \textbf{Thuộc tính đại diện} & \textbf{Vai trò đã hiện thực} \\
+        \midrule
+        \texttt{RepositoryMetadata} & \texttt{id, repository, last\_indexed\_commit} & Danh tính repository và trạng thái đồng bộ. \\
+        \texttt{Directory} & \texttt{id, name, path, repository} & Phân cấp thư mục và quyền sở hữu module. \\
+        \texttt{Module} & \texttt{id, name, file\_path, repository, type} & Tệp Python và nguồn của quan hệ import. \\
+        \texttt{Class} & \texttt{id, name, file\_path, repository} & Định nghĩa lớp và nguồn của quan hệ kế thừa. \\
+        \texttt{Function} & \texttt{id, name, file\_path, signature, repository} & Định nghĩa hàm/phương thức và nguồn của lời gọi. \\
+        \texttt{Document}/\texttt{Configuration} & \texttt{id, name, file\_path, repository, text} & Nội dung Markdown, YAML và Dockerfile tổng quát, tùy chọn. \\
+        \texttt{Community} & \texttt{id, name, summary, level} & Tóm tắt kiến trúc theo thư mục. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Tập quan hệ đã hiện thực gồm \texttt{DEFINES}, \texttt{IMPORTS}, \texttt{INHERITS}, \texttt{CALLS}, \texttt{USES}, \texttt{DEFINED\_IN}, \texttt{WEAK\_LINK}, \texttt{IN\_COMMUNITY} và \texttt{COMMUNITY\_DEPENDS}. \texttt{Variable} chỉ được giữ làm nhãn đích tương thích cho quan hệ \texttt{USES} do LLM tùy chọn trích xuất; AST parser hiện tại không sinh node Variable.
+
+\section{Thuật toán cốt lõi (Core Algorithms)}
+Mục này phân tích hai cơ chế hiện thực có ảnh hưởng trực tiếp đến độ chính xác quan hệ và xếp hạng truy xuất:
+
+\subsection{Thuật toán giải quyết thực thể toàn cục (Global Entity Resolution)}
+\label{sec:entity_resolution}
+Khi một đích gọi không thể được liên kết ngay trong lúc parsing, parser lưu một stub tường minh, ví dụ \texttt{\_\_call\_\_foo}. Bộ giải quyết ưu tiên ngữ cảnh của bên gọi và giữ nguyên các đích mơ hồ thay vì tạo cạnh tùy ý. Hình~\ref{fig:entity_resolution_flow} tóm tắt thứ tự quyết định.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm and 1cm,
+        font=\small,
+        startstop/.style={draw, rounded corners, fill=red!10, minimum height=0.8cm, minimum width=2.5cm, text centered},
+        process/.style={draw, rectangle, fill=blue!10, minimum height=0.8cm, minimum width=3.5cm, text centered},
+        decision/.style={draw, diamond, aspect=2, fill=yellow!10, text centered, inner sep=2pt, minimum width=2.5cm},
+        arrow/.style={-{Stealth[length=2mm]}, thick}
+    ]
+        % Nodes
+        \node[startstop] (start) {Bắt đầu (Call Stub)};
+        \node[decision, below=0.8cm of start] (sibling) {Phương thức cùng lớp?};
+        \node[process, right=1.5cm of sibling] (sibling_ok) {Tạo cạnh liên kết};
+        
+        \node[decision, below=1cm of sibling] (module) {Khớp cùng Module?};
+        \node[process, right=1.5cm of module] (module_ok) {Tạo cạnh liên kết};
+        
+        \node[decision, below=1cm of module] (global) {Import/Graph chỉ một đích?};
+        \node[process, right=1.5cm of global] (global_ok) {Tạo cạnh liên kết};
+        
+        \node[process, below=1cm of global] (unresolved) {Giữ stub theo namespace};
+        
+        \node[startstop, right=2cm of unresolved] (next) {Stub tiếp theo};
+
+        % Connections
+        \draw[arrow] (start) -- (sibling);
+        
+        \draw[arrow] (sibling) -- node[above, font=\scriptsize] {Có} (sibling_ok);
+        \draw[arrow] (sibling) -- node[left, font=\scriptsize] {Không} (module);
+        
+        \draw[arrow] (module) -- node[above, font=\scriptsize] {Có} (module_ok);
+        \draw[arrow] (module) -- node[left, font=\scriptsize] {Không} (global);
+        
+        \draw[arrow] (global) -- node[above, font=\scriptsize] {Có} (global_ok);
+        \draw[arrow] (global) -- node[left, font=\scriptsize] {Không} (unresolved);
+        
+        \draw[arrow] (sibling_ok.east) -- ++(1cm,0) |- (next.east);
+        \draw[arrow] (module_ok.east) -- ++(1cm,0) |- (next.east);
+        \draw[arrow] (global_ok.east) -- ++(1cm,0) |- (next.east);
+        \draw[arrow] (unresolved.east) -- (next.west);
+    \end{tikzpicture}
+    \caption{Sơ đồ luồng quyết định giải quyết thực thể toàn cục (Global Entity Resolution)}
+    \label{fig:entity_resolution_flow}
+\end{figure}
+
+Các bước cụ thể trong luồng xử lý bao gồm:
+\begin{enumerate}
+    \item \textbf{Kiểm tra phương thức cùng lớp:} Với lời gọi trần, \texttt{self.} hoặc \texttt{cls.} nằm trong một lớp, resolver tìm phương thức tương ứng trong chính lớp đó.
+    \item \textbf{Kiểm tra hàm cùng Module:} Với lời gọi trần chưa được giải quyết, resolver tìm hàm cấp module có tên tương ứng trong module của bên gọi.
+    \item \textbf{Kiểm tra theo Import và đồ thị hiện có:} Resolver cục bộ chỉ chấp nhận hàm được import khi ngữ cảnh import xác định đúng một ứng viên. Các stub còn lại được truy vấn theo một lô trên các node đồ thị đã được index và chỉ được chuyển hướng khi tồn tại đúng một đích. Trường hợp mơ hồ hoặc không có kết quả vẫn được giữ tường minh và gắn namespace theo repository.
+\end{enumerate}
+
+\subsection{Thuật toán xếp hạng trộn lai Reciprocal Rank Fusion (RRF)}
+Khi một đường truy xuất trả về một hoặc hai danh sách đã xếp hạng, thuật toán \gls{rrf} \cite{cormack2009rrf} tính điểm tích hợp theo công thức:
+
+\begin{equation}
+    \text{score}(d) = \sum_{r \in R} \frac{W_r}{k + \text{rank}_r(d)}
+    \label{eq:rrf}
+\end{equation}
+
+trong đó $k = 60$ là tham số làm trơn mặc định và $W_r$ là trọng số của nguồn truy xuất $r$. Với cấu hình được quản lý trong repository, đường quan hệ chính xác thành công dùng trộn graph-only với trọng số graph được cấu hình là 3.0. Đường local tổng quát giới hạn đóng góp graph ở 1.0 và dùng trọng số vector 1.0 để mở rộng lân cận có nhiễu không lấn át xếp hạng ngữ nghĩa; chế độ vector-only dùng trọng số $(0,1)$. Thiết lập \texttt{hybrid\_weight} cũ được giữ để tương thích nhưng retriever hiện tại không sử dụng. Hình~\ref{fig:rrf_flow} minh họa cơ chế cộng dồn từ hai danh sách.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm and 1cm,
+        font=\small,
+        databox/.style={draw, cylinder, shape border rotate=90, aspect=0.25, fill=purple!10, minimum height=0.8cm, minimum width=2cm, text centered},
+        process/.style={draw, rectangle, fill=blue!10, minimum height=0.8cm, minimum width=4cm, text width=4cm, text centered},
+        aggregator/.style={draw, rounded corners, fill=green!10, minimum height=0.8cm, minimum width=5cm, text centered},
+        arrow/.style={-{Stealth[length=2mm]}, thick}
+    ]
+        % Nodes
+        \node[databox] (db_graph) {FalkorDB};
+        \node[databox, right=3cm of db_graph] (db_vector) {Qdrant};
+        
+        \node[process, below=0.8cm of db_graph] (score_graph) {Cộng điểm đồ thị: \\ $S(d) += \frac{W_{graph}}{k + rank_g + 1}$};
+        \node[process, below=0.8cm of db_vector] (score_vector) {Cộng điểm vector: \\ $S(d) += \frac{W_{vector}}{k + rank_v + 1}$};
+        
+        \node[aggregator, below=3cm of $(db_graph)!0.5!(db_vector)$] (agg) {Tổng hợp và băm điểm số (Map)};
+        \node[process, below=0.8cm of agg, minimum width=5cm] (sort) {Sắp xếp các phân mảnh giảm dần};
+        \node[aggregator, below=0.8cm of sort, fill=red!10, minimum width=5cm] (out) {Chọn Top Chunks làm ngữ cảnh};
+
+        % Connections
+        \draw[arrow] (db_graph) -- (score_graph);
+        \draw[arrow] (db_vector) -- (score_vector);
+        \draw[arrow] (score_graph.south) -- ++(0,-0.5cm) -| (agg.north);
+        \draw[arrow] (score_vector.south) -- ++(0,-0.5cm) -| (agg.north);
+        \draw[arrow] (agg) -- (sort);
+        \draw[arrow] (sort) -- (out);
+    \end{tikzpicture}
+    \caption{Sơ đồ luồng xử lý và cộng điểm Reciprocal Rank Fusion (RRF Flow)}
+    \label{fig:rrf_flow}
+\end{figure}
+
+Các bước thực hiện trong luồng bao gồm:
+\begin{enumerate}
+    \item \textbf{Khởi tạo bảng điểm tổng hợp:} Tạo một cấu trúc dữ liệu lưu điểm rỗng cho tất cả các tài liệu / phân mảnh mã nguồn xuất hiện trong kết quả tìm kiếm đồ thị hoặc vector.
+    \item \textbf{Tích hợp kết quả từ Đồ thị:} Duyệt qua các phân mảnh trả về từ FalkorDB. Với mỗi phân mảnh thứ $i$ (xếp hạng 0-indexed), cộng vào điểm của phân mảnh đó một giá trị bằng $W_{graph} / (k + i + 1)$.
+    \item \textbf{Tích hợp kết quả từ Vector:} Duyệt qua các phân mảnh trả về từ Qdrant. Với mỗi phân mảnh thứ $j$, cộng vào điểm của phân mảnh đó một giá trị bằng $W_{vector} / (k + j + 1)$.
+    \item \textbf{Sắp xếp và lọc kết quả:} Sắp xếp lại danh sách các phân mảnh theo thứ tự điểm số giảm dần và trả về danh sách phân mảnh có điểm số cao nhất cho pha lắp ghép prompt.
+\end{enumerate}
+
+\section{Phân vùng cộng đồng và Tổng hợp kiến trúc}
+\label{sec:community_detection}
+Graph traversal mức thấp biểu diễn quan hệ gọi hàm, import và kế thừa nhưng chưa trực tiếp cung cấp tổng quan kiến trúc repository. Community builder hiện thực giải quyết vấn đề này bằng cách nhóm thực thể theo thư mục trong từng repository và sinh tóm tắt cục bộ cho mỗi nhóm. Background indexing qua API gọi bước này như một post-processing không làm hỏng toàn bộ job nếu thất bại; CLI cũng cung cấp lệnh \texttt{community-build} riêng.
+
+\subsection{Phân vùng theo thư mục và Sinh tóm tắt}
+Hiện thực cuối không dùng Louvain. Thiết kế modularity clustering trước đây đã được thay bằng directory partitioning xác định:
+\begin{enumerate}
+    \item đọc code node và typed edge từ FalkorDB, loại các \texttt{Community} node cũ khỏi phép phân vùng;
+    \item nhóm mỗi node theo cặp \texttt{(repository, dirname(file\_path))}, tránh trộn thư mục trùng tên giữa các repository;
+    \item tuần tự hóa danh sách entity, quan hệ nội bộ và quan hệ biên để Ollama cục bộ sinh title và architectural summary; và
+    \item ghi các node \texttt{Community}, cạnh \texttt{IN\_COMMUNITY} và cạnh phụ thuộc có trọng số \texttt{COMMUNITY\_DEPENDS} vào FalkorDB.
+\end{enumerate}
+
+\subsection{Tích hợp với Đường ống truy xuất}
+Community node phục vụ hai mục đích:
+\begin{itemize}
+    \item \textbf{Điều hướng kiến trúc:} Cổng trực quan hóa hiển thị community node làm cấp drill-down đầu tiên sau khi người dùng chọn repository.
+    \item \textbf{Ngữ cảnh cho global query:} Global retrieval đọc community summary đã lọc theo repository và cung cấp chúng cho đường sinh câu trả lời cục bộ.
+\end{itemize}
+
+\section{Đồ thị đa repository và Cổng trực quan hóa}
+\label{sec:visualization}
+Để hỗ trợ quy trình kỹ thuật có nhiều codebase liên quan, hệ thống hiện thực knowledge graph đa repository và cổng trực quan hóa tương tác trên trình duyệt.
+
+\subsection{Master Graph đa repository}
+Endpoint \texttt{GET /graph/master} tạo chế độ xem toàn cục trên các repository đã index:
+\begin{itemize}
+    \item Mỗi repository được biểu diễn bằng một node \texttt{RepositoryMetadata}.
+    \item Node \texttt{Directory} được sinh tự động từ đường dẫn tệp đã parse, kể cả repository chỉ gồm mã nguồn Python.
+    \item Các thư mục nhiễu như \texttt{node\_modules}, \texttt{.venv}, \texttt{.agents}, \texttt{\_\_pycache\_\_} và \texttt{.git} được lọc ở tầng truy vấn Cypher.
+\end{itemize}
+
+\subsection{Điều hướng Drill-Down phân cấp}
+Cổng trực quan hóa sử dụng hệ phân cấp điều hướng được mô tả trong Hình~\ref{fig:navigation_hierarchy}:
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.9cm and 1.2cm,
+        font=\small,
+        level/.style={draw, rounded corners, fill=blue!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
+        level2/.style={draw, rounded corners, fill=purple!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
+        level3/.style={draw, rounded corners, fill=green!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
+        level4/.style={draw, rounded corners, fill=orange!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
+        arrow/.style={-{Stealth[length=2.5mm]}, thick}
+    ]
+        \node[level] (master) {Cấp 0: Master Graph\\ (Tất cả Repository)};
+        \node[level2, below=of master] (community) {Cấp 1: Community Graph\\ (Cụm kiến trúc)};
+        \node[level3, below=of community] (node) {Cấp 2: Node lân cận\\ (Module / Class / Function)};
+        \node[level4, below=of node] (deep) {Cấp 3+: Duyệt sâu\\ (Mở rộng lân cận đệ quy)};
+
+        \draw[arrow] (master) -- node[right, font=\scriptsize] {Chọn repo $\rightarrow$ community} (community);
+        \draw[arrow] (community) -- node[right, font=\scriptsize] {Chọn cụm $\rightarrow$ member node} (node);
+        \draw[arrow] (node) -- node[right, font=\scriptsize] {Chọn node $\rightarrow$ graph lân cận} (deep);
+    \end{tikzpicture}
+    \caption{Mô hình điều hướng phân cấp của cổng đồ thị đa repository}
+    \label{fig:navigation_hierarchy}
+\end{figure}
+
+Breadcrumb được giữ xuyên các cấp và cho phép quay lại bất kỳ cấp trung gian nào. Web UI hỗ trợ cả 3D force graph và 2D hierarchical view; endpoint \texttt{GET /graph/repositories/\{repo\_name\}/community} cung cấp community graph theo repository.
+
+\subsection{Tối ưu xử lý đồng thời cho Indexing}
+Hai cơ chế đồng thời có giới hạn đã được hiện thực:
+\begin{itemize}
+    \item API background indexing sử dụng \texttt{asyncio.Semaphore}; \texttt{INDEXING\_CONCURRENCY} mặc định bằng 3.
+    \item Các tệp trong một repository được parse bằng \texttt{ThreadPoolExecutor}; số worker suy ra từ số CPU và được giới hạn tối đa 32.
+\end{itemize}
+Các cơ chế này có test bao phủ, nhưng luận văn không tuyên bố mức speedup end-to-end vì chưa có benchmark kiểm soát tuần tự so với đồng thời được lưu lại.
+
+\section{Khả năng mở rộng theo ngôn ngữ lập trình}
+Các storage port, namespace repository, rank fusion và context assembly phần lớn độc lập ngôn ngữ sau khi đã có entity và chunk chuẩn hóa. Ngữ nghĩa ingestion thì không. Ranh giới production indexing hiện chỉ chấp nhận \texttt{languages=["python"]}; repository chỉ có Java bị từ chối và parser trả lỗi chưa hiện thực Java extraction. Để hỗ trợ ngôn ngữ mới cần Tree-Sitter grammar, bộ trích xuất entity/quan hệ riêng, canonical symbol resolution, chunk construction và ground-truth test theo ngôn ngữ. Java-aware skeletonizer hiện tại chỉ định dạng tệp Java đã được chọn, không phải Java indexing support. Vì Kubernetes chủ yếu dùng Go, dự án này chưa thể là corpus AST so sánh cho tới khi có Go ingestion adapter.
+
+\section{Kiểm thử phần mềm (Software Testing)}
+Hệ thống được kiểm thử với 313 test cases đạt, 27 test cases integration được bỏ qua có chủ đích và 2 cảnh báo trong lần kiểm thử sau merge cuối cùng. Bộ kiểm thử bao phủ parser, extractor, đường ống nạp end-to-end, preflight đánh giá và các bề mặt \gls{api}. Benchmark chất lượng câu trả lời là workload riêng gồm 180 lượt chạy, không được tính vào độ phủ unit test.
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 4: KẾT QUẢ THỰC NGHIỆM VÀ THẢO LUẬN
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Kết quả thực nghiệm và Thảo luận}
+
+\section{Thiết lập môi trường kiểm thử (Test Environment)}
+\begin{itemize}
+    \item \textbf{Phần cứng:} Máy phát triển Apple Mac mini M4; benchmark ghi nhận chạy cục bộ nhưng không khẳng định độ trễ độc lập với phần cứng.
+    \item \textbf{Phần mềm:} Python 3.12, FalkorDB, Qdrant và Ollama với các endpoint nhúng và sinh cục bộ.
+    \item \textbf{Nguồn được lập chỉ mục:} \texttt{llama-index-core==0.14.21}; digest nguồn xác định \texttt{sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509}; schema 3; mô hình nhúng \texttt{nomic-embed-text}.
+    \item \textbf{Bộ chất lượng câu trả lời:} 30 case (10 đơn giản, 10 trung bình, 10 khó), hai chế độ truy xuất, ba lần lặp, seed 42, tổng cộng 180 câu trả lời được sinh và chấm.
+    \item \textbf{Đơn vị thống kê:} 30 case câu hỏi; ba lần lặp được lấy trung bình trong từng case trước khi bootstrap ghép cặp.
+\end{itemize}
+
+\section{Lý do lựa chọn thang đo đánh giá (Metrics Justification)}
+\label{sec:metrics_justification}
+Chúng tôi lựa chọn các thang đo đánh giá dựa trên hai tiêu chí: (i) tính phù hợp với đặc thù bài toán truy xuất mã nguồn và (ii) khả năng so sánh với các nghiên cứu cùng lĩnh vực.
+
+\begin{itemize}
+    \item \textbf{Hit Rate @K} (K=5): Đo tần suất tài liệu liên quan xuất hiện trong top-K kết quả trả về. Được chọn thay vì Precision@K vì trong ngữ cảnh truy vấn mã nguồn, người dùng chỉ cần \textit{ít nhất một kết quả đúng} để trả lời câu hỏi, không cần toàn bộ K kết quả đều chính xác \cite{thakur2021beir}.
+    \item \textbf{Faithfulness} (RAGAS \cite{shahul2023ragas}): Đo mức độ câu trả lời được \gls{llm} sinh ra có trung thành với ngữ cảnh truy xuất hay không. Rất quan trọng để phát hiện hiện tượng ảo tưởng (hallucination) --- vấn đề phổ biến khi \gls{llm} thiếu ngữ cảnh cấu trúc.
+    \item \textbf{Answer Relevancy} (RAGAS \cite{shahul2023ragas}): Đo mức độ câu trả lời liên quan đến câu hỏi gốc. Bổ sung cho Faithfulness bằng cách đánh giá hướng ngược lại: câu trả lời có thể trung thành nhưng không trả lời đúng câu hỏi.
+    \item \textbf{Answer Correctness} (RAGAS \cite{shahul2023ragas}): So sánh câu trả lời được sinh với đáp án tham chiếu đã rà soát.
+    \item \textbf{Khoảng tin cậy ghép cặp 95\%:} Lượng hóa bất định của chênh lệch Hybrid trừ vector bằng cách lấy mẫu có hoàn lại trên 30 cặp câu hỏi. Các lần lặp được lấy trung bình trong case để không xem chúng là các câu hỏi độc lập.
+    \item \textbf{Latency Breakdown}: Phân rã thời gian xử lý theo từng pha giúp xác định chính xác nút thắt cổ chai, thay vì chỉ đo tổng thời gian phản hồi.
+\end{itemize}
+
+BLEU và ROUGE không được chọn làm thang đo xác nhận vì độ trùng khớp từ vựng không trực tiếp kiểm tra câu trả lời có bám vào bằng chứng truy xuất hoặc đúng về quan hệ mã nguồn hay không.
+
+\section{Provenance bằng chứng và Diagnostic lịch sử bị loại}
+Repository còn chứa báo cáo 50 case cấu trúc lịch sử được sinh trên index schema-v2. Tệp trạng thái hiện tại ghi rõ artifact này có trước bản sửa định danh schema-v3 và trường RAGAS của nó bằng null. Vì không thỏa preflight provenance hiện hành, luận văn không dùng các giá trị Hit Rate đó làm bằng chứng xác nhận hiện tại. Phân tích dưới đây chỉ sử dụng artifact answer-quality schema-v3 đã hoàn tất, có source digest, index run, embedding model, raw records và review grade được lưu lại.
+
+\section{Benchmark chất lượng câu trả lời độc lập}
+Chúng tôi đo chất lượng câu trả lời bằng các thang đo RAGAS \cite{shahul2023ragas}. Workload gồm 30 case đã được rà soát nguồn (10 đơn giản, 10 trung bình, 10 khó), đánh giá hai chế độ vector-only và Hybrid-RAG, lặp lại mỗi case ba lần với seed 42. Mô hình sinh là \texttt{gemma4:12b} cục bộ; bộ chấm độc lập cục bộ \texttt{qwen2.5-coder:7b} chấm Faithfulness, Answer Relevancy và Answer Correctness. Tổng workload gồm 180 bản ghi được sinh và chấm.
+
+\begin{table}[H]
+    \centering
+    \caption{Chất lượng câu trả lời với khoảng tin cậy ghép cặp 95\% theo case}
+    \label{tab:answer_quality_results}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Thang đo} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
+        \midrule
+        Faithfulness & 0.896 [0.816, 0.956] & 0.924 [0.843, 0.980] & +0.029 [$-0.069$, 0.115] \\
+        Answer Relevancy & 0.729 [0.618, 0.826] & 0.808 [0.737, 0.859] & +0.079 [$-0.0001$, 0.175] \\
+        Answer Correctness & 0.652 [0.606, 0.703] & 0.698 [0.650, 0.748] & +0.046 [0.002, 0.094] \\
+        \bottomrule
+    \end{tabular}
+    }
+\end{table}
+
+Point estimate của cả ba metric đều nghiêng về Hybrid-RAG, nhưng khoảng tin cậy làm thay đổi độ mạnh kết luận. Faithfulness chứa cả chênh lệch âm và dương. Answer Relevancy ở sát biên và vẫn chạm 0 ở độ chính xác báo cáo. Chỉ Answer Correctness có khoảng tin cậy 95\% hoàn toàn lớn hơn 0. Đây là bất định bằng chứng, không phải bằng chứng về lỗi phần mềm. Cả 180 bản ghi đều có điểm hợp lệ và source hit. Đáp án tham chiếu được AI source review, chưa có human review độc lập; vì vậy đây là bằng chứng cục bộ có kiểm soát, không phải production accuracy do con người gán nhãn.
+
+\section{Khả năng tổng quát và Phạm vi baseline}
+Đánh giá đa repository theo yêu cầu của giảng viên chưa hoàn tất. Bảng~\ref{tab:evaluation_coverage} tách bằng chứng đã có khỏi thí nghiệm dự kiến.
+
+\begin{table}[H]
+    \centering
+    \caption{Phạm vi repository và baseline}
+    \label{tab:evaluation_coverage}
+    \begin{tabular}{p{3.2cm}p{3.2cm}p{6.4cm}}
+        \toprule
+        \textbf{Đối tượng} & \textbf{Trạng thái} & \textbf{Diễn giải} \\
+        \midrule
+        LlamaIndex Core & Hoàn tất & 30 câu hỏi đã rà soát, 3 lần lặp, hai chế độ Hybrid và vector-only. \\
+        Transformers & Chưa chạy & Cần source artifact được ghim và bộ câu hỏi riêng đã rà soát nguồn. \\
+        LangChain & Chưa chạy & Cần index độc lập, source digest và gold dataset riêng. \\
+        Kubernetes & Chưa thể so sánh & Chủ yếu dùng Go; AST ingestion hiện chỉ hỗ trợ Python. \\
+        BM25 / graph-only / GraphRAG & Chưa chạy & Cần để phân biệt lợi ích hybrid với lexical, graph-only và thiết kế GraphRAG khác. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Do đó benchmark chỉ trả lời RQ1--RQ3 cho workload LlamaIndex đã ghim; chưa chứng minh khả năng tổng quát xuyên repository, ngôn ngữ hoặc họ phương pháp truy xuất.
+
+\section{Đánh giá và tối ưu hóa kiến trúc hệ thống}
+Các cải tiến về độ tin cậy được đánh giá như các cơ chế kỹ thuật riêng, không gộp thành một tỷ lệ tối ưu hóa không có workload tương ứng. Khi query cung cấp repository scope, bộ lọc repository ngăn kết quả từ namespace khác; nếu scope tùy chọn này bị bỏ qua, retrieval có thể tìm trên các repository đã index. Index mới được ghi vào graph và vector trước khi dữ liệu cũ bị dọn, giúp giảm khoảng trống index, nhưng chưa có cơ chế cutover generation cô lập reader. Kiểm tra provenance yêu cầu source identity, index run, schema và embedding model khớp nhau; cache generation tách response sau indexing; và input Java bị từ chối trước khi nạp. Tùy chọn nạp YAML, Markdown và Dockerfile chỉ tạo chunk tài liệu/cấu hình chung, mặc định tắt, không cung cấp ngữ nghĩa AST như Python.
+
+Các cơ chế này làm cho phép đo truy xuất và đánh giá có thể lặp lại. Không nên diễn giải chúng thành một tỷ lệ tiết kiệm token hoặc tăng độ chính xác duy nhất nếu không có thí nghiệm kiểm soát riêng.
+
+\section{Đo lường thời gian xử lý chi tiết (Latency Breakdown)}
+Benchmark hoàn chỉnh ghi nhận độ trễ truy xuất, độ trễ sinh cục bộ và số token cho cả hai chế độ. Bảng~\ref{tab:latency_breakdown} báo cáo mean theo case và khoảng bootstrap ghép cặp; đây không phải percentile SLA.
+
+\begin{table}[H]
+    \centering
+    \caption{Phân rã thời gian xử lý chi tiết của hệ thống (Latency Breakdown)}
+    \label{tab:latency_breakdown}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Chỉ số} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
+        \midrule
+        Retrieval latency (ms) & 134 [118, 151] & 371 [348, 395] & +237 [208, 266] \\
+        Generation latency (ms) & 96.754 [84.413, 110.142] & 87.268 [78.110, 96.465] & $-9.486$ [$-23.036$, 1.438] \\
+        Prompt tokens & 1.841 [1.633, 2.047] & 1.740 [1.566, 1.913] & $-101$ [$-282$, 77] \\
+        Completion tokens & 934 [788, 1.092] & 834 [734, 938] & $-100$ [$-259$, 30] \\
+        \bottomrule
+    \end{tabular}
+    }
+\end{table}
+
+Hybrid-RAG tăng 237 ms độ trễ truy xuất, với khoảng tin cậy ghép cặp 95\% từ 208 đến 266 ms. Khoảng của generation latency và token delta chứa 0 nên mức giảm quan sát được chưa có tính kết luận. Pha sinh cục bộ chiếm phần lớn thời gian end-to-end; số liệu hỗ trợ mean retrieval dưới một giây trên máy đo, không hỗ trợ SLA trả lời end-to-end dưới một giây.
+
+\section{Nghiên cứu tình huống thực tế (Case Study)}
+Để minh họa tính khả thi của hệ thống, chúng tôi phân tích truy vấn benchmark: ``\textit{BaseRetriever.retrieve thực hiện chuỗi bước nào khi nhận một plain query string, bao gồm callback và recursive retrieval?}''.
+
+\begin{enumerate}
+    \item \textbf{Phân tích câu hỏi:} Câu hỏi chỉ rõ \texttt{BaseRetriever.retrieve} và yêu cầu chuỗi thực thi liên quan đến callback và recursive retrieval.
+    \item \textbf{Các kênh truy xuất:}
+    \begin{itemize}
+        \item FalkorDB đóng góp các quan hệ cấu trúc xung quanh hiện thực retriever.
+        \item Qdrant truy xuất các chunk tương đồng ngữ nghĩa từ \texttt{base/base\_retriever.py} và \texttt{retrievers/recursive\_retriever.py}.
+    \end{itemize}
+    \item \textbf{RRF Ranking:} Hai danh sách xếp hạng graph và vector được trộn trước khi lắp ghép context.
+    \item \textbf{Chọn context trong benchmark:} Benchmark giữ năm kết quả fused đầu tiên và format trực tiếp thành context. Case này không chạy các tham số dynamic token-budget tùy chọn của API.
+    \item \textbf{Kết quả:} Câu trả lời giải thích chuỗi callback start, chuyển đổi QueryBundle, retrieval, recursive resolution, callback completion và return. Đây là một case minh họa; chất lượng tổng thể được báo cáo tại Bảng~\ref{tab:answer_quality_results}.
+\end{enumerate}
+
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+% CHƯƠNG 5: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+% ──────────────────────────────────────────────────────────────────────────────
+\chapter{Kết luận và Hướng phát triển}
+
+\section{Kết luận}
+Thí nghiệm hoàn tất hỗ trợ một kết luận hẹp hơn so với báo cáo cũ chỉ dùng point estimate:
+\begin{enumerate}
+    \item \textbf{RQ1:} Hybrid-RAG có point estimate cao hơn vector-only cho Faithfulness (+0.029), Answer Relevancy (+0.079) và Answer Correctness (+0.046) trên workload LlamaIndex đã ghim.
+    \item \textbf{RQ2:} Mean retrieval latency tăng từ 134 ms lên 371 ms. Local generation vẫn chi phối ở khoảng 87--97 giây; khoảng tin cậy của mức giảm token và generation latency đều chứa 0.
+    \item \textbf{RQ3:} Chỉ chênh lệch Answer Correctness có khoảng tin cậy ghép cặp 95\% hoàn toàn trên 0. Faithfulness chưa có kết luận và Answer Relevancy ở sát biên 0. Kết quả chưa chứng minh ưu thế xuyên repository hoặc ngôn ngữ.
+\end{enumerate}
+
+Các đóng góp kỹ thuật chính gồm:
+\begin{itemize}
+    \item truy xuất graph và vector theo loại câu hỏi với relation plan xác định, weighted rank fusion, sibling expansion và context theo ngân sách;
+    \item cơ chế scope repository khi được cung cấp, cập nhật index mới trước khi dọn dữ liệu cũ, provenance, cache generation và local-provider giúp run truy xuất/đánh giá có thể kiểm toán;
+    \item community xác định theo thư mục với summary sinh bởi Ollama cục bộ, dependency được lưu và global retrieval lọc theo repository;
+    \item cổng trực quan hóa đa repository 3D/2D cùng background indexing có giới hạn đồng thời; và
+    \item benchmark 180 raw records có thể lặp lại cùng phép phân tích khoảng tin cậy ghép cặp theo case.
+\end{itemize}
+
+\section{Hạn chế kỹ thuật (Limitations)}
+\label{sec:limitations}
+\begin{itemize}
+    \item \textbf{Độ trễ sinh cục bộ:} Sinh câu trả lời trung bình khoảng 87 giây với hybrid và 97 giây với vector-only trên máy đo; đây không phải hệ thống end-to-end dưới một giây.
+    \item \textbf{Giới hạn ngôn ngữ:} Đường ống AST hiện chỉ hỗ trợ Python. Repository Java bị từ chối rõ ràng; nạp non-code tùy chọn chỉ tạo chunk chung, không có ngữ nghĩa AST theo ngôn ngữ.
+    \item \textbf{Quy mô đánh giá:} Benchmark hoàn chỉnh chỉ dùng một repository Python và đáp án tham chiếu được AI source review. Khoảng tin cậy lượng hóa bất định trong workload, nhưng vẫn cần repository bổ sung và human review độc lập để tổng quát hóa.
+    \item \textbf{Phạm vi baseline:} Chỉ vector-only được chạy theo giao thức ghép cặp. BM25, graph-only, code encoder và một GraphRAG độc lập chưa được đo.
+    \item \textbf{Bằng chứng chi phí:} Ollama cục bộ không tạo hóa đơn API cloud trong thí nghiệm, nhưng chưa đo điện năng, khấu hao phần cứng, lưu trữ và bảo trì.
+    \item \textbf{Statistical power:} Khoảng Faithfulness và Answer Relevancy chứa hoặc chạm 0; cần thêm câu hỏi độc lập trước khi xem point estimate dương là cải thiện ổn định.
+\end{itemize}
+
+\section{Hướng phát triển tương lai (Future Work)}
+\begin{itemize}
+    \item \textbf{Lặp trên nhiều repository:} Xây dựng workload riêng đã rà soát nguồn cho ít nhất Transformers và LangChain, ghim source identity và báo cáo khoảng tin cậy theo từng repository lẫn pooled.
+    \item \textbf{Baseline và ablation bổ sung:} Chạy BM25, graph-only, vector-only, Hybrid-RAG và một GraphRAG độc lập có tài liệu dưới cùng câu hỏi và generation settings.
+    \item \textbf{Adapter ngôn ngữ:} Bổ sung entity extraction, relation resolution, chunking và test đầy đủ cho Java và Go trước khi dùng dự án Java hoặc Kubernetes làm corpus đánh giá.
+    \item \textbf{Giải quyết cross-repository mơ hồ:} Mở rộng unique-match resolver hiện tại bằng phân giải namespace dựa trên import, sau đó đánh giá riêng câu hỏi quan hệ xuyên repository.
+    \item \textbf{Human review và Power analysis:} Thêm rà soát đáp án tham chiếu độc lập và xác định số case cần thiết để thu hẹp khoảng tin cậy của từng metric.
+    \item \textbf{Adaptive RRF Weights:} Tuning trọng số graph/vector trên development set riêng và đánh giá trên repository chưa dùng để tránh tối ưu theo test set.
+\end{itemize}
+
+% ──────────────────────────────────────────────────────────────────────────────
+% TÀI LIỆU THAM KHẢO (BIBLIOGRAPHY)
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{thebibliography}{99}
+
+\bibitem{lewis2020rag}
+P.~Lewis, E.~Perez, A.~Piktus, F.~Petroni, V.~Karpukhin, N.~Goyal, H.~K{\"u}ttler, M.~Lewis, W.-T.~Yih, T.~Rockt{\"a}schel, S.~Riedel, and D.~Kiela, ``Retrieval-augmented generation for knowledge-intensive NLP tasks,'' in \textit{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~33, pp. 9459--9474, 2020.
+
+\bibitem{cormack2009rrf}
+G.~V.~Cormack, C.~L.~A.~Clarke, and S.~B{\"u}ttcher, ``Reciprocal rank fusion outperforms condorcet and individual rank learning methods,'' in \textit{Proceedings of the 32nd International ACM SIGIR Conference on Research and Development in Information Retrieval}, pp. 758--759, 2009.
+
+\bibitem{bm25}
+S.~Robertson and H.~Zaragoza, ``The probabilistic relevance framework: BM25 and beyond,'' \textit{Foundations and Trends in Information Retrieval}, vol.~3, no.~4, pp. 333--389, 2009.
+
+\bibitem{edge2024graphrag}
+D.~Edge, H.~Trinh, N.~Cheng, J.~Bradley, A.~Chao, C.~Mody, S.~Truitt, and J.~Larson, ``From local to global: A graph RAG approach to query-focused summarization,'' \textit{arXiv preprint arXiv:2404.16130}, 2024.
+
+\bibitem{treesitter}
+M.~Brunsfeld, ``Tree-sitter: An incremental parsing system for programming tools,'' GitHub, 2018. [Online]. Available: \url{https://tree-sitter.github.io/tree-sitter/}
+
+\bibitem{liu2023lost}
+N.~F.~Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and P.~Liang, ``Lost in the middle: How language models use long contexts,'' \textit{Transactions of the Association for Computational Linguistics}, vol.~12, pp. 157--173, 2024.
+
+\bibitem{shahul2023ragas}
+S.~Es, J.~James, L.~Espinosa-Anke, and S.~Schockaert, ``RAGAS: Automated evaluation of retrieval augmented generation,'' in \textit{Proceedings of the 18th Conference of the European Chapter of the Association for Computational Linguistics: System Demonstrations}, pp. 150--163, 2024.
+
+\bibitem{chen2021codex}
+M.~Chen, J.~Tworek, H.~Jun, Q.~Yuan, H.~Pinto de Oliveira, J.~Kaplan, H.~Edwards, Y.~Burda, N.~Joseph, G.~Brockman, \textit{et al.}, ``Evaluating large language models trained on code,'' \textit{arXiv preprint arXiv:2107.03374}, 2021.
+
+\bibitem{feng2020codebert}
+Z.~Feng, D.~Guo, D.~Tang, N.~Duan, X.~Feng, M.~Gong, L.~Shou, B.~Qin, T.~Liu, D.~Jiang, and M.~Zhou, ``CodeBERT: A pre-trained model for programming and natural languages,'' in \textit{Findings of the Association for Computational Linguistics: EMNLP 2020}, pp. 1536--1547, 2020.
+
+\bibitem{li2023starcoder}
+R.~Li, L.~B.~Allal, Y.~Zi, N.~Muennighoff, D.~Kocetkov, C.~Mou, M.~Marone, C.~Akiki, J.~Li, J.~Chim, \textit{et al.}, ``StarCoder: May the source be with you!,'' \textit{Transactions on Machine Learning Research}, 2023.
+
+\bibitem{deepseek2024coder}
+D.~Guo, Q.~Zhu, D.~Yang, Z.~Xie, K.~Dong, W.~Zhang, G.~Chen, X.~Bi, Y.~Wu, Y.~K.~Li, \textit{et al.}, ``DeepSeek-Coder: When the large language model meets programming --- the rise of code intelligence,'' \textit{arXiv preprint arXiv:2401.14196}, 2024.
+
+\bibitem{copilot2022}
+S.~Kalliamvakou, ``Research: Quantifying GitHub Copilot's impact on developer productivity and happiness,'' GitHub Blog, 2022. [Online]. Available: \url{https://github.blog/news-insights/research/research-quantifying-github-copilots-impact-on-developer-productivity-and-happiness/}
+
+\bibitem{guo2024graphcodebert}
+D.~Guo, S.~Ren, S.~Lu, Z.~Feng, D.~Tang, S.~Liu, L.~Zhou, N.~Duan, A.~Svyatkovskiy, S.~Fu, \textit{et al.}, ``GraphCodeBERT: Pre-training code representations with data flow,'' in \textit{International Conference on Learning Representations (ICLR)}, 2021.
+
+\bibitem{cockburn2005hexagonal}
+A.~Cockburn, ``Hexagonal architecture,'' 2005. [Online]. Available: \url{https://alistair.cockburn.us/hexagonal-architecture/}
+
+
+
+\bibitem{falkordb2024}
+FalkorDB Contributors, ``FalkorDB: Ultra-fast graph database,'' 2024. [Online]. Available: \url{https://www.falkordb.com/}
+
+\bibitem{qdrant2024}
+Qdrant Team, ``Qdrant: Vector similarity search engine,'' 2024. [Online]. Available: \url{https://qdrant.tech/}
+
+\bibitem{nussbaum2024nomic}
+Z.~Nussbaum, J.~Morris, B.~Duderstadt, and A.~Mulyar, ``Nomic Embed: Training a reproducible long context text embedder,'' \textit{arXiv preprint arXiv:2402.01613}, 2024.
+
+\bibitem{ollama2024}
+Ollama Contributors, ``Ollama: Run large language models locally,'' 2024. [Online]. Available: \url{https://ollama.com/}
+
+
+
+\bibitem{llamaindex2024}
+J.~Liu, ``LlamaIndex: Data framework for LLM applications,'' 2024. [Online]. Available: \url{https://www.llamaindex.ai/}
+
+\bibitem{xia2023devtime}
+C.~S.~Xia, Y.~Deng, S.~Dunn, and L.~Zhang, ``Automated program repair in the era of large pre-trained language models,'' in \textit{Proceedings of the 45th International Conference on Software Engineering (ICSE)}, pp. 1482--1494, 2023.
+
+\bibitem{thakur2021beir}
+N.~Thakur, N.~Reimers, A.~R{\"u}ckl{\'e}, A.~Srivastava, and I.~Gurevych, ``BEIR: A heterogeneous benchmark for zero-shot evaluation of information retrieval models,'' in \textit{Proceedings of the 35th Conference on Neural Information Processing Systems (NeurIPS)}, 2021.
+
+\end{thebibliography}
+
+\end{document}

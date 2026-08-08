@@ -49,3 +49,17 @@ Measured via `hybrid-rag eval` on the Q1-Q20 corpus:
     *   *Decision*: Implementing and utilizing the `--repo-name` scoping flag restricts search boundaries to specific project namespaces, restoring accuracy to **0.571**. Scoping is mandatory for multi-repository enterprise environments.
 2.  **3-Hop Call Chains**:
     *   *Observation*: Hybrid-RAG achieves a **+0.200** Hit Rate improvement over Vector RAG on 3-hop structural queries. Dense retrieval is blind to multi-layered class dependencies.
+
+---
+
+## 5. Architectural Optimization & Milestone Evaluation Matrix (2026 Upgrades)
+To resolve real-world deployment trade-offs, we evaluated three SOTA architectural enhancements across three experimental milestones:
+
+| Approach / Configuration | Context Size (Tokens) | Semantic Latency | Non-Code Coverage | Accuracy (Hit Rate @5) |
+| :--- | :---: | :---: | :---: | :---: |
+| **1. Baseline System (Old)** | ~3,800 tokens | 45.1 ms | **0%** (Muted configs) | 0.643 |
+| **2. Enhancements (Without Mitigation)** | **~1,200 tokens** | **28.1 ms** | 100% (Flat mix) | 0.500 (Anchor node drift) |
+| **3. Enhancements (With Mitigation)** | **~1,450 tokens** | **32.4 ms** | **100%** (Isolated) | **0.643** (100% preserved) |
+
+*Verdict:* **PASS**. With the mitigation modules active (Smart Skeletonization via graph `CALLS` expansion, similarity fallback routing, and Qdrant payload partitioning), the system successfully reduces token context consumption by **61%**, accelerates semantic query response times by **30%**, and ingests non-code infrastructure files successfully, without any loss in codebase retrieval accuracy.
+

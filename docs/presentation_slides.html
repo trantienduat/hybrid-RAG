@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid-RAG Presentation Slides</title>
+<script>
+  (function () {
+    const saved = localStorage.getItem('theme');
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', dark);
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAF9F5; --surface: #FFFFFF; --surface2: #F0EEE6;
+    --ink: #141413; --body: #3D3D3A; --muted: #87867F;
+    --line: #D1CFC5; --line-soft: #E6E3DA;
+    --clay: #D97757; --clay-soft: rgba(217,119,87,0.10);
+    --olive: #788C5D; --olive-soft: rgba(120,140,93,0.12);
+    --gold: #C9A45C; --blue: #5B7E96; --blue-soft: rgba(91,126,150,0.10);
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  html.dark {
+    --bg: #141413; --surface: #1F1F1D; --surface2: #2A2A28;
+    --ink: #FAF9F5; --body: #D1CFC5; --muted: #87867F;
+    --line: #3D3D3A; --line-soft: #2A2A28;
+    --clay: #E48A6E; --clay-soft: rgba(228,138,110,0.14);
+    --olive: #9DB07C; --olive-soft: rgba(157,176,124,0.16);
+    --gold: #D4B36F; --blue: #7FA3BC; --blue-soft: rgba(127,163,188,0.16);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  body {
+    background: var(--bg); color: var(--body); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+  }
+
+  /* ── header bar ─────────────────────────── */
+  .bar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 24px; border-bottom: 1px solid var(--line-soft); flex: none;
+    z-index: 10; background: var(--bg);
+  }
+  .bar h1 { font-family: var(--serif); font-weight: 600; font-size: 20px; color: var(--ink); letter-spacing: -0.01em; }
+  .bar .sub { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  
+  /* navigation controls */
+  .nav-controls { display: flex; align-items: center; gap: 8px; margin-right: 12px; }
+  .btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--surface); color: var(--body); cursor: pointer; transition: all .15s ease;
+  }
+  .btn:hover { border-color: var(--muted); color: var(--ink); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .slide-indicator { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 60px; text-align: center; }
+
+  #themeToggle {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* ── slide viewport ─────────────────────── */
+  .viewport { flex: 1; position: relative; overflow: hidden; }
+  .slide {
+    position: absolute; inset: 0; padding: 40px 60px;
+    display: flex; flex-direction: column; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateY(10px);
+  }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  /* slide content styles */
+  .title-slide { text-align: center; justify-content: center; align-items: center; }
+  .title-slide h2 { font-family: var(--serif); font-size: 32px; font-weight: 700; color: var(--ink); max-width: 900px; margin-bottom: 24px; line-height: 1.25; }
+  .title-slide .meta-info { font-size: 16px; margin-top: 30px; line-height: 1.8; color: var(--body); }
+  .title-slide .institution { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 40px; }
+
+  .content-slide { justify-content: flex-start; padding-top: 60px; }
+  .content-slide h2 { font-family: var(--serif); font-size: 28px; font-weight: 600; color: var(--ink); margin-bottom: 24px; border-bottom: 2px solid var(--line-soft); padding-bottom: 8px; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+  .card-box { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 12px; padding: 24px; }
+  .card-box h3 { font-family: var(--serif); font-size: 18px; color: var(--ink); margin-bottom: 12px; }
+  .card-box p { font-size: 14px; line-height: 1.6; color: var(--body); }
+  
+  ul { margin-left: 20px; }
+  li { font-size: 15px; line-height: 1.8; color: var(--body); margin-bottom: 10px; }
+  strong { color: var(--ink); }
+
+  /* ── interactive stage slide ────────────── */
+  .stage-slide { padding: 0 !important; display: flex; flex-direction: row; }
+  .stage-container { flex: 1; position: relative; min-height: 0; }
+  .stage-container svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  
+  /* SVG Styles */
+  .zone rect { fill: var(--zone); stroke: var(--zone-line); stroke-width: 1; stroke-dasharray: 5 5; rx: 16; }
+  .zone .ztitle { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+  
+  .node { cursor: pointer; }
+  .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 10; transition: stroke .15s ease, filter .15s ease; }
+  .node:hover rect { stroke: var(--muted); }
+  .node.sel rect { stroke: var(--clay) !important; stroke-width: 2; }
+  .node .t { font-family: var(--sans); font-size: 13.5px; font-weight: 600; fill: var(--ink); pointer-events: none; }
+  .node .m { font-family: var(--mono); font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .node .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--clay); pointer-events: none; }
+  .node.store rect { fill: var(--surface2); }
+  .node.gate rect { fill: var(--blue-soft); stroke: var(--blue); }
+
+  .edge { stroke: var(--muted); stroke-width: 1.6; fill: none; marker-end: url(#arrow-muted); transition: opacity .2s ease, stroke .2s ease; }
+  .edge.dash { stroke-dasharray: 5 4; }
+  .elbl { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); transition: opacity .2s ease; }
+
+  /* Flow animations */
+  .flowing .edge { opacity: 0.15; }
+  .flowing .elbl { opacity: 0.15; }
+  .flowing .node { opacity: 0.35; }
+  .flowing .zone { opacity: 0.45; }
+  .flowing .edge.lit {
+    opacity: 1; stroke: var(--clay); marker-end: url(#arrow-clay);
+    stroke-dasharray: 7 5; animation: march 0.9s linear infinite;
+  }
+  .flowing .elbl.lit { opacity: 1; fill: var(--clay); font-weight: bold; }
+  .flowing .node.lit { opacity: 1; }
+  .flowing .node.lit rect { stroke: var(--clay); }
+  @keyframes march { to { stroke-dashoffset: -12; } }
+
+  /* Side panel for Slide 5 */
+  .side-panel {
+    width: 320px; border-left: 1px solid var(--line-soft); background: var(--surface);
+    display: flex; flex-direction: column; flex-shrink: 0; padding: 20px;
+  }
+  .side-panel h3 { font-family: var(--serif); font-size: 18px; color: var(--ink); margin-bottom: 6px; }
+  .side-panel .meta { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .side-panel p { font-size: 13px; line-height: 1.6; color: var(--body); }
+  .side-panel code { font-family: var(--mono); font-size: 11.5px; color: var(--clay); background: var(--surface2); padding: 2px 4px; border-radius: 4px; }
+  
+  .flow-selector { display: flex; flex-direction: column; gap: 8px; margin-top: auto; border-top: 1px solid var(--line-soft); padding-top: 20px; }
+  .flow-selector-title { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .flow-btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500; text-align: left;
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--surface); color: var(--body); cursor: pointer; transition: all .15s ease;
+  }
+  .flow-btn:hover { border-color: var(--muted); color: var(--ink); }
+  .flow-btn.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+  /* Table styling */
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line-soft); }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--muted); }
+  td { font-size: 14px; color: var(--body); }
+  tr:hover td { background: var(--surface2); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div>
+    <h1>Hybrid-RAG</h1>
+    <div class="sub">Code Retrieval Engine Presentation</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="nav-controls">
+    <button class="btn" id="prevBtn" onclick="changeSlide(-1)">Previous</button>
+    <div class="slide-indicator" id="slideIndicator">1 / 7</div>
+    <button class="btn" id="nextBtn" onclick="changeSlide(1)">Next</button>
+  </div>
+  <button id="themeToggle" onclick="toggleTheme()">Theme</button>
+</div>
+
+<div class="viewport">
+  <!-- Slide 1: Title -->
+  <div class="slide active title-slide" id="slide-1">
+    <div class="institution">FPT University</div>
+    <h2>RESEARCH AND DEVELOPMENT OF A CODE RETRIEVAL SYSTEM BASED ON HYBRID-RAG ARCHITECTURE COMBINING KNOWLEDGE GRAPHS AND SEMANTIC SEARCH</h2>
+    <div class="meta-info">
+      Student: <strong>Tran Tien Duat</strong><br>
+      Advisor: <strong>Doan Xuan Huy Minh</strong><br>
+      Degree: <strong>Master of Software Engineering</strong>
+    </div>
+  </div>
+
+  <!-- Slide 2: Problem Statement -->
+  <div class="slide content-slide" id="slide-2">
+    <h2>Problem Statement</h2>
+    <div class="grid-2">
+      <div class="card-box">
+        <h3>Vector RAG Limitations</h3>
+        <p>Traditional retrieval-augmented generation relies on vector embeddings of text chunks. In source code, this ignores syntax, module inheritance, and call graph hierarchies, leading to incorrect multi-hop structural context.</p>
+      </div>
+      <div class="card-box">
+        <h3>Core Challenges</h3>
+        <ul>
+          <li><strong>Syntax Blindness:</strong> Splitting code purely by line numbers destroys syntactic structure.</li>
+          <li><strong>Entity Disconnection:</strong> Inability to resolve local function call stubs to global references.</li>
+          <li><strong>Offline Requirements:</strong> Strict corporate data privacy mandates a fully offline, local environment.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: Proposed Architecture -->
+  <div class="slide content-slide" id="slide-3">
+    <h2>Proposed Architecture: Hybrid-RAG</h2>
+    <div class="grid-2">
+      <div class="card-box">
+        <h3>Graph + Vector Synergy</h3>
+        <p>Combining the precise, structured syntax model of a Knowledge Graph (FalkorDB) with the semantic similarity search of a Vector Database (Qdrant).</p>
+        <p style="margin-top: 10px;">Enables structural context walking (parent classes, sibling methods) alongside query-to-doc semantic retrieval.</p>
+      </div>
+      <div class="card-box">
+        <h3>Key Modules</h3>
+        <ul>
+          <li><strong>Parser:</strong> Tree-Sitter parsing of modules, classes, and call-stubs.</li>
+          <li><strong>Resolver:</strong> 3-step Entity Resolution (Sibling -> Module -> Global).</li>
+          <li><strong>Retriever:</strong> Parallel structural Cypher query & vector distance search.</li>
+          <li><strong>Ranker:</strong> Reciprocal Rank Fusion (RRF) with weighted parameters.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Ingestion & Resolution -->
+  <div class="slide content-slide" id="slide-4">
+    <h2>Ingestion & Global Entity Resolution</h2>
+    <div class="grid-2">
+      <div class="card-box">
+        <h3>Ingestion Pipeline</h3>
+        <p>Tree-Sitter parses source files into Abstract Syntax Trees (AST), mapping structural symbols to graph nodes (Modules, Classes, Functions, Variables).</p>
+      </div>
+      <div class="card-box">
+        <h3>Entity Resolution Steps</h3>
+        <ol style="margin-left: 20px;">
+          <li style="font-size: 13.5px; margin-bottom: 6px;"><strong>Sibling Method:</strong> Look for a matching method inside the same class or its parent inheritance hierarchy.</li>
+          <li style="font-size: 13.5px; margin-bottom: 6px;"><strong>Module Context:</strong> Find defined functions inside the same source file.</li>
+          <li style="font-size: 13.5px; margin-bottom: 6px;"><strong>Global Fallback:</strong> If unique across the codebase, link globally.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Interactive Diagram -->
+  <div class="slide stage-slide" id="slide-5">
+    <div class="stage-container">
+      <svg id="svgStage" viewBox="0 0 1000 650" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arrow-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+          </marker>
+          <marker id="arrow-clay" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill: var(--clay)"/>
+          </marker>
+        </defs>
+
+        <!-- Zones -->
+        <g class="zone">
+          <rect x="30" y="50" width="220" height="520"/>
+          <text class="ztitle" x="50" y="80">Ingestion</text>
+        </g>
+        <g class="zone">
+          <rect x="280" y="50" width="410" height="520"/>
+          <text class="ztitle" x="300" y="80">Retrieval & Fusion</text>
+        </g>
+        <g class="zone">
+          <rect x="720" y="50" width="250" height="520"/>
+          <text class="ztitle" x="740" y="80">Data Tier</text>
+        </g>
+
+        <!-- Edges -->
+        <path class="edge" id="e-parse" d="M140,160 L140,200"/>
+        <path class="edge" id="e-resolve" d="M140,270 L140,310"/>
+        <path class="edge" id="e-write-kg" d="M235,345 C 480,345 520,280 735,210"/>
+        <path class="edge" id="e-write-vec" d="M140,380 L140,430"/>
+        <path class="edge" id="e-vec-db" d="M235,465 L735,465"/>
+        
+        <path class="edge" id="e-query" d="M365,160 L365,210"/>
+        <path class="edge" id="e-q-kg" d="M470,245 C 530,245 580,245 735,190"/>
+        <path class="edge" id="e-q-vec" d="M410,280 C 410,340 500,430 735,450"/>
+        
+        <path class="edge" id="e-kg-rrf" d="M735,170 C 620,170 600,320 480,340"/>
+        <path class="edge" id="e-vec-rrf" d="M735,480 C 620,480 600,400 480,380"/>
+        <path class="edge" id="e-rrf-llm" d="M365,395 L365,445"/>
+
+        <!-- Edge Labels -->
+        <text class="elbl" data-e="e-parse" x="148" y="185">AST parsing</text>
+        <text class="elbl" data-e="e-resolve" x="148" y="295">Call graph linking</text>
+        <text class="elbl" data-e="e-write-kg" x="480" y="315">Static schema</text>
+        <text class="elbl" data-e="e-write-vec" x="148" y="410">nomic-embed</text>
+        <text class="elbl" data-e="e-vec-db" x="480" y="455">Save vectors</text>
+        
+        <text class="elbl" data-e="e-query" x="375" y="185">Natural query</text>
+        <text class="elbl" data-e="e-q-kg" x="600" y="235">Cypher query</text>
+        <text class="elbl" data-e="e-q-vec" x="550" y="380">Vector distance</text>
+        
+        <text class="elbl" data-e="e-kg-rrf" x="620" y="270">Graph rank</text>
+        <text class="elbl" data-e="e-vec-rrf" x="620" y="420">Vector rank</text>
+        <text class="elbl" data-e="e-rrf-llm" x="375" y="425">Top K contexts</text>
+
+        <!-- Nodes: Ingestion -->
+        <g class="node" id="n-code" data-node="code">
+          <rect x="50" y="100" width="180" height="60"/>
+          <text class="t" x="70" y="125">Source Code</text>
+          <text class="m" x="70" y="145">Python & Java files</text>
+        </g>
+        <g class="node" id="n-parser" data-node="parser">
+          <rect x="50" y="200" width="180" height="70"/>
+          <text class="t" x="70" y="225">Tree-Sitter Parser</text>
+          <text class="m" x="70" y="245">Extract classes, stubs</text>
+          <text class="k" x="70" y="258">AST Analyzer</text>
+        </g>
+        <g class="node" id="n-resolver" data-node="resolver">
+          <rect x="50" y="310" width="180" height="70"/>
+          <text class="t" x="70" y="335">Entity Resolver</text>
+          <text class="m" x="70" y="355">Resolve call links</text>
+          <text class="k" x="70" y="368">3-step resolution</text>
+        </g>
+        <g class="node" id="n-vectorizer" data-node="vectorizer">
+          <rect x="50" y="430" width="180" height="70"/>
+          <text class="t" x="70" y="455">Vectorizer</text>
+          <text class="m" x="70" y="475">Chunk & embed</text>
+          <text class="k" x="70" y="488">nomic-embed-text</text>
+        </g>
+
+        <!-- Nodes: Retrieval -->
+        <g class="node" id="n-uquery" data-node="uquery">
+          <rect x="300" y="100" width="180" height="60"/>
+          <text class="t" x="320" y="125">User Query</text>
+          <text class="m" x="320" y="145">Natural language query</text>
+        </g>
+        <g class="node gate" id="n-analyzer" data-node="analyzer">
+          <rect x="300" y="210" width="220" height="70"/>
+          <text class="t" x="320" y="235">Query Analyzer</text>
+          <text class="m" x="320" y="255">Extract entities/keywords</text>
+          <text class="k" x="320" y="268">Local LLM Heuristics</text>
+        </g>
+        <g class="node" id="n-rrf" data-node="rrf">
+          <rect x="300" y="325" width="220" height="70"/>
+          <text class="t" x="320" y="350">RRF Fusion Block</text>
+          <text class="m" x="320" y="370">Reciprocal Rank Fusion</text>
+          <text class="k" x="320" y="383">W_graph=3.0, W_vec=1.5</text>
+        </g>
+        <g class="node" id="n-llm" data-node="llm">
+          <rect x="300" y="445" width="220" height="70"/>
+          <text class="t" x="320" y="470">Local LLM</text>
+          <text class="m" x="320" y="490">qwen2.5-coder:7b</text>
+          <text class="k" x="320" y="503">Context Assembly</text>
+        </g>
+
+        <!-- Nodes: Databases -->
+        <g class="node store" id="n-falkordb" data-node="falkordb">
+          <rect x="750" y="130" width="190" height="100"/>
+          <text class="t" x="770" y="160">FalkorDB (KG)</text>
+          <text class="m" x="770" y="182">Structural entities</text>
+          <text class="m" x="770" y="200">Cypher Queries</text>
+          <text class="k" x="770" y="215">Graph Storage</text>
+        </g>
+        <g class="node store" id="n-qdrant" data-node="qdrant">
+          <rect x="750" y="415" width="190" height="100"/>
+          <text class="t" x="770" y="445">Qdrant (Vector DB)</text>
+          <text class="m" x="770" y="467">Payload embeddings</text>
+          <text class="m" x="770" y="485">Semantic distance</text>
+          <text class="k" x="770" y="500">Vector Storage</text>
+        </g>
+      </svg>
+    </div>
+    <div class="side-panel">
+      <h3 id="panel-title">System Architecture</h3>
+      <div class="meta" id="panel-meta">Overview</div>
+      <p id="panel-body">Click any node to see details. Select flows below to visualize the ingestion and query paths.</p>
+      
+      <div class="flow-selector">
+        <div class="flow-selector-title">Visualize Flow Sequence</div>
+        <button class="flow-btn active" id="f-all" onclick="selectFlow('all')">Static Diagram</button>
+        <button class="flow-btn" id="f-ingest" onclick="selectFlow('ingest')">Ingestion Sequence</button>
+        <button class="flow-btn" id="f-query" onclick="selectFlow('retrieval')">Retrieval Sequence</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Results -->
+  <div class="slide content-slide" id="slide-6">
+    <h2>Experimental Results & Performance</h2>
+    <p>Evaluated against the core codebase of LlamaIndex using the RAGAS framework:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Retrieval Mode</th>
+          <th>Hit Rate @5 (Overall)</th>
+          <th>Hit Rate @5 (3-Hop Complex)</th>
+          <th>Faithfulness</th>
+          <th>Answer Relevancy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Vector RAG (Qdrant Only)</strong></td>
+          <td>0.308</td>
+          <td>0.400</td>
+          <td>0.82</td>
+          <td>0.72</td>
+        </tr>
+        <tr>
+          <td><strong>Hybrid-RAG (FalkorDB + Qdrant)</strong></td>
+          <td><strong>0.615 (+0.307)</strong></td>
+          <td><strong>0.800 (+0.400)</strong></td>
+          <td><strong>0.86</strong></td>
+          <td><strong>0.78</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 15px; font-size: 14px;"><strong>Performance Met:</strong> Average end-to-end local latency of <strong>817 ms</strong> (Core retrieval takes only 23 ms).</p>
+  </div>
+
+  <!-- Slide 7: Conclusion -->
+  <div class="slide content-slide" id="slide-7">
+    <h2>Conclusion & Future Work</h2>
+    <div class="grid-2">
+      <div class="card-box">
+        <h3>Key Takeaways</h3>
+        <ul>
+          <li><strong>Offline Sovereignty:</strong> High-performance code understanding without leaking intellectual property.</li>
+          <li><strong>Structure matters:</strong> Static AST graphs completely bridge the gap for multi-hop structural queries.</li>
+          <li><strong>Hexagonal decoupling:</strong> Decoupled adapter layers support swapping storage engines effortlessly.</li>
+        </ul>
+      </div>
+      <div class="card-box">
+        <h3>Future Work</h3>
+        <ul>
+          <li><strong>Incremental Indexing:</strong> SHA-256 file diff tracking to skip redundant parse calls.</li>
+          <li><strong>Hierarchical Summaries:</strong> Integration of directory-level summaries using Louvain community clustering.</li>
+          <li><strong>Language expansion:</strong> AST extraction support for TypeScript, C++, and Go.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentSlide = 1;
+  const totalSlides = 7;
+
+  function updateSlideDisplay() {
+    // Hide all slides
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    // Show current slide
+    document.getElementById(`slide-${currentSlide}`).classList.add('active');
+    
+    // Update button states
+    document.getElementById('prevBtn').disabled = (currentSlide === 1);
+    document.getElementById('nextBtn').disabled = (currentSlide === totalSlides);
+    
+    // Update indicator text
+    document.getElementById('slideIndicator').innerText = `${currentSlide} / ${totalSlides}`;
+  }
+
+  function changeSlide(direction) {
+    currentSlide += direction;
+    if (currentSlide < 1) currentSlide = 1;
+    if (currentSlide > totalSlides) currentSlide = totalSlides;
+    updateSlideDisplay();
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+      if (currentSlide < totalSlides) changeSlide(1);
+    } else if (e.key === 'ArrowLeft') {
+      if (currentSlide > 1) changeSlide(-1);
+    }
+  });
+
+  // Dark/Light Theme toggler
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
+
+  // Slide 5 Interactive Node data
+  const NODE_DETAILS = {
+    code: {
+      t: "Source Code Input",
+      m: "Target Files",
+      b: "Input codebase containing Python and Java files. Standard text processing misses code boundaries, call trees, and import directives."
+    },
+    parser: {
+      t: "Tree-Sitter Parser",
+      m: "AST Syntactic Analyzer",
+      b: "Extracts abstract syntax trees from files, identifying classes, methods, scopes, and local unresolved calls (call stubs)."
+    },
+    resolver: {
+      t: "Global Entity Resolver",
+      m: "Call Graph Resolution",
+      b: "Resolves local call stubs globally using a 3-step hierarchy: sibling scopes, current module imports, and project-wide unique declarations."
+    },
+    vectorizer: {
+      t: "Chunk & Embedding",
+      m: "nomic-embed-text",
+      b: "Slices methods/classes into chunks and converts them to 768-dimensional semantic embeddings for Qdrant storage."
+    },
+    uquery: {
+      t: "User Query",
+      m: "Natural Language",
+      b: "User questions like: 'Where is the retry configuration defined?' or 'Find implementation of reciprocal rank calculation'."
+    },
+    analyzer: {
+      t: "Query Analyzer",
+      m: "Heuristics & Local LLM",
+      b: "Identifies candidate entities, files, or symbols inside the query text to formulate structured KG filters and search tokens."
+    },
+    rrf: {
+      t: "RRF Fusion Block",
+      m: "Reciprocal Rank Fusion",
+      b: "Merges sorted list inputs from Vector and Graph retriever. Weights structural matches heavily (<code>W_graph=3.0</code>) and semantics safely (<code>W_vector=1.5</code>)."
+    },
+    llm: {
+      t: "Local LLM Context Assembler",
+      m: "qwen2.5-coder:7b",
+      b: "Builds a strictly bound token budget context. Assembles the final answer offline, preserving zero-leak privacy."
+    },
+    falkordb: {
+      t: "FalkorDB Knowledge Graph",
+      m: "Redis-based Graph Engine",
+      b: "Stores the parsed relational codebase model. Nodes mirror classes/methods; edges map inheritances, imports, and cross-file method calls."
+    },
+    qdrant: {
+      t: "Qdrant Vector Database",
+      m: "Semantic Indexing Store",
+      b: "Stores vectorized text chunks. Provides fast similarity lookup for natural language query matches."
+    }
+  };
+
+  // Click handler on nodes
+  document.querySelectorAll('.node').forEach(node => {
+    node.addEventListener('click', () => {
+      // Remove selection
+      document.querySelectorAll('.node').forEach(n => n.classList.remove('sel'));
+      node.classList.add('sel');
+
+      const key = node.getAttribute('data-node');
+      const details = NODE_DETAILS[key];
+      if (details) {
+        document.getElementById('panel-title').innerText = details.t;
+        document.getElementById('panel-meta').innerText = details.m;
+        document.getElementById('panel-body').innerHTML = details.b;
+      }
+    });
+  });
+
+  // Flow animation controller
+  const FLOW_PATHS = {
+    all: {
+      edges: [],
+      nodes: [],
+      lit: []
+    },
+    ingest: {
+      edges: ['e-parse', 'e-resolve', 'e-write-kg', 'e-write-vec', 'e-vec-db'],
+      nodes: ['n-code', 'n-parser', 'n-resolver', 'n-vectorizer', 'n-falkordb', 'n-qdrant'],
+      name: "Ingestion Sequence",
+      body: "<strong>Flow description:</strong> Code files are parsed via Tree-Sitter, resolved into global call links, and stored simultaneously as relationships in FalkorDB (KG) and embeddings in Qdrant (Vector Store)."
+    },
+    retrieval: {
+      edges: ['e-query', 'e-q-kg', 'e-q-vec', 'e-kg-rrf', 'e-vec-rrf', 'e-rrf-llm'],
+      nodes: ['n-uquery', 'n-analyzer', 'n-falkordb', 'n-qdrant', 'n-rrf', 'n-llm'],
+      name: "Retrieval & Fusion Sequence",
+      body: "<strong>Flow description:</strong> User query is analyzed, split into parallel Cypher graph searches and Vector semantic searches, fused via RRF ranking weights, and summarized by the Local LLM."
+    }
+  };
+
+  function selectFlow(flowKey) {
+    const stage = document.getElementById('svgStage');
+    
+    // Reset flow buttons
+    document.querySelectorAll('.flow-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Update active button
+    if (flowKey === 'all') document.getElementById('f-all').classList.add('active');
+    if (flowKey === 'ingest') document.getElementById('f-ingest').classList.add('active');
+    if (flowKey === 'retrieval') document.getElementById('f-query').classList.add('active');
+
+    // Reset lines & nodes classes
+    document.querySelectorAll('.edge').forEach(e => e.classList.remove('lit'));
+    document.querySelectorAll('.elbl').forEach(l => l.classList.remove('lit'));
+    document.querySelectorAll('.node').forEach(n => n.classList.remove('lit'));
+
+    if (flowKey === 'all') {
+      stage.classList.remove('flowing');
+      document.getElementById('panel-title').innerText = "System Architecture";
+      document.getElementById('panel-meta').innerText = "Overview";
+      document.getElementById('panel-body').innerText = "Click any node to see details. Select flows below to visualize the ingestion and query paths.";
+      return;
+    }
+
+    stage.classList.add('flowing');
+    const flow = FLOW_PATHS[flowKey];
+
+    // Light up paths
+    flow.edges.forEach(eId => {
+      const edge = document.getElementById(eId);
+      if (edge) edge.classList.add('lit');
+      const label = document.querySelector(`text[data-e="${eId}"]`);
+      if (label) label.classList.add('lit');
+    });
+
+    // Light up nodes
+    flow.nodes.forEach(nId => {
+      const node = document.getElementById(nId);
+      if (node) node.classList.add('lit');
+    });
+
+    // Update side panel text
+    document.getElementById('panel-title').innerText = flow.name;
+    document.getElementById('panel-meta').innerText = "Sequence Path";
+    document.getElementById('panel-body').innerHTML = flow.body;
+  }
+</script>
+</body>
+</html>

@@ -4,6 +4,17 @@ This guide describes how to quickly deploy, index, and run the Hybrid-RAG system
 
 ---
 
+## 💻 System & Hardware Requirements
+
+Before setting up the project, ensure your machine meets the following requirements:
+*   **Operating System:** macOS (Apple Silicon/Intel) or Linux.
+*   **Memory:** At least **16 GB RAM** (required to run local databases, Python ingestion pipelines, and Ollama LLMs concurrently).
+*   **Python Version:** Python **3.12** or higher.
+*   **Docker:** Docker Engine and Docker Compose (v2) installed.
+*   **Ollama:** Installed and running locally on the host machine.
+
+---
+
 ## 🚀 1. Quick Start: Setup, Ingestion & IDE Integration
 
 ### Step A: Pull Local Models

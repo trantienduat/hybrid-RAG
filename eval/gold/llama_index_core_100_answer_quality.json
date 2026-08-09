@@ -1453,11 +1453,13 @@
       "reference_answer": "It queries the wrapped RetrieverQueryEngine and returns immediately for an exhausted retry budget or passing overall evaluation. On failure it evaluates each source node separately against the query and response, but its loop tests the EvaluationResult object itself rather than eval_result.passing. Because EvaluationResult is a Pydantic model, evaluated source entries—including those whose passing field is False—are truthy and are converted to new Documents; a nonempty evaluated source list therefore does not filter failed sources by that field. It raises only when no documents were appended, then builds a SummaryIndex, wraps its retriever in a new RetrieverQueryEngine, creates another RetrySourceQueryEngine with one fewer retry, and recursively queries the original bundle.",
       "source_files": [
         "query_engine/retry_source_query_engine.py",
-        "evaluation/base.py"
+        "evaluation/base.py",
+        "bridge/pydantic.py"
       ],
       "source_anchors": [
         "query_engine/retry_source_query_engine.py:46-92",
-        "evaluation/base.py:10-37"
+        "evaluation/base.py:1-44",
+        "bridge/pydantic.py:2-31"
       ],
       "reference_contexts": [
         "A failed answer triggers per-source evaluation and retriever reconstruction, but the loop checks model-object truthiness instead of the passing field; therefore it does not perform the intended passing-only filter."

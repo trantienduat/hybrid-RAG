@@ -1270,14 +1270,16 @@
       "id": "transformers-t84",
       "difficulty": "hard",
       "question": "How does Trainer._inner_training_loop initialize, resume, prepare, execute, and finalize training with callbacks?",
-      "reference_answer": "It frees memory, builds the dataloader and training counts, initializes TrainerState, and—when a checkpoint state file exists—restores it and derives the resumed epoch and batch position only if ignore_data_skip is false. Preparation wraps the model, creates optimizer and scheduler, and restores the backend-applicable model plus optimizer, scheduler, and scaler from a supplied checkpoint. In the resumed epoch it skips already-trained batches only when ignore_data_skip is false; otherwise it does not fast-forward. It initializes loss accounting and gradients, fires on_train_begin, optionally evaluates at start, fires on_epoch_begin, delegates epoch work to _run_epoch, stops on control, then finalizes speed/loss/FLOPs metrics and returns TrainOutput. CallbackHandler receives the events with current shared training objects.",
+      "reference_answer": "It frees memory, builds the dataloader and training counts, initializes TrainerState, and—when a checkpoint state file exists—restores it and always derives the resumed epoch from the checkpoint global_step; it derives the intra-epoch batch position only when ignore_data_skip is false. Preparation wraps the model, creates optimizer and scheduler, and restores the backend-applicable model plus optimizer, scheduler, and scaler from a supplied checkpoint. In the resumed epoch it skips already-trained batches only when ignore_data_skip is false; otherwise it does not fast-forward. It initializes loss accounting and gradients, fires on_train_begin, optionally evaluates at start, fires on_epoch_begin, delegates epoch work to _run_epoch, stops on control, then finalizes speed/loss/FLOPs metrics and returns TrainOutput. CallbackHandler receives the events with current shared training objects.",
       "source_files": [
         "src/transformers/trainer.py",
         "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
         "src/transformers/trainer.py:1434-1525",
+        "src/transformers/trainer.py:1507-1512",
         "src/transformers/trainer.py:1527-1556",
+        "src/transformers/trainer.py:1549-1555",
         "src/transformers/trainer.py:1558-1654",
         "src/transformers/trainer.py:1672-1690",
         "src/transformers/trainer.py:1821-1868",
@@ -1465,14 +1467,15 @@
       "id": "transformers-t96",
       "difficulty": "hard",
       "question": "How does ProcessorMixin.save_pretrained persist a composite processor so from_pretrained can rebuild it?",
-      "reference_answer": "Saving creates the directory, optionally prepares Hub tracking, copies custom processor code, saves primary tokenizers at the root and additional tokenizers in named subfolders, writes single or named chat templates, and serializes the unified non-tokenizer processor config before optional upload. Loading resolves that processor dictionary, loads primary tokenizer and primary non-tokenizer components through their Auto classes, loads additional tokenizers from named subfolders, and constructs each additional non-tokenizer component directly from its processor_dict class name and config before calling from_args_and_dict.",
+      "reference_answer": "Saving creates the directory, optionally prepares Hub tracking, copies custom processor code, saves primary tokenizers at the root and additional tokenizers in named subfolders, writes single or named chat templates, and serializes the unified non-tokenizer processor config before optional upload. Loading resolves that processor dictionary, loads the primary tokenizer through the tokenizer Auto mapping/helper except for the PixtralProcessor compatibility branch, which loads it directly with TokenizersBackend; it loads primary non-tokenizer components through their Auto classes, loads additional tokenizers from named subfolders, and constructs each additional non-tokenizer component directly from its processor_dict class name and config before calling from_args_and_dict.",
       "source_files": [
         "src/transformers/processing_utils.py"
       ],
       "source_anchors": [
         "src/transformers/processing_utils.py:819-923",
         "src/transformers/processing_utils.py:1389-1438",
-        "src/transformers/processing_utils.py:1490-1598"
+        "src/transformers/processing_utils.py:1490-1598",
+        "src/transformers/processing_utils.py:1538-1545"
       ],
       "reference_contexts": [
         "Processor persistence separates component files, chat templates, and composite config; loading has distinct primary Auto-loading, additional-tokenizer subfolder, and additional-non-tokenizer class/config branches."

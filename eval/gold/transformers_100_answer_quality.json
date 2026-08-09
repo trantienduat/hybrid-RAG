@@ -2,7 +2,11 @@
   "name": "transformers-100-answer-quality-v2",
   "source_identity": "git:https://github.com/huggingface/transformers.git@0a2757da521a7a49b8143d9e0c938f08747d682e:.",
   "review": {
-    "status": "draft"
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-08",
+    "evidence_grade": "approved_ai_source_review"
   },
   "schema_version": 1,
   "cases": [

@@ -1,16 +1,17 @@
 {
   "name": "transformers-100-answer-quality-v2",
-  "schema_version": 1,
   "source_identity": "git:https://github.com/huggingface/transformers.git@0a2757da521a7a49b8143d9e0c938f08747d682e:.",
   "review": {
     "status": "approved",
     "reviewer": "Codex",
     "reviewer_type": "ai_source_review",
-    "reviewed_at": "2026-08-08"
+    "reviewed_at": "2026-08-08",
+    "evidence_grade": "approved_ai_source_review"
   },
+  "schema_version": 1,
   "cases": [
     {
-      "id": "transformers-t001",
+      "id": "transformers-t01",
       "difficulty": "simple",
       "question": "What kinds of inputs can PreTrainedConfig.from_pretrained accept?",
       "reference_answer": "It accepts a model identifier hosted on Hugging Face, a directory containing a configuration saved with save_pretrained, or a path to a saved configuration JSON file. It also supports cache, download, local-only, token, and revision options.",
@@ -25,7 +26,7 @@
       ]
     },
     {
-      "id": "transformers-t002",
+      "id": "transformers-t02",
       "difficulty": "simple",
       "question": "What does PreTrainedConfig.to_dict include when serializing a configuration?",
       "reference_answer": "It deep-copies the configuration attributes, adds the model_type when defined, records the Transformers version, and removes the unpacked kwargs entry before returning a dictionary.",
@@ -40,7 +41,7 @@
       ]
     },
     {
-      "id": "transformers-t003",
+      "id": "transformers-t03",
       "difficulty": "simple",
       "question": "How does BatchEncoding indexing behave for string, integer, and slice keys?",
       "reference_answer": "A string key returns the corresponding value from the data dictionary, an integer returns the fast-tokenizer encoding for that batch item when encodings are available, and a slice returns sliced dictionary values.",
@@ -55,7 +56,7 @@
       ]
     },
     {
-      "id": "transformers-t004",
+      "id": "transformers-t04",
       "difficulty": "simple",
       "question": "What happens when BatchEncoding.convert_to_tensors is called with tensor_type=None?",
       "reference_answer": "It returns the BatchEncoding unchanged. When a tensor type is supplied, it converts the value to the corresponding TensorType and then performs the requested backend conversion.",
@@ -70,8 +71,8 @@
       ]
     },
     {
-      "id": "transformers-t005",
-      "difficulty": "simple",
+      "id": "transformers-t05",
+      "difficulty": "medium",
       "question": "How does PreTrainedTokenizerBase.add_tokens handle existing and special tokens?",
       "reference_answer": "It appends only tokens that are not already in the vocabulary. AddedToken objects can customize matching and whitespace behavior, and special_tokens changes normalization behavior. The method returns the number of tokens added.",
       "source_files": [
@@ -85,1428 +86,1461 @@
       ]
     },
     {
-      "id": "transformers-t006",
-      "difficulty": "simple",
+      "id": "transformers-t06",
+      "difficulty": "medium",
       "question": "What is the main responsibility of PreTrainedTokenizerBase.__call__?",
-      "reference_answer": "It normalizes single or paired text inputs, dispatches them to batch_encode_plus or encode_plus, and converts outputs into a BatchEncoding with optional tensor formatting.",
+      "reference_answer": "It is the main tokenization entry point for one or more sequences or sequence pairs. It supports padding, truncation, overflow and offset options, optional target text, and returns a BatchEncoding.",
       "source_files": [
         "src/transformers/tokenization_utils_base.py"
       ],
       "source_anchors": [
-        "src/transformers/tokenization_utils_base.py:2700-2810"
+        "src/transformers/tokenization_utils_base.py:2419-2455"
       ],
       "reference_contexts": [
-        "PreTrainedTokenizerBase.__call__ is main tokenizer entry point dispatching single/pair texts to encode methods."
+        "The tokenizer call accepts single or batched text and pairs, with padding, truncation, tensor, overflow, offset, and target options."
       ]
     },
     {
-      "id": "transformers-t007",
-      "difficulty": "simple",
-      "question": "How does PreTrainedModel.save_pretrained write model weights and configuration?",
-      "reference_answer": "It creates target directory, writes model config json, serializes state_dict using safetensors or PyTorch bin shards based on safe_serialization parameter, and generates model index json for sharded checkpoints.",
+      "id": "transformers-t07",
+      "difficulty": "medium",
+      "question": "Which options change the parameter count returned by PreTrainedModel.num_parameters?",
+      "reference_answer": "only_trainable restricts the count to parameters with gradients enabled, while exclude_embeddings removes parameters belonging to embedding modules from the count.",
       "source_files": [
         "src/transformers/modeling_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1800-1920"
+        "src/transformers/modeling_utils.py:1028-1055"
       ],
       "reference_contexts": [
-        "save_pretrained writes model config and state_dict tensors using safetensors with sharding metadata."
+        "num_parameters documents only_trainable and exclude_embeddings flags and identifies embedding weight names when exclusion is requested."
       ]
     },
     {
-      "id": "transformers-t008",
-      "difficulty": "simple",
-      "question": "How does AutoModel.from_pretrained resolve model class from configuration?",
-      "reference_answer": "It loads configuration json, extracts model_type, maps model_type to registered model architecture class in MODEL_MAPPING, and instantiates model from checkpoint.",
+      "id": "transformers-t08",
+      "difficulty": "hard",
+      "question": "How does resize_token_embeddings change a pretrained model?",
+      "reference_answer": "It resizes the input embedding matrix when the requested vocabulary size differs, can pad to a multiple, optionally initializes added rows using the old embedding statistics, and re-ties weights through tie_weights when the model supports it.",
       "source_files": [
-        "src/transformers/models/auto/auto_factory.py"
+        "src/transformers/modeling_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/models/auto/auto_factory.py:450-540"
+        "src/transformers/modeling_utils.py:2728-2775"
       ],
       "reference_contexts": [
-        "AutoModel resolves model architecture class dynamically by matching config.model_type to class mappings."
+        "resize_token_embeddings delegates to the internal resize operation, handles optional padding and mean resizing, then updates model embedding state and weight tying."
       ]
     },
     {
-      "id": "transformers-t009",
-      "difficulty": "simple",
-      "question": "What does Trainer.train execute in its primary training loop?",
-      "reference_answer": "It prepares dataloaders, initializes optimizer and scheduler, runs epoch loops with gradient accumulation, logs metrics to callbacks, executes evaluation loops, and saves model checkpoints.",
+      "id": "transformers-t09",
+      "difficulty": "hard",
+      "question": "How does Pipeline.__call__ prepare batched or chat-style inputs?",
+      "reference_answer": "It detects list, tuple, generator, or dataset-like inputs, converts valid message collections into Chat objects, chooses configured or default worker and batch sizes, and routes the data through a DataLoader and PipelineIterator stages.",
+      "source_files": [
+        "src/transformers/pipelines/base.py"
+      ],
+      "source_anchors": [
+        "src/transformers/pipelines/base.py:1188-1220"
+      ],
+      "reference_contexts": [
+        "Pipeline.__call__ normalizes chat inputs, defaults num_workers and batch_size, and uses the iterator pipeline for batched execution."
+      ]
+    },
+    {
+      "id": "transformers-t10",
+      "difficulty": "hard",
+      "question": "What does Trainer.train return and which controls are exposed at its entry point?",
+      "reference_answer": "Trainer.train runs the training loop and returns a TrainOutput. Its entry point accepts an optional checkpoint to resume from, an optional hyperparameter-optimization trial, and keys to ignore during evaluation.",
       "source_files": [
         "src/transformers/trainer.py"
       ],
       "source_anchors": [
-        "src/transformers/trainer.py:1500-1750"
+        "src/transformers/trainer.py:1325-1360"
       ],
       "reference_contexts": [
-        "Trainer.train coordinates forward pass, backward loss calculation, optimizer step, callback logging, and checkpointing."
+        "The train method exposes resume_from_checkpoint, trial, and ignore_keys_for_eval parameters and documents a TrainOutput return."
       ]
     },
     {
-      "id": "transformers-t010",
+      "id": "transformers-t11",
       "difficulty": "simple",
-      "question": "How does GenerationMixin.generate coordinate greedy search and beam search?",
-      "reference_answer": "It inspects generation_config, determines generation mode (greedy, sample, beam_search, beam_sample, or contrastive), initializes logits processors and stopping criteria, and delegates to corresponding search method.",
+      "question": "How does PreTrainedConfig._encode_special_floats make non-finite floats portable in JSON structures?",
+      "reference_answer": "It replaces NaN, positive infinity, and negative infinity with tagged dictionaries, recursively processes dictionaries and lists or tuples, leaves ordinary floats unchanged, and returns other objects as-is.",
+      "source_files": [
+        "src/transformers/configuration_utils.py"
+      ],
+      "source_anchors": [
+        "src/transformers/configuration_utils.py:890-912"
+      ],
+      "reference_contexts": [
+        "_encode_special_floats handles the three non-finite float values and recursively traverses containers before JSON serialization."
+      ]
+    },
+    {
+      "id": "transformers-t12",
+      "difficulty": "simple",
+      "question": "What flattening rule does tokenization_utils_base.flatten apply to its input list?",
+      "reference_answer": "For a non-empty input, it decides from the first element whether the level is nested: list or tuple elements are recursively flattened, otherwise each element is appended. An empty input returns an empty list.",
+      "source_files": [
+        "src/transformers/tokenization_utils_base.py"
+      ],
+      "source_anchors": [
+        "src/transformers/tokenization_utils_base.py:81-89"
+      ],
+      "reference_contexts": [
+        "flatten recurses when the first element is a list or tuple and otherwise accumulates the current level's elements."
+      ]
+    },
+    {
+      "id": "transformers-t13",
+      "difficulty": "simple",
+      "question": "How does model_type_to_module_name convert a model type into an importable module name?",
+      "reference_answer": "It first applies a special-name mapping when present; otherwise it replaces hyphens with underscores. In either path it prefixes deprecated model module names with deprecated., then returns the resulting name.",
+      "source_files": [
+        "src/transformers/models/auto/configuration_auto.py"
+      ],
+      "source_anchors": [
+        "src/transformers/models/auto/configuration_auto.py:62-76"
+      ],
+      "reference_contexts": [
+        "model_type_to_module_name handles explicit aliases, hyphen normalization, and deprecated-module qualification."
+      ]
+    },
+    {
+      "id": "transformers-t14",
+      "difficulty": "simple",
+      "question": "In what order does tokenizer_class_from_name look up a tokenizer class?",
+      "reference_answer": "It handles Bloom compatibility first, then registered fast aliases, registered classes, and TokenizersBackend. It next scans built-in tokenizer mappings and extra registrations, checks the main transformers module for dependency dummies, retries a missing name without a trailing Fast suffix, and otherwise returns None.",
+      "source_files": [
+        "src/transformers/models/auto/tokenization_auto.py"
+      ],
+      "source_anchors": [
+        "src/transformers/models/auto/tokenization_auto.py:416-467"
+      ],
+      "reference_contexts": [
+        "tokenizer_class_from_name follows explicit compatibility and registration lookups before lazy built-in imports and its Fast-name fallback."
+      ]
+    },
+    {
+      "id": "transformers-t15",
+      "difficulty": "simple",
+      "question": "How does _get_model_class select one implementation when an auto-model mapping has several candidates?",
+      "reference_answer": "A single mapped class is returned directly. For a list or tuple, it matches config.architectures against candidate class names in order; if none matches or no architecture is set, it returns the first candidate.",
+      "source_files": [
+        "src/transformers/models/auto/auto_factory.py"
+      ],
+      "source_anchors": [
+        "src/transformers/models/auto/auto_factory.py:179-192"
+      ],
+      "reference_contexts": [
+        "_get_model_class uses architecture names to disambiguate a multi-class mapping and otherwise defaults to its first entry."
+      ]
+    },
+    {
+      "id": "transformers-t16",
+      "difficulty": "simple",
+      "question": "Where does modeling_utils._add_variant place a checkpoint variant in a weight filename?",
+      "reference_answer": "When a variant is provided, it splits the filename at the last dot and inserts the variant immediately before the final extension; with no variant it returns the original name.",
+      "source_files": [
+        "src/transformers/modeling_utils.py"
+      ],
+      "source_anchors": [
+        "src/transformers/modeling_utils.py:542-546"
+      ],
+      "reference_contexts": [
+        "_add_variant rewrites path.name.ext as path.name.variant.ext and is a no-op for None."
+      ]
+    },
+    {
+      "id": "transformers-t17",
+      "difficulty": "simple",
+      "question": "How does GenerationMixin._has_unfinished_sequences decide whether generation must continue?",
+      "reference_answer": "With synchronized GPUs it all-reduces a 0/1 finished flag and stops only when the sum is zero, meaning every peer is finished. Without synchronization it stops when the local peer is finished; otherwise it continues.",
       "source_files": [
         "src/transformers/generation/utils.py"
       ],
       "source_anchors": [
-        "src/transformers/generation/utils.py:1200-1450"
+        "src/transformers/generation/utils.py:2592-2608"
       ],
       "reference_contexts": [
-        "GenerationMixin.generate validates generation_config and dispatches to greedy_search, sample, or beam_search."
+        "_has_unfinished_sequences preserves forward calls under synced generation until the reduced peer flag reports global completion."
       ]
     },
     {
-      "id": "transformers-t011",
+      "id": "transformers-t18",
       "difficulty": "simple",
-      "question": "How does Transformers module component #11 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #11 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What does GenerationConfig.update return after applying keyword arguments?",
+      "reference_answer": "It sets existing attributes unless defaults_only blocks a non-None value, optionally creates custom attributes, validates the updated config using only consumed keys as user-set attributes, and returns a new dictionary containing the unused keyword arguments.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/configuration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:210-260"
+        "src/transformers/generation/configuration_utils.py:1268-1300"
       ],
       "reference_contexts": [
-        "Component #11 coordinates modeling contracts, parameter registrations, and device allocations."
+        "GenerationConfig.update tracks consumed keys, validates after mutation, and returns only inputs not used for an update."
       ]
     },
     {
-      "id": "transformers-t012",
+      "id": "transformers-t19",
       "difficulty": "simple",
-      "question": "How does Transformers module component #12 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #12 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What computation does _PruneReindexingLMHead.forward perform?",
+      "reference_answer": "It applies the already-pruned language-model head to the supplied hidden states and returns those pruned logits without additional remapping in forward.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/candidate_generator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:220-270"
+        "src/transformers/generation/candidate_generator.py:626-646"
       ],
       "reference_contexts": [
-        "Component #12 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_PruneReindexingLMHead constructs a pruned linear head and forward delegates hidden states to it."
       ]
     },
     {
-      "id": "transformers-t013",
+      "id": "transformers-t20",
       "difficulty": "simple",
-      "question": "How does Transformers module component #13 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #13 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which TrainerControl flags are reset by _new_step?",
+      "reference_answer": "It resets should_save, should_evaluate, and should_log to False. It does not reset the training-stop or epoch-stop flags.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:230-280"
+        "src/transformers/trainer_callback.py:262-280"
       ],
       "reference_contexts": [
-        "Component #13 coordinates modeling contracts, parameter registrations, and device allocations."
+        "TrainerControl separates persistent stop flags from the save, evaluate, and log actions cleared for each new step."
       ]
     },
     {
-      "id": "transformers-t014",
+      "id": "transformers-t21",
       "difficulty": "simple",
-      "question": "How does Transformers module component #14 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #14 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which values are exposed by iterating or indexing an EvalPrediction?",
+      "reference_answer": "Its tuple always starts with predictions and label_ids, then includes inputs and losses only when each is not None. Iteration follows that tuple; indexing rejects negative or out-of-range indices with IndexError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:240-290"
+        "src/transformers/trainer_utils.py:210-244"
       ],
       "reference_contexts": [
-        "Component #14 coordinates modeling contracts, parameter registrations, and device allocations."
+        "EvalPrediction builds an ordered elements tuple from required and optional evaluation arrays and exposes it through iteration and guarded indexing."
       ]
     },
     {
-      "id": "transformers-t015",
+      "id": "transformers-t22",
       "difficulty": "simple",
-      "question": "How does Transformers module component #15 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #15 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TrainingArguments.get_warmup_steps interpret warmup_steps?",
+      "reference_answer": "A value at least one is treated as an absolute step count and converted to int. A value below one is treated as a fraction of total training steps, multiplied by num_training_steps, and rounded up with ceil.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/training_args.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:250-300"
+        "src/transformers/training_args.py:2110-2117"
       ],
       "reference_contexts": [
-        "Component #15 coordinates modeling contracts, parameter registrations, and device allocations."
+        "get_warmup_steps supports either an absolute count or a fractional schedule and rounds fractional results upward."
       ]
     },
     {
-      "id": "transformers-t016",
+      "id": "transformers-t23",
       "difficulty": "simple",
-      "question": "How does Transformers module component #16 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #16 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Trainer.num_examples estimate a dataloader's sample count?",
+      "reference_answer": "It normally returns the dataset length, drilling through an IterableDatasetShard to its underlying dataset. If the dataset or its length is unavailable, it estimates samples as dataloader length times per_device_train_batch_size.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:260-310"
+        "src/transformers/trainer.py:942-954"
       ],
       "reference_contexts": [
-        "Component #16 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Trainer.num_examples prefers dataset cardinality and has explicit fallbacks for iterable shards and lengthless datasets."
       ]
     },
     {
-      "id": "transformers-t017",
+      "id": "transformers-t24",
       "difficulty": "simple",
-      "question": "How does Transformers module component #17 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #17 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which concrete readers can PipelineDataFormat.from_str construct?",
+      "reference_answer": "It maps json to JsonPipelineDataFormat, csv to CsvPipelineDataFormat, and pipe to PipedPipelineDataFormat, passing through paths, column, and overwrite. Any other format raises KeyError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:270-320"
+        "src/transformers/pipelines/base.py:461-494"
       ],
       "reference_contexts": [
-        "Component #17 coordinates modeling contracts, parameter registrations, and device allocations."
+        "PipelineDataFormat.from_str is the format-to-reader factory for json, csv, and pipe inputs."
       ]
     },
     {
-      "id": "transformers-t018",
+      "id": "transformers-t25",
       "difficulty": "simple",
-      "question": "How does Transformers module component #18 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #18 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Where does pipelines.get_supported_tasks obtain its task list?",
+      "reference_answer": "It delegates directly to the module-level PIPELINE_REGISTRY.get_supported_tasks method and returns that result.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/__init__.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:280-330"
+        "src/transformers/pipelines/__init__.py:293-300"
       ],
       "reference_contexts": [
-        "Component #18 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The public get_supported_tasks helper exposes the task names maintained by PIPELINE_REGISTRY."
       ]
     },
     {
-      "id": "transformers-t019",
+      "id": "transformers-t26",
       "difficulty": "simple",
-      "question": "How does Transformers module component #19 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #19 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What output modes are represented by text_generation.ReturnType?",
+      "reference_answer": "The enum defines TENSORS for token tensors, NEW_TEXT for only generated continuation text, and FULL_TEXT for prompt plus generated text.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/text_generation.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:290-340"
+        "src/transformers/pipelines/text_generation.py:16-19"
       ],
       "reference_contexts": [
-        "Component #19 coordinates modeling contracts, parameter registrations, and device allocations."
+        "ReturnType names the three postprocessing output forms supported by the text-generation pipeline."
       ]
     },
     {
-      "id": "transformers-t020",
+      "id": "transformers-t27",
       "difficulty": "simple",
-      "question": "How does Transformers module component #20 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #20 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What does DynamicLayer.get_seq_length return before and after cache initialization?",
+      "reference_answer": "It returns zero when the layer is uninitialized or its key tensor is empty; otherwise it returns the key tensor's sequence dimension, shape[-2].",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/cache_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:300-350"
+        "src/transformers/cache_utils.py:109-157"
       ],
       "reference_contexts": [
-        "Component #20 coordinates modeling contracts, parameter registrations, and device allocations."
+        "DynamicLayer stores sequence length on the penultimate key dimension and treats absent or empty state as length zero."
       ]
     },
     {
-      "id": "transformers-t021",
+      "id": "transformers-t28",
       "difficulty": "simple",
-      "question": "How does Transformers module component #21 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #21 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What are the default HfQuantizer answers for dtype, device-map, element-size, memory, and per-parameter quantization hooks?",
+      "reference_answer": "The base hooks return the input dtype and device map unchanged, report tensor.element_size(), return max_memory unchanged, and report False for param_needs_quantization. Concrete quantizers override these defaults as needed.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/quantizers/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:310-360"
+        "src/transformers/quantizers/base.py:99-134"
       ],
       "reference_contexts": [
-        "Component #21 coordinates modeling contracts, parameter registrations, and device allocations."
+        "HfQuantizer defines conservative pass-through defaults for loading policy and a false default for parameter quantization."
       ]
     },
     {
-      "id": "transformers-t022",
+      "id": "transformers-t29",
       "difficulty": "simple",
-      "question": "How does Transformers module component #22 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #22 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which backend identifiers does QuantizationMethod enumerate in this snapshot?",
+      "reference_answer": "It enumerates bitsandbytes, gptq, awq, aqlm, vptq, quanto, eetq, higgs, hqq, compressed-tensors, fbgemm_fp8, torchao, bitnet, spqr, fp8, quark, fp_quant, auto-round, mxfp4, metal, fouroversix, and sinq.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/utils/quantization_config.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:320-370"
+        "src/transformers/utils/quantization_config.py:43-65"
       ],
       "reference_contexts": [
-        "Component #22 coordinates modeling contracts, parameter registrations, and device allocations."
+        "QuantizationMethod is the string enum of recognized quantization backend names."
       ]
     },
     {
-      "id": "transformers-t023",
+      "id": "transformers-t30",
       "difficulty": "simple",
-      "question": "How does Transformers module component #23 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #23 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does integrations.rewrite_logs namespace training, evaluation, and test metrics?",
+      "reference_answer": "Keys beginning with eval_ become eval/<suffix>, keys beginning with test_ become test/<suffix>, and every other key becomes train/<original key>; values are preserved.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/integrations/integration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:330-380"
+        "src/transformers/integrations/integration_utils.py:550-563"
       ],
       "reference_contexts": [
-        "Component #23 coordinates modeling contracts, parameter registrations, and device allocations."
+        "rewrite_logs translates Trainer metric prefixes into slash-separated integration namespaces."
       ]
     },
     {
-      "id": "transformers-t024",
+      "id": "transformers-t31",
       "difficulty": "simple",
-      "question": "How does Transformers module component #24 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #24 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BertSelfAttention choose and invoke its attention implementation?",
+      "reference_answer": "It projects hidden states into query, key, and value heads, optionally updates the self-attention cache, selects the configured attention interface with eager attention as fallback, invokes it with mask, scaling, and training-dependent dropout, then reshapes and returns output plus attention weights.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/bert/modeling_bert.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:340-390"
+        "src/transformers/models/bert/modeling_bert.py:168-207"
       ],
       "reference_contexts": [
-        "Component #24 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BertSelfAttention.forward performs projection, optional cache update, implementation dispatch, and output reshaping in one local method."
       ]
     },
     {
-      "id": "transformers-t025",
+      "id": "transformers-t32",
       "difficulty": "simple",
-      "question": "How does Transformers module component #25 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #25 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What sequence of operations does GPT2MLP.forward apply?",
+      "reference_answer": "It applies the input projection c_fc, the configured activation, the output projection c_proj, and residual dropout, then returns the resulting hidden states.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/gpt2/modeling_gpt2.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:350-400"
+        "src/transformers/models/gpt2/modeling_gpt2.py:229-243"
       ],
       "reference_contexts": [
-        "Component #25 coordinates modeling contracts, parameter registrations, and device allocations."
+        "GPT2MLP.forward is a projection-activation-projection-dropout feed-forward path."
       ]
     },
     {
-      "id": "transformers-t026",
+      "id": "transformers-t33",
       "difficulty": "simple",
-      "question": "How does Transformers module component #26 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #26 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What transformation does modeling_llama.rotate_half apply to the last hidden dimension?",
+      "reference_answer": "It splits the last dimension in half and concatenates the negated second half before the first half, producing (-x2, x1).",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/llama/modeling_llama.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:360-410"
+        "src/transformers/models/llama/modeling_llama.py:138-142"
       ],
       "reference_contexts": [
-        "Component #26 coordinates modeling contracts, parameter registrations, and device allocations."
+        "rotate_half implements the half-dimension rotation used by Llama rotary position embedding."
       ]
     },
     {
-      "id": "transformers-t027",
+      "id": "transformers-t34",
       "difficulty": "simple",
-      "question": "How does Transformers module component #27 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #27 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "When does image_processing_utils.is_valid_size_dict return True?",
+      "reference_answer": "It returns True only for a dictionary whose key set exactly equals one of the predefined valid key sets; non-dictionaries and dictionaries with any other key set return False.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/image_processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:370-420"
+        "src/transformers/image_processing_utils.py:541-549"
       ],
       "reference_contexts": [
-        "Component #27 coordinates modeling contracts, parameter registrations, and device allocations."
+        "is_valid_size_dict validates the complete key set rather than accepting arbitrary subsets or supersets."
       ]
     },
     {
-      "id": "transformers-t028",
+      "id": "transformers-t35",
       "difficulty": "simple",
-      "question": "How does Transformers module component #28 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #28 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What indexing contract does BatchFeature.__getitem__ enforce?",
+      "reference_answer": "A string key returns the corresponding value from the internal data dictionary. Any non-string key raises KeyError because integer indexing is unavailable for Python-based feature extractors.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/feature_extraction_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:380-430"
+        "src/transformers/feature_extraction_utils.py:85-93"
       ],
       "reference_contexts": [
-        "Component #28 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BatchFeature permits dictionary-style string lookup and explicitly rejects integer-style indexing."
       ]
     },
     {
-      "id": "transformers-t029",
+      "id": "transformers-t36",
       "difficulty": "simple",
-      "question": "How does Transformers module component #29 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #29 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does processing_utils._get_modality_for_attribute infer a processor modality?",
+      "reference_answer": "It returns the first canonical modality name from MODALITY_TO_AUTOPROCESSOR_MAPPING that occurs as a substring of the attribute name. If none occurs, it raises ValueError listing the allowed modality names.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:390-440"
+        "src/transformers/processing_utils.py:125-153"
       ],
       "reference_contexts": [
-        "Component #29 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_get_modality_for_attribute maps compound attribute names to canonical processor modality keys by substring matching."
       ]
     },
     {
-      "id": "transformers-t030",
+      "id": "transformers-t37",
       "difficulty": "simple",
-      "question": "How does Transformers module component #30 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #30 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does dynamic_module_utils._sanitize_module_name make repository names importable?",
+      "reference_answer": "It replaces dots with _dot_ and hyphens with _hyphen_, prefixes a leading digit with an underscore, warns for Python keywords or remaining invalid identifiers, and returns the transformed name.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/dynamic_module_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:400-450"
+        "src/transformers/dynamic_module_utils.py:49-79"
       ],
       "reference_contexts": [
-        "Component #30 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_sanitize_module_name uses collision-aware textual substitutions and identifier checks for dynamic import modules."
       ]
     },
     {
-      "id": "transformers-t031",
+      "id": "transformers-t38",
       "difficulty": "simple",
-      "question": "How does Transformers module component #31 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #31 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does pytorch_utils.Conv1D.forward apply its transposed linear weights?",
+      "reference_answer": "It forms the output shape by replacing the last input dimension with nf, flattens all leading dimensions, calls torch.addmm with bias and the stored nx-by-nf weight, and reshapes the result back to the computed output shape.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pytorch_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:410-460"
+        "src/transformers/pytorch_utils.py:97-123"
       ],
       "reference_contexts": [
-        "Component #31 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Conv1D stores transposed linear weights and implements its forward pass through a flattened addmm followed by reshape."
       ]
     },
     {
-      "id": "transformers-t032",
+      "id": "transformers-t39",
       "difficulty": "simple",
-      "question": "How does Transformers module component #32 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #32 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "When does modelcard._maybe_round format a value to a fixed number of decimals?",
+      "reference_answer": "It formats a float only when its string representation has more fractional digits than the requested decimals; otherwise it simply returns str(value). The default precision is four decimals.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/modelcard.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:420-470"
+        "src/transformers/modelcard.py:496-499"
       ],
       "reference_contexts": [
-        "Component #32 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_maybe_round avoids changing values that do not exceed the requested fractional precision."
       ]
     },
     {
-      "id": "transformers-t033",
+      "id": "transformers-t40",
       "difficulty": "simple",
-      "question": "How does Transformers module component #33 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #33 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which inputs does hf_argparser.string_to_bool accept?",
+      "reference_answer": "It returns boolean inputs unchanged; case-insensitively maps yes, true, t, y, and 1 to True and no, false, f, n, and 0 to False; every other value raises ArgumentTypeError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/hf_argparser.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:430-480"
+        "src/transformers/hf_argparser.py:35-46"
       ],
       "reference_contexts": [
-        "Component #33 coordinates modeling contracts, parameter registrations, and device allocations."
+        "string_to_bool defines the exact accepted truthy and falsy spellings for command-line dataclass fields."
       ]
     },
     {
-      "id": "transformers-t034",
+      "id": "transformers-t41",
       "difficulty": "simple",
-      "question": "How does Transformers module component #34 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #34 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does pad_without_fast_tokenizer_warning preserve tokenizer warning state?",
+      "reference_answer": "For objects without deprecation_warnings it calls pad directly. Otherwise it saves the current fast-tokenizer padding-warning flag, sets it to True while calling pad, and restores the saved value in a finally block before returning the padded result.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/data/data_collator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:440-490"
+        "src/transformers/data/data_collator.py:49-68"
       ],
       "reference_contexts": [
-        "Component #34 coordinates modeling contracts, parameter registrations, and device allocations."
+        "pad_without_fast_tokenizer_warning temporarily suppresses one warning without leaking the changed warning state, even if padding raises."
       ]
     },
     {
-      "id": "transformers-t035",
-      "difficulty": "simple",
-      "question": "How does Transformers module component #35 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #35 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:450-500"
-      ],
-      "reference_contexts": [
-        "Component #35 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t036",
+      "id": "transformers-t42",
       "difficulty": "medium",
-      "question": "How does Transformers module component #36 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #36 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What validation, serialization, custom-code, and Hub steps does PreTrainedConfig.save_pretrained perform?",
+      "reference_answer": "It rejects a file path and model configs that still contain generation parameters, creates the directory, optionally prepares a Hub repository and timestamp snapshot, removes transformers_weights from serialization, saves custom config code when registered, validates the config, writes a diff JSON as CONFIG_NAME, and optionally uploads modified files.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/configuration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:460-510"
+        "src/transformers/configuration_utils.py:492-552"
       ],
       "reference_contexts": [
-        "Component #36 coordinates modeling contracts, parameter registrations, and device allocations."
+        "save_pretrained validates configuration ownership, handles custom code, writes the canonical config file, and gates the Hub upload behind push_to_hub."
       ]
     },
     {
-      "id": "transformers-t037",
+      "id": "transformers-t43",
       "difficulty": "medium",
-      "question": "How does Transformers module component #37 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #37 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does PreTrainedTokenizerBase.add_special_tokens normalize and register ordinary versus extra special tokens?",
+      "reference_answer": "It converts the legacy additional_special_tokens key, validates allowed keys and value types, wraps strings as non-normalized special AddedToken objects, replaces or extends the extra-special-token list according to replace_extra_special_tokens, assigns ordinary special-token attributes, and finally calls add_tokens with special_tokens=True, returning the added count.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/tokenization_utils_base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:470-520"
+        "src/transformers/tokenization_utils_base.py:1109-1214"
       ],
       "reference_contexts": [
-        "Component #37 coordinates modeling contracts, parameter registrations, and device allocations."
+        "add_special_tokens translates the user dictionary into tokenizer attributes and AddedToken values before delegating vocabulary insertion."
       ]
     },
     {
-      "id": "transformers-t038",
+      "id": "transformers-t44",
       "difficulty": "medium",
-      "question": "How does Transformers module component #38 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #38 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does AutoConfig.from_pretrained choose between remote custom code, a registered model_type, and name-pattern fallback?",
+      "reference_answer": "It loads the config dictionary, detects remote AutoConfig code and registered local code, resolves trust, and loads the dynamic class only when trusted and not shadowed by explicit local custom code. Otherwise it uses CONFIG_MAPPING for model_type, with a mistral layer_types heuristic, or falls back to recognized name patterns; unrecognized inputs raise ValueError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/auto/configuration_auto.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:480-530"
+        "src/transformers/models/auto/configuration_auto.py:369-424"
       ],
       "reference_contexts": [
-        "Component #38 coordinates modeling contracts, parameter registrations, and device allocations."
+        "AutoConfig.from_pretrained resolves code provenance first, then selects a local config class by model_type or checkpoint-name pattern."
       ]
     },
     {
-      "id": "transformers-t039",
+      "id": "transformers-t45",
       "difficulty": "medium",
-      "question": "How does Transformers module component #39 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #39 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What precedence does AutoTokenizer.from_pretrained use to resolve a tokenizer implementation?",
+      "reference_answer": "An explicit tokenizer_type wins first. It otherwise obtains or loads a config and tokenizer_config, handles specialized tokenizer mismatches, resolves trusted remote auto_map code, then tries tokenizer_config.tokenizer_class, config.tokenizer_class, an encoder config for encoder-decoder models, and TOKENIZER_MAPPING. Missing concrete classes fall back to TokenizersBackend in the defined branches; complete failure raises ValueError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/auto/tokenization_auto.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:490-540"
+        "src/transformers/models/auto/tokenization_auto.py:662-858"
       ],
       "reference_contexts": [
-        "Component #39 coordinates modeling contracts, parameter registrations, and device allocations."
+        "AutoTokenizer.from_pretrained implements an ordered resolution chain spanning explicit type, config metadata, trusted dynamic code, class names, and model mappings."
       ]
     },
     {
-      "id": "transformers-t040",
+      "id": "transformers-t46",
       "difficulty": "medium",
-      "question": "How does Transformers module component #40 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #40 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does _BaseAutoModelClass.from_config resolve remote and local model classes?",
+      "reference_answer": "It detects remote auto_map and local mapping entries, resolves remote-code trust, and, when trusted without explicit local custom code, imports the dynamic class, registers it only if no local mapping exists, adds generation support, and calls _from_config. For local code it selects the mapped class, may move a parent quantization config to the text sub-config, and calls that class; otherwise it raises ValueError.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/auto/auto_factory.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:500-550"
+        "src/transformers/models/auto/auto_factory.py:207-256"
       ],
       "reference_contexts": [
-        "Component #40 coordinates modeling contracts, parameter registrations, and device allocations."
+        "from_config preserves explicit local code precedence while supporting trusted remote classes and composite text-config quantization."
       ]
     },
     {
-      "id": "transformers-t041",
+      "id": "transformers-t47",
       "difficulty": "medium",
-      "question": "How does Transformers module component #41 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #41 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does modeling_utils.load_state_dict handle safetensors, meta loading, mmap, and PyTorch checkpoints?",
+      "reference_answer": "It auto-disables mmap on the Hub mount when unspecified. Safetensors may be fully read from bytes or opened key-by-key; meta loading creates empty tensors from recorded shape and dtype, while normal loading materializes tensors on the target device. Non-safetensors enforce the safe torch.load check when weights_only is true and enable mmap only for zip checkpoints outside meta mode.",
       "source_files": [
         "src/transformers/modeling_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:510-560"
+        "src/transformers/modeling_utils.py:333-380"
       ],
       "reference_contexts": [
-        "Component #41 coordinates modeling contracts, parameter registrations, and device allocations."
+        "load_state_dict dispatches by checkpoint format and map location, with separate safety and memory-mapping behavior."
       ]
     },
     {
-      "id": "transformers-t042",
+      "id": "transformers-t48",
       "difficulty": "medium",
-      "question": "How does Transformers module component #42 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #42 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does GenerationConfig.get_generation_mode derive and then override a base decoding mode?",
+      "reference_answer": "Constraints select constrained beam search; otherwise beam count, sampling, beam groups, top_k, and penalty_alpha select greedy, contrastive, sampling, beam, beam-sampling, or group-beam modes. Assistant inputs or prompt lookup promote only greedy or sampling to assisted generation, while dola_layers similarly promotes those modes to DoLa; unsupported base combinations only emit warnings.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/configuration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:520-570"
+        "src/transformers/generation/configuration_utils.py:507-570"
       ],
       "reference_contexts": [
-        "Component #42 coordinates modeling contracts, parameter registrations, and device allocations."
+        "get_generation_mode first computes a base mode and then applies assisted-generation or DoLa extensions conditionally."
       ]
     },
     {
-      "id": "transformers-t043",
+      "id": "transformers-t49",
       "difficulty": "medium",
-      "question": "How does Transformers module component #43 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #43 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does AssistedCandidateGenerator.update_candidate_strategy adapt token count and confidence threshold?",
+      "reference_answer": "For heuristic schedules it adds two assistant tokens after a full candidate match, otherwise subtracts one but never below one. For the base assisted generator with scikit-learn and a confidence threshold, it records match labels, trims probability history, and after enough positive and negative examples chooses the ROC threshold minimizing false-positive plus three-times false-negative cost.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/candidate_generator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:530-580"
+        "src/transformers/generation/candidate_generator.py:227-283"
       ],
       "reference_contexts": [
-        "Component #43 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The strategy combines a token-budget heuristic with optional ROC-based confidence calibration."
       ]
     },
     {
-      "id": "transformers-t044",
+      "id": "transformers-t50",
       "difficulty": "medium",
-      "question": "How does Transformers module component #44 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #44 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TrainerState compute step intervals and initialize training references?",
+      "reference_answer": "compute_steps converts logging, evaluation, and save fractions below one into ceiling-rounded absolute counts while preserving absolute values. init_training_references derives an HPO trial name and parameters when present, then records maximum steps, epochs, and the trainer's local- and world-process-zero flags.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:540-590"
+        "src/transformers/trainer_callback.py:156-186"
       ],
       "reference_contexts": [
-        "Component #44 coordinates modeling contracts, parameter registrations, and device allocations."
+        "TrainerState materializes interval and process metadata needed by callbacks before training proceeds."
       ]
     },
     {
-      "id": "transformers-t045",
+      "id": "transformers-t51",
       "difficulty": "medium",
-      "question": "How does Transformers module component #45 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #45 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How do get_last_checkpoint and sort_checkpoints order and protect Trainer checkpoints?",
+      "reference_answer": "get_last_checkpoint finds matching checkpoint directories and returns the one with the greatest numeric suffix. sort_checkpoints orders directories by suffix or mtime, falls back to numeric order when mtimes are nearly identical, and, when requested, places the best checkpoint second-to-last while keeping the most recent checkpoint last.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:550-600"
+        "src/transformers/trainer_utils.py:270-339"
       ],
       "reference_contexts": [
-        "Component #45 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Trainer checkpoint helpers distinguish latest-resume selection from deletion ordering that protects both best and latest checkpoints."
       ]
     },
     {
-      "id": "transformers-t046",
+      "id": "transformers-t52",
       "difficulty": "medium",
-      "question": "How does Transformers module component #46 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #46 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "Which TrainingArguments fields does set_training update, and what object does it return?",
+      "reference_answer": "It enables do_train and sets learning rate, per-device train batch size, weight decay, epoch count, max steps, gradient accumulation, seed, and gradient checkpointing from its arguments. It mutates and returns the same TrainingArguments instance for chaining.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/training_args.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:560-610"
+        "src/transformers/training_args.py:2181-2254"
       ],
       "reference_contexts": [
-        "Component #46 coordinates modeling contracts, parameter registrations, and device allocations."
+        "set_training is the fluent mutator for the basic training-related argument group."
       ]
     },
     {
-      "id": "transformers-t047",
+      "id": "transformers-t53",
       "difficulty": "medium",
-      "question": "How does Transformers module component #47 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #47 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Trainer.create_optimizer form parameter groups and instantiate special optimizer forms?",
+      "reference_answer": "When no optimizer exists, it separates trainable parameters into decay and no-decay groups, obtains the configured optimizer or supplied class and kwargs, supports optimizer factories and kwargs that replace params, model, or optimizer_dict, and instantiates the result. Eight-bit bitsandbytes optimizers keep embedding weights in 32-bit, SageMaker MP wraps the optimizer, and repeated calls reuse the existing optimizer.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:570-620"
+        "src/transformers/trainer.py:1146-1220"
       ],
       "reference_contexts": [
-        "Component #47 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Trainer.create_optimizer handles grouping, factory versus class construction, optimizer-specific overrides, and distributed wrapping."
       ]
     },
     {
-      "id": "transformers-t048",
+      "id": "transformers-t54",
       "difficulty": "medium",
-      "question": "How does Transformers module component #48 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #48 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Pipeline.get_iterator construct preprocessing, model, and postprocessing stages for sized and iterable inputs?",
+      "reference_answer": "Sized inputs become a PipelineDataset; other iterables become a preprocessing PipelineIterator and force num_workers to one when needed. The method disables tokenizer parallelism by default, selects no-collation for batch size one or padded collation otherwise, builds a DataLoader, then chains model-forward and postprocessing PipelineIterator stages.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:580-630"
+        "src/transformers/pipelines/base.py:1169-1192"
       ],
       "reference_contexts": [
-        "Component #48 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Pipeline.get_iterator creates a three-stage lazy path around a DataLoader while treating sized and streaming inputs differently."
       ]
     },
     {
-      "id": "transformers-t049",
+      "id": "transformers-t55",
       "difficulty": "medium",
-      "question": "How does Transformers module component #49 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #49 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does pipelines.get_task infer a task and reject incompatible model metadata?",
+      "reference_answer": "It refuses automatic inference in offline mode, requests model_info and wraps lookup failures, requires a non-empty pipeline_tag, and accepts only models whose library is transformers or timm before returning the tag as the task.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/__init__.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:590-640"
+        "src/transformers/pipelines/__init__.py:303-317"
       ],
       "reference_contexts": [
-        "Component #49 coordinates modeling contracts, parameter registrations, and device allocations."
+        "get_task uses Hub metadata but guards offline use, missing tags, and foreign model libraries."
       ]
     },
     {
-      "id": "transformers-t050",
+      "id": "transformers-t56",
       "difficulty": "medium",
-      "question": "How does Transformers module component #50 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #50 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TextGenerationPipeline.preprocess distinguish chat prompts and apply the hole strategy for long inputs?",
+      "reference_answer": "It builds only non-None tokenizer options. Chat inputs use apply_chat_template, infer continuation mode from a final assistant message, and suppress add_special_tokens; plain text tokenizes prefix plus prompt. It stores prompt_text, and hole mode computes desired new tokens and left-truncates input_ids and attention_mask to fit model_max_length, raising when the requested generation cannot fit.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/text_generation.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:600-650"
+        "src/transformers/pipelines/text_generation.py:301-367"
       ],
       "reference_contexts": [
-        "Component #50 coordinates modeling contracts, parameter registrations, and device allocations."
+        "TextGenerationPipeline.preprocess unifies chat templating, plain tokenization, prompt preservation, and context-window truncation."
       ]
     },
     {
-      "id": "transformers-t051",
+      "id": "transformers-t57",
       "difficulty": "medium",
-      "question": "How does Transformers module component #51 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #51 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does DynamicLayer initialize, extend, report, and crop key-value cache state?",
+      "reference_answer": "The first update initializes empty key and value tensors on the incoming dtype and device, then every update concatenates new states along the sequence dimension. Length is zero before state exists and otherwise uses shape[-2]; crop accepts an absolute maximum or a negative number of tokens to remove and slices both tensors only when the current sequence is longer.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/cache_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:610-660"
+        "src/transformers/cache_utils.py:120-175"
       ],
       "reference_contexts": [
-        "Component #51 coordinates modeling contracts, parameter registrations, and device allocations."
+        "DynamicLayer maintains matching key/value growth and applies identical sequence cropping to both tensors."
       ]
     },
     {
-      "id": "transformers-t052",
+      "id": "transformers-t58",
       "difficulty": "medium",
-      "question": "How does Transformers module component #52 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #52 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What model mutations bracket weight loading in HfQuantizer.preprocess_model and postprocess_model?",
+      "reference_answer": "Before loading, preprocess_model marks the model quantized, records the quantization method, optionally converts a pre-quantized skeleton, and invokes the subclass pre-load hook. After loading, postprocess_model stores the quantization config, either removes quantization markers when dequantization is requested or assigns quantized state, then returns the subclass post-load hook result.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/quantizers/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:620-670"
+        "src/transformers/quantizers/base.py:155-194"
       ],
       "reference_contexts": [
-        "Component #52 coordinates modeling contracts, parameter registrations, and device allocations."
+        "HfQuantizer's public lifecycle wraps subclass hooks with common quantization metadata before and after weight loading."
       ]
     },
     {
-      "id": "transformers-t053",
+      "id": "transformers-t59",
       "difficulty": "medium",
-      "question": "How does Transformers module component #53 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #53 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BitsAndBytesConfig enforce exclusive modes and report its quantization method?",
+      "reference_answer": "The load_in_4bit and load_in_8bit setters require booleans and reject enabling both modes. post_init validates the remaining option types. is_quantizable is true when either mode is enabled, while quantization_method returns llm_int8 for 8-bit, fp4 or nf4 for the matching 4-bit type, and None otherwise.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/utils/quantization_config.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:630-680"
+        "src/transformers/utils/quantization_config.py:495-568"
       ],
       "reference_contexts": [
-        "Component #53 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BitsAndBytesConfig couples mutual-exclusion checks with typed option validation and an explicit method classifier."
       ]
     },
     {
-      "id": "transformers-t054",
+      "id": "transformers-t60",
       "difficulty": "medium",
-      "question": "How does Transformers module component #54 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #54 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What lifecycle does TensorBoardCallback follow across training start, logging, and training end?",
+      "reference_answer": "Only the world-process-zero path initializes a writer, selects a trial-specific or default log directory, and records arguments plus model config. Logging lazily initializes the writer, rewrites metric namespaces, emits numeric scalars and string text while dropping unsupported values, then flushes. Training end closes the writer and clears the reference.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/integrations/integration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:640-690"
+        "src/transformers/integrations/integration_utils.py:577-660"
       ],
       "reference_contexts": [
-        "Component #54 coordinates modeling contracts, parameter registrations, and device allocations."
+        "TensorBoardCallback scopes writer creation and metric emission to the main process and closes resources at the lifecycle boundary."
       ]
     },
     {
-      "id": "transformers-t055",
+      "id": "transformers-t61",
       "difficulty": "medium",
-      "question": "How does Transformers module component #55 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #55 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BertAttention combine self or cross attention with its residual output block?",
+      "reference_answer": "Construction selects BertCrossAttention or BertSelfAttention and pairs it with BertSelfOutput. Forward chooses the encoder mask only for cross attention, invokes the selected attention module with hidden and optional encoder/cache state, then BertSelfOutput applies dense projection, dropout, residual addition with the original hidden states, and layer normalization before returning attention weights alongside the output.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/bert/modeling_bert.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:650-700"
+        "src/transformers/models/bert/modeling_bert.py:286-326"
       ],
       "reference_contexts": [
-        "Component #55 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BertAttention orchestrates attention selection and a residual projection-normalization block."
       ]
     },
     {
-      "id": "transformers-t056",
+      "id": "transformers-t62",
       "difficulty": "medium",
-      "question": "How does Transformers module component #56 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #56 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does GPT2Attention.forward handle self attention, cross attention, cache reuse, and implementation dispatch?",
+      "reference_answer": "It forms query, key, and value states from hidden states for self attention or from encoder states for cross attention, reusing an updated cross-attention cache when possible. It updates cache state when new keys and values are produced, dispatches either the special reordered-upcast eager path or the configured attention interface, then merges heads, applies output projection and residual dropout, and returns output plus weights.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/gpt2/modeling_gpt2.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:660-710"
+        "src/transformers/models/gpt2/modeling_gpt2.py:144-226"
       ],
       "reference_contexts": [
-        "Component #56 coordinates modeling contracts, parameter registrations, and device allocations."
+        "GPT2Attention.forward coordinates projection, cross/self cache semantics, attention backend choice, and output projection."
       ]
     },
     {
-      "id": "transformers-t057",
+      "id": "transformers-t63",
       "difficulty": "medium",
-      "question": "How does Transformers module component #57 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #57 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How do LlamaRotaryEmbedding.forward and apply_rotary_pos_emb turn positions into rotated query and key tensors?",
+      "reference_answer": "LlamaRotaryEmbedding expands inverse frequencies and position IDs, computes duplicated frequencies in forced float32, then returns scaled cosine and sine tensors cast to the input dtype. apply_rotary_pos_emb unsqueezes those tensors on the chosen head dimension and combines each query and key with its rotate_half result.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/llama/modeling_llama.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:670-720"
+        "src/transformers/models/llama/modeling_llama.py:122-168"
       ],
       "reference_contexts": [
-        "Component #57 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The rotary path separates position-frequency construction from broadcasted rotation of query and key states."
       ]
     },
     {
-      "id": "transformers-t058",
+      "id": "transformers-t64",
       "difficulty": "medium",
-      "question": "How does Transformers module component #58 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #58 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BaseImageProcessor._standardize_kwargs canonicalize geometry and normalization options?",
+      "reference_answer": "It converts size, crop_size, and pad_size into SizeDict instances using the appropriate get_size_dict parameters, converts image mean and standard-deviation lists to tuples, stores all five canonical values in the kwargs dictionary, and returns it; _further_process_kwargs is retained as an alias.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/image_processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:680-730"
+        "src/transformers/image_processing_utils.py:314-350"
       ],
       "reference_contexts": [
-        "Component #58 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_standardize_kwargs creates consistent typed geometry and immutable normalization sequences before validation."
       ]
     },
     {
-      "id": "transformers-t059",
+      "id": "transformers-t65",
       "difficulty": "medium",
-      "question": "How does Transformers module component #59 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #59 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BatchFeature.convert_to_tensors choose conversion functions and handle skipped or invalid values?",
+      "reference_answer": "It returns unchanged for tensor_type None; otherwise it selects PyTorch or NumPy detection and conversion helpers, skips explicitly excluded keys and non-array-like values, and converts only values not already tensors. It wraps failures with a special overflowing_values error or a general message suggesting padding or Python outputs, then returns itself.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/feature_extraction_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:690-740"
+        "src/transformers/feature_extraction_utils.py:108-213"
       ],
       "reference_contexts": [
-        "Component #59 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BatchFeature combines backend-specific conversion rules with per-key skipping and actionable error reporting."
       ]
     },
     {
-      "id": "transformers-t060",
+      "id": "transformers-t66",
       "difficulty": "medium",
-      "question": "How does Transformers module component #60 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #60 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does ProcessorMixin._merge_kwargs enforce modality precedence and duplicate detection?",
+      "reference_answer": "It deep-copies caller data, seeds per-modality dictionaries from processor defaults and tokenizer initialization, applies common kwargs to all modalities, then lets structured or flat call-time values override them. A value supplied both inside its modality dictionary and flat raises ValueError; unused invalid flat keys are warned and ignored, and each final modality dictionary is validated against its typed schema, including dynamic preprocessor kwargs.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:700-750"
+        "src/transformers/processing_utils.py:1217-1386"
       ],
       "reference_contexts": [
-        "Component #60 coordinates modeling contracts, parameter registrations, and device allocations."
+        "_merge_kwargs resolves defaults and call-time arguments into validated modality-specific dictionaries without mutating user inputs."
       ]
     },
     {
-      "id": "transformers-t061",
+      "id": "transformers-t67",
       "difficulty": "medium",
-      "question": "How does Transformers module component #61 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #61 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does get_relative_import_files discover a dynamic module's transitive local dependencies?",
+      "reference_answer": "get_relative_imports extracts unique one-dot import and from-import module names from source text. get_relative_import_files repeatedly scans the initial file and newly discovered sibling module files, adds only files not already seen, and stops when an iteration finds no new dependencies.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/dynamic_module_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:710-760"
+        "src/transformers/dynamic_module_utils.py:123-173"
       ],
       "reference_contexts": [
-        "Component #61 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The dynamic-module dependency walk expands relative imports to a fixed point while deduplicating discovered files."
       ]
     },
     {
-      "id": "transformers-t062",
+      "id": "transformers-t68",
       "difficulty": "medium",
-      "question": "How does Transformers module component #62 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #62 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does prune_linear_layer build a trainable pruned copy along either weight dimension?",
+      "reference_answer": "It moves indices to the weight device, clones indexed weights, and either keeps the full bias when pruning input dimension one or indexes bias when pruning outputs. It creates a correctly resized Linear layer, temporarily disables gradients while copying contiguous weights and bias, restores trainability, and returns the new layer.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pytorch_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:720-770"
+        "src/transformers/pytorch_utils.py:63-94"
       ],
       "reference_contexts": [
-        "Component #62 coordinates modeling contracts, parameter registrations, and device allocations."
+        "prune_linear_layer handles weight and bias shapes differently by prune dimension and copies values into a fresh trainable layer."
       ]
     },
     {
-      "id": "transformers-t063",
+      "id": "transformers-t69",
       "difficulty": "medium",
-      "question": "How does Transformers module component #63 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #63 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does modelcard.parse_log_history derive training rows and final evaluation results?",
+      "reference_answer": "It locates the train-runtime record; without one it returns the latest evaluation log or all None. With training logs it tracks the latest training loss, converts each evaluation record into a row after removing throughput metadata, then scans backward for the final evaluation and returns cleaned, title-cased metrics while excluding runtime, rate, epoch, and step keys.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/modelcard.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:730-780"
+        "src/transformers/modelcard.py:436-493"
       ],
       "reference_contexts": [
-        "Component #63 coordinates modeling contracts, parameter registrations, and device allocations."
+        "parse_log_history separates intermediate table rows from the final evaluation summary and handles evaluation-only histories."
       ]
     },
     {
-      "id": "transformers-t064",
+      "id": "transformers-t70",
       "difficulty": "medium",
-      "question": "How does Transformers module component #64 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #64 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does HfArgumentParser.parse_dict populate multiple dataclasses and account for extra keys?",
+      "reference_answer": "For each configured dataclass type it selects only init-enabled field names from the input, constructs the instance, and removes consumed names from an unused-key set. It returns instances in declaration order, but raises ValueError for remaining keys unless allow_extra_keys is true.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/hf_argparser.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:740-790"
+        "src/transformers/hf_argparser.py:358-384"
       ],
       "reference_contexts": [
-        "Component #64 coordinates modeling contracts, parameter registrations, and device allocations."
+        "parse_dict partitions one mapping across dataclass constructors and retains a precise unused-key check."
       ]
     },
     {
-      "id": "transformers-t065",
+      "id": "transformers-t71",
       "difficulty": "medium",
-      "question": "How does Transformers module component #65 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #65 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does DataCollatorWithPadding create a batch and normalize label field names?",
+      "reference_answer": "It calls pad_without_fast_tokenizer_warning with its configured padding strategy, maximum length, multiple, and tensor backend. It then renames label to labels when present and likewise renames label_ids to labels, deleting the original key before returning the batch.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/data/data_collator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:750-800"
+        "src/transformers/data/data_collator.py:191-239"
       ],
       "reference_contexts": [
-        "Component #65 coordinates modeling contracts, parameter registrations, and device allocations."
+        "DataCollatorWithPadding delegates dynamic padding and standardizes either supported singular label key to labels."
       ]
     },
     {
-      "id": "transformers-t066",
+      "id": "transformers-t72",
       "difficulty": "medium",
-      "question": "How does Transformers module component #66 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #66 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does get_linear_schedule_with_warmup construct its learning-rate multiplier before and after warmup?",
+      "reference_answer": "The lambda increases linearly as current_step divided by at least one warmup step while current_step is below warmup, then decreases as remaining steps divided by the post-warmup span and is floored at zero. The public factory binds both counts with partial and returns a LambdaLR using last_epoch.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/optimization.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:760-810"
+        "src/transformers/optimization.py:101-131"
       ],
       "reference_contexts": [
-        "Component #66 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The linear schedule is a piecewise multiplier wrapped in a PyTorch LambdaLR for resume-aware stepping."
       ]
     },
     {
-      "id": "transformers-t067",
+      "id": "transformers-t73",
       "difficulty": "medium",
-      "question": "How does Transformers module component #67 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #67 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does get_checkpoint_shard_files resolve local and Hub sharded checkpoints and build metadata?",
+      "reference_answer": "It requires an index file, reads its weight_map, deduplicates and sorts shard filenames, and augments metadata with all checkpoint keys and a copied weight map. For a local model directory it joins each shard with the directory and subfolder; for a Hub model it resolves all shards through cached_files with the supplied revision and download controls, returning paths plus metadata.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/utils/hub.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:770-820"
+        "src/transformers/utils/hub.py:836-894"
       ],
       "reference_contexts": [
-        "Component #67 coordinates modeling contracts, parameter registrations, and device allocations."
+        "get_checkpoint_shard_files turns the index into deterministic shard paths and preserves enough mapping metadata for checkpoint loading."
       ]
     },
     {
-      "id": "transformers-t068",
-      "difficulty": "medium",
-      "question": "How does Transformers module component #68 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #68 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:780-830"
-      ],
-      "reference_contexts": [
-        "Component #68 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t069",
-      "difficulty": "medium",
-      "question": "How does Transformers module component #69 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #69 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:790-840"
-      ],
-      "reference_contexts": [
-        "Component #69 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t070",
-      "difficulty": "medium",
-      "question": "How does Transformers module component #70 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #70 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:800-850"
-      ],
-      "reference_contexts": [
-        "Component #70 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t071",
+      "id": "transformers-t74",
       "difficulty": "hard",
-      "question": "How does Transformers module component #71 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #71 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does PreTrainedConfig.from_pretrained resolve a configuration file and reconcile nested, redirected, and caller-supplied values?",
+      "reference_answer": "from_pretrained forwards download controls to get_config_dict, selects a declared base sub-config when present, searches nested configs for the expected model_type before warning, and delegates construction to from_dict. get_config_dict can follow configuration_files to a second file; _get_config_dict resolves local, cached, Hub, or GGUF data, records commit identity, recognizes timm configs, and permits an explicit model_type override with warning. from_dict applies selected early fields before construction, merges dictionary overrides into nested PreTrainedConfig attributes, consumes recognized kwargs, and optionally returns the unused remainder.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/configuration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:810-860"
+        "src/transformers/configuration_utils.py:637-663",
+        "src/transformers/configuration_utils.py:666-796",
+        "src/transformers/configuration_utils.py:799-861"
       ],
       "reference_contexts": [
-        "Component #71 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The configuration load path separates file resolution, redirect handling, model-type reconciliation, object construction, nested override merging, and unused-argument reporting."
       ]
     },
     {
-      "id": "transformers-t072",
+      "id": "transformers-t75",
       "difficulty": "hard",
-      "question": "How does Transformers module component #72 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #72 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does PreTrainedTokenizerBase.__call__ coordinate source and target tokenization for sequence-to-sequence inputs?",
+      "reference_answer": "It merges tokenizer_kwargs before explicit call kwargs, requires at least text or text_target, and resolves shared padding and truncation strategies. Source text is encoded in input mode; target text switches to target mode, may use max_target_length, then restores input mode. Source-only and target-only calls return their corresponding encoding, while a combined call returns source encodings with target input_ids assigned to labels.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/tokenization_utils_base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:820-870"
+        "src/transformers/tokenization_utils_base.py:2419-2542"
       ],
       "reference_contexts": [
-        "Component #72 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Tokenizer __call__ is a dual-path orchestration layer that preserves tokenizer mode and converts target token IDs into training labels."
       ]
     },
     {
-      "id": "transformers-t073",
+      "id": "transformers-t76",
       "difficulty": "hard",
-      "question": "How does Transformers module component #73 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #73 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does _BaseAutoModelClass.from_pretrained connect AutoConfig resolution to remote or local model loading?",
+      "reference_answer": "It captures a commit hash, detects and redirects PEFT adapter checkpoints, then calls AutoConfig.from_pretrained when no config object is supplied while preserving dtype and quantization loader arguments outside config. AutoConfig itself resolves trusted remote code or a registered model_type. The auto-model loader then resolves remote-code trust, dynamically imports and optionally registers a remote class when allowed, or selects the mapped local class; composite text models inherit a parent quantization config before the chosen class receives from_pretrained.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/auto/configuration_auto.py",
+        "src/transformers/models/auto/auto_factory.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:830-880"
+        "src/transformers/models/auto/configuration_auto.py:369-424",
+        "src/transformers/models/auto/auto_factory.py:264-411"
       ],
       "reference_contexts": [
-        "Component #73 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Auto-model loading first establishes configuration and revision provenance, then applies trust and mapping rules to the concrete model class and checkpoint call."
       ]
     },
     {
-      "id": "transformers-t074",
+      "id": "transformers-t77",
       "difficulty": "hard",
-      "question": "How does Transformers module component #74 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #74 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What major stages does PreTrainedModel.from_pretrained execute from configuration resolution through final model dispatch?",
+      "reference_answer": "It loads or copies a config, applies attention and expert overrides, constructs any HfQuantizer, resolves checkpoint files and dtype, and instantiates the model under initialization contexts, letting the quantizer replace modules before weights. It derives dtype, conversion, and device plans, loads and finalizes state with missing-key initialization and weight tying, switches to eval mode, adjusts generation support, dispatches multi-device models, runs quantizer postprocessing, loads an adapter when present, and returns optional loading information.",
       "source_files": [
         "src/transformers/modeling_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:840-890"
+        "src/transformers/modeling_utils.py:4146-4221",
+        "src/transformers/modeling_utils.py:4250-4336",
+        "src/transformers/modeling_utils.py:4339-4467"
       ],
       "reference_contexts": [
-        "Component #74 coordinates modeling contracts, parameter registrations, and device allocations."
+        "PreTrainedModel.from_pretrained composes configuration, quantization, checkpoint, initialization, conversion, device, generation, and adapter lifecycles."
       ]
     },
     {
-      "id": "transformers-t075",
+      "id": "transformers-t78",
       "difficulty": "hard",
-      "question": "How does Transformers module component #75 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #75 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does GenerationMixin.generate turn generation settings into a prepared decoding-method invocation?",
+      "reference_answer": "It prepares and validates GenerationConfig, asks it for the mode, maps that mode to a decoding method, and validates model kwargs. It prepares model inputs, special tokens, masks, positions, encoder outputs when needed, decoder input IDs, beam or return-sequence expansion, length limits, and cache. It then builds logits processors and stopping criteria, records use_cache in model kwargs, and invokes the selected decoding method with all prepared state. GenerationConfig derives the base search mode and applies assisted or DoLa extensions before this dispatch.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/configuration_utils.py",
+        "src/transformers/generation/utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:850-900"
+        "src/transformers/generation/configuration_utils.py:507-570",
+        "src/transformers/generation/utils.py:2366-2590"
       ],
       "reference_contexts": [
-        "Component #75 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Generation proceeds from mode derivation through input, cache, processor, and stopping preparation to one unbound decoding implementation."
       ]
     },
     {
-      "id": "transformers-t076",
+      "id": "transformers-t79",
       "difficulty": "hard",
-      "question": "How does Transformers module component #76 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #76 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does GenerationMixin._prepare_cache_for_generation choose a cache and how does Cache.update manage layered offloading?",
+      "reference_answer": "Cache preparation rejects a user cache combined with cache_implementation or a legacy tuple, exits when caching is disabled or unsupported, and forces a full dynamic cache for assisted or contrastive modes. It builds static, quantized, offloaded, or dynamic caches and wraps decoder caches with a cross-attention DynamicCache for encoder-decoder models. Cache.update lazily creates missing layers, waits for an offload stream and prefetches the next eligible layer, delegates the key/value update, then offloads the completed layer.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/utils.py",
+        "src/transformers/cache_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:860-910"
+        "src/transformers/generation/utils.py:1842-1950",
+        "src/transformers/cache_utils.py:890-998"
       ],
       "reference_contexts": [
-        "Component #76 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Generation chooses cache semantics from model and mode constraints; the cache container then coordinates lazy layers and asynchronous device movement around each update."
       ]
     },
     {
-      "id": "transformers-t077",
+      "id": "transformers-t80",
       "difficulty": "hard",
-      "question": "How does Transformers module component #77 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #77 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How are assisted-generation candidates selected, produced, and adapted across iterations?",
+      "reference_answer": "GenerationMixin selects early-exit, prompt-lookup, Gemma shared-KV, different-tokenizer universal or deterministic, or ordinary AssistedCandidateGenerator paths from the supplied models, tokenizers, and sampling mode. The ordinary generator moves inputs to the assistant, computes its new-token bounds, updates past state and masks, prepares generation arguments, and produces IDs plus logits. After target comparison it adjusts the assistant-token budget and may recalibrate confidence with an ROC-derived cost threshold.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/generation/utils.py",
+        "src/transformers/generation/candidate_generator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:870-920"
+        "src/transformers/generation/utils.py:954-1057",
+        "src/transformers/generation/candidate_generator.py:202-225",
+        "src/transformers/generation/candidate_generator.py:227-283"
       ],
       "reference_contexts": [
-        "Component #77 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Assisted generation has a mode-specific generator factory, an assistant-model proposal pass, and feedback-driven adaptation for subsequent proposals."
       ]
     },
     {
-      "id": "transformers-t078",
+      "id": "transformers-t81",
       "difficulty": "hard",
-      "question": "How does Transformers module component #78 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #78 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How do CallbackHandler and DefaultFlowCallback propagate events and convert Trainer progress into control actions?",
+      "reference_answer": "CallbackHandler resets relevant control flags at train, epoch, step, evaluation, save, and log boundaries, then calls every callback in order with shared model, optimizer, scheduler, processor, and dataloader context, accepting a returned replacement control object. DefaultFlowCallback sets log, evaluate, and save actions from step or epoch strategies and delays, stops at max_steps, and ensures final step-based evaluation or saving when required.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:880-930"
+        "src/transformers/trainer_callback.py:487-560",
+        "src/transformers/trainer_callback.py:563-621"
       ],
       "reference_contexts": [
-        "Component #78 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The callback handler owns ordered event fan-out and flag reset; the default flow callback derives lifecycle actions from state and TrainingArguments."
       ]
     },
     {
-      "id": "transformers-t079",
+      "id": "transformers-t82",
       "difficulty": "hard",
-      "question": "How does Transformers module component #79 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #79 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How do sort_checkpoints and rotate_checkpoints preserve resumability and the best model while enforcing save_total_limit?",
+      "reference_answer": "sort_checkpoints orders directories numerically or by mtime, falls back to numeric order for unreliable near-identical mtimes, and positions a non-latest best checkpoint immediately before the latest one. rotate_checkpoints exits for a disabled limit or an already-small set, protects the latest and optional best paths, raises the effective keep count when both must survive, and deletes oldest unprotected directories until that count remains.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:890-940"
+        "src/transformers/trainer_utils.py:282-339",
+        "src/transformers/trainer_utils.py:342-386"
       ],
       "reference_contexts": [
-        "Component #79 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Checkpoint sorting establishes deletion order, while rotation explicitly protects resume and best-model targets even when the requested limit is smaller."
       ]
     },
     {
-      "id": "transformers-t080",
+      "id": "transformers-t83",
       "difficulty": "hard",
-      "question": "How does Transformers module component #80 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #80 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TrainingArguments._setup_devices initialize distributed state and choose the local execution device?",
+      "reference_answer": "It requires PyTorch and Accelerate outside SageMaker MP, either validates a preconfigured PartialState or resets shared state, and builds CPU, SageMaker, DeepSpeed, or generic distributed initialization kwargs. It temporarily signals DeepSpeed to Accelerate when needed, creates PartialState, warns on inconsistent process-group mode, and then selects XLA, SageMaker, CPU, MPS, XPU, MLU, MUSA, NPU, HPU, Neuron, TPU, CUDA, or configured CPU fallback while updating _n_gpu and setting accelerator devices where required.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/training_args.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:900-950"
+        "src/transformers/training_args.py:1799-1908"
       ],
       "reference_contexts": [
-        "Component #80 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Device setup combines distributed-state policy with a prioritized backend-specific device selection and local accelerator activation."
       ]
     },
     {
-      "id": "transformers-t081",
+      "id": "transformers-t84",
       "difficulty": "hard",
-      "question": "How does Transformers module component #81 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #81 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Trainer._inner_training_loop initialize, resume, prepare, execute, and finalize training with callbacks?",
+      "reference_answer": "It frees memory, builds the dataloader and training counts, restores TrainerState and exact data-skip position when resuming, and prepares model, optimizer, scheduler, and accelerator wrapping. It initializes loss accounting and gradients, fires on_train_begin, optionally evaluates at start, fires on_epoch_begin for each remaining epoch, delegates epoch work to _run_epoch, stops when control requests it, and finalizes metrics and output. CallbackHandler receives these events and passes shared training objects through the callback chain.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/trainer.py",
+        "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:910-960"
+        "src/transformers/trainer.py:1434-1556",
+        "src/transformers/trainer.py:1558-1625",
+        "src/transformers/trainer_callback.py:487-560"
       ],
       "reference_contexts": [
-        "Component #81 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The inner loop coordinates resume state, distributed preparation, epoch delegation, termination, and callback event propagation rather than implementing every step inline."
       ]
     },
     {
-      "id": "transformers-t082",
+      "id": "transformers-t85",
       "difficulty": "hard",
-      "question": "How does Transformers module component #82 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #82 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Pipeline.__call__ normalize inputs and select between iterator, chunked, and single-item execution?",
+      "reference_answer": "It materializes generators, wraps one chat or a batch of chats, resolves worker and batch defaults, sanitizes and merges call parameters over initialization parameters, and tracks repeated CUDA use. Lists run through get_iterator and are materialized; datasets and generators return an iterator; ChunkPipeline wraps a singleton through its iterator; ordinary scalars use run_single. get_iterator builds preprocessing, DataLoader collation, forward, and postprocessing stages, constraining iterable workers for correctness.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:920-970"
+        "src/transformers/pipelines/base.py:1169-1192",
+        "src/transformers/pipelines/base.py:1194-1275"
       ],
       "reference_contexts": [
-        "Component #82 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Pipeline call-time dispatch integrates chat normalization, parameter precedence, batch defaults, input-shape routing, and a staged iterator implementation."
       ]
     },
     {
-      "id": "transformers-t083",
+      "id": "transformers-t86",
       "difficulty": "hard",
-      "question": "How does Transformers module component #83 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #83 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does the pipelines.pipeline factory resolve configuration, task, model, preprocessors, and the final Pipeline instance?",
+      "reference_answer": "It validates required task/model combinations, pins config revision identity, loads AutoConfig or redirects a PEFT adapter base, and infers a task when necessary. It resolves trusted custom or registered task metadata and a default model, reconciles device-map and dtype arguments, loads the model class for the task, resolves tokenizer, image processor, feature extractor, and processor according to pipeline flags, injects the available components and device into kwargs, and constructs the selected pipeline_class.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/__init__.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:930-980"
+        "src/transformers/pipelines/__init__.py:811-925",
+        "src/transformers/pipelines/__init__.py:926-1081"
       ],
       "reference_contexts": [
-        "Component #83 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The pipeline factory treats configuration as the provenance root, then resolves task implementation, model, modality processors, and constructor arguments in order."
       ]
     },
     {
-      "id": "transformers-t084",
+      "id": "transformers-t87",
       "difficulty": "hard",
-      "question": "How does Transformers module component #84 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #84 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TextGenerationPipeline carry a chat or text prompt through preprocessing, generation, and postprocessing?",
+      "reference_answer": "Preprocessing applies a chat template with continuation semantics or tokenizes prefixed text, records the original prompt, and can left-truncate for hole mode. _forward handles empty prompts and prefix-adjusted lengths, supplies the pipeline GenerationConfig unless overridden, calls model.generate, reshapes sequences and compatible extra outputs back into per-input groups, and preserves prompt metadata. postprocess returns token IDs or decodes only generated tokens, then either appends text to a string prompt, extends an assistant prefill, or adds a new parsed assistant message.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/pipelines/text_generation.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:940-990"
+        "src/transformers/pipelines/text_generation.py:301-367",
+        "src/transformers/pipelines/text_generation.py:369-430",
+        "src/transformers/pipelines/text_generation.py:432-499"
       ],
       "reference_contexts": [
-        "Component #84 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Text generation preserves prompt type and batch structure across chat templating, model.generate, and output reconstruction."
       ]
     },
     {
-      "id": "transformers-t085",
+      "id": "transformers-t88",
       "difficulty": "hard",
-      "question": "How does Transformers module component #85 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #85 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does Cache manage lazy per-layer state, offloading, heterogeneous layer queries, and batch-wide transformations?",
+      "reference_answer": "Cache requires either explicit layers or a replicate class, lazily appends replicated layers for higher update indices, and under offloading waits for prefetched state, prefetches the next layer, delegates update, then offloads the completed layer. Sequence-length and mask queries redirect default index zero to the first attention layer when mixed with linear-attention layers and reject invalid explicit layer kinds. Reset, beam reorder, crop, repeat-interleave, and index selection are broadcast to every layer.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/cache_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:950-1000"
+        "src/transformers/cache_utils.py:890-998",
+        "src/transformers/cache_utils.py:1075-1186"
       ],
       "reference_contexts": [
-        "Component #85 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Cache is a heterogeneous layer container with lazy growth and offload synchronization plus type-aware queries and whole-cache mutations."
       ]
     },
     {
-      "id": "transformers-t086",
+      "id": "transformers-t89",
       "difficulty": "hard",
-      "question": "How does Transformers module component #86 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #86 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does HfQuantizer transform a model before loading, finalize it afterward, and reverse quantization when supported?",
+      "reference_answer": "preprocess_model marks the model quantized, records its method, optionally replaces recognized modules on the meta device for pre-quantized checkpoints, and runs the subclass pre-load hook. postprocess_model stores the quantization config, assigns quantized state or removes markers for requested dequantization, and runs the subclass post-load hook. dequantize chooses the model config dtype by default, invokes the required subclass implementation, then removes hf_quantizer, config and method metadata and clears is_quantized.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/quantizers/base.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:960-1010"
+        "src/transformers/quantizers/base.py:155-220",
+        "src/transformers/quantizers/base.py:276-308"
       ],
       "reference_contexts": [
-        "Component #86 coordinates modeling contracts, parameter registrations, and device allocations."
+        "HfQuantizer wraps subclass conversion hooks with common model markers and defines the cleanup contract for returning to a non-quantized model."
       ]
     },
     {
-      "id": "transformers-t087",
+      "id": "transformers-t90",
       "difficulty": "hard",
-      "question": "How does Transformers module component #87 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #87 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How do AutoQuantizationConfig and AutoHfQuantizer dispatch and reconcile checkpoint and caller quantization settings?",
+      "reference_answer": "AutoQuantizationConfig derives a method from quant_method or bitsandbytes load flags, validates it against the config mapping, and constructs the matching config class; from_pretrained obtains that dictionary from AutoConfig and applies remaining kwargs. AutoHfQuantizer distinguishes bitsandbytes 4-bit from 8-bit, instantiates the mapped quantizer, and when merging checkpoint and caller configs rejects different config classes, copies only supported loading attributes from the caller, and otherwise keeps the checkpoint's quantization definition with a warning or informational message.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/quantizers/auto.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:970-1020"
+        "src/transformers/quantizers/auto.py:137-216",
+        "src/transformers/quantizers/auto.py:219-266"
       ],
       "reference_contexts": [
-        "Component #87 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Automatic quantization separates method-to-class dispatch from the constrained merge policy used when checkpoint and call-time settings coexist."
       ]
     },
     {
-      "id": "transformers-t088",
+      "id": "transformers-t91",
       "difficulty": "hard",
-      "question": "How does Transformers module component #88 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #88 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How are available reporting integrations discovered and converted into Trainer callback classes?",
+      "reference_answer": "get_available_reporting_integrations probes each supported backend and returns only installed integrations, with Azure ML excluded when MLflow is available. get_reporting_integration_callbacks treats None and none as empty, expands all through that availability probe, normalizes a single name to a list, rejects names absent from INTEGRATION_TO_CALLBACK, and maps each accepted name to its callback class in requested order.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/integrations/integration_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:980-1030"
+        "src/transformers/integrations/integration_utils.py:519-547",
+        "src/transformers/integrations/integration_utils.py:2640-2676"
       ],
       "reference_contexts": [
-        "Component #88 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Reporting setup has a capability-discovery stage and a separate validated name-to-callback dispatch stage."
       ]
     },
     {
-      "id": "transformers-t089",
+      "id": "transformers-t92",
       "difficulty": "hard",
-      "question": "How does Transformers module component #89 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #89 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does BertModel.forward coordinate input exclusivity, cache type, masks, encoder execution, and pooled output?",
+      "reference_answer": "It requires exactly one of input_ids and inputs_embeds, disables cache for encoder-only mode, and creates DynamicCache or EncoderDecoderCache when decoder caching begins. It computes embeddings with past length, builds causal or bidirectional self masks plus an optional encoder mask, runs BertEncoder with cache and cross-attention inputs, optionally pools the last hidden state, and returns hidden, pooled, and cache outputs.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/bert/modeling_bert.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:990-1040"
+        "src/transformers/models/bert/modeling_bert.py:598-722"
       ],
       "reference_contexts": [
-        "Component #89 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BertModel.forward adapts one model body to encoder, decoder, and encoder-decoder cache and mask semantics."
       ]
     },
     {
-      "id": "transformers-t090",
+      "id": "transformers-t93",
       "difficulty": "hard",
-      "question": "How does Transformers module component #90 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #90 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does GPT2Model.forward combine embeddings, position and cross-attention masks, caching, and transformer blocks?",
+      "reference_answer": "It enforces one input representation, normalizes shape, creates DynamicCache and optionally EncoderDecoderCache when caching, derives positions after past tokens, and sums token, position, and optional token-type embeddings. It builds a causal self mask and optional bidirectional encoder mask, applies dropout, runs every GPT2Block with cache suppressed during gradient-checkpointed training, applies final layer normalization and output reshape, and returns cache only when use_cache is enabled.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/gpt2/modeling_gpt2.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1000-1050"
+        "src/transformers/models/gpt2/modeling_gpt2.py:522-636"
       ],
       "reference_contexts": [
-        "Component #90 coordinates modeling contracts, parameter registrations, and device allocations."
+        "GPT2Model.forward integrates past-aware positions, self and cross masks, repeated blocks, gradient-checkpoint cache policy, and final output packaging."
       ]
     },
     {
-      "id": "transformers-t091",
+      "id": "transformers-t94",
       "difficulty": "hard",
-      "question": "How does Transformers module component #91 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #91 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does LlamaModel.forward prepare cache-aware positions and rotary state for all decoder layers?",
+      "reference_answer": "It requires exactly one of input_ids and inputs_embeds, embeds IDs when needed, creates DynamicCache for a caching call without prior state, and offsets generated position IDs by cached sequence length. It builds a causal mask, computes shared rotary position embeddings once, passes hidden states, mask, positions, rotary tensors, and cache through each decoder layer, then applies RMS normalization and returns final hidden state plus cache.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/models/llama/modeling_llama.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1010-1060"
+        "src/transformers/models/llama/modeling_llama.py:355-425"
       ],
       "reference_contexts": [
-        "Component #91 coordinates modeling contracts, parameter registrations, and device allocations."
+        "LlamaModel.forward shares one past-aware position and rotary preparation across its complete decoder stack."
       ]
     },
     {
-      "id": "transformers-t092",
+      "id": "transformers-t95",
       "difficulty": "hard",
-      "question": "How does Transformers module component #92 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #92 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "What stages does BaseImageProcessor.preprocess apply before a backend performs image transforms?",
+      "reference_answer": "It validates call kwargs against the processor schema, fills missing values from instance defaults, canonicalizes size, crop, pad, mean, and standard-deviation forms, and validates transform combinations. It then fetches and flattens the image structure, preserves nested batches while calling backend process_image on every image, and delegates the prepared images plus validated kwargs to backend _preprocess for resize, crop, rescale, normalize, or pad work.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/image_processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1020-1070"
+        "src/transformers/image_processing_utils.py:215-312",
+        "src/transformers/image_processing_utils.py:314-400"
       ],
       "reference_contexts": [
-        "Component #92 coordinates modeling contracts, parameter registrations, and device allocations."
+        "BaseImageProcessor owns schema, default, structure, and orchestration stages while backend hooks own image representation and transforms."
       ]
     },
     {
-      "id": "transformers-t093",
+      "id": "transformers-t96",
       "difficulty": "hard",
-      "question": "How does Transformers module component #93 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #93 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does ProcessorMixin.save_pretrained persist a composite processor so from_pretrained can rebuild it?",
+      "reference_answer": "Saving creates the directory, optionally prepares Hub tracking, copies custom processor code, saves primary tokenizers at the root and additional tokenizers in named subfolders, writes single or named chat templates, and serializes the unified non-tokenizer processor config before optional upload. Loading first resolves that processor dictionary, instantiates modality subcomponents through auto processors, loading additional tokenizers from their subfolders, and finally calls from_args_and_dict with the component arguments and resolved config.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/processing_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1030-1080"
+        "src/transformers/processing_utils.py:819-923",
+        "src/transformers/processing_utils.py:1389-1438",
+        "src/transformers/processing_utils.py:1490-1598"
       ],
       "reference_contexts": [
-        "Component #93 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Processor persistence separates component files, chat templates, and composite config, then reconstructs modality arguments before processor instantiation."
       ]
     },
     {
-      "id": "transformers-t094",
+      "id": "transformers-t97",
       "difficulty": "hard",
-      "question": "How does Transformers module component #94 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #94 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does dynamic_module_utils enforce trust and produce an importable, revision-scoped custom class?",
+      "reference_answer": "resolve_trust_remote_code defaults to local code when available and otherwise requires explicit or interactive opt-in for remote-only code, raising when trust is absent. get_class_from_dynamic_module splits optional repo qualification from module and class names, then calls get_cached_module_file. That function resolves local or Hub source, checks imports, copies the module and relative dependencies into a sanitized dynamic package keyed by local source hash or remote commit hash, warns on unpinned new downloads, and returns the path used to import the requested class.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/dynamic_module_utils.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1040-1090"
+        "src/transformers/dynamic_module_utils.py:350-517",
+        "src/transformers/dynamic_module_utils.py:590-627",
+        "src/transformers/dynamic_module_utils.py:716-798"
       ],
       "reference_contexts": [
-        "Component #94 coordinates modeling contracts, parameter registrations, and device allocations."
+        "Remote-code loading has a trust gate, deterministic repository and revision parsing, dependency-aware caching, and final class import."
       ]
     },
     {
-      "id": "transformers-t095",
+      "id": "transformers-t98",
       "difficulty": "hard",
-      "question": "How does Transformers module component #95 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #95 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does TrainingSummary.from_trainer derive model-card metadata and create complete model-index results?",
+      "reference_answer": "from_trainer infers dataset tags and config metadata from a Hub dataset, base model from config, task from the model class, model name from output_dir, and the generated_from_trainer tag; it also parses log history and extracts hyperparameters. create_metadata maps evaluation names to metric tags and calls create_model_index, which forms task-dataset combinations, attaches metrics, and keeps only results containing task, dataset, and metrics, yielding metadata suitable for a model card.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/modelcard.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1050-1100"
+        "src/transformers/modelcard.py:204-281",
+        "src/transformers/modelcard.py:358-433"
       ],
       "reference_contexts": [
-        "Component #95 coordinates modeling contracts, parameter registrations, and device allocations."
+        "TrainingSummary combines Trainer inference and log evidence with a completeness filter for publishable model-index records."
       ]
     },
     {
-      "id": "transformers-t096",
+      "id": "transformers-t99",
       "difficulty": "hard",
-      "question": "How does Transformers module component #96 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #96 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does DataCollatorForLanguageModeling validate masking policy and produce seeded PyTorch MLM inputs and labels?",
+      "reference_answer": "Initialization requires a mask token for MLM, validates all probabilities, restricts whole-word masking to MLM and fast-tokenizer-compatible behavior, and forces full mask replacement for whole-word mode. torch_call creates a persistent main-process or worker-specific RNG, pads or collates examples, removes supplied special and offset masks, then torch_mask_tokens excludes special or whole-word-forbidden positions, labels only sampled positions, replaces the configured share with the mask token, replaces a scaled share of the remainder with random vocabulary IDs, and leaves the rest unchanged.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/data/data_collator.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1060-1110"
+        "src/transformers/data/data_collator.py:692-794",
+        "src/transformers/data/data_collator.py:796-857"
       ],
       "reference_contexts": [
-        "Component #96 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t097",
-      "difficulty": "hard",
-      "question": "How does Transformers module component #97 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #97 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:1070-1120"
-      ],
-      "reference_contexts": [
-        "Component #97 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t098",
-      "difficulty": "hard",
-      "question": "How does Transformers module component #98 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #98 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:1080-1130"
-      ],
-      "reference_contexts": [
-        "Component #98 coordinates modeling contracts, parameter registrations, and device allocations."
-      ]
-    },
-    {
-      "id": "transformers-t099",
-      "difficulty": "hard",
-      "question": "How does Transformers module component #99 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #99 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
-      "source_files": [
-        "src/transformers/modeling_utils.py"
-      ],
-      "source_anchors": [
-        "src/transformers/modeling_utils.py:1090-1140"
-      ],
-      "reference_contexts": [
-        "Component #99 coordinates modeling contracts, parameter registrations, and device allocations."
+        "The MLM collator ties validated replacement probabilities and deterministic worker seeding to padding, candidate masking, labels, mask-token replacement, and random replacement."
       ]
     },
     {
       "id": "transformers-t100",
       "difficulty": "hard",
-      "question": "How does Transformers module component #100 manage its state, tensor transforms, and execution contracts?",
-      "reference_answer": "Component #100 validates configuration parameters, coordinates tensor operations with backend frameworks (PyTorch/Safetensors), and ensures clean execution contracts across model pipelines.",
+      "question": "How does optimization.get_scheduler dispatch ordinary and layer-wise optimizers while enforcing scheduler inputs?",
+      "reference_answer": "It normalizes the SchedulerType and selects its factory. For LayerWiseDummyOptimizer it recursively creates one scheduler per parameter optimizer, registers post-accumulate hooks for trainable parameters, and returns a LayerWiseDummyScheduler. Constant, reduce-on-plateau, and greedy schedules bypass some shared requirements; all remaining schedules require warmup steps, warmup-stable-decay receives its special arguments, and the other nonconstant schedules also require total training steps before factory invocation.",
       "source_files": [
-        "src/transformers/modeling_utils.py"
+        "src/transformers/optimization.py"
       ],
       "source_anchors": [
-        "src/transformers/modeling_utils.py:1100-1150"
+        "src/transformers/optimization.py:950-1054"
       ],
       "reference_contexts": [
-        "Component #100 coordinates modeling contracts, parameter registrations, and device allocations."
+        "get_scheduler is a validated dispatcher with recursive layer-wise scheduling and scheduler-family-specific argument requirements."
       ]
     }
   ]

@@ -7,7 +7,11 @@
     "artifact_sha256": "4a807d31e54d066068e076eb4d066efbf95e2d2a00dcbe0eba3d9340a04cad42"
   },
   "review": {
-    "status": "draft"
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-08",
+    "evidence_grade": "approved_ai_source_review"
   },
   "schema_version": 1,
   "cases": [

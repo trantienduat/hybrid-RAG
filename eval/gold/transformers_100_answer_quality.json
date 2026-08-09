@@ -2,11 +2,7 @@
   "name": "transformers-100-answer-quality-v2",
   "source_identity": "git:https://github.com/huggingface/transformers.git@0a2757da521a7a49b8143d9e0c938f08747d682e:.",
   "review": {
-    "status": "approved",
-    "reviewer": "Codex",
-    "reviewer_type": "ai_source_review",
-    "reviewed_at": "2026-08-08",
-    "evidence_grade": "approved_ai_source_review"
+    "status": "draft"
   },
   "schema_version": 1,
   "cases": [
@@ -658,8 +654,8 @@
     {
       "id": "transformers-t44",
       "difficulty": "medium",
-      "question": "How does AutoConfig.from_pretrained choose between remote custom code, a registered model_type, and name-pattern fallback?",
-      "reference_answer": "It loads the config dictionary, detects remote AutoConfig code and registered local code, resolves trust, and loads the dynamic class only when trusted and not shadowed by explicit local custom code. Otherwise it uses CONFIG_MAPPING for model_type, with a mistral layer_types heuristic, or falls back to recognized name patterns; unrecognized inputs raise ValueError.",
+      "question": "How does AutoConfig.from_pretrained choose between trusted remote custom code and a registered model_type?",
+      "reference_answer": "It loads the config dictionary, detects remote AutoConfig code and registered local code, resolves trust, and loads the dynamic class only when remote code is trusted and explicit local custom code does not take precedence. Otherwise it uses CONFIG_MAPPING for model_type, applying the mistral layer_types heuristic first. An unknown model_type raises a model-type ValueError; a config without model_type reaches the final unrecognized-model ValueError. This snapshot has no model-name-pattern fallback.",
       "source_files": [
         "src/transformers/models/auto/configuration_auto.py"
       ],
@@ -667,7 +663,7 @@
         "src/transformers/models/auto/configuration_auto.py:369-424"
       ],
       "reference_contexts": [
-        "AutoConfig.from_pretrained resolves code provenance first, then selects a local config class by model_type or checkpoint-name pattern."
+        "AutoConfig.from_pretrained resolves code provenance first, then selects a local config class by model_type; it has no checkpoint-name pattern branch in this snapshot."
       ]
     },
     {
@@ -1274,25 +1270,28 @@
       "id": "transformers-t84",
       "difficulty": "hard",
       "question": "How does Trainer._inner_training_loop initialize, resume, prepare, execute, and finalize training with callbacks?",
-      "reference_answer": "It frees memory, builds the dataloader and training counts, restores TrainerState and exact data-skip position when resuming, and prepares model, optimizer, scheduler, and accelerator wrapping. It initializes loss accounting and gradients, fires on_train_begin, optionally evaluates at start, fires on_epoch_begin for each remaining epoch, delegates epoch work to _run_epoch, stops when control requests it, and finalizes metrics and output. CallbackHandler receives these events and passes shared training objects through the callback chain.",
+      "reference_answer": "It frees memory, builds the dataloader and training counts, initializes TrainerState, and—when a checkpoint state file exists—restores it and derives the resumed epoch and batch position only if ignore_data_skip is false. Preparation wraps the model, creates optimizer and scheduler, and restores the backend-applicable model plus optimizer, scheduler, and scaler from a supplied checkpoint. In the resumed epoch it skips already-trained batches only when ignore_data_skip is false; otherwise it does not fast-forward. It initializes loss accounting and gradients, fires on_train_begin, optionally evaluates at start, fires on_epoch_begin, delegates epoch work to _run_epoch, stops on control, then finalizes speed/loss/FLOPs metrics and returns TrainOutput. CallbackHandler receives the events with current shared training objects.",
       "source_files": [
         "src/transformers/trainer.py",
         "src/transformers/trainer_callback.py"
       ],
       "source_anchors": [
-        "src/transformers/trainer.py:1434-1556",
-        "src/transformers/trainer.py:1558-1625",
+        "src/transformers/trainer.py:1434-1525",
+        "src/transformers/trainer.py:1527-1556",
+        "src/transformers/trainer.py:1558-1654",
+        "src/transformers/trainer.py:1672-1690",
+        "src/transformers/trainer.py:1821-1868",
         "src/transformers/trainer_callback.py:487-560"
       ],
       "reference_contexts": [
-        "The inner loop coordinates resume state, distributed preparation, epoch delegation, termination, and callback event propagation rather than implementing every step inline."
+        "The inner loop coordinates state restoration, checkpoint component loading, conditional data skipping, epoch delegation, metrics/TrainOutput finalization, and callback propagation."
       ]
     },
     {
       "id": "transformers-t85",
       "difficulty": "hard",
       "question": "How does Pipeline.__call__ normalize inputs and select between iterator, chunked, and single-item execution?",
-      "reference_answer": "It materializes generators, wraps one chat or a batch of chats, resolves worker and batch defaults, sanitizes and merges call parameters over initialization parameters, and tracks repeated CUDA use. Lists run through get_iterator and are materialized; datasets and generators return an iterator; ChunkPipeline wraps a singleton through its iterator; ordinary scalars use run_single. get_iterator builds preprocessing, DataLoader collation, forward, and postprocessing stages, constraining iterable workers for correctness.",
+      "reference_answer": "It immediately materializes a generator into a list, normalizes chat inputs, resolves worker and batch defaults, merges call parameters over initialization parameters, and tracks repeated CUDA use. Lists—including materialized generators—run through get_iterator and are materialized into a returned list. A Dataset follows the iterator-returning path; ChunkPipeline wraps a singleton through its iterator; ordinary scalars use run_single. get_iterator builds preprocessing, DataLoader collation, forward, and postprocessing stages, constraining iterable workers for correctness.",
       "source_files": [
         "src/transformers/pipelines/base.py"
       ],
@@ -1301,7 +1300,7 @@
         "src/transformers/pipelines/base.py:1194-1275"
       ],
       "reference_contexts": [
-        "Pipeline call-time dispatch integrates chat normalization, parameter precedence, batch defaults, input-shape routing, and a staged iterator implementation."
+        "Pipeline call-time dispatch materializes generators before routing, returns a materialized list for lists, and reserves the iterator-returning path for Dataset inputs."
       ]
     },
     {
@@ -1466,7 +1465,7 @@
       "id": "transformers-t96",
       "difficulty": "hard",
       "question": "How does ProcessorMixin.save_pretrained persist a composite processor so from_pretrained can rebuild it?",
-      "reference_answer": "Saving creates the directory, optionally prepares Hub tracking, copies custom processor code, saves primary tokenizers at the root and additional tokenizers in named subfolders, writes single or named chat templates, and serializes the unified non-tokenizer processor config before optional upload. Loading first resolves that processor dictionary, instantiates modality subcomponents through auto processors, loading additional tokenizers from their subfolders, and finally calls from_args_and_dict with the component arguments and resolved config.",
+      "reference_answer": "Saving creates the directory, optionally prepares Hub tracking, copies custom processor code, saves primary tokenizers at the root and additional tokenizers in named subfolders, writes single or named chat templates, and serializes the unified non-tokenizer processor config before optional upload. Loading resolves that processor dictionary, loads primary tokenizer and primary non-tokenizer components through their Auto classes, loads additional tokenizers from named subfolders, and constructs each additional non-tokenizer component directly from its processor_dict class name and config before calling from_args_and_dict.",
       "source_files": [
         "src/transformers/processing_utils.py"
       ],
@@ -1476,7 +1475,7 @@
         "src/transformers/processing_utils.py:1490-1598"
       ],
       "reference_contexts": [
-        "Processor persistence separates component files, chat templates, and composite config, then reconstructs modality arguments before processor instantiation."
+        "Processor persistence separates component files, chat templates, and composite config; loading has distinct primary Auto-loading, additional-tokenizer subfolder, and additional-non-tokenizer class/config branches."
       ]
     },
     {
@@ -1516,7 +1515,7 @@
       "id": "transformers-t99",
       "difficulty": "hard",
       "question": "How does DataCollatorForLanguageModeling validate masking policy and produce seeded PyTorch MLM inputs and labels?",
-      "reference_answer": "Initialization requires a mask token for MLM, validates all probabilities, restricts whole-word masking to MLM and fast-tokenizer-compatible behavior, and forces full mask replacement for whole-word mode. torch_call creates a persistent main-process or worker-specific RNG, pads or collates examples, removes supplied special and offset masks, then torch_mask_tokens excludes special or whole-word-forbidden positions, labels only sampled positions, replaces the configured share with the mask token, replaces a scaled share of the remainder with random vocabulary IDs, and leaves the rest unchanged.",
+      "reference_answer": "Initialization requires a mask token when MLM is enabled, validates the probabilities, rejects whole-word masking unless MLM is enabled, warns rather than rejects a slow tokenizer, and forces mask-only replacement for whole-word mode. torch_call creates a persistent main-process or worker-specific RNG only when seed is truthy; seed=0 therefore uses the global RNG. It pads or collates examples, removes supplied special and offset masks, then torch_mask_tokens excludes special or whole-word-forbidden positions, labels only sampled positions, replaces the configured share with the mask token, replaces a scaled share of the remainder with random vocabulary IDs, and leaves the rest unchanged.",
       "source_files": [
         "src/transformers/data/data_collator.py"
       ],
@@ -1525,14 +1524,14 @@
         "src/transformers/data/data_collator.py:796-857"
       ],
       "reference_contexts": [
-        "The MLM collator ties validated replacement probabilities and deterministic worker seeding to padding, candidate masking, labels, mask-token replacement, and random replacement."
+        "The MLM collator validates masking policy, warns for slow whole-word tokenizers, forces mask-only whole-word replacement, and creates a dedicated RNG only for truthy seeds."
       ]
     },
     {
       "id": "transformers-t100",
       "difficulty": "hard",
       "question": "How does optimization.get_scheduler dispatch ordinary and layer-wise optimizers while enforcing scheduler inputs?",
-      "reference_answer": "It normalizes the SchedulerType and selects its factory. For LayerWiseDummyOptimizer it recursively creates one scheduler per parameter optimizer, registers post-accumulate hooks for trainable parameters, and returns a LayerWiseDummyScheduler. Constant, reduce-on-plateau, and greedy schedules bypass some shared requirements; all remaining schedules require warmup steps, warmup-stable-decay receives its special arguments, and the other nonconstant schedules also require total training steps before factory invocation.",
+      "reference_answer": "It normalizes the SchedulerType and selects its factory. For LayerWiseDummyOptimizer it recursively creates one scheduler per parameter optimizer, registers post-accumulate hooks for trainable parameters, and returns a LayerWiseDummyScheduler. CONSTANT needs neither shared step input, while REDUCE_ON_PLATEAU and GREEDY return with scheduler-specific kwargs. All later branches require warmup steps: CONSTANT_WITH_WARMUP and INVERSE_SQRT then return without total steps; WARMUP_STABLE_DECAY receives warmup plus num_training_steps, which may be omitted when its scheduler-specific stable-step alternative is supplied; the remaining scheduler group requires total training steps as well before factory invocation.",
       "source_files": [
         "src/transformers/optimization.py"
       ],
@@ -1540,7 +1539,7 @@
         "src/transformers/optimization.py:950-1054"
       ],
       "reference_contexts": [
-        "get_scheduler is a validated dispatcher with recursive layer-wise scheduling and scheduler-family-specific argument requirements."
+        "get_scheduler is a validated dispatcher whose constant, warmup-only, WSD, and remaining scheduler families have distinct step-input requirements."
       ]
     }
   ]

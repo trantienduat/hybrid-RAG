@@ -79,6 +79,8 @@
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.7vw; align-items: start; }
     .line-list { display: grid; gap: 1rem; }
     .line-list p { padding-left: 1.1rem; border-left: 3px solid var(--cyan); color: var(--muted); font-size: clamp(17px, 1.55vw, 23px); line-height: 1.35; }
+    .fixture-output { gap: .55rem; }
+    .fixture-output p { font-size: clamp(14px, 1.2vw, 18px); line-height: 1.25; }
     .line-list strong { color: var(--ink); }
     .note-box { padding: 1.2rem 1.45rem; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); }
     .note-box p { color: var(--muted); font-size: 18px; line-height: 1.4; }
@@ -314,14 +316,16 @@
             <div class="label">Generic-local question</div>
             <p>“When <code>Checkout.checkout</code> runs, what is the sequence, including logging and payment?”</p>
           </div>
-          <div class="line-list">
-            <p><strong>Semantic evidence</strong> may find payment-related chunks by words such as <code>payment</code> or <code>checkout</code>.</p>
-            <p><strong>Structural evidence</strong> connects the calls that explain <code>start → validate → total → charge → end</code>.</p>
+          <div class="line-list fixture-output">
+            <p><strong>Graph output:</strong> <code>CALLS → _validate</code> and <code>_total</code>; <code>self.payment.charge</code> remains an unresolved call stub.</p>
+            <p><strong>Boundary:</strong> <code>self.log.start/end</code> also remain stubs because the logger target is absent from the fixture.</p>
+            <p><strong>Vector output:</strong> semantic text still locates <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
+            <p><strong>Order:</strong> <code>start → validate → total → charge → end</code> comes from source text, not from <code>DEFINES</code>/<code>CALLS</code> alone.</p>
           </div>
         </div>
       </div>
       <div class="callout">This two-file fixture illustrates the mechanism; the confirmatory measurements still use the pinned LlamaIndex Core workload.</div>
-      <aside class="notes"><strong>Transcript:</strong> I use a deliberately small two-file Checkout fixture to make the mechanism visible. The question asks for the sequence of <code>Checkout.checkout</code>, including logging and payment. Vector retrieval can find a relevant payment chunk because the words are similar, but that chunk does not prove the order of operations. Graph edges such as <code>DEFINES</code>, <code>CALLS</code> and <code>IMPORTS</code> make the structural path explicit. This example explains the mechanism; the confirmatory benchmark remains the pinned LlamaIndex Core workload.<br><br><span class="small">[Demo boundary] Illustrative two-file fixture; not benchmark evidence.</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> I use a deliberately small two-file Checkout fixture to make the mechanism visible. The observed parser output resolves the same-class calls to <code>_validate</code> and <code>_total</code>. It preserves <code>self.payment.charge</code> and <code>self.log.start/end</code> as explicit stubs because their targets are not uniquely available in this fixture. Vector retrieval can still locate <code>payment.py</code> and <code>PaymentGateway.charge</code> from source meaning. The runtime-looking order comes from the source text, not from graph edges alone. This example explains the mechanism; the confirmatory benchmark remains the pinned LlamaIndex Core workload.<br><br><span class="small">[Demo boundary] Illustrative two-file fixture; not benchmark evidence.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -397,9 +401,9 @@
         <rect x="710" y="330" width="334" height="46" rx="5" class="svg-process" />
         <text x="730" y="350" class="svg-route">GLOBAL</text><text x="812" y="350" class="svg-small">directory communities → summary</text>
       </svg>
-      <p class="svg-caption">The stores share one source identity; the query path is selected per question.</p>
+      <p class="svg-caption"><strong>Fixture trace:</strong> <code>checkout.py</code> → <code>Checkout</code> → <code>checkout</code>, <code>_validate</code>, <code>_total</code>; <code>payment.py</code> → <code>PaymentGateway</code> → <code>charge</code>, <code>_authorize</code>, <code>_capture</code>. The sequence question is <code>local / generic-local</code>, so graph and vector retrieval run together.</p>
       <div class="callout">Demo-only route trace: the Checkout question illustrates generic-local retrieval; it contributes no benchmark score.</div>
-      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. It writes the new records before removing stale records and records one provenance identity after the operation succeeds; this reduces empty-index windows but is not a reader-isolated generation cutover. Query analysis then chooses a route. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. A generic local question searches both stores concurrently and fuses their ranks. A global question reads repository-scoped community summaries. This routing is more precise than describing every query as parallel hybrid retrieval. The Checkout route is an illustrative demo only; it does not contribute to benchmark scores.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. For this fixture, the index exposes <code>checkout.py</code> and <code>payment.py</code> as separate modules, with <code>Checkout</code> and <code>PaymentGateway</code> underneath. Query analysis classifies the sequence question as local, with no global signal and no supported relation plan, so it selects the generic-local route. Graph and vector retrieval run concurrently and their candidates are fused later. Exact-relation and global questions take different sibling paths. The Checkout route is an illustrative demo only; it does not contribute to benchmark scores.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -436,9 +440,9 @@
         <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + payment calls</text>
         <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
       </svg>
-      <p class="svg-caption">Graph edges explain relationships; vector context locates semantically relevant source.</p>
+      <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
       <div class="callout">Demo trace only: vector search locates the payment neighborhood; graph traversal exposes structure. No answer-quality score is computed from this fixture.</div>
-      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and <code>charge</code>. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes the relationships needed to explain the sequence. This is a demo trace only; the fixture is not scored for correctness, faithfulness, relevancy or confidence intervals.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> resolves calls to <code>_validate</code> and <code>_total</code> while preserving the receiver-qualified <code>charge</code> call as a stub. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes structural relationships. This is a demo trace only; the fixture is not scored for correctness, faithfulness, relevancy or confidence intervals.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -452,11 +456,11 @@
           <marker id="rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
         <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
-        <text x="50" y="50" class="svg-route">GRAPH RANK · DEMO</text>
-        <text x="54" y="78" class="svg-code">01  _validate</text><text x="54" y="100" class="svg-code">02  charge</text><text x="54" y="122" class="svg-small">03  logging event</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="50" y="50" class="svg-route">GRAPH CANDIDATES · DEMO</text>
+        <text x="54" y="78" class="svg-code">01  _validate · resolved</text><text x="54" y="100" class="svg-code">02  _total · resolved</text><text x="54" y="122" class="svg-small">03  __call__charge · stub</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
         <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
-        <text x="50" y="194" class="svg-route">VECTOR RANK · DEMO</text>
-        <text x="54" y="222" class="svg-code">01  PaymentGateway</text><text x="54" y="244" class="svg-code">02  checkout</text><text x="54" y="266" class="svg-small">03  payment chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="50" y="194" class="svg-route">VECTOR CONTEXT · DEMO</text>
+        <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
         <path d="M298 83 H346 V120 H419" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
         <path d="M298 227 H346 V190 H419" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
         <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank, not score</text>
@@ -465,7 +469,7 @@
         <text x="584" y="78" class="svg-route">CONTEXT TO OLLAMA</text>
         <text x="588" y="116" class="svg-title">fuse top-k 20</text><text x="588" y="147" class="svg-title">deduplicate by base node</text><text x="588" y="178" class="svg-title">keep best 5 for answer context</text><text x="588" y="214" class="svg-edge-label">optional API token/character budget</text>
       </svg>
-      <p class="svg-caption">RRF merges rank positions; weights vary by route and are not raw-score calibration.</p>
+      <p class="svg-caption"><strong>Demo trace:</strong> graph contributes resolved nodes plus an unresolved stub; vector contributes source context. RRF prepares context and does not convert these candidates into an answer-quality score.</p>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <p class="small">Generic local: graph weight capped at 1.0, vector weight 1.0 · exact relation: graph-only weight 3.0 · vector-only: (0, 1).</p>
       <div class="callout">Demo-only RRF trace: candidate ranks are fused into answer context; any <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
@@ -483,13 +487,14 @@
         <div class="gate publish"><strong>5 · Rotate cache</strong>New generation creates a new namespace<span class="reject">Stale answers cannot cross runs</span></div>
       </div>
       <div class="callout">These gates protect both the demo index and the confirmatory benchmark; they do not expand the evidence boundary.</div>
+      <p class="small"><strong>Concrete contracts:</strong> Java input → explicit rejection · provenance mismatch → evaluation abort · parse/embed failure → prior records remain untouched.</p>
       <aside class="notes"><strong>Transcript:</strong> Reliability means that unsupported states fail visibly at their boundaries. The system rejects unsupported Java input and non-local generation providers. It verifies repository and index identity before retrieval or evaluation. Parsing and embedding happen before database mutation, and replacement writes new records before stale cleanup, which reduces an empty-index window. This is not a reader-isolated atomic cutover. Finally, the cache generation changes with the index, preventing an answer from an older snapshot from appearing current.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Experimental design · 09 / 15</div>
       <h2>The confirmatory workload preserves pairing from question to conclusion.</h2>
-      <div class="running-case"><span class="running-case-label">Evidence boundary</span><code>Checkout mechanism</code><span class="stage">LlamaIndex Core evidence → paired inference</span></div>
+      <div class="running-case"><span class="running-case-label">Confirmatory workload</span><code>LlamaIndex Core · 30 questions</code><span class="stage">paired modes → paired inference</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
         <title id="experiment-title">Paired answer-quality experiment</title>
         <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
@@ -536,7 +541,7 @@
       <h2>“Positive average” and “reliable improvement” are different claims.</h2>
       <div class="three-col">
         <div class="note-box"><div class="label">Inconclusive</div><h3>Faithfulness</h3><p>The data remain compatible with a small decrease or a larger increase.</p></div>
-        <div class="note-box"><div class="label">Borderline</div><h3>Relevancy</h3><p>The interval lower bound is −0.000074: effectively at zero, but not above it.</p></div>
+        <div class="note-box"><div class="label">Borderline</div><h3>Relevancy</h3><p>The interval lower bound is −0.0001 after rounding: effectively at zero, but not above it.</p></div>
         <div class="note-box"><div class="label">Supported here</div><h3>Correctness</h3><p>The full interval is positive for this pinned workload.</p></div>
       </div>
       <div class="callout">This uncertainty is a property of the available evidence—not a software defect.</div>
@@ -564,12 +569,12 @@
       <h2>The demo exposes one claim, one mechanism and one failure boundary.</h2>
       <div class="demo-sequence">
         <div class="demo-head">Step</div><div class="demo-head">Action</div><div class="demo-head">What the audience can verify</div>
-        <div class="demo-number">01</div><div class="demo-action">Ensure <code>demo-checkout</code> is indexed, or load the JSON fallback</div><div class="demo-proof">The two-file demo corpus is separate from the confirmatory workload</div>
-        <div class="demo-number">02</div><div class="demo-action">Ask one generic-local <code>Checkout.checkout</code> question</div><div class="demo-proof">The same query produces graph and vector candidates</div>
-        <div class="demo-number">03</div><div class="demo-action">Inspect the answer and <code>file_path</code>, <code>source</code>, <code>rrf_score</code></div><div class="demo-proof">Evidence fields are visible; Java remains a backup failure path</div>
+        <div class="demo-number">01</div><div class="demo-action">Load the two-file <code>demo_checkout</code> corpus</div><div class="demo-proof"><code>checkout.py</code> and <code>payment.py</code> are indexed separately; no benchmark row is created</div>
+        <div class="demo-number">02</div><div class="demo-action">Ask one generic-local <code>Checkout.checkout</code> question</div><div class="demo-proof">Route is local; graph resolves <code>_validate</code>/<code>_total</code> and preserves call stubs</div>
+        <div class="demo-number">03</div><div class="demo-action">Inspect answer, <code>file_path</code>, <code>source</code> and <code>rrf_score</code></div><div class="demo-proof">Vector surfaces <code>payment.py</code>; ranking metadata is visible, not answer-quality evidence</div>
       </div>
       <div class="callout">One Checkout demo illustrates the mechanism; the LlamaIndex benchmark—not the demo—supports the aggregate claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> The live demo should use a pre-indexed two-file <code>demo-checkout</code> fixture or its saved JSON fallback. I ask exactly one generic-local question, then show the answer together with <code>file_path</code>, <code>source</code> and <code>rrf_score</code>. Java is kept as a backup failure path rather than part of the main demo. The Checkout example explains the mechanism; the LlamaIndex benchmark supports the broader measurement.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> The live demo uses the two-file <code>demo_checkout</code> fixture. I ask exactly one generic-local question, then show the actual evidence fields together with the answer. The audience can see resolved same-class calls, explicit unresolved stubs, and vector context from <code>payment.py</code>. Any <code>rrf_score</code> is retrieval metadata; it is not correctness, faithfulness, relevancy or confidence-interval evidence. Java is kept as a backup failure path rather than part of the main demo. The Checkout example explains the mechanism; the LlamaIndex benchmark supports the broader measurement.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -587,6 +592,7 @@
           <p><strong>Evaluation contribution:</strong> checked-in raw records, deterministic paired confidence intervals and explicit evidence limits.</p>
         </div>
       </div>
+      <p class="small"><strong>Concrete anchor:</strong> the Checkout fixture demonstrates routing, graph/vector complementarity and unresolved-call preservation; the benchmark separately demonstrates measured quality and latency.</p>
       <div class="callout">The contribution is integration and auditability; the experiment remains deliberately bounded.</div>
       <aside class="notes"><strong>Transcript:</strong> The thesis does not claim to invent AST parsing, graph retrieval, vector search or RRF. Its contribution is the integrated, local and auditable system. It routes different question types differently, keeps graph and vector indexes tied to one source identity, adds directory communities and an exploration portal, and fails closed for unsupported languages. It also checks in the workload, raw records and deterministic uncertainty analysis so the reported result can be reproduced and challenged.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; repository implementation and evaluation artifacts</span></aside>
     </section>
@@ -621,6 +627,7 @@
           <tr><td>Architecture / repository-wide<span class="signal-note">A global-intent regex detects terms such as architecture, overview, or dependency flow, then routes the query to directory/community summaries.</span></td><td>Community summaries</td><td>Generic retrieval if unavailable</td></tr>
         </tbody>
       </table>
+      <p class="small"><strong>Concrete trace:</strong> “What sequence does <code>Checkout.checkout</code> follow?” → <code>local</code>, no graph plan → concurrent graph + vector retrieval → RRF context.</p>
       <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is an evaluation mode, not a fourth query route; it disables graph contribution on the same questions.</p>
       <div class="callout">Demo routing only: the Checkout question selects generic-local; exact-relation and global/community are the three sibling paths from Core 05. This fixture is not benchmark evidence.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 05 established three query-aware paths. This detail shows the decision that selects one before the stores are queried. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. The Checkout sequence question is generic local, so graph and vector retrieval run concurrently. A global question reads repository-scoped community summaries. Vector-only mode is an evaluation flag that disables graph contribution for the paired baseline. The Checkout route is only a demo trace; it is not sent to the answer-quality benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
@@ -642,7 +649,7 @@
         <text x="286" y="151" class="svg-edge-label">repository + directory define identity</text>
       </svg>
       <p class="svg-caption">Community identity follows repository and directory; the implementation does not use Louvain clustering.</p>
-      <div class="callout">This is Core 05's global branch—not a fourth retrieval system or a Louvain/GraphRAG implementation.</div>
+      <div class="callout">This is Core 05's global branch—not a fourth retrieval system or a Louvain/GraphRAG implementation. The Checkout fixture does not exercise this path.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 05's third path is for questions such as “What is the repository architecture?” Low-level call and import edges are useful for local questions but do not directly summarize architecture. The community builder groups nodes by repository and directory, generates a local summary with Ollama, and persists membership and dependency edges. Global retrieval reads those summaries. The partition is deterministic and directory-based; this is not Louvain clustering or an executed Microsoft GraphRAG comparison.<br><br><span class="small">[Sources] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
@@ -652,48 +659,45 @@
       <h2>The graph makes ownership and dependency facts explicit.</h2>
       <div class="schema-map">
         <div class="schema-tree">
-          <div class="label">Ownership hierarchy</div>
-          <div class="schema-level"><span class="schema-node">Directory</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">Module</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">Class</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">Function</span></div>
+          <div class="label">Observed ownership</div>
+          <div class="schema-level"><span class="schema-node">demo_checkout/</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">checkout.py</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">Checkout</span><span class="schema-edge">DEFINES</span></div>
+          <div class="schema-level"><span class="schema-node">checkout()</span></div>
         </div>
         <div class="dependency-path">
-          <div class="label">Traceable dependency path</div>
-          <div class="path-line"><strong>Module A</strong><span class="edge-tag">IMPORTS</span><strong>Module B</strong></div>
-          <div class="path-line"><strong>Class</strong><span class="edge-tag">INHERITS</span><strong>Base class</strong></div>
-          <div class="path-line"><strong>Function</strong><span class="edge-tag">CALLS</span><strong>Function</strong></div>
-          <div class="path-line"><strong>Code node</strong><span class="edge-tag">IN_COMMUNITY</span><strong>Community</strong></div>
+          <div class="label">Observed dependency edges</div>
+          <div class="path-line"><strong>checkout.py</strong><span class="edge-tag">IMPORTS</span><strong>payment.py</strong></div>
+          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_validate</strong></div>
+          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_total</strong></div>
+          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS?</span><strong>charge · stub</strong></div>
         </div>
       </div>
       <div class="two-col">
-        <div class="note-box"><div class="label">Demo graph evidence</div><p><code>DEFINES</code>, <code>IMPORTS</code> and <code>CALLS</code> expose explicit structural relationships between code entities.</p></div>
-        <div class="note-box"><div class="label">Demo vector evidence</div><p>Source chunks preserve implementation text and semantic context, including the cross-file payment implementation.</p></div>
+        <div class="note-box"><div class="label">Demo graph output</div><p><code>DEFINES</code> gives <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>; <code>CALLS</code> resolves <code>_validate</code>/<code>_total</code> but keeps <code>charge</code> unresolved.</p></div>
+        <div class="note-box"><div class="label">Demo vector output</div><p>The <code>checkout()</code> chunk contains <code>payment.charge</code>, so semantic retrieval can surface <code>payment.py</code> even without a resolved call edge.</p></div>
       </div>
-      <div class="callout">Demo trace only: for <code>Checkout.checkout</code>, graph evidence exposes structure; no answer-quality score is computed from this fixture.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 06 separates explicit graph facts from semantic vector context. This schema shows what graph retrieval can traverse: ownership runs from directory to module, class and function, while imports, inheritance and calls provide dependency paths. For the Checkout fixture, the graph can state that the module defines the class and that <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and a payment call target. The graph relationship is structural evidence; line positions and source text are needed before claiming an execution sequence. Optional non-code nodes remain generic and do not provide Python AST semantics.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/schemas.py</span></aside>
+      <div class="callout">Observed fixture output: graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code> as a stub; no answer-quality score is computed from this fixture.</div>
+      <aside class="notes"><strong>Transcript:</strong> This detail replaces the abstract schema with the fixture's actual result. The ownership chain is <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. The parser records an import from <code>checkout.py</code> to <code>payment.py</code>, and same-class calls to <code>_validate</code> and <code>_total</code>. The payment call is retained as <code>__call__charge</code>, not silently linked to <code>PaymentGateway.charge</code>. Vector retrieval still helps because the source chunk contains <code>payment.charge</code>. These are structural and semantic evidence; they do not by themselves prove runtime order.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="Entity resolution">
       <div class="kicker">Core 06 → Entity resolution · detail · 2 / 2</div>
       <div class="detail-bridge"><strong>Core 06 claim:</strong> graph evidence must remain auditable. <strong>This detail:</strong> shows when a call edge is linked and when uncertainty is preserved.</div>
       <h2>A call target is linked only when the match is uniquely defensible.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="resolution-title resolution-desc">
-        <title id="resolution-title">Conservative call-target resolution</title>
-        <desc id="resolution-desc">A call stub is matched through increasingly broader scopes; ambiguity or missing targets remain explicit stubs.</desc>
-        <defs><marker id="resolution-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
-        <path d="M196 86 H226" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M396 86 H426" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M596 86 H626" class="svg-edge" marker-end="url(#resolution-arrow)" /><path d="M796 86 H810 V57 H826" class="svg-edge" marker-end="url(#resolution-arrow)" />
-        <rect x="36" y="49" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="78" class="svg-title">Call stub</text><text x="56" y="100" class="svg-subtitle">bare · self · cls</text>
-        <rect x="226" y="49" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="78" class="svg-title">Same class</text><text x="246" y="100" class="svg-subtitle">method match</text>
-        <rect x="426" y="49" width="170" height="74" rx="5" class="svg-process" /><text x="446" y="78" class="svg-title">Same module</text><text x="446" y="100" class="svg-subtitle">module function</text>
-        <rect x="626" y="49" width="170" height="74" rx="5" class="svg-process" /><text x="646" y="78" class="svg-title">Candidate lookup</text><text x="646" y="100" class="svg-subtitle">import / graph scope</text>
-        <rect x="826" y="20" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="49" class="svg-title">Unique target</text><text x="846" y="71" class="svg-subtitle">exactly one result</text>
-        <rect x="826" y="136" width="218" height="74" rx="5" class="svg-limit" /><text x="846" y="165" class="svg-title">Keep stub</text><text x="846" y="187" class="svg-subtitle">ambiguous or missing</text>
-        <path d="M711 123 V173 H826" class="svg-edge limit" marker-end="url(#resolution-arrow)" /><text x="626" y="218" class="svg-edge-label svg-uncertain">otherwise, preserve the unresolved stub</text>
-      </svg>
-      <p class="svg-caption">The resolver widens its search only when the previous scope has no unique answer.</p>
-      <div class="callout">Demo trace only: <code>self.payment.charge</code> remains an explicit call stub when the receiver target is not uniquely resolved; vector evidence can still locate <code>payment.py</code>.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the auditability rule behind Core 06. A parsed call that cannot be bound immediately is stored as an explicit stub. The resolver first checks a same-class method, then a module-level function in the caller’s module, then an import-aware unique candidate. For the Checkout fixture, the receiver-qualified <code>self.payment.charge</code> call is not silently linked to <code>PaymentGateway.charge</code> when that target is not uniquely resolvable; the unresolved stub remains visible. Vector retrieval can still locate the payment implementation from its source text. That is conservative evidence, not a missing answer hidden by a guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
+      <table class="metric-table">
+        <thead><tr><th>Call in fixture</th><th>Resolver evidence</th><th>Observed output</th></tr></thead>
+        <tbody>
+          <tr><td><code>self._validate(...)</code></td><td>same class</td><td><code>CALLS → Checkout._validate</code></td></tr>
+          <tr><td><code>self._total(...)</code></td><td>same class</td><td><code>CALLS → Checkout._total</code></td></tr>
+          <tr><td><code>self.payment.charge(...)</code></td><td>receiver not uniquely resolved</td><td>keep stub <code>__call__charge</code></td></tr>
+          <tr><td><code>self.log.start()</code> / <code>.end()</code></td><td>logger target absent</td><td>keep stubs <code>__call__start/end</code></td></tr>
+          <tr><td><code>PaymentGateway.charge()</code></td><td>same class</td><td><code>CALLS → _authorize, _capture</code></td></tr>
+        </tbody>
+      </table>
+      <p class="svg-caption">The resolver links only uniquely defensible targets; uncertainty remains visible for later audit.</p>
+      <div class="callout">Observed fixture result: <code>_validate</code> and <code>_total</code> resolve; <code>charge</code>, <code>start</code> and <code>end</code> remain stubs; vector retrieval still surfaces <code>payment.py</code>.</div>
+      <aside class="notes"><strong>Transcript:</strong> This table shows the actual resolver output for the fixture, rather than a generic widening pipeline. Same-class calls resolve to <code>Checkout._validate</code> and <code>Checkout._total</code>. The receiver-qualified <code>self.payment.charge</code> call is not silently linked to <code>PaymentGateway.charge</code> when the target is not uniquely resolvable. The logger calls remain stubs because the logger target is absent. Inside the real <code>PaymentGateway.charge</code> method, same-class calls to <code>_authorize</code> and <code>_capture</code> do resolve. Vector retrieval can still locate the payment implementation from source text. This is conservative evidence, not a missing answer hidden by a guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="RRF mechanism">
@@ -706,8 +710,8 @@
         <div class="note-box"><div class="label">Generic local</div><p>Graph contribution is capped at 1.0; vector weight is 1.0.</p></div>
           <div class="note-box"><div class="label">Vector baseline</div><p>Weights are (0, 1). Legacy <code>hybrid_weight</code> is retained but unused.</p></div>
       </div>
-      <div class="callout">Demo-only trace: for Checkout, graph ranks such as <code>_validate</code>/<code>charge</code> meet vector ranks such as <code>PaymentGateway</code>/<code>checkout</code>; RRF fuses and keeps the top five for context. <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07, illustrated with demo candidates. Graph and vector scores are not directly comparable, so each candidate contributes through its rank position with smoothing constant sixty. For the Checkout question, candidates such as <code>_validate</code>, <code>charge</code> and <code>PaymentGateway</code> are ranked independently, then RRF fuses the lists, deduplicates by base node and keeps the first five context items. The weight depends on the route: exact relation is graph-only with weight three, generic local caps graph weight at one and uses vector weight one, and vector-only sets graph weight to zero. This fixture is not sent to the answer-quality benchmark; any <code>rrf_score</code> shown here is retrieval metadata only. The constant sixty is fixed smoothing, not an optimized hyperparameter.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <div class="callout">Demo-only trace: resolved <code>_validate</code>/<code>_total</code>, unresolved <code>__call__charge</code> and vector-located <code>payment.py</code> become context candidates. <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
+      <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07, grounded in the fixture output. The graph contributes the resolved <code>_validate</code> and <code>_total</code> nodes while preserving <code>__call__charge</code> as a stub. Vector retrieval contributes the payment source context, including <code>payment.py</code> and <code>PaymentGateway.charge</code>. RRF combines rank positions with smoothing constant sixty, deduplicates by base node and keeps the top five items for answer context. Exact numeric ranks should be read from a captured API response; this diagram is a mechanism trace, not a benchmark result. Any <code>rrf_score</code> shown here is retrieval metadata only. The fixture is not sent to the answer-quality benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="Index lifecycle">

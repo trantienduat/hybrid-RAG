@@ -619,10 +619,10 @@
           <tr><td>Supported relation + entity<span class="signal-note">A regex detects a supported relation phrase—such as imports, calls, inherits, or defines—and extracts a code identifier such as Checkout or checkout().</span></td><td>Deterministic graph plan</td><td>Vector only if no relation target</td></tr>
           <tr><td>Generic local behavior<span class="signal-note">When no global or supported-relation pattern is detected, the query is treated as a local behavior question; graph and vector retrieval run in parallel.</span></td><td>Concurrent graph + vector</td><td>Weighted RRF</td></tr>
           <tr><td>Architecture / repository-wide<span class="signal-note">A global-intent regex detects terms such as architecture, overview, or dependency flow, then routes the query to directory/community summaries.</span></td><td>Community summaries</td><td>Generic retrieval if unavailable</td></tr>
-          <tr><td>Vector-only benchmark mode<span class="signal-note">This is an evaluation flag, not a question category: skip_graph=True disables graph retrieval so the vector baseline can be compared on the same questions.</span></td><td>Qdrant</td><td>No graph contribution</td></tr>
         </tbody>
       </table>
-      <div class="callout">The Checkout question selects generic-local; exact-relation and global/community are sibling paths from Core 05, not extra steps in this route.</div>
+      <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is an evaluation mode, not a fourth query route; it disables graph contribution on the same questions.</p>
+      <div class="callout">The Checkout question selects generic-local; exact-relation and global/community are the three sibling paths from Core 05.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 05 established three query-aware paths. This detail shows the decision that selects one before the stores are queried. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. The Checkout sequence question is generic local, so graph and vector retrieval run concurrently. A global question reads repository-scoped community summaries. Vector-only mode is an evaluation flag that disables graph contribution for the paired baseline.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
@@ -666,6 +666,10 @@
           <div class="path-line"><strong>Code node</strong><span class="edge-tag">IN_COMMUNITY</span><strong>Community</strong></div>
         </div>
       </div>
+      <div class="two-col">
+        <div class="note-box"><div class="label">Graph evidence</div><p><code>DEFINES</code>, <code>IMPORTS</code> and <code>CALLS</code> expose explicit structural relationships between code entities.</p></div>
+        <div class="note-box"><div class="label">Vector evidence</div><p>Source chunks preserve implementation text and semantic context, including the cross-file payment implementation.</p></div>
+      </div>
       <div class="callout">For <code>Checkout.checkout</code>, graph evidence can expose <code>DEFINES</code> and <code>CALLS</code>; it does not prove runtime order by itself.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 06 separates explicit graph facts from semantic vector context. This schema shows what graph retrieval can traverse: ownership runs from directory to module, class and function, while imports, inheritance and calls provide dependency paths. For the Checkout fixture, the graph can state that the module defines the class and that <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and a payment call target. The graph relationship is structural evidence; line positions and source text are needed before claiming an execution sequence. Optional non-code nodes remain generic and do not provide Python AST semantics.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/schemas.py</span></aside>
     </section>
@@ -702,7 +706,7 @@
         <div class="note-box"><div class="label">Generic local</div><p>Graph contribution is capped at 1.0; vector weight is 1.0.</p></div>
           <div class="note-box"><div class="label">Vector baseline</div><p>Weights are (0, 1). Legacy <code>hybrid_weight</code> is retained but unused.</p></div>
       </div>
-      <div class="callout">Graph/vector ranks are fused, deduplicated by base node and reduced to the top five context items. <code>k=60</code> is a fixed smoothing constant, not a tuned claim.</div>
+      <div class="callout">For Checkout, graph ranks such as <code>_validate</code>/<code>charge</code> meet vector ranks such as <code>PaymentGateway</code>/<code>checkout</code>; RRF fuses, deduplicates and keeps the top five. <code>k=60</code> is fixed smoothing, not a tuned claim.</div>
       <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07. Graph and vector scores are not directly comparable, so each candidate contributes through its rank position with smoothing constant sixty. For the Checkout question, candidates such as <code>_validate</code>, <code>charge</code> and <code>PaymentGateway</code> are ranked independently, then RRF fuses the lists, deduplicates by base node and keeps the first five context items for the benchmark. The weight depends on the route: exact relation is graph-only with weight three, generic local caps graph weight at one and uses vector weight one, and vector-only sets graph weight to zero. The constant sixty is fixed smoothing, not an optimized hyperparameter.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
@@ -723,7 +727,17 @@
         <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">MISMATCH → EXPLICIT ABORT</text>
       </svg>
       <p class="svg-caption">Preflight is a gate: mixed or stale graph/vector evidence cannot become a benchmark result.</p>
-      <p class="small"><strong>Lifecycle link:</strong> parse + embed → write new records → remove stale records → rotate cache generation → preflight → evaluate.</p>
+      <div class="flow">
+        <div class="node">Parse + embed<span>before mutation</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Write new run<span>new records first</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Remove stale<span>old records after publish</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Rotate cache<span>new generation</span></div>
+        <div class="arrow">→</div>
+        <div class="node">Preflight<span>then evaluate</span></div>
+      </div>
       <div class="callout">Replacement reduces the empty-index window; provenance preflight is the separate gate that prevents mixed runs from becoming measurements.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 08 contains two related but different protections. During indexing, parsing and embedding happen before mutation; the pipeline writes the new records before removing stale records, then rotates the cache generation. That ordering reduces the empty-index window but is not a reader-isolated cutover. Before evaluation, the source package and its hash define the input, while the index run records repository, digest, schema and embedding model for both stores. Preflight compares those values with the expected workload metadata. If they disagree, evaluation stops instead of producing numbers from mixed or stale indexes.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
     </section>
@@ -780,11 +794,11 @@
       <table class="metric-table">
         <thead><tr><th>Failure mode</th><th>Control</th><th>Expected behavior</th></tr></thead>
         <tbody>
-          <tr><td>Cross-repository leakage</td><td>Repository namespace filtering</td><td>Foreign results excluded when scope is supplied</td></tr>
-          <tr><td>Mixed index metadata</td><td>Provenance preflight</td><td>Evaluation aborts</td></tr>
-          <tr><td>Partial publication</td><td>Replacement before stale cleanup</td><td>Empty-index window reduced; no reader cutover guarantee</td></tr>
-          <tr><td>Stale cached answer</td><td>Cache generation key</td><td>New index gets new cache namespace</td></tr>
-          <tr><td>Unsupported Java</td><td>Language gate</td><td>Indexing rejects explicitly</td></tr>
+          <tr><td>Gate 1 · Unsupported Java/provider</td><td>Language/provider boundary</td><td>Input is rejected explicitly</td></tr>
+          <tr><td>Gate 2 · Mixed index metadata</td><td>Provenance preflight</td><td>Evaluation aborts</td></tr>
+          <tr><td>Gate 3 · Parse/embed failure</td><td>Prepare before mutation</td><td>Prior data remains untouched</td></tr>
+          <tr><td>Gate 4 · Partial publication</td><td>Replacement before stale cleanup</td><td>Empty-index window reduced; no reader cutover guarantee</td></tr>
+          <tr><td>Gate 5 · Stale cached answer</td><td>Cache generation key</td><td>New index gets a new cache namespace</td></tr>
         </tbody>
       </table>
       <div class="callout">These are reliability contracts, not additional benchmark results; they define when the system must stop.</div>

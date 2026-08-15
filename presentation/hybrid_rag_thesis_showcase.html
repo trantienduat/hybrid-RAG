@@ -274,21 +274,21 @@
 <body>
   <div class="progress"><span id="progress"></span></div>
   <div class="counter" id="counter"></div>
-  <div class="hint">← → core argument · ↓ supporting detail · ↑ return · N transcript · H help</div>
+  <div class="hint">← → main slide · ↓ detail · ↑ return · N transcript · H help</div>
   <main class="deck">
     <section class="slide active" data-axis="core">
-      <div class="kicker">Master's thesis showcase</div>
-      <h1>Code Retrieval with Hybrid-RAG</h1>
+      <div class="kicker">Master's thesis</div>
+      <h1>Finding the Right Code with Hybrid-RAG</h1>
       <div class="rule"></div>
-      <p class="lead">Combining AST-derived knowledge graphs and semantic search for repository-scoped code questions.</p>
+      <p class="lead">Using a Python code map and meaning-based search to answer questions about one repository.</p>
       <p class="small">Tran Tien Duat · Master of Software Engineering · 2026</p>
-      <aside class="notes"><strong>Transcript:</strong> This thesis studies code retrieval for questions that cannot be answered by text similarity alone. The system combines semantic search with relationships extracted from Python source code. My goal is not to claim a new retrieval algorithm. It is to show that these techniques can be integrated into a repository-scoped system whose evidence, behavior and limitations are inspectable.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> This thesis asks how to find the right code for a question. Text search helps, but it may miss how functions connect. I combine text search with a code map built from Python files, and I show the source and limits of each answer. I am testing a useful system design, not claiming a new search algorithm.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Motivation · 02 / 15</div>
-      <h2>A code question is often a relationship question.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">two-file fixture → generic local route</span></div>
+      <div class="kicker">The problem · 02 / 15</div>
+      <h2>A code question often asks how parts connect.</h2>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">two files → local search</span></div>
       <div class="two-col fixture-layout">
         <div class="fixture-files">
           <div class="fixture-file">
@@ -313,62 +313,62 @@
         </div>
         <div>
           <div class="note-box">
-            <div class="label">Generic-local question</div>
+            <div class="label">Local behavior question</div>
             <p>“When <code>Checkout.checkout</code> runs, what is the sequence, including logging and payment?”</p>
           </div>
           <div class="line-list fixture-output">
             <p><strong>Graph output:</strong> <code>CALLS → _validate</code> and <code>_total</code>; <code>self.payment.charge</code> remains an unresolved call stub.</p>
             <p><strong>Boundary:</strong> <code>self.log.start/end</code> also remain stubs because the logger target is absent from the fixture.</p>
-            <p><strong>Vector output:</strong> semantic text still locates <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
+            <p><strong>Text-search output:</strong> meaning-based text still locates <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
             <p><strong>Order:</strong> <code>start → validate → total → charge → end</code> comes from source text, not from <code>DEFINES</code>/<code>CALLS</code> alone.</p>
           </div>
         </div>
       </div>
-      <div class="callout">This two-file fixture illustrates the mechanism; the confirmatory measurements still use the pinned LlamaIndex Core workload.</div>
+      <div class="callout">This two-file fixture shows how the system works; the main test uses the fixed LlamaIndex Core questions.</div>
       <aside class="notes"><strong>Transcript:</strong> I use a deliberately small two-file Checkout fixture to make the mechanism visible. The observed parser output resolves the same-class calls to <code>_validate</code> and <code>_total</code>. It preserves <code>self.payment.charge</code> and <code>self.log.start/end</code> as explicit stubs because their targets are not uniquely available in this fixture. Vector retrieval can still locate <code>payment.py</code> and <code>PaymentGateway.charge</code> from source meaning. The runtime-looking order comes from the source text, not from graph edges alone. This example explains the mechanism; the confirmatory benchmark remains the pinned LlamaIndex Core workload.<br><br><span class="small">[Demo boundary] Illustrative two-file fixture; not benchmark evidence.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Research questions · 03 / 15</div>
-      <h2>Three questions connect usefulness, cost and evidence strength.</h2>
+      <h2>Three questions cover quality, cost and confidence.</h2>
       <div class="line-list">
-        <p><strong>RQ1 · Answer quality:</strong> How do Faithfulness, Answer Relevancy and Answer Correctness change versus vector-only retrieval?</p>
-        <p><strong>RQ2 · Efficiency trade-off:</strong> What changes in retrieval latency, local generation latency and token counts?</p>
-        <p><strong>RQ3 · Evidence strength:</strong> Which observed differences remain above or below zero under paired 95% confidence intervals?</p>
+        <p><strong>RQ1 · Answer quality:</strong> Do Faithfulness, Answer Relevancy and Answer Correctness change compared with vector-only retrieval?</p>
+        <p><strong>RQ2 · Time and tokens:</strong> How do search time, answer time and token counts change?</p>
+        <p><strong>RQ3 · Confidence:</strong> Which differences stay above zero in the paired 95% confidence range?</p>
       </div>
-      <p class="small">Scope: Python semantic indexing · one pinned LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
-      <div class="callout">A positive average is not enough; the interval determines how strongly the result can be stated.</div>
-      <aside class="notes"><strong>Transcript:</strong> The evaluation asks three connected questions. First, does hybrid context improve the generated answer? Second, what latency and token trade-off accompanies that change? Third, how certain are the observed differences when the same thirty questions are compared as pairs? This framing prevents a positive average from being presented as proof when its confidence interval still includes zero.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <p class="small">Scope: Python code indexing · one fixed LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
+      <div class="callout">A higher average is not enough; the range tells us how strong the result is.</div>
+      <aside class="notes"><strong>Transcript:</strong> I ask three simple questions. Does the extra code information improve the answer? How much extra time and how many tokens does it use? Finally, are the differences strong enough to trust? The 95% range helps me avoid calling a higher average a proven improvement when the range still touches zero.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Scope &amp; related work · 04 / 15</div>
-      <h2>The experiment is controlled.</h2>
+      <div class="kicker">Scope and related work · 04 / 15</div>
+      <h2>We tested one clear, controlled case.</h2>
       <table class="metric-table">
-        <thead><tr><th>Dimension</th><th>Executed</th><th>Not established</th></tr></thead>
+        <thead><tr><th>Area</th><th>Tested here</th><th>Not tested here</th></tr></thead>
         <tbody>
-          <tr><td>Repository</td><td><code>llama-index-core==0.14.21</code></td><td>Cross-repository generality</td></tr>
-          <tr><td>Language</td><td>Python AST semantics</td><td>Java or Go indexing</td></tr>
-          <tr><td>Baseline</td><td>Vector-only under matched settings</td><td>BM25, graph-only, CodeBERT/GraphCodeBERT, external GraphRAG</td></tr>
-          <tr><td>Ground truth</td><td>30 AI source-reviewed references</td><td>Independent human accuracy</td></tr>
+          <tr><td>Repository</td><td><code>llama-index-core==0.14.21</code></td><td>Other repositories</td></tr>
+          <tr><td>Language</td><td>Python code structure</td><td>Java or Go indexing</td></tr>
+          <tr><td>Comparison</td><td>Vector-only under matched settings</td><td>BM25, graph-only, CodeBERT/GraphCodeBERT, external GraphRAG</td></tr>
+          <tr><td>Reference answers</td><td>30 AI source-reviewed references</td><td>Independent human accuracy</td></tr>
         </tbody>
       </table>
-      <p class="small"><strong>Related-work positioning (literature only):</strong> BM25 provides lexical matching; CodeBERT/GraphCodeBERT provide code representations; Microsoft GraphRAG provides corpus-level graph reasoning. This work combines AST relations, dense retrieval and provenance for repository-scoped code questions.</p>
-      <div class="callout">The valid claim is “better on this pinned paired workload,” not “universally better RAG.”</div>
-      <aside class="notes"><strong>Transcript:</strong> This experiment is controlled because both modes use the same source snapshot, questions, models and repeats. It is narrow because it covers one Python repository and one executed baseline. The reference answers were checked against source by an AI reviewer, not independently adjudicated by humans. BM25, CodeBERT or GraphCodeBERT, graph-only and external GraphRAG are literature comparators here, not executed baselines. I therefore report a workload-specific comparison and keep cross-repository, cross-language and human-accuracy claims open.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
+      <p class="small"><strong>Where this work fits:</strong> BM25 matches words; CodeBERT/GraphCodeBERT represent code; Microsoft GraphRAG uses graphs over a large corpus. This work combines Python code links, meaning-based search and source tracking for repository questions.</p>
+      <div class="callout">The safe claim is “better on this fixed set of questions,” not “better for every RAG system.”</div>
+      <aside class="notes"><strong>Transcript:</strong> This is a fair but small test. Both modes use the same code, questions, models and repeats. It covers one Python repository and one comparison: vector-only versus Hybrid. An AI reviewer checked the reference answers against the source; independent human review was not done. BM25, CodeBERT, graph-only and external GraphRAG are background comparisons, not tests I ran here. So the result is about this fixed set of questions, not every repository.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">System architecture · 05 / 15</div>
-      <h2>One indexed source supports three query-aware retrieval paths.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">query → generic local route</span></div>
+      <div class="kicker">How the system searches · 05 / 15</div>
+      <h2>One codebase can use three search paths.</h2>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">question → local search</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 385" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
         <title id="routing-title">Hybrid-RAG indexing and query routing</title>
-        <desc id="routing-desc">A two-file demo fixture creates graph and vector representations. A query analyzer selects exact relation, generic local, or global community retrieval.</desc>
+        <desc id="routing-desc">A two-file demo fixture creates a code map and searchable text. A question checker selects a clear-link, local or whole-codebase path.</desc>
         <defs>
           <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
-        <text x="36" y="20" class="svg-route">INDEX ONCE</text>
+        <text x="36" y="20" class="svg-route">BUILD THE INDEX</text>
         <path d="M236 78 H288 V51 H322" class="svg-edge graph" marker-end="url(#routing-arrow)" />
         <path d="M236 78 H288 V133 H322" class="svg-edge vector" marker-end="url(#routing-arrow)" />
         <path d="M502 51 H550 V89 H592" class="svg-edge graph" marker-end="url(#routing-arrow)" />
@@ -376,13 +376,13 @@
         <rect x="36" y="44" width="200" height="68" rx="5" class="svg-source" />
         <text x="56" y="71" class="svg-title">Demo checkout source</text><text x="56" y="92" class="svg-subtitle">2 files · demo corpus</text>
         <rect x="322" y="17" width="180" height="68" rx="5" class="svg-store graph" />
-        <text x="342" y="44" class="svg-title">AST graph</text><text x="342" y="65" class="svg-subtitle">FalkorDB · explicit edges</text>
+        <text x="342" y="44" class="svg-title">Code relationship map</text><text x="342" y="65" class="svg-subtitle">FalkorDB · code links</text>
         <rect x="322" y="99" width="180" height="68" rx="5" class="svg-store vector" />
-        <text x="342" y="126" class="svg-title">Semantic chunks</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
+        <text x="342" y="126" class="svg-title">Meaning-based text</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
         <rect x="592" y="69" width="214" height="68" rx="5" class="svg-merge" />
-        <text x="612" y="96" class="svg-title">One index identity</text><text x="612" y="117" class="svg-subtitle">schema · model · run</text>
+        <text x="612" y="96" class="svg-title">Same source record</text><text x="612" y="117" class="svg-subtitle">schema · model · run</text>
 
-        <text x="36" y="194" class="svg-route">ROUTE PER QUESTION</text>
+        <text x="36" y="194" class="svg-route">CHOOSE A PATH</text>
         <path d="M236 252 H322" class="svg-edge" marker-end="url(#routing-arrow)" />
         <path d="M502 252 H548" class="svg-edge" marker-end="url(#routing-arrow)" />
         <path d="M642 252 H676 V221 H710" class="svg-edge graph" marker-end="url(#routing-arrow)" />
@@ -391,33 +391,33 @@
         <rect x="36" y="218" width="200" height="68" rx="5" class="svg-process" />
         <text x="56" y="245" class="svg-title">User question</text><text x="56" y="266" class="svg-subtitle">repository scope optional</text>
         <rect x="322" y="218" width="180" height="68" rx="5" class="svg-process" />
-        <text x="342" y="245" class="svg-title">Query analyzer</text><text x="342" y="266" class="svg-subtitle">intent + entity signals</text>
+        <text x="342" y="245" class="svg-title">Question checker</text><text x="342" y="266" class="svg-subtitle">question type + code name</text>
         <polygon points="595,207 642,252 595,297 548,252" class="svg-decision" />
         <text x="570" y="248" class="svg-title">route?</text>
         <rect x="710" y="198" width="334" height="46" rx="5" class="svg-process" />
-        <text x="730" y="218" class="svg-route">EXACT RELATION</text><text x="880" y="218" class="svg-small">graph plan · vector fallback</text>
+        <text x="730" y="218" class="svg-route">EXACT LINK</text><text x="880" y="218" class="svg-small">code map · text fallback</text>
         <rect x="710" y="264" width="334" height="46" rx="5" class="svg-evidence" />
-        <text x="730" y="284" class="svg-route">GENERIC LOCAL</text><text x="864" y="284" class="svg-small">graph + vector → weighted RRF</text>
+        <text x="730" y="284" class="svg-route">LOCAL BEHAVIOR</text><text x="864" y="284" class="svg-small">two lists → combined results</text>
         <rect x="710" y="330" width="334" height="46" rx="5" class="svg-process" />
-        <text x="730" y="350" class="svg-route">GLOBAL</text><text x="812" y="350" class="svg-small">directory communities → summary</text>
+        <text x="730" y="350" class="svg-route">WHOLE CODEBASE</text><text x="812" y="350" class="svg-small">folder groups → summary</text>
       </svg>
-      <p class="svg-caption"><strong>Fixture trace:</strong> <code>checkout.py</code> → <code>Checkout</code> → <code>checkout</code>, <code>_validate</code>, <code>_total</code>; <code>payment.py</code> → <code>PaymentGateway</code> → <code>charge</code>, <code>_authorize</code>, <code>_capture</code>. The sequence question is <code>local / generic-local</code>, so graph and vector retrieval run together.</p>
-      <div class="callout">Demo-only route trace: the Checkout question illustrates generic-local retrieval; it contributes no benchmark score.</div>
-      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. For this fixture, the index exposes <code>checkout.py</code> and <code>payment.py</code> as separate modules, with <code>Checkout</code> and <code>PaymentGateway</code> underneath. Query analysis classifies the sequence question as local, with no global signal and no supported relation plan, so it selects the generic-local route. Graph and vector retrieval run concurrently and their candidates are fused later. Exact-relation and global questions take different sibling paths. The Checkout route is an illustrative demo only; it does not contribute to benchmark scores.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
+      <p class="svg-caption"><strong>Fixture trace:</strong> <code>checkout.py</code> → <code>Checkout</code> → <code>checkout</code>, <code>_validate</code>, <code>_total</code>; <code>payment.py</code> → <code>PaymentGateway</code> → <code>charge</code>, <code>_authorize</code>, <code>_capture</code>. The sequence question uses local search, so the code map and text search run together.</p>
+      <div class="callout">Demo only: the Checkout question uses local search; it does not add a benchmark score.</div>
+      <aside class="notes"><strong>Transcript:</strong> The system builds two views of the same code: a code map and searchable text. In the fixture, <code>checkout.py</code> and <code>payment.py</code> become separate modules. The question checker sees a local question, so it uses both views at the same time. A clear link question would use the code map directly. A whole-codebase question would use folder summaries. This Checkout path is only a demo; it is not part of the benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Evidence representation · 06 / 15</div>
-      <h2>One function becomes two different kinds of evidence.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">entity → graph + vector evidence</span></div>
+      <div class="kicker">How the system finds evidence · 06 / 15</div>
+      <h2>One function is seen in two ways.</h2>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">function → links + text</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="evidence-title evidence-desc">
         <title id="evidence-title">Graph and vector evidence for one function</title>
-        <desc id="evidence-desc">Graph relationships and semantic vector context converge on the Checkout.checkout question.</desc>
+        <desc id="evidence-desc">Known code links and similar source text meet on the Checkout.checkout question.</desc>
         <defs>
           <marker id="evidence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
-        <text x="36" y="22" class="svg-route">GRAPH · EXPLICIT STRUCTURE</text>
-        <text x="756" y="22" class="svg-route">VECTOR · SEMANTIC MEANING</text>
+        <text x="36" y="22" class="svg-route">CODE MAP · KNOWN LINKS</text>
+        <text x="756" y="22" class="svg-route">TEXT SEARCH · SIMILAR MEANING</text>
         <path d="M160 73 H188" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <path d="M312 73 H340" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <path d="M404 98 V114 H468" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
@@ -427,7 +427,7 @@
         <text x="194" y="116" class="svg-edge-label">DEFINES</text><text x="348" y="116" class="svg-edge-label">CALLS</text>
 
         <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
-        <text x="492" y="117" class="svg-small">QUESTION FOCUS</text>
+        <text x="492" y="117" class="svg-small">QUESTION</text>
         <text x="492" y="145" class="svg-code">Checkout.checkout</text>
         <text x="492" y="169" class="svg-subtitle">What sequence does this method follow?</text>
         <text x="492" y="187" class="svg-small">targets: _validate · charge</text>
@@ -435,20 +435,20 @@
         <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M740 239 H752 V202 H828 V98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M764 73 H740 V152 H722" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title">Metadata</text><text x="934" y="87" class="svg-small">repo · file · digest</text>
-        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title">Embedding</text>
+        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title">Source details</text><text x="934" y="87" class="svg-small">repo · file · hash</text>
+        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title">Text meaning</text>
         <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + payment calls</text>
         <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
       </svg>
       <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
-      <div class="callout">Demo trace only: vector search locates the payment neighborhood; graph traversal exposes structure. No answer-quality score is computed from this fixture.</div>
-      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> resolves calls to <code>_validate</code> and <code>_total</code> while preserving the receiver-qualified <code>charge</code> call as a stub. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes structural relationships. This is a demo trace only; the fixture is not scored for correctness, faithfulness, relevancy or confidence intervals.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+      <div class="callout">Demo only: text search finds payment code; the code map shows the links. This fixture has no answer-quality score.</div>
+      <aside class="notes"><strong>Transcript:</strong> The same function is shown in two ways. The code map links <code>Checkout.checkout</code> to <code>_validate</code> and <code>_total</code>, but keeps <code>charge</code> as a stub because the target is not clear. Text search can still find the payment file because the words are related. The code map shows links; text search finds useful source. Neither one proves the full run order by itself. This is a demo only, not a scored answer.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Retrieval mechanism · 07 / 15</div>
-      <h2>Generic local queries fuse complementary rankings—then select context.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">candidates → RRF → context</span></div>
+      <div class="kicker">How results are combined · 07 / 15</div>
+      <h2>Local questions combine two result lists.</h2>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">results → combine → answer</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
         <title id="rrf-title">Reciprocal rank fusion</title>
         <desc id="rrf-desc">Graph and vector ranked candidates converge at RRF and become a budgeted context list.</desc>
@@ -457,102 +457,102 @@
         </defs>
         <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
         <text x="50" y="50" class="svg-route">GRAPH CANDIDATES · DEMO</text>
-        <text x="54" y="78" class="svg-code">01  _validate · resolved</text><text x="54" y="100" class="svg-code">02  _total · resolved</text><text x="54" y="122" class="svg-small">03  __call__charge · stub</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="54" y="78" class="svg-code">01  _validate · resolved</text><text x="54" y="100" class="svg-code">02  _total · resolved</text><text x="54" y="122" class="svg-small">03  __call__charge · stub</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · local search</text>
         <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
         <text x="50" y="194" class="svg-route">VECTOR CONTEXT · DEMO</text>
-        <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · local search</text>
         <path d="M298 83 H346 V120 H419" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
         <path d="M298 227 H346 V190 H419" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
-        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank, not score</text>
+        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">order, not quality</text>
         <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
         <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
-        <text x="584" y="78" class="svg-route">CONTEXT TO OLLAMA</text>
-        <text x="588" y="116" class="svg-title">fuse top-k 20</text><text x="588" y="147" class="svg-title">deduplicate by base node</text><text x="588" y="178" class="svg-title">keep best 5 for answer context</text><text x="588" y="214" class="svg-edge-label">optional API token/character budget</text>
+        <text x="584" y="78" class="svg-route">CODE SENT TO OLLAMA</text>
+        <text x="588" y="116" class="svg-title">combine top 20</text><text x="588" y="147" class="svg-title">remove duplicates</text><text x="588" y="178" class="svg-title">keep best 5 for the answer</text><text x="588" y="214" class="svg-edge-label">optional token/character limit</text>
       </svg>
       <p class="svg-caption"><strong>Demo trace:</strong> graph contributes resolved nodes plus an unresolved stub; vector contributes source context. RRF prepares context and does not convert these candidates into an answer-quality score.</p>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
-      <p class="small">Generic local: graph weight capped at 1.0, vector weight 1.0 · exact relation: graph-only weight 3.0 · vector-only: (0, 1).</p>
-      <div class="callout">Demo-only RRF trace: candidate ranks are fused into answer context; any <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
-      <aside class="notes"><strong>Transcript:</strong> This RRF mechanism is shown through the Checkout demo, not as a benchmark result. Graph and vector scores are not directly comparable, so RRF uses rank positions instead. The current implementation caps the generic graph contribution at one and gives vector rank weight one, preventing noisy neighborhood expansion from dominating semantic evidence. A successful exact-relation route is graph-only with configured graph weight three. The first five fused candidates shown here become answer context; they are illustrative demo candidates, not scored benchmark outputs. If the API returns <code>rrf_score</code>, that value describes retrieval ranking only—not correctness, faithfulness, relevancy or confidence intervals. The API also supports optional dynamic token or character budgets, but that path is not what the confirmatory benchmark measured.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <p class="small">Local search: graph weight up to 1.0, text-search weight 1.0 · exact link: code-map weight 3.0 · text-only: (0, 1).</p>
+      <div class="callout">Demo only: RRF combines the two result lists for the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
+      <aside class="notes"><strong>Transcript:</strong> This slide shows how the two result lists are combined. The lists may use different scores, so RRF compares their positions instead. It removes duplicates and keeps the best five pieces of code for the answer. A clear link question can use only the code map; a local question uses both lists. The numbers here explain the method, not a benchmark result. <code>rrf_score</code> only tells us where an item ranked. It does not measure answer quality.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Reliability &amp; provenance · 08 / 15</div>
-      <h2>Unsupported states fail at explicit boundaries; replacement reduces index gaps.</h2>
+      <div class="kicker">Safety checks · 08 / 15</div>
+      <h2>Bad input stops early; updates reduce empty-index time.</h2>
       <div class="gate-flow">
-        <div class="gate"><strong>1 · Accept input</strong>Python repository + local Ollama only<span class="reject">Java or remote provider → reject</span></div>
-        <div class="gate"><strong>2 · Bind identity</strong>Repository, digest, schema and embedding model<span class="reject">Metadata mismatch → abort</span></div>
-        <div class="gate"><strong>3 · Prepare data</strong>Parse and embed before database mutation<span class="reject">Parse/embed failure → prior data untouched</span></div>
-        <div class="gate publish"><strong>4 · Replace before cleanup</strong>Write new records before stale removal<span class="reject">Reduces empty-index window</span></div>
-        <div class="gate publish"><strong>5 · Rotate cache</strong>New generation creates a new namespace<span class="reject">Stale answers cannot cross runs</span></div>
+        <div class="gate"><strong>1 · Check the input</strong>Python repository + local Ollama only<span class="reject">Java or remote provider → reject</span></div>
+        <div class="gate"><strong>2 · Check the source</strong>Repository, digest, schema and embedding model<span class="reject">Different metadata → stop</span></div>
+        <div class="gate"><strong>3 · Prepare first</strong>Parse and embed before changing the database<span class="reject">Failure → keep old data</span></div>
+        <div class="gate publish"><strong>4 · Write before cleanup</strong>Write new records before removing old ones<span class="reject">Less time with an empty index</span></div>
+        <div class="gate publish"><strong>5 · Start a new cache</strong>New index gets a new cache name<span class="reject">Old answers cannot cross runs</span></div>
       </div>
-      <div class="callout">These gates protect both the demo index and the confirmatory benchmark; they do not expand the evidence boundary.</div>
-      <p class="small"><strong>Concrete contracts:</strong> Java input → explicit rejection · provenance mismatch → evaluation abort · parse/embed failure → prior records remain untouched.</p>
-      <aside class="notes"><strong>Transcript:</strong> Reliability means that unsupported states fail visibly at their boundaries. The system rejects unsupported Java input and non-local generation providers. It verifies repository and index identity before retrieval or evaluation. Parsing and embedding happen before database mutation, and replacement writes new records before stale cleanup, which reduces an empty-index window. This is not a reader-isolated atomic cutover. Finally, the cache generation changes with the index, preventing an answer from an older snapshot from appearing current.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
+      <div class="callout">These checks protect both the demo and the main test. They do not create new evidence.</div>
+      <p class="small"><strong>Concrete checks:</strong> Java input → reject · source mismatch → stop the test · parse/embed failure → keep the old records.</p>
+      <aside class="notes"><strong>Transcript:</strong> The system stops when something is not safe to use. It rejects Java and remote model providers. It checks that the code and both indexes belong together. It reads and embeds the code before changing the database. It writes the new data before removing the old data, which reduces the empty-index period, but it is not a fully live switch. A new cache name keeps old answers away from the new index.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Experimental design · 09 / 15</div>
-      <h2>The confirmatory workload preserves pairing from question to conclusion.</h2>
-      <div class="running-case"><span class="running-case-label">Confirmatory workload</span><code>LlamaIndex Core · 30 questions</code><span class="stage">paired modes → paired inference</span></div>
+      <div class="kicker">How we tested it · 09 / 15</div>
+      <h2>We compare the same question in both modes.</h2>
+      <div class="running-case"><span class="running-case-label">Test set</span><code>LlamaIndex Core · 30 questions</code><span class="stage">two modes → compare each question</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
         <title id="experiment-title">Paired answer-quality experiment</title>
         <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
         <defs>
           <marker id="experiment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
-        <text x="36" y="20" class="svg-route">RAW WORKLOAD</text>
+        <text x="36" y="20" class="svg-route">THE TEST SET</text>
         <path d="M236 77 H286" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M486 77 H536" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M736 77 H786" class="svg-edge" marker-end="url(#experiment-arrow)" />
         <rect x="36" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="58" y="69" class="svg-title">30 questions</text><text x="58" y="91" class="svg-subtitle">10 simple · 10 medium · 10 hard</text>
         <rect x="286" y="40" width="200" height="74" rx="5" class="svg-store vector" /><text x="308" y="69" class="svg-title">2 modes</text><text x="308" y="91" class="svg-subtitle">vector · hybrid</text>
-        <rect x="536" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="558" y="69" class="svg-title">3 repeats</text><text x="558" y="91" class="svg-subtitle">average within case</text>
-        <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 raw records</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, retained for audit</text>
+        <rect x="536" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="558" y="69" class="svg-title">3 repeats</text><text x="558" y="91" class="svg-subtitle">average each question</text>
+        <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 saved answers</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, kept for checking</text>
 
         <path d="M915 114 V140 H540 V164" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 paired question means</text><text x="424" y="212" class="svg-subtitle">average repeats before inference</text>
+        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 question averages</text><text x="424" y="212" class="svg-subtitle">one Hybrid − vector value each</text>
         <path d="M680 197 H740" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 paired bootstraps</text><text x="764" y="212" class="svg-subtitle">resample 30 pairs · seed 42</text>
+        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 resamples</text><text x="764" y="212" class="svg-subtitle">resample 30 questions · seed 42</text>
         <path d="M892 230 V268" class="svg-edge" marker-end="url(#experiment-arrow)" />
-        <rect x="740" y="268" width="304" height="34" rx="5" class="svg-process" /><text x="764" y="290" class="svg-route">PAIRED 95% CONFIDENCE INTERVAL</text>
+        <rect x="740" y="268" width="304" height="34" rx="5" class="svg-process" /><text x="764" y="290" class="svg-route">PAIRED 95% CONFIDENCE RANGE</text>
       </svg>
-      <p class="svg-caption">The raw-record count is 180; the inferential unit is 30 paired question differences.</p>
-      <p class="small">Answer model: <code>gemma4:12b</code> · independent judge: <code>qwen2.5-coder:7b</code> · embedding: <code>nomic-embed-text</code>.</p>
-      <div class="callout">180 raw records are retained, but the statistical unit is 30 independent question pairs—not 180 answers.</div>
-      <aside class="notes"><strong>Transcript:</strong> The confirmatory workload has thirty reviewed questions, split evenly across three difficulty levels. Each question runs in vector and hybrid mode three times, giving 180 raw records. For statistics, the repeats are averaged inside each question and mode. The bootstrap then resamples the thirty paired question differences ten thousand times with seed forty-two. This avoids pretending that repeated generations of the same question are independent evidence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
+      <p class="svg-caption">We save 180 answers, but the test uses 30 question-level differences.</p>
+      <p class="small">Model writing answers: <code>gemma4:12b</code> · model scoring answers: <code>qwen2.5-coder:7b</code> · text model: <code>nomic-embed-text</code>.</p>
+      <div class="callout">The test has 180 saved answers, but only 30 questions count as independent evidence.</div>
+      <aside class="notes"><strong>Transcript:</strong> The test has 30 reviewed questions: 10 simple, 10 medium and 10 hard. Each question runs in both modes three times, so we save 180 answers. We average the repeats for each question, compare Hybrid with vector-only, and resample the 30 question differences 10,000 times. This treats the question—not each repeated answer—as the unit of evidence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Answer quality results · 10 / 15</div>
-      <h2>All point estimates favor Hybrid—but the intervals tell the real story.</h2>
+      <div class="kicker">What the test found · 10 / 15</div>
+      <h2>Hybrid scores higher on average—but the ranges matter.</h2>
       <table class="metric-table">
-        <thead><tr><th>Metric</th><th>Vector mean</th><th>Hybrid mean</th><th>Hybrid − vector · 95% CI</th></tr></thead>
+        <thead><tr><th>Metric</th><th>Vector average</th><th>Hybrid average</th><th>Hybrid − vector · 95% range</th></tr></thead>
         <tbody>
           <tr><td>Faithfulness</td><td>0.896</td><td>0.924</td><td>+0.029 · [−0.069, 0.115]</td></tr>
           <tr><td>Answer Relevancy</td><td>0.729</td><td>0.808</td><td>+0.079 · [−0.0001, 0.175]</td></tr>
           <tr><td>Answer Correctness</td><td>0.652</td><td class="green">0.698</td><td class="green">+0.046 · [0.002, 0.094]</td></tr>
         </tbody>
       </table>
-      <div class="callout">Only Answer Correctness has a paired 95% interval entirely above zero.</div>
-      <aside class="notes"><strong>Transcript:</strong> Hybrid has a higher average on all three judged metrics. That is the point-estimate result. The confidence intervals change how strongly each difference can be stated. Faithfulness includes negative and positive values. Answer Relevancy is almost entirely positive but still touches zero. Only Answer Correctness has an interval fully above zero. These are automated judge scores, not literal percentages of objectively correct answers.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+      <div class="callout">Only Answer Correctness has a 95% range that stays above zero.</div>
+      <aside class="notes"><strong>Transcript:</strong> Hybrid has a higher average on all three metrics. But the 95% ranges tell us how much confidence to have. Faithfulness can still be slightly worse or much better. Relevancy is very close to zero at the lower end. Only Correctness stays above zero across the full range. These are scores from an automated judge, not a direct count of right answers.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Statistical interpretation · 11 / 15</div>
-      <h2>“Positive average” and “reliable improvement” are different claims.</h2>
+      <div class="kicker">How sure are we? · 11 / 15</div>
+      <h2>A higher average does not always mean a real improvement.</h2>
       <div class="three-col">
-        <div class="note-box"><div class="label">Inconclusive</div><h3>Faithfulness</h3><p>The data remain compatible with a small decrease or a larger increase.</p></div>
-        <div class="note-box"><div class="label">Borderline</div><h3>Relevancy</h3><p>The interval lower bound is −0.0001 after rounding: effectively at zero, but not above it.</p></div>
-        <div class="note-box"><div class="label">Supported here</div><h3>Correctness</h3><p>The full interval is positive for this pinned workload.</p></div>
+        <div class="note-box"><div class="label">Not clear</div><h3>Faithfulness</h3><p>The data still allow a small decrease or a larger increase.</p></div>
+        <div class="note-box"><div class="label">Almost clear</div><h3>Relevancy</h3><p>The lower end is −0.0001 after rounding: close to zero, but not above it.</p></div>
+        <div class="note-box"><div class="label">Supported here</div><h3>Correctness</h3><p>The full range is above zero for this test.</p></div>
       </div>
-      <div class="callout">This uncertainty is a property of the available evidence—not a software defect.</div>
-      <aside class="notes"><strong>Transcript:</strong> A positive mean says what happened on average in this sample. A confidence interval asks how stable that paired difference is under resampling of the questions. Faithfulness remains inconclusive. Relevancy is borderline because its lower bound is slightly negative. Correctness is the only metric whose full interval remains positive. This does not make the other features broken; it means more independent questions are needed before stronger claims are justified.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <div class="callout">This is a limit of the test evidence, not a software bug.</div>
+      <aside class="notes"><strong>Transcript:</strong> A higher average tells us what happened in this sample. The 95% range tells us how stable that difference is across the questions. Faithfulness is not clear. Relevancy is almost clear, but its lower end is just below zero. Correctness is the only result that stays above zero. More independent questions are needed for stronger claims.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Efficiency trade-off · 12 / 15</div>
-      <h2>Hybrid spends more retrieval time, while local generation dominates the response.</h2>
+      <div class="kicker">Time and token cost · 12 / 15</div>
+      <h2>Hybrid searches longer, but the model takes most of the time.</h2>
       <table class="metric-table">
-        <thead><tr><th>Case-level mean</th><th>Vector</th><th>Hybrid</th><th>Hybrid − vector · 95% CI</th></tr></thead>
+        <thead><tr><th>Average per question</th><th>Vector</th><th>Hybrid</th><th>Hybrid − vector · 95% range</th></tr></thead>
         <tbody>
           <tr><td>Retrieval latency</td><td>134 ms</td><td>371 ms</td><td class="orange">+237 · [208, 266] ms</td></tr>
           <tr><td>Generation latency</td><td>96.8 s</td><td>87.3 s</td><td>−9.5 · [−23.0, 1.4] s</td></tr>
@@ -560,103 +560,103 @@
           <tr><td>Completion tokens</td><td>934</td><td>834</td><td>−100 · [−259, 30]</td></tr>
         </tbody>
       </table>
-      <div class="callout">Retrieval overhead is supported; token and generation reductions are observations whose intervals include zero.</div>
-      <aside class="notes"><strong>Transcript:</strong> Hybrid retrieval adds 237 milliseconds on average, and its paired interval from 208 to 266 milliseconds is entirely positive. That overhead is supported by the data. Local generation still dominates at roughly 87 to 97 seconds per answer. Hybrid used fewer tokens and generated faster on average, but all three reduction intervals include zero, so I do not claim a proven cost or generation-speed improvement. No hosted API was used; the benchmark cost fields are null, and electricity and hardware cost were not measured.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+      <div class="callout">The extra search time is clear; the lower token and answer-time averages are not yet certain.</div>
+      <aside class="notes"><strong>Transcript:</strong> Hybrid adds 237 milliseconds of search time, and that increase is clear in the 95% range. The model still takes about 87 to 97 seconds to write an answer. Hybrid used fewer tokens and finished faster on average, but those ranges still include zero. So I do not claim a proven saving in tokens or answer time. No hosted API, energy use or hardware cost was measured.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Live demo · 13 / 15</div>
-      <h2>The demo exposes one claim, one mechanism and one failure boundary.</h2>
+      <h2>The demo shows the path, the evidence and one failure case.</h2>
       <div class="demo-sequence">
         <div class="demo-head">Step</div><div class="demo-head">Action</div><div class="demo-head">What the audience can verify</div>
         <div class="demo-number">01</div><div class="demo-action">Load the two-file <code>demo_checkout</code> corpus</div><div class="demo-proof"><code>checkout.py</code> and <code>payment.py</code> are indexed separately; no benchmark row is created</div>
-        <div class="demo-number">02</div><div class="demo-action">Ask one generic-local <code>Checkout.checkout</code> question</div><div class="demo-proof">Route is local; graph resolves <code>_validate</code>/<code>_total</code> and preserves call stubs</div>
-        <div class="demo-number">03</div><div class="demo-action">Inspect answer, <code>file_path</code>, <code>source</code> and <code>rrf_score</code></div><div class="demo-proof">Vector surfaces <code>payment.py</code>; ranking metadata is visible, not answer-quality evidence</div>
+        <div class="demo-number">02</div><div class="demo-action">Ask one local <code>Checkout.checkout</code> question</div><div class="demo-proof">The code map finds <code>_validate</code>/<code>_total</code> and keeps unclear calls as stubs</div>
+        <div class="demo-number">03</div><div class="demo-action">Show the answer, <code>file_path</code>, <code>source</code> and <code>rrf_score</code></div><div class="demo-proof">Vector surfaces <code>payment.py</code>; ranking metadata is visible, not answer-quality evidence</div>
       </div>
-      <div class="callout">One Checkout demo illustrates the mechanism; the LlamaIndex benchmark—not the demo—supports the aggregate claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> The live demo uses the two-file <code>demo_checkout</code> fixture. I ask exactly one generic-local question, then show the actual evidence fields together with the answer. The audience can see resolved same-class calls, explicit unresolved stubs, and vector context from <code>payment.py</code>. Any <code>rrf_score</code> is retrieval metadata; it is not correctness, faithfulness, relevancy or confidence-interval evidence. Java is kept as a backup failure path rather than part of the main demo. The Checkout example explains the mechanism; the LlamaIndex benchmark supports the broader measurement.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
+      <div class="callout">The Checkout demo shows how it works; the LlamaIndex test supports the measured claim.</div>
+      <aside class="notes"><strong>Transcript:</strong> In the demo, I use the two-file <code>demo_checkout</code> fixture and ask one local question. I show the answer, the source files, the clear calls and the calls that remain stubs. Text search can still show <code>payment.py</code>. <code>rrf_score</code> only shows result order; it is not a quality score. Java is a separate failure example. The demo explains how the system works; the LlamaIndex test gives the measured result.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Contribution · 14 / 15</div>
-      <h2>The contribution is a trustworthy code-retrieval system, not a new primitive.</h2>
+      <div class="kicker">What this thesis adds · 14 / 15</div>
+      <h2>This thesis combines known parts into a system we can check.</h2>
       <div class="two-col">
         <div class="line-list">
-          <p><strong>Retrieval integration:</strong> deterministic relation plans, concurrent local fusion, global community summaries and budgeted context.</p>
-          <p><strong>Codebase model:</strong> Python AST relations plus optional generic Markdown, YAML and Dockerfile evidence.</p>
-          <p><strong>Exploration:</strong> repository-scoped community graph and multi-repository 3D/2D portal.</p>
+          <p><strong>Search:</strong> fixed rules for link questions, two-list local search, folder summaries and size limits.</p>
+          <p><strong>Code map:</strong> Python code links plus optional Markdown, YAML and Dockerfile text.</p>
+          <p><strong>Exploration:</strong> one-repository code map and multi-repository 3D/2D portal.</p>
         </div>
         <div class="line-list">
-          <p><strong>System capability:</strong> provenance, replacement-before-cleanup indexing, cache generations, local-only enforcement and fail-closed language support.</p>
-          <p><strong>Engineering capability:</strong> bounded repository indexing, AST parsing and local embedding concurrency.</p>
-          <p><strong>Evaluation contribution:</strong> checked-in raw records, deterministic paired confidence intervals and explicit evidence limits.</p>
+          <p><strong>Safety:</strong> source tracking, write-new-before-delete-old updates, new cache names, local-only use and clear language limits.</p>
+          <p><strong>Engineering:</strong> index only the requested repository, read Python structure and create local embeddings in parallel.</p>
+          <p><strong>Testing:</strong> saved answers, repeatable 95% ranges and clear limits on what the results prove.</p>
         </div>
       </div>
-      <p class="small"><strong>Concrete anchor:</strong> the Checkout fixture demonstrates routing, graph/vector complementarity and unresolved-call preservation; the benchmark separately demonstrates measured quality and latency.</p>
+      <p class="small"><strong>Concrete anchor:</strong> the Checkout fixture shows path choice, code links, text search and unresolved calls; the benchmark separately measures quality and time.</p>
       <div class="callout">The contribution is integration and auditability; the experiment remains deliberately bounded.</div>
-      <aside class="notes"><strong>Transcript:</strong> The thesis does not claim to invent AST parsing, graph retrieval, vector search or RRF. Its contribution is the integrated, local and auditable system. It routes different question types differently, keeps graph and vector indexes tied to one source identity, adds directory communities and an exploration portal, and fails closed for unsupported languages. It also checks in the workload, raw records and deterministic uncertainty analysis so the reported result can be reproduced and challenged.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; repository implementation and evaluation artifacts</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> The thesis does not claim to invent code maps, text search or RRF. The contribution is putting these parts together in one local system that people can check. Different question types use different paths. The system keeps the code, indexes and cache tied together, supports folder summaries and shows clear failure cases. The test files and saved answers make the result easier to repeat and question.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; repository implementation and evaluation artifacts</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Conclusion · 15 / 15</div>
-      <h2>Hybrid improves answer correctness here—at a measured retrieval cost.</h2>
+      <div class="kicker">Take-home message · 15 / 15</div>
+      <h2>On this test, Hybrid improves correctness but searches longer.</h2>
       <div class="two-col">
         <div class="line-list">
-          <p><strong>Quality:</strong> correctness Δ +0.046 with 95% CI [0.002, 0.094].</p>
-          <p><strong>Cost:</strong> retrieval Δ +237 ms with 95% CI [208, 266] ms.</p>
-          <p><strong>Uncertain:</strong> faithfulness, relevancy, generation latency and token reductions.</p>
+          <p><strong>Answer quality:</strong> correctness Δ +0.046 with 95% range [0.002, 0.094].</p>
+          <p><strong>Search time:</strong> Δ +237 ms with 95% range [208, 266] ms.</p>
+          <p><strong>Still unclear:</strong> faithfulness, relevancy, answer time and token reductions.</p>
         </div>
         <div class="line-list">
-          <p><strong>Trust boundary:</strong> one pinned Python repository, vector-only baseline, AI-reviewed references.</p>
-          <p><strong>Next validation:</strong> human review, more independent questions, larger Transformers/LangChain workloads and additional baselines.</p>
+          <p><strong>This covers:</strong> one fixed Python repository, vector-only comparison and AI-reviewed references.</p>
+          <p><strong>Next:</strong> human review, more independent questions, larger Transformers/LangChain tests and more baselines.</p>
         </div>
       </div>
-      <div class="callout">The proven claim is precise; broader generalization remains future work.</div>
-      <aside class="notes"><strong>Transcript:</strong> The strongest result is precise: on this paired LlamaIndex workload, hybrid retrieval improves judged answer correctness by 0.046, with a confidence interval that remains above zero. The measured price is 237 milliseconds of additional retrieval time. Other positive averages are not yet conclusive. The system contribution is broader than this one experiment, but its generality still needs human review, more questions, more repositories and stronger baselines.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <div class="callout">The result is narrow and clear; broader claims need more tests.</div>
+      <aside class="notes"><strong>Transcript:</strong> The main result is narrow and clear. On these LlamaIndex questions, Hybrid raises judged Correctness by 0.046, and the 95% range stays above zero. The measured cost is 237 milliseconds of extra search time. The other positive averages are not yet certain. More human review, questions, repositories and comparison systems are still needed.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Routing decisions">
-      <div class="kicker">Core 05 → Routing · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 05 claim:</strong> one indexed source supports exact-relation, generic-local and global paths. <strong>This detail:</strong> query signals select the path before retrieval begins.</div>
-      <h2>Routing selects the retrieval path before stores are queried.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Pick a path">
+      <div class="kicker">Core 05 → Pick a path · detail · 1 / 2</div>
+      <div class="detail-bridge"><strong>Core 05:</strong> one codebase has three search paths. <strong>Here:</strong> the question picks one before search starts.</div>
+      <h2>The question picks the path before search starts.</h2>
       <table class="metric-table">
-        <thead><tr><th>Question signal</th><th>Primary path</th><th>Fallback</th></tr></thead>
+        <thead><tr><th>Question type</th><th>Main path</th><th>If that fails</th></tr></thead>
         <tbody>
-          <tr><td>Supported relation + entity<span class="signal-note">A regex detects a supported relation phrase—such as imports, calls, inherits, or defines—and extracts a code identifier such as Checkout or checkout().</span></td><td>Deterministic graph plan</td><td>Vector only if no relation target</td></tr>
-          <tr><td>Generic local behavior<span class="signal-note">When no global or supported-relation pattern is detected, the query is treated as a local behavior question; graph and vector retrieval run in parallel.</span></td><td>Concurrent graph + vector</td><td>Weighted RRF</td></tr>
-          <tr><td>Architecture / repository-wide<span class="signal-note">A global-intent regex detects terms such as architecture, overview, or dependency flow, then routes the query to directory/community summaries.</span></td><td>Community summaries</td><td>Generic retrieval if unavailable</td></tr>
+          <tr><td>Clear link + code name<span class="signal-note">A simple pattern looks for words such as imports, calls, inherits or defines, then finds a code name such as Checkout or checkout().</span></td><td>Fixed code-map search</td><td>Text search if no target</td></tr>
+          <tr><td>Local behavior<span class="signal-note">If no whole-codebase or clear-link pattern is found, the question is treated as a local behavior question; both searches run together.</span></td><td>Code map + text search</td><td>Combine the two lists</td></tr>
+          <tr><td>Whole-codebase question<span class="signal-note">Words such as architecture, overview or dependency flow send the question to folder summaries.</span></td><td>Folder summaries</td><td>Local search if missing</td></tr>
         </tbody>
       </table>
       <p class="small"><strong>Concrete trace:</strong> “What sequence does <code>Checkout.checkout</code> follow?” → <code>local</code>, no graph plan → concurrent graph + vector retrieval → RRF context.</p>
-      <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is an evaluation mode, not a fourth query route; it disables graph contribution on the same questions.</p>
-      <div class="callout">Demo routing only: the Checkout question selects generic-local; exact-relation and global/community are the three sibling paths from Core 05. This fixture is not benchmark evidence.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 05 established three query-aware paths. This detail shows the decision that selects one before the stores are queried. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. The Checkout sequence question is generic local, so graph and vector retrieval run concurrently. A global question reads repository-scoped community summaries. Vector-only mode is an evaluation flag that disables graph contribution for the paired baseline. The Checkout route is only a demo trace; it is not sent to the answer-quality benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is only the comparison setting; it turns off the code map on the same questions.</p>
+      <div class="callout">Demo route only: the Checkout question uses local search. The other paths are clear-link search and whole-codebase search. This fixture is not benchmark evidence.</div>
+      <aside class="notes"><strong>Transcript:</strong> The question checker chooses one of three paths. A clear link question uses the code map. The Checkout sequence question has no clear link or whole-codebase signal, so it uses both the code map and text search. A whole-codebase question uses folder summaries. The vector-only setting is only the comparison mode; it turns off the code map. This Checkout route is a demo, not benchmark evidence.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Global communities">
-      <div class="kicker">Core 05 → Global route · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 05 claim:</strong> the query analyzer chooses among three retrieval paths. <strong>This detail:</strong> explains the repository-wide branch for architecture questions.</div>
-      <h2>The third route answers repository-wide questions with directory communities.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">
+      <div class="kicker">Core 05 → Whole-repo search · detail · 2 / 2</div>
+      <div class="detail-bridge"><strong>Core 05:</strong> the question picks one of three paths. <strong>Here:</strong> we show the path for whole-repository questions.</div>
+      <h2>Whole-repository questions use folder summaries.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 190" role="img" tabindex="0" aria-labelledby="community-title community-desc">
         <title id="community-title">Directory-based community summaries</title>
-        <desc id="community-desc">Repository-scoped code nodes are grouped by directory, summarized locally, and used for global retrieval.</desc>
+        <desc id="community-desc">Code items from one repository are grouped by folder, summarized locally, and used for whole-codebase search.</desc>
         <defs><marker id="community-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
         <path d="M236 88 H286" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M486 88 H536" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M736 88 H786" class="svg-edge" marker-end="url(#community-arrow)" />
-        <rect x="36" y="51" width="200" height="74" rx="5" class="svg-source" /><text x="58" y="80" class="svg-title">Code nodes</text><text x="58" y="102" class="svg-subtitle">repository scoped</text>
-        <rect x="286" y="51" width="200" height="74" rx="5" class="svg-process" /><text x="308" y="80" class="svg-title">Directory groups</text><text x="308" y="102" class="svg-subtitle">deterministic partition</text>
-        <rect x="536" y="51" width="200" height="74" rx="5" class="svg-evidence" /><text x="558" y="80" class="svg-title">Local summaries</text><text x="558" y="102" class="svg-subtitle">Ollama architectural report</text>
-        <rect x="786" y="51" width="258" height="74" rx="5" class="svg-merge" /><text x="808" y="80" class="svg-title">Global retrieval</text><text x="808" y="102" class="svg-subtitle">community context</text>
-        <text x="286" y="151" class="svg-edge-label">repository + directory define identity</text>
+        <rect x="36" y="51" width="200" height="74" rx="5" class="svg-source" /><text x="58" y="80" class="svg-title">Code items</text><text x="58" y="102" class="svg-subtitle">from one repository</text>
+        <rect x="286" y="51" width="200" height="74" rx="5" class="svg-process" /><text x="308" y="80" class="svg-title">Folder groups</text><text x="308" y="102" class="svg-subtitle">same folder, one group</text>
+        <rect x="536" y="51" width="200" height="74" rx="5" class="svg-evidence" /><text x="558" y="80" class="svg-title">Folder summaries</text><text x="558" y="102" class="svg-subtitle">written by Ollama</text>
+        <rect x="786" y="51" width="258" height="74" rx="5" class="svg-merge" /><text x="808" y="80" class="svg-title">Whole-codebase search</text><text x="808" y="102" class="svg-subtitle">summary text</text>
+        <text x="286" y="151" class="svg-edge-label">repository + folder set the group</text>
       </svg>
       <p class="svg-caption">Community identity follows repository and directory; the implementation does not use Louvain clustering.</p>
-      <div class="callout">This is Core 05's global branch—not a fourth retrieval system or a Louvain/GraphRAG implementation. The Checkout fixture does not exercise this path.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 05's third path is for questions such as “What is the repository architecture?” Low-level call and import edges are useful for local questions but do not directly summarize architecture. The community builder groups nodes by repository and directory, generates a local summary with Ollama, and persists membership and dependency edges. Global retrieval reads those summaries. The partition is deterministic and directory-based; this is not Louvain clustering or an executed Microsoft GraphRAG comparison.<br><br><span class="small">[Sources] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <div class="callout">This is the whole-codebase path. It groups code by folder; it is not Louvain or Microsoft GraphRAG. The Checkout fixture does not use this path.</div>
+      <aside class="notes"><strong>Transcript:</strong> This path is for questions such as “What is the repository architecture?” The system groups code by folder, asks Ollama to write a short folder summary, and uses those summaries for whole-codebase questions. This is a simple folder grouping, not Louvain clustering and not a Microsoft GraphRAG test. The Checkout fixture does not use this path.<br><br><span class="small">[Sources] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="Graph schema">
-      <div class="kicker">Core 06 → Graph schema · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 06 claim:</strong> one function becomes graph structure plus vector meaning. <strong>This detail:</strong> defines the structural facts the graph can expose.</div>
-      <h2>The graph makes ownership and dependency facts explicit.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="What the code map contains">
+      <div class="kicker">Core 06 → What the code map contains · detail · 1 / 2</div>
+      <div class="detail-bridge"><strong>Core 06:</strong> one function is seen as links and text. <strong>Here:</strong> we show the links found in the fixture.</div>
+      <h2>The code map shows which file contains what and who calls whom.</h2>
       <div class="schema-map">
         <div class="schema-tree">
           <div class="label">Observed ownership</div>
@@ -675,170 +675,170 @@
       </div>
       <div class="two-col">
         <div class="note-box"><div class="label">Demo graph output</div><p><code>DEFINES</code> gives <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>; <code>CALLS</code> resolves <code>_validate</code>/<code>_total</code> but keeps <code>charge</code> unresolved.</p></div>
-        <div class="note-box"><div class="label">Demo vector output</div><p>The <code>checkout()</code> chunk contains <code>payment.charge</code>, so semantic retrieval can surface <code>payment.py</code> even without a resolved call edge.</p></div>
+        <div class="note-box"><div class="label">Demo text-search output</div><p>The <code>checkout()</code> chunk contains <code>payment.charge</code>, so text search can surface <code>payment.py</code> even without a linked call.</p></div>
       </div>
       <div class="callout">Observed fixture output: graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code> as a stub; no answer-quality score is computed from this fixture.</div>
-      <aside class="notes"><strong>Transcript:</strong> This detail replaces the abstract schema with the fixture's actual result. The ownership chain is <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. The parser records an import from <code>checkout.py</code> to <code>payment.py</code>, and same-class calls to <code>_validate</code> and <code>_total</code>. The payment call is retained as <code>__call__charge</code>, not silently linked to <code>PaymentGateway.charge</code>. Vector retrieval still helps because the source chunk contains <code>payment.charge</code>. These are structural and semantic evidence; they do not by themselves prove runtime order.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+      <aside class="notes"><strong>Transcript:</strong> Here is the real output from the two-file fixture. The code map shows <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. It records the import to <code>payment.py</code>, and it links <code>_validate</code> and <code>_total</code>. It keeps <code>charge</code> as <code>__call__charge</code> because the target is not clear. Text search can still find <code>payment.py</code>. These links do not prove the run order; the source text gives us that order.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="Entity resolution">
-      <div class="kicker">Core 06 → Entity resolution · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 06 claim:</strong> graph evidence must remain auditable. <strong>This detail:</strong> shows when a call edge is linked and when uncertainty is preserved.</div>
-      <h2>A call target is linked only when the match is uniquely defensible.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="When a call can be linked">
+      <div class="kicker">Core 06 → When a call can be linked · detail · 2 / 2</div>
+      <div class="detail-bridge"><strong>Core 06:</strong> code links must be checkable. <strong>Here:</strong> we show which calls link and which stay open.</div>
+      <h2>We link a call only when the target is clear.</h2>
       <table class="metric-table">
         <thead><tr><th>Call in fixture</th><th>Resolver evidence</th><th>Observed output</th></tr></thead>
         <tbody>
           <tr><td><code>self._validate(...)</code></td><td>same class</td><td><code>CALLS → Checkout._validate</code></td></tr>
           <tr><td><code>self._total(...)</code></td><td>same class</td><td><code>CALLS → Checkout._total</code></td></tr>
-          <tr><td><code>self.payment.charge(...)</code></td><td>receiver not uniquely resolved</td><td>keep stub <code>__call__charge</code></td></tr>
-          <tr><td><code>self.log.start()</code> / <code>.end()</code></td><td>logger target absent</td><td>keep stubs <code>__call__start/end</code></td></tr>
+          <tr><td><code>self.payment.charge(...)</code></td><td>target is not clear</td><td>keep stub <code>__call__charge</code></td></tr>
+          <tr><td><code>self.log.start()</code> / <code>.end()</code></td><td>logger code is missing</td><td>keep stubs <code>__call__start/end</code></td></tr>
           <tr><td><code>PaymentGateway.charge()</code></td><td>same class</td><td><code>CALLS → _authorize, _capture</code></td></tr>
         </tbody>
       </table>
       <p class="svg-caption">The resolver links only uniquely defensible targets; uncertainty remains visible for later audit.</p>
-      <div class="callout">Observed fixture result: <code>_validate</code> and <code>_total</code> resolve; <code>charge</code>, <code>start</code> and <code>end</code> remain stubs; vector retrieval still surfaces <code>payment.py</code>.</div>
-      <aside class="notes"><strong>Transcript:</strong> This table shows the actual resolver output for the fixture, rather than a generic widening pipeline. Same-class calls resolve to <code>Checkout._validate</code> and <code>Checkout._total</code>. The receiver-qualified <code>self.payment.charge</code> call is not silently linked to <code>PaymentGateway.charge</code> when the target is not uniquely resolvable. The logger calls remain stubs because the logger target is absent. Inside the real <code>PaymentGateway.charge</code> method, same-class calls to <code>_authorize</code> and <code>_capture</code> do resolve. Vector retrieval can still locate the payment implementation from source text. This is conservative evidence, not a missing answer hidden by a guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
+      <div class="callout">Observed fixture result: <code>_validate</code> and <code>_total</code> link; <code>charge</code>, <code>start</code> and <code>end</code> stay as stubs; text search still surfaces <code>payment.py</code>.</div>
+      <aside class="notes"><strong>Transcript:</strong> This table shows what the resolver actually does. It links the two calls inside <code>Checkout</code>. It does not guess that <code>self.payment.charge</code> means <code>PaymentGateway.charge</code>, so that call stays a stub. The logger calls also stay stubs because the logger code is not in the fixture. Inside <code>PaymentGateway.charge</code>, the calls to <code>_authorize</code> and <code>_capture</code> are clear and do link. Keeping unclear calls visible is safer than making a hidden guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="RRF mechanism">
-      <div class="kicker">Core 07 → RRF mechanism · detail · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 07 claim:</strong> generic-local retrieval fuses graph and vector candidates before context assembly. <strong>This detail:</strong> shows the rank calculation and route-specific weights.</div>
-      <h2>RRF is the fusion step—not a calibrated graph/vector score.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="Combine the two lists">
+      <div class="kicker">Core 07 → Combine the two lists · detail · 1 / 1</div>
+      <div class="detail-bridge"><strong>Core 07:</strong> two result lists become one answer context. <strong>Here:</strong> we show how RRF combines their positions.</div>
+      <h2>RRF combines list positions, not answer quality.</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <div class="three-col">
-        <div class="note-box"><div class="label">Exact relation</div><p>Graph-only fusion uses configured graph weight 3.0 after a relation target is found.</p></div>
-        <div class="note-box"><div class="label">Generic local</div><p>Graph contribution is capped at 1.0; vector weight is 1.0.</p></div>
-          <div class="note-box"><div class="label">Vector baseline</div><p>Weights are (0, 1). Legacy <code>hybrid_weight</code> is retained but unused.</p></div>
+        <div class="note-box"><div class="label">Clear link question</div><p>Use the code map alone with weight 3.0 after a target is found.</p></div>
+        <div class="note-box"><div class="label">Local question</div><p>Code-map weight is up to 1.0; text-search weight is 1.0.</p></div>
+          <div class="note-box"><div class="label">Text-only comparison</div><p>Weights are (0, 1). The old <code>hybrid_weight</code> setting is not used.</p></div>
       </div>
-      <div class="callout">Demo-only trace: resolved <code>_validate</code>/<code>_total</code>, unresolved <code>__call__charge</code> and vector-located <code>payment.py</code> become context candidates. <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07, grounded in the fixture output. The graph contributes the resolved <code>_validate</code> and <code>_total</code> nodes while preserving <code>__call__charge</code> as a stub. Vector retrieval contributes the payment source context, including <code>payment.py</code> and <code>PaymentGateway.charge</code>. RRF combines rank positions with smoothing constant sixty, deduplicates by base node and keeps the top five items for answer context. Exact numeric ranks should be read from a captured API response; this diagram is a mechanism trace, not a benchmark result. Any <code>rrf_score</code> shown here is retrieval metadata only. The fixture is not sent to the answer-quality benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <div class="callout">Demo only: <code>_validate</code>/<code>_total</code>, unclear <code>__call__charge</code> and <code>payment.py</code> can all reach the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
+      <aside class="notes"><strong>Transcript:</strong> This is the same combining step, now tied to the fixture. The code map gives the clear calls and keeps <code>__call__charge</code> as a stub. Text search adds the payment source. RRF uses each list's position, removes duplicates and keeps the best five pieces of code. The exact ranks should come from the live API response. This diagram explains the method; it is not a benchmark result. <code>rrf_score</code> only shows result order.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="Index lifecycle">
-      <div class="kicker">Core 08 → Index lifecycle · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 08 claim:</strong> unsupported states fail at boundaries and replacement reduces index gaps. <strong>This detail:</strong> separates the write lifecycle from the preflight gate.</div>
-      <h2>The index lifecycle protects provenance before evaluation begins.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
+      <div class="kicker">Core 08 → How index updates work · detail · 1 / 2</div>
+      <div class="detail-bridge"><strong>Core 08:</strong> bad states stop early and updates reduce empty-index time. <strong>Here:</strong> we show the update order and the final check.</div>
+      <h2>Safety checks happen before we trust a new index.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
-        <title id="provenance-title">Evaluation provenance gates</title>
-        <desc id="provenance-desc">Source identity and index metadata pass through preflight before evaluation, or stop at an explicit abort branch.</desc>
+        <title id="provenance-title">Final checks before the test</title>
+        <desc id="provenance-desc">The code version and index details are checked before the test, or the run stops.</desc>
         <defs><marker id="provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
         <path d="M196 76 H226" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M396 76 H426" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M596 76 H626" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M796 76 H826" class="svg-edge graph" marker-end="url(#provenance-arrow)" />
-        <rect x="36" y="39" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="68" class="svg-title">Source artifact</text><text x="56" y="90" class="svg-subtitle">version + wheel hash</text>
-        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title">Source digest</text><text x="246" y="90" class="svg-subtitle">content identity</text>
-        <rect x="426" y="39" width="170" height="74" rx="5" class="svg-store graph" /><text x="446" y="68" class="svg-title">Index run</text><text x="446" y="90" class="svg-subtitle">graph + vector metadata</text>
-        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Preflight</text><text x="646" y="90" class="svg-subtitle">schema + model match</text>
-        <rect x="826" y="39" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="68" class="svg-title">Evaluation</text><text x="846" y="90" class="svg-subtitle">measure or report</text>
-        <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">MISMATCH → EXPLICIT ABORT</text>
+        <rect x="36" y="39" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="68" class="svg-title">Source files</text><text x="56" y="90" class="svg-subtitle">version + file hash</text>
+        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title">Source fingerprint</text><text x="246" y="90" class="svg-subtitle">same code check</text>
+        <rect x="426" y="39" width="170" height="74" rx="5" class="svg-store graph" /><text x="446" y="68" class="svg-title">New index</text><text x="446" y="90" class="svg-subtitle">code map + text data</text>
+        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Final check</text><text x="646" y="90" class="svg-subtitle">schema + model match</text>
+        <rect x="826" y="39" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="68" class="svg-title">Run the test</text><text x="846" y="90" class="svg-subtitle">measure or report</text>
+        <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">DIFFERENT → STOP</text>
       </svg>
-      <p class="svg-caption">Preflight is a gate: mixed or stale graph/vector evidence cannot become a benchmark result.</p>
+      <p class="svg-caption">The final check stops mixed or old code from becoming a test result.</p>
       <div class="flow">
-        <div class="node">Parse + embed<span>before mutation</span></div>
+        <div class="node">Read + embed<span>before changes</span></div>
         <div class="arrow">→</div>
-        <div class="node">Write new run<span>new records first</span></div>
+        <div class="node">Write new data<span>new records first</span></div>
         <div class="arrow">→</div>
-        <div class="node">Remove stale<span>old records after publish</span></div>
+        <div class="node">Remove old data<span>after publish</span></div>
         <div class="arrow">→</div>
-        <div class="node">Rotate cache<span>new generation</span></div>
+        <div class="node">Start a new cache<span>new name</span></div>
         <div class="arrow">→</div>
-        <div class="node">Preflight<span>then evaluate</span></div>
+        <div class="node">Final check<span>then test</span></div>
       </div>
-      <div class="callout">Replacement reduces the empty-index window; provenance preflight is the separate gate that prevents mixed runs from becoming measurements.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 08 contains two related but different protections. During indexing, parsing and embedding happen before mutation; the pipeline writes the new records before removing stale records, then rotates the cache generation. That ordering reduces the empty-index window but is not a reader-isolated cutover. Before evaluation, the source package and its hash define the input, while the index run records repository, digest, schema and embedding model for both stores. Preflight compares those values with the expected workload metadata. If they disagree, evaluation stops instead of producing numbers from mixed or stale indexes.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
+      <div class="callout">Write the new data first to reduce empty-index time; the final check stops mixed runs from becoming measurements.</div>
+      <aside class="notes"><strong>Transcript:</strong> There are two protections here. First, the system reads and embeds the code before changing the database. It writes the new data, removes the old data, then starts a new cache name. This reduces the empty-index period, but it is not a live switch for every reader. Second, before the test, the system checks the code version, source hash, schema and model for both stores. If any value is different, the test stops.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Source identity">
-      <div class="kicker">Core 09 → Source identity · detail · 1 / 3</div>
-      <div class="detail-bridge"><strong>Core 09 claim:</strong> the confirmatory workload preserves pairing from question to conclusion. <strong>This detail:</strong> fixes the source and index identity shared by both modes.</div>
-      <h2>Source identity is the pairing anchor for the confirmatory workload.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Same code for both modes">
+      <div class="kicker">Core 09 → Same code for both modes · detail · 1 / 3</div>
+      <div class="detail-bridge"><strong>Core 09:</strong> both modes must answer the same questions. <strong>Here:</strong> we show how we check that they use the same code.</div>
+      <h2>Both modes must use the same code snapshot.</h2>
       <div class="line-list">
-        <p><strong>Package:</strong> <code>llama-index-core==0.14.21</code></p>
-        <p><strong>Wheel SHA256:</strong> <code>4a807d31…cad42</code></p>
-        <p><strong>Extracted source identity:</strong> <code>sha256:13b55bcf…509</code></p>
-        <p><strong>Index:</strong> schema 3 · <code>nomic-embed-text</code> · run <code>9ca6e68a…af5</code></p>
+        <p><strong>Code package:</strong> <code>llama-index-core==0.14.21</code></p>
+        <p><strong>Package hash:</strong> <code>4a807d31…cad42</code></p>
+        <p><strong>Extracted code hash:</strong> <code>sha256:13b55bcf…509</code></p>
+        <p><strong>Index details:</strong> schema 3 · <code>nomic-embed-text</code> · run <code>9ca6e68a…af5</code></p>
       </div>
-      <div class="callout">Same questions are only a paired comparison when source identity and both index stores match.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 09 needs more than a list of thirty questions: both modes must answer the same source snapshot with the same index identity. The workload is tied to a specific LlamaIndex Core wheel and extracted source digest. The result also records the graph schema, embedding model and index-run identifier. These values make the experiment auditable and prevent a later source version or a mismatched graph and vector index from being treated as the same paired run.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+      <div class="callout">The comparison is fair only when both modes use the same code and the same index data.</div>
+      <aside class="notes"><strong>Transcript:</strong> Both modes must answer the same code questions using the same code snapshot. We save the package version, its hashes, the index schema, the text model and the index run name. These checks stop a later code version or a mismatched index from being treated as the same test.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="Evidence credibility">
-      <div class="kicker">Core 09 → Evidence credibility · detail · 2 / 3</div>
-      <div class="detail-bridge"><strong>Core 09 claim:</strong> the workload supports an auditable paired inference. <strong>This detail:</strong> states what is controlled and what remains a limitation.</div>
-      <h2>The evidence is auditable, but not independently human-adjudicated.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="What the test can prove">
+      <div class="kicker">Core 09 → What the test can prove · detail · 2 / 3</div>
+      <div class="detail-bridge"><strong>Core 09:</strong> the test compares paired answers. <strong>Here:</strong> we show what is controlled and what is still a limit.</div>
+      <h2>The test can be checked, but independent humans did not review it.</h2>
       <table class="metric-table">
-        <thead><tr><th>Control</th><th>Implemented evidence</th><th>Remaining limitation</th></tr></thead>
+        <thead><tr><th>What we fixed</th><th>What we did</th><th>What is still missing</th></tr></thead>
         <tbody>
           <tr><td>Question set</td><td>30 fixed cases with difficulty labels</td><td>One repository</td></tr>
-          <tr><td>References</td><td>Answers checked against pinned source</td><td>Reviewer was Codex</td></tr>
-          <tr><td>Judge</td><td><code>qwen2.5-coder:7b</code>, separate from answer model</td><td>Still automated evaluation</td></tr>
-          <tr><td>Retrieval evidence</td><td>All 180 records have source hit 1.0</td><td>Source hit alone does not guarantee a correct answer</td></tr>
+          <tr><td>Reference answers</td><td>Answers checked against fixed source</td><td>Reviewer was Codex</td></tr>
+          <tr><td>Scoring model</td><td><code>qwen2.5-coder:7b</code>, separate from answer model</td><td>Still automated scoring</td></tr>
+          <tr><td>Source check</td><td>All 180 answers point to a source</td><td>A source hit does not guarantee a correct answer</td></tr>
         </tbody>
       </table>
-      <div class="callout">This bounds Core 09: controlled local evidence, not independent human accuracy.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 09 establishes the evidence boundary behind the confidence intervals. Each question has a fixed reference answer and expected source files tied to the pinned artifact. A separate local model judges the answer, and all 180 records have valid scores and a source hit. The important limitation is that Codex performed the source review; there was no independent human adjudication. The result is therefore auditable automated evidence, not a human-measured production accuracy rate.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+      <div class="callout">This is controlled local evidence, not an independent human accuracy test.</div>
+      <aside class="notes"><strong>Transcript:</strong> Each question has a fixed reference answer and expected source files. A separate local model scores the answers, and all 180 records have scores and a source hit. But Codex checked the references, not an independent group of people. So this is a repeatable automated test, not a human accuracy rate from production.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="Paired bootstrap">
-      <div class="kicker">Core 09 → Paired bootstrap · detail · 3 / 3</div>
-      <div class="detail-bridge"><strong>Core 09 claim:</strong> paired questions carry the conclusion into the confidence interval. <strong>This detail:</strong> shows exactly what is averaged and resampled.</div>
-      <h2>Paired bootstrap turns the Core 09 workload into confidence intervals.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="How we build the 95% range">
+      <div class="kicker">Core 09 → How we build the 95% range · detail · 3 / 3</div>
+      <div class="detail-bridge"><strong>Core 09:</strong> each question stays paired. <strong>Here:</strong> we show what we average and repeat.</div>
+      <h2>We build the 95% range from 30 question differences.</h2>
       <div class="steps">
-        <div class="step">For each case and mode, average the three repeated generations.</div>
-        <div class="step">Compute Hybrid minus vector for the same thirty questions.</div>
-        <div class="step">Sample thirty question indexes with replacement, 10,000 times.</div>
-        <div class="step">Report the 2.5th and 97.5th percentiles as the paired 95% interval.</div>
+        <div class="step">For each question and mode, average the three answers.</div>
+        <div class="step">Compute Hybrid minus vector for the same 30 questions.</div>
+        <div class="step">Resample the 30 questions, with replacement, 10,000 times.</div>
+        <div class="step">Use the 2.5th and 97.5th percentiles as the 95% range.</div>
       </div>
-      <div class="callout">30 questions → 3 repeats → 30 paired means → 10,000 resamples; seed 42 makes the checked-in analysis reproducible.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the statistical expansion of the final flow on Core 09: thirty questions are run three times per mode, the repeats are averaged into thirty paired means, and those paired cases are resampled ten thousand times. The analysis computes Hybrid minus vector for each question, then takes the 2.5th and 97.5th percentiles of the bootstrap means. The three generations of one question are repeated measurements, not three independent questions. Seed forty-two makes the output deterministic. The interval therefore expresses uncertainty across paired questions, not uncertainty from pretending repeated generations are independent samples.<br><br><span class="small">[Source] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
+      <div class="callout">30 questions → 3 repeats → 30 differences → 10,000 resamples; seed 42 gives the same result each time.</div>
+      <aside class="notes"><strong>Transcript:</strong> We run each of the 30 questions three times in both modes. We average the repeats, subtract vector-only from Hybrid for each question, and resample those 30 differences 10,000 times. We use the middle 95% of those results as the range. The three answers to one question are repeats, not three separate questions. Seed 42 makes the calculation repeatable.<br><br><span class="small">[Source] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="Defect controls">
-      <div class="kicker">Core 08 → Defect controls · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 08 claim:</strong> unsupported states fail visibly. <strong>This detail:</strong> maps each boundary to an observable control and expected behavior.</div>
-      <h2>Each Core 08 gate becomes an observable failure contract.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="What happens when something goes wrong">
+      <div class="kicker">Core 08 → What happens when something goes wrong · detail · 2 / 2</div>
+      <div class="detail-bridge"><strong>Core 08:</strong> bad states stop visibly. <strong>Here:</strong> each check has a clear failure result.</div>
+      <h2>Each safety check has a clear failure result.</h2>
       <table class="metric-table">
-        <thead><tr><th>Failure mode</th><th>Control</th><th>Expected behavior</th></tr></thead>
+        <thead><tr><th>If this happens</th><th>What checks it</th><th>What the system does</th></tr></thead>
         <tbody>
-          <tr><td>Gate 1 · Unsupported Java/provider</td><td>Language/provider boundary</td><td>Input is rejected explicitly</td></tr>
-          <tr><td>Gate 2 · Mixed index metadata</td><td>Provenance preflight</td><td>Evaluation aborts</td></tr>
-          <tr><td>Gate 3 · Parse/embed failure</td><td>Prepare before mutation</td><td>Prior data remains untouched</td></tr>
-          <tr><td>Gate 4 · Partial publication</td><td>Replacement before stale cleanup</td><td>Empty-index window reduced; no reader cutover guarantee</td></tr>
-          <tr><td>Gate 5 · Stale cached answer</td><td>Cache generation key</td><td>New index gets a new cache namespace</td></tr>
+          <tr><td>Gate 1 · Unsupported Java/provider</td><td>Language/provider check</td><td>Reject the input</td></tr>
+          <tr><td>Gate 2 · Mixed index data</td><td>Source and index check</td><td>Stop the test</td></tr>
+          <tr><td>Gate 3 · Parse/embed failure</td><td>Prepare before changes</td><td>Keep the old data</td></tr>
+          <tr><td>Gate 4 · Partial update</td><td>Write new before removing old</td><td>Less empty-index time; no live cutover promise</td></tr>
+          <tr><td>Gate 5 · Old cached answer</td><td>New cache name</td><td>New index gets a new cache space</td></tr>
         </tbody>
       </table>
-      <div class="callout">These are reliability contracts, not additional benchmark results; they define when the system must stop.</div>
-      <aside class="notes"><strong>Transcript:</strong> This table instantiates the five gates from Core 08. Repository filters exclude foreign results when a repository scope is supplied. Provenance mismatches abort evaluation. Replacement writes new records before stale cleanup, reducing an empty-index window, but it does not guarantee reader-isolated generations. Cache generations prevent stale answers from crossing index updates. Java is rejected at the language boundary because semantic Java extraction is not implemented. These controls make failure observable; they do not add evidence to the answer-quality benchmark.<br><br><span class="small">[Sources] tests; src/hybrid_rag</span></aside>
+      <div class="callout">These are safety checks, not extra test results; they define when the system must stop.</div>
+      <aside class="notes"><strong>Transcript:</strong> These five rows show the system's safety checks. A repository filter keeps answers from another repository out. A source or index mismatch stops the test. A parse or embed failure leaves the old data alone. Writing new data before removing old data reduces the empty-index period, but it does not promise a live switch. A new cache name keeps old answers out. Java is rejected because Java code reading is not implemented. None of these checks adds answer-quality evidence.<br><br><span class="small">[Sources] tests; src/hybrid_rag</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="System breadth">
-      <div class="kicker">Core 14 → System breadth · appendix · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 14 claim:</strong> the contribution is a trustworthy code-retrieval system, not a new primitive. <strong>This appendix:</strong> maps that claim to implemented layers and their evidence limits.</div>
-      <h2>What “trustworthy system” means beyond the measured retrieval comparison.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="What else the system can do">
+      <div class="kicker">Core 14 → What else the system can do · appendix · 1 / 1</div>
+      <div class="detail-bridge"><strong>Core 14:</strong> the thesis builds a system we can check. <strong>Here:</strong> we show its other parts and their limits.</div>
+      <h2>The system does more than the measured test.</h2>
       <table class="metric-table">
-        <thead><tr><th>Contribution</th><th>Implemented capability</th><th>Evidence boundary</th></tr></thead>
+        <thead><tr><th>Part</th><th>What it can do</th><th>What the test does not prove</th></tr></thead>
         <tbody>
-          <tr><td>Retrieval integration</td><td>Relation plans, local graph–vector fusion, global summaries and budgeted context</td><td>Quality evidence is pinned to the LlamaIndex workload</td></tr>
-          <tr><td>Codebase model</td><td>Python AST relations plus optional Markdown, YAML and Dockerfile evidence</td><td>Generic non-code chunks are not AST semantics</td></tr>
-          <tr><td>Exploration</td><td>Directory communities, dependency summaries and multi-repository drill-down</td><td>Implemented breadth is not additional retrieval accuracy</td></tr>
+          <tr><td>Search</td><td>Link questions, local two-list search, folder summaries and size limits</td><td>Quality evidence is from the LlamaIndex test set</td></tr>
+          <tr><td>Code map</td><td>Python code links plus Markdown, YAML and Dockerfile text</td><td>Other text is not Python code structure</td></tr>
+          <tr><td>Exploration</td><td>Folder groups, link summaries and multi-repository browsing</td><td>More features do not prove better answer quality</td></tr>
         </tbody>
       </table>
-      <div class="callout">System breadth is implemented capability—not additional experimental evidence.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 14 names three contributions, so this appendix keeps the same three rows. Retrieval integration includes relation plans, local graph–vector fusion, global summaries and budgeted context. The codebase model combines Python AST relations with optional generic document or configuration evidence; those non-code chunks are not Python AST semantics. Exploration includes directory communities, dependency summaries and the multi-repository portal. These are implemented capabilities that support system usefulness, but they are not additional answer-quality evidence beyond the pinned benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/static/index.html</span></aside>
+      <div class="callout">These are system features, not extra test evidence.</div>
+      <aside class="notes"><strong>Transcript:</strong> This appendix separates system features from test results. The system can answer link questions, combine two local result lists, write folder summaries and limit the amount of code sent to the model. It can also read some non-code files and show a multi-repository view. These features make the system useful, but they are not extra proof that answers are more accurate.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/static/index.html</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="15" data-depth="1" data-depth-title="Limitations &amp; future work">
-      <div class="kicker">Core 15 → Limitations &amp; future work · appendix · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 15 claim:</strong> correctness is supported, while several averages remain uncertain. <strong>This appendix:</strong> maps each uncertainty to the next experiment rather than extending the conclusion.</div>
-      <h2>Each uncertain Core 15 result has a corresponding next experiment.</h2>
+    <section class="slide depth" data-axis="depth" data-parent="15" data-depth="1" data-depth-title="What remains to test">
+      <div class="kicker">Core 15 → What remains to test · appendix · 1 / 1</div>
+      <div class="detail-bridge"><strong>Core 15:</strong> correctness is supported, but several results are still uncertain. <strong>Here:</strong> each open question gets a next test.</div>
+      <h2>Each open question has a next test.</h2>
       <div class="line-list">
-        <p><strong>Faithfulness + relevancy:</strong> add independent human adjudication and more independent questions.</p>
-        <p><strong>Generation latency + token footprint:</strong> run a paired end-to-end profiling workload before claiming savings.</p>
-        <p><strong>Cross-repository generalization:</strong> upgrade the Transformers/LangChain slices to larger, full-repository workloads.</p>
-        <p><strong>Baseline coverage:</strong> execute BM25, graph-only and a documented external GraphRAG comparison.</p>
-        <p><strong>Language support:</strong> implement and test a Java extractor before accepting Java repositories.</p>
-        <p><strong>Resource claims:</strong> benchmark VRAM, energy and concurrency before claiming efficiency improvements.</p>
+        <p><strong>Faithfulness + relevancy:</strong> ask independent human reviewers and use more independent questions.</p>
+        <p><strong>Answer time + token use:</strong> measure the full request before claiming savings.</p>
+        <p><strong>Other repositories:</strong> run larger, full-repository Transformers/LangChain tests.</p>
+        <p><strong>Other comparisons:</strong> run BM25, graph-only and a documented external GraphRAG comparison.</p>
+        <p><strong>Other languages:</strong> build and test a Java extractor before accepting Java repositories.</p>
+        <p><strong>Hardware cost:</strong> measure VRAM, energy and concurrency before claiming efficiency gains.</p>
       </div>
-      <div class="callout">These are follow-up experiments, not evidence for the current conclusion.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 15 supports a narrow conclusion: correctness improves on the confirmatory workload, while faithfulness, relevancy, generation latency and token reductions remain uncertain. This appendix maps those uncertainties to the next experiments. Human reviewers and more independent questions address faithfulness and relevancy. A paired end-to-end profiling workload is required before claiming generation or token savings. The existing Transformers and LangChain slices need larger, full-repository workloads before supporting generalization. BM25, graph-only and a documented external GraphRAG design remain unexecuted comparisons. Java, VRAM, energy and concurrency also require dedicated implementation or measurement.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+      <div class="callout">These are next tests, not evidence for the current conclusion.</div>
+      <aside class="notes"><strong>Transcript:</strong> The current conclusion is narrow: Correctness improves on the test set, but Faithfulness, Relevancy, answer time and token use are still uncertain. The next steps are human review, more questions, bigger Transformers and LangChain tests, more comparison systems, Java support and hardware measurements. These are future tests, not current evidence.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
   </main>
   <script>
@@ -896,7 +896,7 @@
       history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
     }
     function help() {
-      alert('Left / Right or Space: previous or next core argument\nDown or D: open the supporting detail below this core slide\nUp or Escape: return to the parent core slide\nHome / End: first or last core slide\nN or T: toggle the presenter transcript\nP: print the deck');
+      alert('Left / Right or Space: previous or next main slide\nDown or D: open the detail below this slide\nUp or Escape: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
     }
     window.addEventListener('keydown', event => {
       if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(currentCore + 1, 0); }

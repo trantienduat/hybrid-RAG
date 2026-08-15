@@ -282,7 +282,7 @@
       <div class="rule"></div>
       <p class="lead">Using a Python code map and meaning-based search to answer questions about one repository.</p>
       <p class="small">Tran Tien Duat · Master of Software Engineering · 2026</p>
-      <aside class="notes"><strong>Transcript:</strong> This thesis asks how to find the right code for a question. Text search helps, but it may miss how functions connect. I combine text search with a code map built from Python files, and I show the source and limits of each answer. I am testing a useful system design, not claiming a new search algorithm.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide mở đầu phải nói rõ bài toán và phạm vi claim. Luận văn hỏi: khi người dùng hỏi về code, làm sao tìm đúng phần code và giải thích được các phần liên quan? Text search giúp tìm đoạn có ý nghĩa gần với câu hỏi, nhưng không tự cho mình biết các function nối với nhau thế nào. Vì vậy hệ thống dùng thêm code map được tạo từ Python source. Đóng góp ở đây là ghép các thành phần thành một hệ thống có thể kiểm tra, không claim phát minh ra một thuật toán retrieval hoàn toàn mới.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -325,7 +325,7 @@
         </div>
       </div>
       <div class="callout">This two-file fixture shows how the system works; the main test uses the fixed LlamaIndex Core questions.</div>
-      <aside class="notes"><strong>Transcript:</strong> I use a deliberately small two-file Checkout fixture to make the mechanism visible. The observed parser output resolves the same-class calls to <code>_validate</code> and <code>_total</code>. It preserves <code>self.payment.charge</code> and <code>self.log.start/end</code> as explicit stubs because their targets are not uniquely available in this fixture. Vector retrieval can still locate <code>payment.py</code> and <code>PaymentGateway.charge</code> from source meaning. The runtime-looking order comes from the source text, not from graph edges alone. This example explains the mechanism; the confirmatory benchmark remains the pinned LlamaIndex Core workload.<br><br><span class="small">[Demo boundary] Illustrative two-file fixture; not benchmark evidence.</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mình dùng một fixture Checkout chỉ có hai file để nhìn thấy cơ chế thật rõ, chứ không dùng fixture này để tính điểm benchmark. Parser và resolver link được hai lời gọi trong cùng class: <code>_validate</code> và <code>_total</code>. Với <code>self.payment.charge</code> và <code>self.log.start/end</code>, target chưa đủ rõ nên hệ thống giữ chúng dưới dạng stub thay vì đoán. Text search vẫn tìm được <code>payment.py</code> và implementation của <code>PaymentGateway.charge</code>. Thứ tự <code>start → validate → total → charge → end</code> được đọc từ source text; graph edges một mình chưa đủ để chứng minh thứ tự chạy. Benchmark chính vẫn là workload LlamaIndex Core đã pin.<br><br><span class="small">[Giới hạn demo] Fixture hai file chỉ để minh họa, không phải benchmark evidence.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -338,7 +338,7 @@
       </div>
       <p class="small">Scope: Python code indexing · one fixed LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
       <div class="callout">A higher average is not enough; the range tells us how strong the result is.</div>
-      <aside class="notes"><strong>Transcript:</strong> I ask three simple questions. Does the extra code information improve the answer? How much extra time and how many tokens does it use? Finally, are the differences strong enough to trust? The 95% range helps me avoid calling a higher average a proven improvement when the range still touches zero.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Ba RQ tương ứng với ba thứ hội đồng cần biết. RQ1 hỏi chất lượng câu trả lời có tốt hơn không: Faithfulness, Answer Relevancy và Answer Correctness. RQ2 hỏi cái giá phải trả: retrieval time, generation time và token footprint thay đổi thế nào. RQ3 hỏi evidence có đủ mạnh không: chênh lệch quan sát được có còn hợp lý khi tính paired 95% confidence range hay không. Mean cao hơn chưa đủ để claim improvement; phải nhìn cả khoảng tin cậy.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -355,7 +355,7 @@
       </table>
       <p class="small"><strong>Where this work fits:</strong> BM25 matches words; CodeBERT/GraphCodeBERT represent code; Microsoft GraphRAG uses graphs over a large corpus. This work combines Python code links, meaning-based search and source tracking for repository questions.</p>
       <div class="callout">The safe claim is “better on this fixed set of questions,” not “better for every RAG system.”</div>
-      <aside class="notes"><strong>Transcript:</strong> This is a fair but small test. Both modes use the same code, questions, models and repeats. It covers one Python repository and one comparison: vector-only versus Hybrid. An AI reviewer checked the reference answers against the source; independent human review was not done. BM25, CodeBERT, graph-only and external GraphRAG are background comparisons, not tests I ran here. So the result is about this fixed set of questions, not every repository.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là một test công bằng nhưng phạm vi nhỏ. Hybrid và vector-only dùng cùng source, cùng câu hỏi, cùng model, cùng judge và cùng số lần chạy. Thực nghiệm chỉ cover một Python repository: <code>llama-index-core==0.14.21</code>. Reference answers được AI source-review; chưa có independent human review. BM25, CodeBERT/GraphCodeBERT, graph-only và external GraphRAG chỉ là literature positioning, chưa phải baseline đã chạy trong thesis. Vì vậy claim an toàn là Hybrid tốt hơn trên workload cố định này, không phải tốt hơn mọi RAG system.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -403,7 +403,7 @@
       </svg>
       <p class="svg-caption"><strong>Fixture trace:</strong> <code>checkout.py</code> → <code>Checkout</code> → <code>checkout</code>, <code>_validate</code>, <code>_total</code>; <code>payment.py</code> → <code>PaymentGateway</code> → <code>charge</code>, <code>_authorize</code>, <code>_capture</code>. The sequence question uses local search, so the code map and text search run together.</p>
       <div class="callout">Demo only: the Checkout question uses local search; it does not add a benchmark score.</div>
-      <aside class="notes"><strong>Transcript:</strong> The system builds two views of the same code: a code map and searchable text. In the fixture, <code>checkout.py</code> and <code>payment.py</code> become separate modules. The question checker sees a local question, so it uses both views at the same time. A clear link question would use the code map directly. A whole-codebase question would use folder summaries. This Checkout path is only a demo; it is not part of the benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Cùng một source được index thành hai view: code map và searchable text. Sau đó question checker quyết định câu hỏi nên đi đường nào. Có ba path: câu hỏi về whole repository dùng folder summaries; câu hỏi có relation rõ và code name rõ thì ưu tiên graph lookup; câu hỏi local behavior như fixture Checkout thì chạy graph và text search cùng nhau rồi đưa kết quả vào RRF. Đây là query-aware retrieval, không phải lúc nào cũng chạy hai retriever giống hệt nhau. Đường Checkout chỉ là demo, không tạo benchmark score.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -442,7 +442,7 @@
       </svg>
       <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
       <div class="callout">Demo only: text search finds payment code; the code map shows the links. This fixture has no answer-quality score.</div>
-      <aside class="notes"><strong>Transcript:</strong> The same function is shown in two ways. The code map links <code>Checkout.checkout</code> to <code>_validate</code> and <code>_total</code>, but keeps <code>charge</code> as a stub because the target is not clear. Text search can still find the payment file because the words are related. The code map shows links; text search finds useful source. Neither one proves the full run order by itself. This is a demo only, not a scored answer.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Một function được nhìn từ hai phía. Code map cho thấy những relation nào có thể chứng minh được: trong fixture, <code>Checkout.checkout</code> link được tới <code>_validate</code> và <code>_total</code>. Nhưng <code>self.payment.charge</code> và logger calls chưa có target đủ rõ nên giữ stub. Text search thì vẫn tìm được <code>payment.py</code> vì nội dung có liên quan về mặt meaning. Nói ngắn gọn: graph cho mình links, vector cho mình source context. Không view nào tự nó chứng minh được toàn bộ runtime order. Đây chỉ là demo, không phải scored answer.<br><br><span class="small">[Nguồn] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -473,7 +473,7 @@
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <p class="small">Local search: graph weight up to 1.0, text-search weight 1.0 · exact link: code-map weight 3.0 · text-only: (0, 1).</p>
       <div class="callout">Demo only: RRF combines the two result lists for the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
-      <aside class="notes"><strong>Transcript:</strong> This slide shows how the two result lists are combined. The lists may use different scores, so RRF compares their positions instead. It removes duplicates and keeps the best five pieces of code for the answer. A clear link question can use only the code map; a local question uses both lists. The numbers here explain the method, not a benchmark result. <code>rrf_score</code> only tells us where an item ranked. It does not measure answer quality.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Hai result lists có score khác thang đo, nên không cộng raw score trực tiếp. RRF nhìn vào rank position của từng candidate, kết hợp hai list, bỏ duplicate rồi giữ context trong budget để gửi cho Ollama. Với local question, graph và vector cùng đóng góp. Với clear-link question, graph có thể được ưu tiên; còn vector-only baseline thì tắt graph. Nhớ kỹ: <code>rrf_score</code> chỉ nói item đứng hạng nào trong context, không phải answer-quality score. Các con số trên slide giải thích method, không phải benchmark result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -488,7 +488,7 @@
       </div>
       <div class="callout">These checks protect both the demo and the main test. They do not create new evidence.</div>
       <p class="small"><strong>Concrete checks:</strong> Java input → reject · source mismatch → stop the test · parse/embed failure → keep the old records.</p>
-      <aside class="notes"><strong>Transcript:</strong> The system stops when something is not safe to use. It rejects Java and remote model providers. It checks that the code and both indexes belong together. It reads and embeds the code before changing the database. It writes the new data before removing the old data, which reduces the empty-index period, but it is not a fully live switch. A new cache name keeps old answers away from the new index.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Reliability không chỉ là trả được answer; còn là biết lúc nào phải dừng. Hệ thống reject input không hỗ trợ như Java và remote provider. Nó kiểm tra repository, source digest, schema và embedding model có cùng một run hay không. Khi update index, parse và embed xong trước rồi mới thay đổi database; ghi data mới trước khi cleanup data cũ để giảm khoảng thời gian index rỗng. Đây chưa phải atomic live cutover. Cache generation mới cũng giúp answer của snapshot cũ không lẫn vào snapshot mới. Các check này bảo vệ demo và benchmark, nhưng không tự tạo thêm evidence về answer quality.<br><br><span class="small">[Nguồn] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -518,7 +518,7 @@
       <p class="svg-caption">We save 180 answers, but the test uses 30 question-level differences.</p>
       <p class="small">Model writing answers: <code>gemma4:12b</code> · model scoring answers: <code>qwen2.5-coder:7b</code> · text model: <code>nomic-embed-text</code>.</p>
       <div class="callout">The test has 180 saved answers, but only 30 questions count as independent evidence.</div>
-      <aside class="notes"><strong>Transcript:</strong> The test has 30 reviewed questions: 10 simple, 10 medium and 10 hard. Each question runs in both modes three times, so we save 180 answers. We average the repeats for each question, compare Hybrid with vector-only, and resample the 30 question differences 10,000 times. This treats the question—not each repeated answer—as the unit of evidence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Confirmatory test có 30 câu: 10 simple, 10 medium, 10 hard. Mỗi câu chạy ở hai mode, mỗi mode 3 lần, nên lưu 180 answers. Nhưng 180 không có nghĩa là 180 independent observations. Mình average 3 repeats trong từng câu, rồi tạo một difference: Hybrid trừ vector-only. Vì vậy evidence thật sự là 30 paired question differences. Sau đó bootstrap 30 differences này 10.000 lần với seed 42 để tính paired 95% confidence range.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -533,7 +533,7 @@
         </tbody>
       </table>
       <div class="callout">Only Answer Correctness has a 95% range that stays above zero.</div>
-      <aside class="notes"><strong>Transcript:</strong> Hybrid has a higher average on all three metrics. But the 95% ranges tell us how much confidence to have. Faithfulness can still be slightly worse or much better. Relevancy is very close to zero at the lower end. Only Correctness stays above zero across the full range. These are scores from an automated judge, not a direct count of right answers.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Nhìn mean thì cả ba metric đều nghiêng về Hybrid. Nhưng phải đọc cùng với confidence range. Faithfulness có thể hơi giảm hoặc tăng khá nhiều, nên chưa rõ. Relevancy gần zero ở lower bound, nên cũng chưa đủ để claim chắc. Chỉ Answer Correctness có toàn bộ range nằm trên zero trong workload này. Đây là điểm automated judge, không phải tỷ lệ đúng khách quan do human chấm trực tiếp.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -545,7 +545,7 @@
         <div class="note-box"><div class="label">Supported here</div><h3>Correctness</h3><p>The full range is above zero for this test.</p></div>
       </div>
       <div class="callout">This is a limit of the test evidence, not a software bug.</div>
-      <aside class="notes"><strong>Transcript:</strong> A higher average tells us what happened in this sample. The 95% range tells us how stable that difference is across the questions. Faithfulness is not clear. Relevancy is almost clear, but its lower end is just below zero. Correctness is the only result that stays above zero. More independent questions are needed for stronger claims.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này giúp mình không overclaim. Mean cao hơn chỉ nói sample hiện tại cho kết quả cao hơn. 95% range cho biết difference đó có ổn định qua 30 câu hay không. Faithfulness vẫn có khả năng giảm, Relevancy gần như dương nhưng lower bound còn hơi dưới zero, còn Correctness là metric duy nhất giữ trên zero toàn range. Nếu muốn claim mạnh hơn cho hai metric đầu, cần thêm independent questions và tốt nhất có human review.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -561,7 +561,7 @@
         </tbody>
       </table>
       <div class="callout">The extra search time is clear; the lower token and answer-time averages are not yet certain.</div>
-      <aside class="notes"><strong>Transcript:</strong> Hybrid adds 237 milliseconds of search time, and that increase is clear in the 95% range. The model still takes about 87 to 97 seconds to write an answer. Hybrid used fewer tokens and finished faster on average, but those ranges still include zero. So I do not claim a proven saving in tokens or answer time. No hosted API, energy use or hardware cost was measured.<br><br><span class="small">[Source] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Cái giá rõ nhất của Hybrid là retrieval lâu hơn: khoảng 134 ms lên 371 ms, chênh khoảng 237 ms và confidence range không chứa zero. Generation chiếm phần lớn thời gian, khoảng 87–97 giây; mean có thể giảm nhưng range vẫn chứa zero. Token cũng có xu hướng giảm nhưng chưa đủ evidence để claim tiết kiệm chắc chắn. Vì vậy chỉ nên nói “retrieval overhead được đo rõ ràng”, không gọi 371 ms là SLA hay claim end-to-end faster. Thesis cũng chưa đo hosted API, energy hay hardware cost.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -574,7 +574,7 @@
         <div class="demo-number">03</div><div class="demo-action">Show the answer, <code>file_path</code>, <code>source</code> and <code>rrf_score</code></div><div class="demo-proof">Vector surfaces <code>payment.py</code>; ranking metadata is visible, not answer-quality evidence</div>
       </div>
       <div class="callout">The Checkout demo shows how it works; the LlamaIndex test supports the measured claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> In the demo, I use the two-file <code>demo_checkout</code> fixture and ask one local question. I show the answer, the source files, the clear calls and the calls that remain stubs. Text search can still show <code>payment.py</code>. <code>rrf_score</code> only shows result order; it is not a quality score. Java is a separate failure example. The demo explains how the system works; the LlamaIndex test gives the measured result.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Live demo chỉ để cho hội đồng thấy một flow có thể quan sát được. Mình dùng fixture <code>demo_checkout</code>, hỏi một local question, rồi cho xem graph links, vector context, RRF result, source paths và các call vẫn còn stub. <code>rrf_score</code> chỉ là thứ tự result, không phải quality score. Java là một failure case riêng để cho thấy hệ thống reject input không hỗ trợ. Demo giải thích mechanism; kết quả đo được phải lấy từ LlamaIndex benchmark, không lấy từ fixture.<br><br><span class="small">[Kịch bản demo] presentation/hybrid_rag_demo_scenario.md; cần khớp với Checkout fixture trước buổi bảo vệ.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -594,7 +594,7 @@
       </div>
       <p class="small"><strong>Concrete anchor:</strong> the Checkout fixture shows path choice, code links, text search and unresolved calls; the benchmark separately measures quality and time.</p>
       <div class="callout">The contribution is integration and auditability; the experiment remains deliberately bounded.</div>
-      <aside class="notes"><strong>Transcript:</strong> The thesis does not claim to invent code maps, text search or RRF. The contribution is putting these parts together in one local system that people can check. Different question types use different paths. The system keeps the code, indexes and cache tied together, supports folder summaries and shows clear failure cases. The test files and saved answers make the result easier to repeat and question.<br><br><span class="small">[Sources] doc/thesis@78e5bd8; repository implementation and evaluation artifacts</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Luận văn không claim phát minh ra code map, text search hay RRF. Điểm đóng góp là tích hợp chúng thành một local, repository-scoped system mà người khác có thể kiểm tra. Hệ thống có query-aware routing, provenance giữa source và hai index, folder summaries, failure boundaries và evaluation artifacts. Vì vậy contribution chính nằm ở integration + auditability. Các feature rộng hơn là system capabilities; không được nói như thể tất cả đều đã có benchmark evidence.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8; repository implementation và evaluation artifacts</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -612,25 +612,62 @@
         </div>
       </div>
       <div class="callout">The result is narrow and clear; broader claims need more tests.</div>
-      <aside class="notes"><strong>Transcript:</strong> The main result is narrow and clear. On these LlamaIndex questions, Hybrid raises judged Correctness by 0.046, and the 95% range stays above zero. The measured cost is 237 milliseconds of extra search time. The other positive averages are not yet certain. More human review, questions, repositories and comparison systems are still needed.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Kết luận phải giữ hẹp nhưng chắc. Trên 30 câu hỏi LlamaIndex đã pin, Hybrid tăng judged Answer Correctness thêm 0.046 và paired 95% range [0.002, 0.094] nằm hoàn toàn trên zero. Chi phí đo được là thêm khoảng 237 ms retrieval latency. Faithfulness, Relevancy, generation time và token reduction chưa đủ chắc để claim. Nói ngắn gọn: Hybrid có bằng chứng cải thiện Correctness trên workload này, nhưng chưa có bằng chứng generalize cho mọi repo, mọi language hay mọi baseline.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Pick a path">
       <div class="kicker">Core 05 → Pick a path · detail · 1 / 2</div>
       <div class="detail-bridge"><strong>Core 05:</strong> one codebase has three search paths. <strong>Here:</strong> the question picks one before search starts.</div>
       <h2>The question picks the path before search starts.</h2>
-      <table class="metric-table">
-        <thead><tr><th>Question type</th><th>Main path</th><th>If that fails</th></tr></thead>
-        <tbody>
-          <tr><td>Clear link + code name<span class="signal-note">A simple pattern looks for words such as imports, calls, inherits or defines, then finds a code name such as Checkout or checkout().</span></td><td>Fixed code-map search</td><td>Text search if no target</td></tr>
-          <tr><td>Local behavior<span class="signal-note">If no whole-codebase or clear-link pattern is found, the question is treated as a local behavior question; both searches run together.</span></td><td>Code map + text search</td><td>Combine the two lists</td></tr>
-          <tr><td>Whole-codebase question<span class="signal-note">Words such as architecture, overview or dependency flow send the question to folder summaries.</span></td><td>Folder summaries</td><td>Local search if missing</td></tr>
-        </tbody>
-      </table>
-      <p class="small"><strong>Concrete trace:</strong> “What sequence does <code>Checkout.checkout</code> follow?” → <code>local</code>, no graph plan → concurrent graph + vector retrieval → RRF context.</p>
+      <svg class="svg-diagram" viewBox="0 0 1080 360" role="img" tabindex="0" aria-labelledby="route-detail-title route-detail-desc">
+        <title id="route-detail-title">Question routing decision flow</title>
+        <desc id="route-detail-desc">The question checker first looks for a whole-repository signal. If there is none, it checks for an explicit relation and code name. Otherwise the question uses the local behavior path with graph and text search.</desc>
+        <defs><marker id="route-detail-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
+
+        <text x="36" y="20" class="svg-route">QUESTION → SIGNAL CHECK</text>
+        <path d="M246 66 H292" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <rect x="36" y="36" width="210" height="60" rx="5" class="svg-source" />
+        <text x="56" y="62" class="svg-route">USER QUESTION</text>
+        <text x="56" y="83" class="svg-code">Checkout.checkout sequence?</text>
+        <rect x="292" y="36" width="220" height="60" rx="5" class="svg-process" />
+        <text x="312" y="62" class="svg-route">QUESTION CHECKER</text>
+        <text x="312" y="83" class="svg-subtitle">signal + code name</text>
+
+        <path d="M512 66 H530 V80 H550" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <polygon points="550,80 600,45 650,80 600,115" class="svg-decision" />
+        <text x="600" y="84" class="svg-title" text-anchor="middle">whole repo?</text>
+
+        <path d="M650 80 H710" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <text x="666" y="70" class="svg-edge-label">YES</text>
+        <rect x="710" y="48" width="334" height="64" rx="5" class="svg-process" />
+        <text x="730" y="72" class="svg-route">WHOLE REPOSITORY</text>
+        <text x="730" y="91" class="svg-small">architecture · overview · dependency flow</text>
+        <text x="730" y="106" class="svg-code">→ folder summaries</text>
+
+        <path d="M600 115 V145" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <text x="610" y="135" class="svg-edge-label">NO</text>
+        <polygon points="550,180 600,145 650,180 600,215" class="svg-decision" />
+        <text x="600" y="177" class="svg-small" text-anchor="middle">relation +</text>
+        <text x="600" y="193" class="svg-small" text-anchor="middle">code name?</text>
+
+        <path d="M650 180 H710" class="svg-edge graph" marker-end="url(#route-detail-arrow)" />
+        <text x="666" y="170" class="svg-edge-label">YES</text>
+        <rect x="710" y="148" width="334" height="64" rx="5" class="svg-store graph" />
+        <text x="730" y="172" class="svg-route">CLEAR LINK</text>
+        <text x="730" y="191" class="svg-small">imports · calls · defines + Checkout</text>
+        <text x="730" y="206" class="svg-code">→ graph lookup · vector fallback</text>
+
+        <path d="M600 215 V300 H710" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <text x="610" y="245" class="svg-edge-label">NO</text>
+        <rect x="710" y="268" width="334" height="64" rx="5" class="svg-evidence" />
+        <text x="730" y="292" class="svg-route">LOCAL BEHAVIOR</text>
+        <text x="730" y="311" class="svg-small">sequence · how it works · no clear relation</text>
+        <text x="730" y="326" class="svg-code">→ graph + text → RRF</text>
+      </svg>
+      <p class="svg-caption"><strong>Concrete trace:</strong> “What sequence does <code>Checkout.checkout</code> follow?” → no whole-repo signal → no explicit relation/code-name pair → local behavior → concurrent graph + vector retrieval → RRF context.</p>
       <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is only the comparison setting; it turns off the code map on the same questions.</p>
       <div class="callout">Demo route only: the Checkout question uses local search. The other paths are clear-link search and whole-codebase search. This fixture is not benchmark evidence.</div>
-      <aside class="notes"><strong>Transcript:</strong> The question checker chooses one of three paths. A clear link question uses the code map. The Checkout sequence question has no clear link or whole-codebase signal, so it uses both the code map and text search. A whole-codebase question uses folder summaries. The vector-only setting is only the comparison mode; it turns off the code map. This Checkout route is a demo, not benchmark evidence.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Diagram này đọc từ trên xuống dưới. Đầu tiên question checker xem câu hỏi có signal whole-repository như architecture, overview hoặc dependency flow không. Nếu có thì đi tới folder summaries. Nếu không, nó kiểm tra relation rõ như imports/calls/defines cùng code name; khi đó ưu tiên graph lookup và chỉ fallback sang vector nếu không có target đủ rõ. Nếu cả hai signal trên đều không có, câu hỏi được xem là local behavior: graph và text search chạy song song rồi RRF combine kết quả. Câu hỏi Checkout đi đúng nhánh cuối: không có signal global, không có explicit relation/code-name pair, nên dùng local path. <code>skip_graph=True</code> chỉ là setting của vector-only comparison, không phải path thứ tư. Fixture này chỉ minh họa route, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">
@@ -650,7 +687,7 @@
       </svg>
       <p class="svg-caption">Community identity follows repository and directory; the implementation does not use Louvain clustering.</p>
       <div class="callout">This is the whole-codebase path. It groups code by folder; it is not Louvain or Microsoft GraphRAG. The Checkout fixture does not use this path.</div>
-      <aside class="notes"><strong>Transcript:</strong> This path is for questions such as “What is the repository architecture?” The system groups code by folder, asks Ollama to write a short folder summary, and uses those summaries for whole-codebase questions. This is a simple folder grouping, not Louvain clustering and not a Microsoft GraphRAG test. The Checkout fixture does not use this path.<br><br><span class="small">[Sources] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Whole-repository path dành cho câu hỏi kiểu “repository này có architecture thế nào?”. Hệ thống gom code theo folder, dùng Ollama viết summary cho từng group, rồi index các summary đó để trả lời câu hỏi tổng quan. Đây là directory-based grouping đơn giản, không phải Louvain clustering và cũng chưa phải thực nghiệm Microsoft GraphRAG. Checkout fixture là local question nên không đi path này.<br><br><span class="small">[Nguồn] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="What the code map contains">
@@ -678,7 +715,7 @@
         <div class="note-box"><div class="label">Demo text-search output</div><p>The <code>checkout()</code> chunk contains <code>payment.charge</code>, so text search can surface <code>payment.py</code> even without a linked call.</p></div>
       </div>
       <div class="callout">Observed fixture output: graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code> as a stub; no answer-quality score is computed from this fixture.</div>
-      <aside class="notes"><strong>Transcript:</strong> Here is the real output from the two-file fixture. The code map shows <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. It records the import to <code>payment.py</code>, and it links <code>_validate</code> and <code>_total</code>. It keeps <code>charge</code> as <code>__call__charge</code> because the target is not clear. Text search can still find <code>payment.py</code>. These links do not prove the run order; the source text gives us that order.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là output thật của fixture hai file. Code map cho thấy ownership: <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. Nó cũng ghi import tới <code>payment.py</code>, rồi link được <code>_validate</code> và <code>_total</code>. Call <code>self.payment.charge</code> không đủ thông tin để link chắc chắn nên được giữ là <code>__call__charge</code>. Text search vẫn có thể tìm <code>payment.py</code>. Điểm quan trọng: các edge này cho biết quan hệ, nhưng chưa tự chứng minh thứ tự runtime; thứ tự đó phải đọc từ source body.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="When a call can be linked">
@@ -697,7 +734,7 @@
       </table>
       <p class="svg-caption">The resolver links only uniquely defensible targets; uncertainty remains visible for later audit.</p>
       <div class="callout">Observed fixture result: <code>_validate</code> and <code>_total</code> link; <code>charge</code>, <code>start</code> and <code>end</code> stay as stubs; text search still surfaces <code>payment.py</code>.</div>
-      <aside class="notes"><strong>Transcript:</strong> This table shows what the resolver actually does. It links the two calls inside <code>Checkout</code>. It does not guess that <code>self.payment.charge</code> means <code>PaymentGateway.charge</code>, so that call stays a stub. The logger calls also stay stubs because the logger code is not in the fixture. Inside <code>PaymentGateway.charge</code>, the calls to <code>_authorize</code> and <code>_capture</code> are clear and do link. Keeping unclear calls visible is safer than making a hidden guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Bảng này cho thấy resolver link như thế nào. Hai call trong cùng <code>Checkout</code> có target rõ nên link được tới <code>_validate</code> và <code>_total</code>. Với <code>self.payment.charge</code>, resolver không tự đoán nó chắc chắn là <code>PaymentGateway.charge</code>, nên giữ stub. Logger calls cũng là stub vì logger code không nằm trong fixture. Ngược lại, bên trong <code>PaymentGateway.charge</code>, hai call <code>_authorize</code> và <code>_capture</code> rõ ràng nên link được. Giữ uncertainty lộ ra sẽ an toàn hơn là tạo một relation sai nhưng không ai biết.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="Combine the two lists">
@@ -711,7 +748,7 @@
           <div class="note-box"><div class="label">Text-only comparison</div><p>Weights are (0, 1). The old <code>hybrid_weight</code> setting is not used.</p></div>
       </div>
       <div class="callout">Demo only: <code>_validate</code>/<code>_total</code>, unclear <code>__call__charge</code> and <code>payment.py</code> can all reach the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the same combining step, now tied to the fixture. The code map gives the clear calls and keeps <code>__call__charge</code> as a stub. Text search adds the payment source. RRF uses each list's position, removes duplicates and keeps the best five pieces of code. The exact ranks should come from the live API response. This diagram explains the method; it is not a benchmark result. <code>rrf_score</code> only shows result order.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate và giữ tối đa năm context phù hợp để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
@@ -743,7 +780,7 @@
         <div class="node">Final check<span>then test</span></div>
       </div>
       <div class="callout">Write the new data first to reduce empty-index time; the final check stops mixed runs from becoming measurements.</div>
-      <aside class="notes"><strong>Transcript:</strong> There are two protections here. First, the system reads and embeds the code before changing the database. It writes the new data, removes the old data, then starts a new cache name. This reduces the empty-index period, but it is not a live switch for every reader. Second, before the test, the system checks the code version, source hash, schema and model for both stores. If any value is different, the test stops.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Detail này tách hai lớp bảo vệ. Lớp đầu là update order: đọc và embed source trước, ghi data mới, cleanup data cũ, rồi tạo cache generation mới. Cách này giảm empty-index period nhưng không phải live switch atomic cho mọi reader. Lớp hai là preflight trước benchmark: check code version, source hash, schema, embedding model và metadata của hai index. Nếu có mismatch thì dừng, không biến một state lẫn lộn thành measurement.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Same code for both modes">
@@ -757,7 +794,7 @@
         <p><strong>Index details:</strong> schema 3 · <code>nomic-embed-text</code> · run <code>9ca6e68a…af5</code></p>
       </div>
       <div class="callout">The comparison is fair only when both modes use the same code and the same index data.</div>
-      <aside class="notes"><strong>Transcript:</strong> Both modes must answer the same code questions using the same code snapshot. We save the package version, its hashes, the index schema, the text model and the index run name. These checks stop a later code version or a mismatched index from being treated as the same test.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Muốn so sánh công bằng thì vector-only và Hybrid phải trả lời cùng câu hỏi trên cùng code snapshot và cùng index data. Vì vậy mỗi run lưu package version, source hash, schema, text model và index run name. Nếu một mode dùng code mới hơn hoặc index khác source, kết quả không còn là paired comparison nữa. Đây là lý do provenance check phải đứng trước benchmark.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="What the test can prove">
@@ -774,7 +811,7 @@
         </tbody>
       </table>
       <div class="callout">This is controlled local evidence, not an independent human accuracy test.</div>
-      <aside class="notes"><strong>Transcript:</strong> Each question has a fixed reference answer and expected source files. A separate local model scores the answers, and all 180 records have scores and a source hit. But Codex checked the references, not an independent group of people. So this is a repeatable automated test, not a human accuracy rate from production.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu có reference answer và expected source files. Một local judge model chấm answer, và 180 raw records đều có score cùng source-hit information. Nhưng reference answers được source-review trong phạm vi project; chưa có một nhóm human độc lập vào chấm lại toàn bộ. Vì vậy đây là controlled, repeatable automated test — không phải human accuracy rate hay production accuracy.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="How we build the 95% range">
@@ -788,7 +825,7 @@
         <div class="step">Use the 2.5th and 97.5th percentiles as the 95% range.</div>
       </div>
       <div class="callout">30 questions → 3 repeats → 30 differences → 10,000 resamples; seed 42 gives the same result each time.</div>
-      <aside class="notes"><strong>Transcript:</strong> We run each of the 30 questions three times in both modes. We average the repeats, subtract vector-only from Hybrid for each question, and resample those 30 differences 10,000 times. We use the middle 95% of those results as the range. The three answers to one question are repeats, not three separate questions. Seed 42 makes the calculation repeatable.<br><br><span class="small">[Source] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu chạy 3 lần ở cả hai mode. Mình average các repeats của từng câu, tính <code>Hybrid − vector-only</code> để có 30 differences, rồi resample 30 differences đó 10.000 lần. Khoảng giữa 95% bootstrap results là confidence range. Ba lần trả lời của một câu chỉ là repeats, không phải ba câu hỏi độc lập. Seed 42 giúp chạy lại vẫn ra cùng cách tính.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="What happens when something goes wrong">
@@ -806,7 +843,7 @@
         </tbody>
       </table>
       <div class="callout">These are safety checks, not extra test results; they define when the system must stop.</div>
-      <aside class="notes"><strong>Transcript:</strong> These five rows show the system's safety checks. A repository filter keeps answers from another repository out. A source or index mismatch stops the test. A parse or embed failure leaves the old data alone. Writing new data before removing old data reduces the empty-index period, but it does not promise a live switch. A new cache name keeps old answers out. Java is rejected because Java code reading is not implemented. None of these checks adds answer-quality evidence.<br><br><span class="small">[Sources] tests; src/hybrid_rag</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi failure contract đều trả về một hành vi rõ. Repository filter chặn result từ repo khác. Source hoặc index mismatch thì stop test. Parse/embed fail thì giữ data cũ. Ghi data mới trước cleanup làm giảm empty-index period nhưng không hứa hẹn live switch. Cache name mới ngăn answer cũ đi sang index mới. Java bị reject vì Java code reading chưa được implement. Tất cả đây là safety behavior, không phải answer-quality evidence thêm vào benchmark.<br><br><span class="small">[Nguồn] tests; src/hybrid_rag</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="What else the system can do">
@@ -822,7 +859,7 @@
         </tbody>
       </table>
       <div class="callout">These are system features, not extra test evidence.</div>
-      <aside class="notes"><strong>Transcript:</strong> This appendix separates system features from test results. The system can answer link questions, combine two local result lists, write folder summaries and limit the amount of code sent to the model. It can also read some non-code files and show a multi-repository view. These features make the system useful, but they are not extra proof that answers are more accurate.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/static/index.html</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide appendix này để phân biệt system breadth với research evidence. Hệ thống còn có link questions, local fusion, folder summaries, context limits, incremental indexing và multi-repository view. Những phần đó làm prototype hữu dụng hơn, nhưng không tự động chứng minh answer accuracy hoặc efficiency tốt hơn. Khi nói với hội đồng, hãy gọi chúng là engineering/system capabilities, không biến thành claim đã được benchmark.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/static/index.html</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="15" data-depth="1" data-depth-title="What remains to test">
@@ -838,7 +875,7 @@
         <p><strong>Hardware cost:</strong> measure VRAM, energy and concurrency before claiming efficiency gains.</p>
       </div>
       <div class="callout">These are next tests, not evidence for the current conclusion.</div>
-      <aside class="notes"><strong>Transcript:</strong> The current conclusion is narrow: Correctness improves on the test set, but Faithfulness, Relevancy, answer time and token use are still uncertain. The next steps are human review, more questions, bigger Transformers and LangChain tests, more comparison systems, Java support and hardware measurements. These are future tests, not current evidence.<br><br><span class="small">[Source] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Các open questions phải đi kèm next test cụ thể. Cần human review để biết automated judge có phản ánh chất lượng thật không; thêm independent questions để confidence range chắc hơn; mở rộng Transformers và LangChain; chạy thêm BM25, graph-only hoặc GraphRAG nếu muốn comparison; bổ sung Java extractor và đo resource/energy nếu muốn claim rộng hơn. Đây là kế hoạch kiểm chứng tiếp theo, không phải evidence hiện tại để kéo rộng conclusion.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
   </main>
   <script>

@@ -308,7 +308,7 @@
 
     <section class="slide" data-axis="core">
       <div class="kicker">Scope &amp; related work · 04 / 15</div>
-      <h2>The experiment is controlled—but deliberately narrow.</h2>
+      <h2>The experiment is controlled.</h2>
       <table class="metric-table">
         <thead><tr><th>Dimension</th><th>Executed</th><th>Not established</th></tr></thead>
         <tbody>
@@ -582,17 +582,6 @@
       <aside class="notes"><strong>Transcript:</strong> The strongest result is precise: on this paired LlamaIndex workload, hybrid retrieval improves judged answer correctness by 0.046, with a confidence interval that remains above zero. The measured price is 237 milliseconds of additional retrieval time. Other positive averages are not yet conclusive. The system contribution is broader than this one experiment, but its generality still needs human review, more questions, more repositories and stronger baselines.<br><br><span class="small">[Source] doc/thesis@78e5bd8</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="4" data-depth="1" data-depth-title="Excluded diagnostic">
-      <div class="kicker">Scope &amp; related work · detail · 1 / 1</div>
-      <h2>The older 50-case structural result is diagnostic—not confirmatory.</h2>
-      <div class="two-col">
-        <div class="note-box"><div class="label">Historical result</div><h3>Vector 26/50 · Hybrid 50/50</h3><p>Useful for detecting regressions in graph traversal and multi-hop plans.</p></div>
-        <div class="note-box"><div class="label">Why excluded</div><h3>Schema 2 · RAGAS null</h3><p>It predates the schema-3 identity repair and fails the current provenance preflight.</p></div>
-      </div>
-      <div class="callout">It can explain system behavior, but it cannot support the current answer-quality conclusion or a SOTA claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> The repository contains a fifty-case structural report where hybrid found the expected entity in all cases and vector found twenty-six. That result is still useful as a historical regression diagnostic. However, it was produced against a schema-two index before the identity repair, and its RAGAS field is null. The audited thesis therefore excludes it from confirmatory evidence instead of mixing it with the completed schema-three benchmark.<br><br><span class="small">[Sources] results/README.md; results/evaluation_results.json</span></aside>
-    </section>
-
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Routing decisions">
       <div class="kicker">System architecture · detail · 1 / 2</div>
       <h2>Routing avoids unnecessary work and preserves deterministic answers.</h2>
@@ -799,14 +788,14 @@
     const deck = document.querySelector('.deck');
     const sourceSlides = [...deck.querySelectorAll('.slide')];
     const narrativeOrder = [
-      0, 1, 2, 3, 15,
-      4, 16, 17,
-      5, 18, 19,
-      6, 20,
-      7, 21,
-      8, 22, 25,
-      9, 23, 24, 26,
-      10, 11, 12, 13, 27, 14,
+      0, 1, 2, 3,
+      4, 15, 16,
+      5, 17, 18,
+      6, 19,
+      7, 20,
+      8, 21, 24,
+      9, 22, 23, 25,
+      10, 11, 12, 13, 26, 14,
     ];
     narrativeOrder.map(index => sourceSlides[index]).forEach(slide => deck.appendChild(slide));
     const slides = [...deck.querySelectorAll('.slide')];

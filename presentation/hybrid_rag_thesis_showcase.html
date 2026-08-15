@@ -82,6 +82,12 @@
     .line-list strong { color: var(--ink); }
     .note-box { padding: 1.2rem 1.45rem; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); }
     .note-box p { color: var(--muted); font-size: 18px; line-height: 1.4; }
+    .fixture-layout { align-items: stretch; }
+    .fixture-files { display: grid; gap: .65rem; }
+    .fixture-file { padding: .75rem .9rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+    .fixture-file .label { font-size: 11px; }
+    .fixture-code { margin: .45rem 0 0; color: var(--ink); font: 14px/1.35 "SFMono-Regular", Consolas, monospace; white-space: pre-wrap; }
+    .fixture-code code { padding: 0; background: transparent; color: inherit; font-size: 1em; }
     .label { color: var(--cyan); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; }
     .callout { display: block; padding: .85rem 1.1rem; border: 1px solid var(--line); border-left: 4px solid var(--cyan); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: 18px; line-height: 1.4; }
     .flow { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: .65rem; }
@@ -278,19 +284,42 @@
     <section class="slide" data-axis="core">
       <div class="kicker">Motivation · 02 / 15</div>
       <h2>A code question is often a relationship question.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">question → evidence trace</span></div>
-      <div class="two-col">
-        <div class="note-box">
-          <div class="label">Representative question</div>
-          <p>“What sequence does <code>BaseRetriever.retrieve</code> follow for a plain query string, including callbacks and recursive retrieval?”</p>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">two-file fixture → generic local route</span></div>
+      <div class="two-col fixture-layout">
+        <div class="fixture-files">
+          <div class="fixture-file">
+            <div class="label">demo_checkout/checkout.py</div>
+            <pre class="fixture-code"><code>class Checkout:
+  def checkout(self, cart):
+    self.log.start()
+    self._validate(cart)
+    total = self._total(cart)
+    self.payment.charge(total)
+    self.log.end()
+    return total</code></pre>
+          </div>
+          <div class="fixture-file">
+            <div class="label">demo_checkout/payment.py</div>
+            <pre class="fixture-code"><code>class PaymentGateway:
+  def charge(self, amount):
+    self._authorize(amount)
+    self._capture(amount)
+    return "ok"</code></pre>
+          </div>
         </div>
-        <div class="line-list">
-          <p><strong>Semantic evidence</strong> finds code about retrievers, callbacks and query bundles.</p>
-          <p><strong>Structural evidence</strong> connects the methods and events that form the execution path.</p>
+        <div>
+          <div class="note-box">
+            <div class="label">Generic-local question</div>
+            <p>“When <code>Checkout.checkout</code> runs, what is the sequence, including logging and payment?”</p>
+          </div>
+          <div class="line-list">
+            <p><strong>Semantic evidence</strong> may find payment-related chunks by words such as <code>payment</code> or <code>checkout</code>.</p>
+            <p><strong>Structural evidence</strong> connects the calls that explain <code>start → validate → total → charge → end</code>.</p>
+          </div>
         </div>
       </div>
-      <div class="callout">A semantically similar chunk can mention retrieval without containing the relationships needed to explain the sequence.</div>
-      <aside class="notes"><strong>Transcript:</strong> Consider this question about <code>BaseRetriever.retrieve</code>. A vector search can find code containing words such as retrieval, callback or query. However, the answer also depends on which method calls another method and where callback events occur. That is the gap: semantic similarity finds relevant neighborhoods, while structural relationships help reconstruct the execution sequence.<br><br><span class="small">[Sources] eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
+      <div class="callout">This two-file fixture illustrates the mechanism; the confirmatory measurements still use the pinned LlamaIndex Core workload.</div>
+      <aside class="notes"><strong>Transcript:</strong> I use a deliberately small two-file Checkout fixture to make the mechanism visible. The question asks for the sequence of <code>Checkout.checkout</code>, including logging and payment. Vector retrieval can find a relevant payment chunk because the words are similar, but that chunk does not prove the order of operations. Graph edges such as <code>DEFINES</code>, <code>CALLS</code> and <code>IMPORTS</code> make the structural path explicit. This example explains the mechanism; the confirmatory benchmark remains the pinned LlamaIndex Core workload.<br><br><span class="small">[Demo boundary] Illustrative two-file fixture; not benchmark evidence.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -326,10 +355,10 @@
     <section class="slide" data-axis="core">
       <div class="kicker">System architecture · 05 / 15</div>
       <h2>One indexed source supports three query-aware retrieval paths.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">query → generic local route</span></div>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">query → generic local route</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 385" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
         <title id="routing-title">Hybrid-RAG indexing and query routing</title>
-        <desc id="routing-desc">A pinned source creates graph and vector representations. A query analyzer selects exact relation, generic local, or global community retrieval.</desc>
+        <desc id="routing-desc">A two-file demo fixture creates graph and vector representations. A query analyzer selects exact relation, generic local, or global community retrieval.</desc>
         <defs>
           <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
@@ -339,7 +368,7 @@
         <path d="M502 51 H550 V89 H592" class="svg-edge graph" marker-end="url(#routing-arrow)" />
         <path d="M502 133 H550 V117 H592" class="svg-edge vector" marker-end="url(#routing-arrow)" />
         <rect x="36" y="44" width="200" height="68" rx="5" class="svg-source" />
-        <text x="56" y="71" class="svg-title">Pinned Python source</text><text x="56" y="92" class="svg-subtitle">digest + repository namespace</text>
+        <text x="56" y="71" class="svg-title">Demo checkout source</text><text x="56" y="92" class="svg-subtitle">2 files · demo corpus</text>
         <rect x="322" y="17" width="180" height="68" rx="5" class="svg-store graph" />
         <text x="342" y="44" class="svg-title">AST graph</text><text x="342" y="65" class="svg-subtitle">FalkorDB · explicit edges</text>
         <rect x="322" y="99" width="180" height="68" rx="5" class="svg-store vector" />
@@ -367,17 +396,17 @@
         <text x="730" y="350" class="svg-route">GLOBAL</text><text x="812" y="350" class="svg-small">directory communities → summary</text>
       </svg>
       <p class="svg-caption">The stores share one source identity; the query path is selected per question.</p>
-      <div class="callout">Parallel graph–vector fusion is one route, not the universal control flow.</div>
+      <div class="callout">The Checkout question illustrates the generic-local route; parallel graph–vector fusion is not the universal control flow.</div>
       <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. It writes the new records before removing stale records and records one provenance identity after the operation succeeds; this reduces empty-index windows but is not a reader-isolated generation cutover. Query analysis then chooses a route. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. A generic local question searches both stores concurrently and fuses their ranks. A global question reads repository-scoped community summaries. This routing is more precise than describing every query as parallel hybrid retrieval.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Evidence representation · 06 / 15</div>
       <h2>One function becomes two different kinds of evidence.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">entity → graph + vector evidence</span></div>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">entity → graph + vector evidence</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="evidence-title evidence-desc">
         <title id="evidence-title">Graph and vector evidence for one function</title>
-        <desc id="evidence-desc">Graph relationships and semantic vector context converge on the BaseRetriever.retrieve question.</desc>
+        <desc id="evidence-desc">Graph relationships and semantic vector context converge on the Checkout.checkout question.</desc>
         <defs>
           <marker id="evidence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
@@ -388,31 +417,32 @@
         <path d="M404 98 V114 H468" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <rect x="36" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="54" y="78" class="svg-title">Module</text>
         <rect x="188" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="206" y="78" class="svg-title">Class</text>
-        <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">retrieve</text>
-        <text x="194" y="116" class="svg-edge-label">DEFINES</text><text x="348" y="116" class="svg-edge-label">DEFINES · CALLS</text>
+        <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">checkout</text>
+        <text x="194" y="116" class="svg-edge-label">DEFINES</text><text x="348" y="116" class="svg-edge-label">CALLS</text>
 
         <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
         <text x="492" y="117" class="svg-small">QUESTION FOCUS</text>
-        <text x="492" y="145" class="svg-code">BaseRetriever.retrieve</text>
+        <text x="492" y="145" class="svg-code">Checkout.checkout</text>
         <text x="492" y="169" class="svg-subtitle">What sequence does this method follow?</text>
+        <text x="492" y="187" class="svg-small">targets: _validate · charge</text>
 
         <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M740 239 H752 V202 H828 V98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M764 73 H740 V152 H722" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title">Metadata</text><text x="934" y="87" class="svg-small">repo · file · digest</text>
         <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title">Embedding</text>
-        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + callbacks</text>
+        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + payment calls</text>
         <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
       </svg>
       <p class="svg-caption">Graph edges explain relationships; vector context locates semantically relevant source.</p>
-      <div class="callout">Vector search finds the relevant neighborhood; graph traversal makes the execution relationships explicit.</div>
-      <aside class="notes"><strong>Transcript:</strong> The same function is represented in two ways. The graph records explicit facts, such as a module defining a class and <code>retrieve</code> calling <code>_retrieve</code>. The vector record captures the source text and its semantic meaning. Neither representation replaces the other: vector search locates relevant code, and graph traversal exposes the relationships needed to explain it.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
+      <div class="callout">Vector search finds the payment-related neighborhood; graph traversal makes the Checkout call relationships explicit.</div>
+      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and <code>charge</code>. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes the relationships needed to explain the sequence.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Retrieval mechanism · 07 / 15</div>
       <h2>Generic local queries fuse complementary rankings—then select context.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">candidates → RRF → context</span></div>
+      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">candidates → RRF → context</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
         <title id="rrf-title">Reciprocal rank fusion</title>
         <desc id="rrf-desc">Graph and vector ranked candidates converge at RRF and become a budgeted context list.</desc>
@@ -421,10 +451,10 @@
         </defs>
         <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
         <text x="50" y="50" class="svg-route">GRAPH RANK</text>
-        <text x="54" y="78" class="svg-code">01  retrieve</text><text x="54" y="100" class="svg-code">02  _retrieve</text><text x="54" y="122" class="svg-small">03  callback event</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="54" y="78" class="svg-code">01  _validate</text><text x="54" y="100" class="svg-code">02  charge</text><text x="54" y="122" class="svg-small">03  logging event</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
         <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
         <text x="50" y="194" class="svg-route">VECTOR RANK</text>
-        <text x="54" y="222" class="svg-code">01  callback manager</text><text x="54" y="244" class="svg-code">02  retrieve</text><text x="54" y="266" class="svg-small">03  recursive retrieval</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
+        <text x="54" y="222" class="svg-code">01  PaymentGateway</text><text x="54" y="244" class="svg-code">02  checkout</text><text x="54" y="266" class="svg-small">03  payment chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
         <path d="M298 83 H346 V120 H419" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
         <path d="M298 227 H346 V190 H419" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
         <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank, not score</text>
@@ -443,7 +473,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">Reliability &amp; provenance · 08 / 15</div>
       <h2>Unsupported states fail at explicit boundaries; replacement reduces index gaps.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">trace → provenance gate</span></div>
       <div class="gate-flow">
         <div class="gate"><strong>1 · Accept input</strong>Python repository + local Ollama only<span class="reject">Java or remote provider → reject</span></div>
         <div class="gate"><strong>2 · Bind identity</strong>Repository, digest, schema and embedding model<span class="reject">Metadata mismatch → abort</span></div>
@@ -451,14 +480,14 @@
         <div class="gate publish"><strong>4 · Replace before cleanup</strong>Write new records before stale removal<span class="reject">Reduces empty-index window</span></div>
         <div class="gate publish"><strong>5 · Rotate cache</strong>New generation creates a new namespace<span class="reject">Stale answers cannot cross runs</span></div>
       </div>
-      <div class="callout">Latest merged validation: 315 tests passed, 27 integration cases skipped explicitly and 2 warnings.</div>
+      <div class="callout">These gates protect both the demo index and the confirmatory benchmark; they do not expand the evidence boundary.</div>
       <aside class="notes"><strong>Transcript:</strong> Reliability means that unsupported states fail visibly at their boundaries. The system rejects unsupported Java input and non-local generation providers. It verifies repository and index identity before retrieval or evaluation. Parsing and embedding happen before database mutation, and replacement writes new records before stale cleanup, which reduces an empty-index window. This is not a reader-isolated atomic cutover. Finally, the cache generation changes with the index, preventing an answer from an older snapshot from appearing current.<br><br><span class="small">[Sources] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Experimental design · 09 / 15</div>
       <h2>The confirmatory workload preserves pairing from question to conclusion.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">one representative case · not aggregate proof</span></div>
+      <div class="running-case"><span class="running-case-label">Evidence boundary</span><code>Checkout mechanism</code><span class="stage">LlamaIndex Core evidence → paired inference</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
         <title id="experiment-title">Paired answer-quality experiment</title>
         <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
@@ -533,20 +562,17 @@
       <h2>The demo exposes one claim, one mechanism and one failure boundary.</h2>
       <div class="demo-sequence">
         <div class="demo-head">Step</div><div class="demo-head">Action</div><div class="demo-head">What the audience can verify</div>
-        <div class="demo-number">01</div><div class="demo-action">Check FalkorDB, Qdrant and Ollama</div><div class="demo-proof">The local system is ready before querying</div>
-        <div class="demo-number">02</div><div class="demo-action">Ask the <code>BaseRetriever.retrieve</code> sequence question</div><div class="demo-proof">The question requires semantic and structural evidence</div>
-        <div class="demo-number">03</div><div class="demo-action">Inspect graph and vector candidates</div><div class="demo-proof">Each retrieval path contributes different evidence</div>
-        <div class="demo-number">04</div><div class="demo-action">Call <code>POST /query</code> and inspect answer + sources</div><div class="demo-proof">The API assembles five context items, then generates locally</div>
-        <div class="demo-number">05</div><div class="demo-action">Attempt Java indexing</div><div class="demo-proof">Unsupported scope fails explicitly</div>
+        <div class="demo-number">01</div><div class="demo-action">Ensure <code>demo-checkout</code> is indexed, or load the JSON fallback</div><div class="demo-proof">The two-file demo corpus is separate from the confirmatory workload</div>
+        <div class="demo-number">02</div><div class="demo-action">Ask one generic-local <code>Checkout.checkout</code> question</div><div class="demo-proof">The same query produces graph and vector candidates</div>
+        <div class="demo-number">03</div><div class="demo-action">Inspect the answer and <code>file_path</code>, <code>source</code>, <code>rrf_score</code></div><div class="demo-proof">Evidence fields are visible; Java remains a backup failure path</div>
       </div>
-      <div class="callout">One successful demo illustrates the mechanism; the benchmark—not the demo—supports the aggregate claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> The demo follows one complete and inspectable path. I first confirm that the three local services are healthy, then call the API with the execution-sequence question. The API returns a locally generated answer together with source records, so the audience can inspect both the answer and its evidence. Finally, I try to index Java and show the explicit rejection. The demo explains the mechanism; the benchmark supports the broader measurement.<br><br><span class="small">[Sources] presentation/hybrid_rag_demo_scenario.md; src/hybrid_rag/api/main.py</span></aside>
+      <div class="callout">One Checkout demo illustrates the mechanism; the LlamaIndex benchmark—not the demo—supports the aggregate claim.</div>
+      <aside class="notes"><strong>Transcript:</strong> The live demo should use a pre-indexed two-file <code>demo-checkout</code> fixture or its saved JSON fallback. I ask exactly one generic-local question, then show the answer together with <code>file_path</code>, <code>source</code> and <code>rrf_score</code>. Java is kept as a backup failure path rather than part of the main demo. The Checkout example explains the mechanism; the LlamaIndex benchmark supports the broader measurement.<br><br><span class="small">[Demo plan] presentation/hybrid_rag_demo_scenario.md; align the scenario with the Checkout fixture before the live session.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Contribution · 14 / 15</div>
       <h2>The contribution is a trustworthy code-retrieval system, not a new primitive.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">mechanism → auditable system</span></div>
       <div class="two-col">
         <div class="line-list">
           <p><strong>Retrieval integration:</strong> deterministic relation plans, concurrent local fusion, global community summaries and budgeted context.</p>
@@ -566,7 +592,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">Conclusion · 15 / 15</div>
       <h2>Hybrid improves answer correctness here—at a measured retrieval cost.</h2>
-      <div class="running-case"><span class="running-case-label">Running case</span><code>BaseRetriever.retrieve</code><span class="stage">example → bounded claim</span></div>
       <div class="two-col">
         <div class="line-list">
           <p><strong>Quality:</strong> correctness Δ +0.046 with 95% CI [0.002, 0.094].</p>
@@ -588,13 +613,13 @@
       <table class="metric-table">
         <thead><tr><th>Question signal</th><th>Primary path</th><th>Fallback</th></tr></thead>
         <tbody>
-          <tr><td>Supported relation + entity<span class="signal-note">A regex detects a supported relation phrase—such as imports, calls, inherits, or defines—and extracts a code identifier such as BaseRetriever or retrieve().</span></td><td>Deterministic graph plan</td><td>Vector only if no relation target</td></tr>
+          <tr><td>Supported relation + entity<span class="signal-note">A regex detects a supported relation phrase—such as imports, calls, inherits, or defines—and extracts a code identifier such as Checkout or checkout().</span></td><td>Deterministic graph plan</td><td>Vector only if no relation target</td></tr>
           <tr><td>Generic local behavior<span class="signal-note">When no global or supported-relation pattern is detected, the query is treated as a local behavior question; graph and vector retrieval run in parallel.</span></td><td>Concurrent graph + vector</td><td>Weighted RRF</td></tr>
           <tr><td>Architecture / repository-wide<span class="signal-note">A global-intent regex detects terms such as architecture, overview, or dependency flow, then routes the query to directory/community summaries.</span></td><td>Community summaries</td><td>Generic retrieval if unavailable</td></tr>
           <tr><td>Vector-only benchmark mode<span class="signal-note">This is an evaluation flag, not a question category: skip_graph=True disables graph retrieval so the vector baseline can be compared on the same questions.</span></td><td>Qdrant</td><td>No graph contribution</td></tr>
         </tbody>
       </table>
-      <div class="callout">The running query stays on the generic-local route; exact-relation and global/community are sibling paths.</div>
+      <div class="callout">The Checkout demo question stays on the generic-local route; exact-relation and global/community are sibling paths.</div>
       <aside class="notes"><strong>Transcript:</strong> The query analyzer identifies whether a question is global, local with a supported relation, or generic local. Exact relation questions run a deterministic graph plan and return immediately when a relation target exists. Generic local questions run graph and vector retrieval concurrently. Global questions read community summaries scoped to the selected repository. Vector-only mode disables graph contribution so it remains a meaningful paired baseline.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 

@@ -206,6 +206,7 @@
     .svg-diagram .svg-limit { fill: var(--svg-limit); stroke: var(--orange); stroke-width: 1.5; }
     .svg-diagram .svg-merge { fill: var(--svg-evidence); stroke: var(--green); stroke-width: 1.5; }
     .svg-diagram .svg-title { font-size: 16px; font-weight: 800; }
+    .svg-diagram .svg-title.compact { font-size: 13px; letter-spacing: -.015em; }
     .svg-diagram .svg-subtitle { font-size: 12px; fill: var(--muted); }
     .svg-diagram .svg-small { font-size: 11px; fill: var(--muted); }
     .svg-diagram .svg-code { font: 700 12px "SFMono-Regular", Consolas, monospace; fill: var(--green); }
@@ -369,29 +370,29 @@
           <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
         <text x="36" y="20" class="svg-route">BUILD THE INDEX</text>
-        <path d="M236 78 H288 V51 H322" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M236 78 H288 V133 H322" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-        <path d="M502 51 H550 V89 H592" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M502 133 H550 V117 H592" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <path d="M236 78 L322 51" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M236 78 L322 133" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <path d="M502 51 L592 89" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M502 133 L592 117" class="svg-edge vector" marker-end="url(#routing-arrow)" />
         <rect x="36" y="44" width="200" height="68" rx="5" class="svg-source" />
-        <text x="56" y="71" class="svg-title">Demo checkout source</text><text x="56" y="92" class="svg-subtitle">2 files · demo corpus</text>
+        <text x="56" y="71" class="svg-title compact">Demo checkout source</text><text x="56" y="92" class="svg-subtitle">2 files · demo corpus</text>
         <rect x="322" y="17" width="180" height="68" rx="5" class="svg-store graph" />
-        <text x="342" y="44" class="svg-title">Code relationship map</text><text x="342" y="65" class="svg-subtitle">FalkorDB · code links</text>
+        <text x="342" y="44" class="svg-title compact">Code relation map</text><text x="342" y="65" class="svg-subtitle">FalkorDB · code links</text>
         <rect x="322" y="99" width="180" height="68" rx="5" class="svg-store vector" />
-        <text x="342" y="126" class="svg-title">Meaning-based text</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
+        <text x="342" y="126" class="svg-title compact">Meaning-based text</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
         <rect x="592" y="69" width="214" height="68" rx="5" class="svg-merge" />
         <text x="612" y="96" class="svg-title">Same source record</text><text x="612" y="117" class="svg-subtitle">schema · model · run</text>
 
         <text x="36" y="194" class="svg-route">CHOOSE A PATH</text>
         <path d="M236 252 H322" class="svg-edge" marker-end="url(#routing-arrow)" />
         <path d="M502 252 H548" class="svg-edge" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 H676 V221 H710" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 H676 V287 H710" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 H676 V353 H710" class="svg-edge" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 L710 221" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 L710 287" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+        <path d="M642 252 L710 353" class="svg-edge" marker-end="url(#routing-arrow)" />
         <rect x="36" y="218" width="200" height="68" rx="5" class="svg-process" />
         <text x="56" y="245" class="svg-title">User question</text><text x="56" y="266" class="svg-subtitle">repository scope optional</text>
         <rect x="322" y="218" width="180" height="68" rx="5" class="svg-process" />
-        <text x="342" y="245" class="svg-title">Question checker</text><text x="342" y="266" class="svg-subtitle">question type + code name</text>
+        <text x="342" y="245" class="svg-title">Question checker</text><text x="342" y="266" class="svg-subtitle">type + code name</text>
         <polygon points="595,207 642,252 595,297 548,252" class="svg-decision" />
         <text x="570" y="248" class="svg-title">route?</text>
         <rect x="710" y="198" width="334" height="46" rx="5" class="svg-process" />
@@ -420,7 +421,7 @@
         <text x="756" y="22" class="svg-route">TEXT SEARCH · SIMILAR MEANING</text>
         <path d="M160 73 H188" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <path d="M312 73 H340" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
-        <path d="M404 98 V114 H468" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
+        <path d="M404 98 L468 138" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <rect x="36" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="54" y="78" class="svg-title">Module</text>
         <rect x="188" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="206" y="78" class="svg-title">Class</text>
         <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">checkout</text>
@@ -429,15 +430,15 @@
         <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
         <text x="492" y="117" class="svg-small">QUESTION</text>
         <text x="492" y="145" class="svg-code">Checkout.checkout</text>
-        <text x="492" y="169" class="svg-subtitle">What sequence does this method follow?</text>
+        <text x="492" y="169" class="svg-subtitle">What sequence does it follow?</text>
         <text x="492" y="187" class="svg-small">targets: _validate · charge</text>
 
         <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <path d="M740 239 H752 V202 H828 V98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <path d="M764 73 H740 V152 H722" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title">Source details</text><text x="934" y="87" class="svg-small">repo · file · hash</text>
-        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title">Text meaning</text>
-        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title">Source chunk</text><text x="630" y="253" class="svg-small">body + payment calls</text>
+        <path d="M740 239 L828 98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
+        <path d="M764 73 L722 152" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
+        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title compact">Source info</text><text x="934" y="87" class="svg-small">repo · file · hash</text>
+        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title compact">Text meaning</text>
+        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title compact">Source chunk</text><text x="630" y="253" class="svg-small">body + payment</text>
         <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
       </svg>
       <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
@@ -461,8 +462,8 @@
         <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
         <text x="50" y="194" class="svg-route">VECTOR CONTEXT · DEMO</text>
         <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · local search</text>
-        <path d="M298 83 H346 V120 H419" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
-        <path d="M298 227 H346 V190 H419" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
+        <path d="M298 83 L419 120" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
+        <path d="M298 227 L419 190" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
         <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">order, not quality</text>
         <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
         <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
@@ -503,12 +504,12 @@
         </defs>
         <text x="36" y="20" class="svg-route">THE TEST SET</text>
         <path d="M236 77 H286" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M486 77 H536" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M736 77 H786" class="svg-edge" marker-end="url(#experiment-arrow)" />
-        <rect x="36" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="58" y="69" class="svg-title">30 questions</text><text x="58" y="91" class="svg-subtitle">10 simple · 10 medium · 10 hard</text>
+        <rect x="36" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="58" y="69" class="svg-title">30 questions</text><text x="58" y="89" class="svg-subtitle">10 simple · 10 medium</text><text x="58" y="105" class="svg-small">10 hard</text>
         <rect x="286" y="40" width="200" height="74" rx="5" class="svg-store vector" /><text x="308" y="69" class="svg-title">2 modes</text><text x="308" y="91" class="svg-subtitle">vector · hybrid</text>
         <rect x="536" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="558" y="69" class="svg-title">3 repeats</text><text x="558" y="91" class="svg-subtitle">average each question</text>
         <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 saved answers</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, kept for checking</text>
 
-        <path d="M915 114 V140 H540 V164" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
+        <path d="M915 114 L540 164" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
         <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 question averages</text><text x="424" y="212" class="svg-subtitle">one Hybrid − vector value each</text>
         <path d="M680 197 H740" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
         <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 resamples</text><text x="764" y="212" class="svg-subtitle">resample 30 questions · seed 42</text>
@@ -628,12 +629,12 @@
         <path d="M246 66 H292" class="svg-edge" marker-end="url(#route-detail-arrow)" />
         <rect x="36" y="36" width="210" height="60" rx="5" class="svg-source" />
         <text x="56" y="62" class="svg-route">USER QUESTION</text>
-        <text x="56" y="83" class="svg-code">Checkout.checkout sequence?</text>
+        <text x="56" y="83" class="svg-code">Checkout.checkout?</text><text x="56" y="96" class="svg-small">sequence question</text>
         <rect x="292" y="36" width="220" height="60" rx="5" class="svg-process" />
         <text x="312" y="62" class="svg-route">QUESTION CHECKER</text>
         <text x="312" y="83" class="svg-subtitle">signal + code name</text>
 
-        <path d="M512 66 H530 V80 H550" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <path d="M512 66 L550 80" class="svg-edge" marker-end="url(#route-detail-arrow)" />
         <polygon points="550,80 600,45 650,80 600,115" class="svg-decision" />
         <text x="600" y="84" class="svg-title" text-anchor="middle">whole repo?</text>
 
@@ -657,8 +658,8 @@
         <text x="730" y="191" class="svg-small">imports · calls · defines + Checkout</text>
         <text x="730" y="206" class="svg-code">→ graph lookup · vector fallback</text>
 
-        <path d="M600 215 V300 H710" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <text x="610" y="245" class="svg-edge-label">NO</text>
+        <path d="M600 215 L710 300" class="svg-edge" marker-end="url(#route-detail-arrow)" />
+        <text x="636" y="253" class="svg-edge-label">NO</text>
         <rect x="710" y="268" width="334" height="64" rx="5" class="svg-evidence" />
         <text x="730" y="292" class="svg-route">LOCAL BEHAVIOR</text>
         <text x="730" y="311" class="svg-small">sequence · how it works · no clear relation</text>
@@ -761,9 +762,9 @@
         <defs><marker id="provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
         <path d="M196 76 H226" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M396 76 H426" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M596 76 H626" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M796 76 H826" class="svg-edge graph" marker-end="url(#provenance-arrow)" />
         <rect x="36" y="39" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="68" class="svg-title">Source files</text><text x="56" y="90" class="svg-subtitle">version + file hash</text>
-        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title">Source fingerprint</text><text x="246" y="90" class="svg-subtitle">same code check</text>
+        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title compact">Source fingerprint</text><text x="246" y="90" class="svg-subtitle">same code check</text>
         <rect x="426" y="39" width="170" height="74" rx="5" class="svg-store graph" /><text x="446" y="68" class="svg-title">New index</text><text x="446" y="90" class="svg-subtitle">code map + text data</text>
-        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Final check</text><text x="646" y="90" class="svg-subtitle">schema + model match</text>
+        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Final check</text><text x="646" y="90" class="svg-subtitle">schema + model</text>
         <rect x="826" y="39" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="68" class="svg-title">Run the test</text><text x="846" y="90" class="svg-subtitle">measure or report</text>
         <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">DIFFERENT → STOP</text>
       </svg>

@@ -398,8 +398,8 @@
         <text x="730" y="350" class="svg-route">GLOBAL</text><text x="812" y="350" class="svg-small">directory communities → summary</text>
       </svg>
       <p class="svg-caption">The stores share one source identity; the query path is selected per question.</p>
-      <div class="callout">The Checkout question illustrates the generic-local route; parallel graph–vector fusion is not the universal control flow.</div>
-      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. It writes the new records before removing stale records and records one provenance identity after the operation succeeds; this reduces empty-index windows but is not a reader-isolated generation cutover. Query analysis then chooses a route. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. A generic local question searches both stores concurrently and fuses their ranks. A global question reads repository-scoped community summaries. This routing is more precise than describing every query as parallel hybrid retrieval.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <div class="callout">Demo-only route trace: the Checkout question illustrates generic-local retrieval; it contributes no benchmark score.</div>
+      <aside class="notes"><strong>Transcript:</strong> Indexing creates two complementary representations from the same source identity. It writes the new records before removing stale records and records one provenance identity after the operation succeeds; this reduces empty-index windows but is not a reader-isolated generation cutover. Query analysis then chooses a route. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. A generic local question searches both stores concurrently and fuses their ranks. A global question reads repository-scoped community summaries. This routing is more precise than describing every query as parallel hybrid retrieval. The Checkout route is an illustrative demo only; it does not contribute to benchmark scores.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -437,8 +437,8 @@
         <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
       </svg>
       <p class="svg-caption">Graph edges explain relationships; vector context locates semantically relevant source.</p>
-      <div class="callout">Vector search finds the payment-related neighborhood; graph traversal makes the Checkout call relationships explicit.</div>
-      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and <code>charge</code>. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes the relationships needed to explain the sequence.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
+      <div class="callout">Demo trace only: vector search locates the payment neighborhood; graph traversal exposes structure. No answer-quality score is computed from this fixture.</div>
+      <aside class="notes"><strong>Transcript:</strong> The same Checkout method is represented in two ways. The graph records explicit facts: the module defines the class, and <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and <code>charge</code>. The vector record captures the source text and its semantic meaning, including the cross-file payment implementation. Neither representation replaces the other: vector search locates relevant code, while graph traversal exposes the relationships needed to explain the sequence. This is a demo trace only; the fixture is not scored for correctness, faithfulness, relevancy or confidence intervals.<br><br><span class="small">[Sources] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -452,10 +452,10 @@
           <marker id="rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
         <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
-        <text x="50" y="50" class="svg-route">GRAPH RANK</text>
+        <text x="50" y="50" class="svg-route">GRAPH RANK · DEMO</text>
         <text x="54" y="78" class="svg-code">01  _validate</text><text x="54" y="100" class="svg-code">02  charge</text><text x="54" y="122" class="svg-small">03  logging event</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · generic local</text>
         <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
-        <text x="50" y="194" class="svg-route">VECTOR RANK</text>
+        <text x="50" y="194" class="svg-route">VECTOR RANK · DEMO</text>
         <text x="54" y="222" class="svg-code">01  PaymentGateway</text><text x="54" y="244" class="svg-code">02  checkout</text><text x="54" y="266" class="svg-small">03  payment chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · generic local</text>
         <path d="M298 83 H346 V120 H419" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
         <path d="M298 227 H346 V190 H419" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
@@ -463,13 +463,13 @@
         <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
         <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
         <text x="584" y="78" class="svg-route">CONTEXT TO OLLAMA</text>
-        <text x="588" y="116" class="svg-title">fuse top-k 20</text><text x="588" y="147" class="svg-title">deduplicate by base node</text><text x="588" y="178" class="svg-title">keep best 5 for benchmark</text><text x="588" y="214" class="svg-edge-label">optional API token/character budget</text>
+        <text x="588" y="116" class="svg-title">fuse top-k 20</text><text x="588" y="147" class="svg-title">deduplicate by base node</text><text x="588" y="178" class="svg-title">keep best 5 for answer context</text><text x="588" y="214" class="svg-edge-label">optional API token/character budget</text>
       </svg>
       <p class="svg-caption">RRF merges rank positions; weights vary by route and are not raw-score calibration.</p>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <p class="small">Generic local: graph weight capped at 1.0, vector weight 1.0 · exact relation: graph-only weight 3.0 · vector-only: (0, 1).</p>
-      <div class="callout">RRF uses rank positions—not raw scores; generic local combines graph 1.0 with vector 1.0.</div>
-      <aside class="notes"><strong>Transcript:</strong> On the generic local route, graph and vector scores are not directly comparable, so RRF uses rank positions instead. The current implementation caps the generic graph contribution at one and gives vector rank weight one, preventing noisy neighborhood expansion from dominating semantic evidence. A successful exact-relation route is graph-only with configured graph weight three. The answer-quality benchmark then keeps the first five fused results and formats them directly; the API also supports optional dynamic token or character budgets, but that path is not what this benchmark measured.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <div class="callout">Demo-only RRF trace: candidate ranks are fused into answer context; any <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
+      <aside class="notes"><strong>Transcript:</strong> This RRF mechanism is shown through the Checkout demo, not as a benchmark result. Graph and vector scores are not directly comparable, so RRF uses rank positions instead. The current implementation caps the generic graph contribution at one and gives vector rank weight one, preventing noisy neighborhood expansion from dominating semantic evidence. A successful exact-relation route is graph-only with configured graph weight three. The first five fused candidates shown here become answer context; they are illustrative demo candidates, not scored benchmark outputs. If the API returns <code>rrf_score</code>, that value describes retrieval ranking only—not correctness, faithfulness, relevancy or confidence intervals. The API also supports optional dynamic token or character budgets, but that path is not what the confirmatory benchmark measured.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -622,8 +622,8 @@
         </tbody>
       </table>
       <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is an evaluation mode, not a fourth query route; it disables graph contribution on the same questions.</p>
-      <div class="callout">The Checkout question selects generic-local; exact-relation and global/community are the three sibling paths from Core 05.</div>
-      <aside class="notes"><strong>Transcript:</strong> Core 05 established three query-aware paths. This detail shows the decision that selects one before the stores are queried. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. The Checkout sequence question is generic local, so graph and vector retrieval run concurrently. A global question reads repository-scoped community summaries. Vector-only mode is an evaluation flag that disables graph contribution for the paired baseline.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <div class="callout">Demo routing only: the Checkout question selects generic-local; exact-relation and global/community are the three sibling paths from Core 05. This fixture is not benchmark evidence.</div>
+      <aside class="notes"><strong>Transcript:</strong> Core 05 established three query-aware paths. This detail shows the decision that selects one before the stores are queried. A supported relation question uses a deterministic graph plan and avoids unnecessary vector work when the graph returns a target. The Checkout sequence question is generic local, so graph and vector retrieval run concurrently. A global question reads repository-scoped community summaries. Vector-only mode is an evaluation flag that disables graph contribution for the paired baseline. The Checkout route is only a demo trace; it is not sent to the answer-quality benchmark.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Global communities">
@@ -667,10 +667,10 @@
         </div>
       </div>
       <div class="two-col">
-        <div class="note-box"><div class="label">Graph evidence</div><p><code>DEFINES</code>, <code>IMPORTS</code> and <code>CALLS</code> expose explicit structural relationships between code entities.</p></div>
-        <div class="note-box"><div class="label">Vector evidence</div><p>Source chunks preserve implementation text and semantic context, including the cross-file payment implementation.</p></div>
+        <div class="note-box"><div class="label">Demo graph evidence</div><p><code>DEFINES</code>, <code>IMPORTS</code> and <code>CALLS</code> expose explicit structural relationships between code entities.</p></div>
+        <div class="note-box"><div class="label">Demo vector evidence</div><p>Source chunks preserve implementation text and semantic context, including the cross-file payment implementation.</p></div>
       </div>
-      <div class="callout">For <code>Checkout.checkout</code>, graph evidence can expose <code>DEFINES</code> and <code>CALLS</code>; it does not prove runtime order by itself.</div>
+      <div class="callout">Demo trace only: for <code>Checkout.checkout</code>, graph evidence exposes structure; no answer-quality score is computed from this fixture.</div>
       <aside class="notes"><strong>Transcript:</strong> Core 06 separates explicit graph facts from semantic vector context. This schema shows what graph retrieval can traverse: ownership runs from directory to module, class and function, while imports, inheritance and calls provide dependency paths. For the Checkout fixture, the graph can state that the module defines the class and that <code>Checkout.checkout</code> calls <code>_validate</code>, <code>_total</code> and a payment call target. The graph relationship is structural evidence; line positions and source text are needed before claiming an execution sequence. Optional non-code nodes remain generic and do not provide Python AST semantics.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/api/schemas.py</span></aside>
     </section>
 
@@ -692,7 +692,7 @@
         <path d="M711 123 V173 H826" class="svg-edge limit" marker-end="url(#resolution-arrow)" /><text x="626" y="218" class="svg-edge-label svg-uncertain">otherwise, preserve the unresolved stub</text>
       </svg>
       <p class="svg-caption">The resolver widens its search only when the previous scope has no unique answer.</p>
-      <div class="callout">In the Checkout fixture, <code>self.payment.charge</code> remains an explicit call stub when the receiver target is not uniquely resolved; vector evidence can still locate <code>payment.py</code>.</div>
+      <div class="callout">Demo trace only: <code>self.payment.charge</code> remains an explicit call stub when the receiver target is not uniquely resolved; vector evidence can still locate <code>payment.py</code>.</div>
       <aside class="notes"><strong>Transcript:</strong> This is the auditability rule behind Core 06. A parsed call that cannot be bound immediately is stored as an explicit stub. The resolver first checks a same-class method, then a module-level function in the caller’s module, then an import-aware unique candidate. For the Checkout fixture, the receiver-qualified <code>self.payment.charge</code> call is not silently linked to <code>PaymentGateway.charge</code> when that target is not uniquely resolvable; the unresolved stub remains visible. Vector retrieval can still locate the payment implementation from its source text. That is conservative evidence, not a missing answer hidden by a guess.<br><br><span class="small">[Sources] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
     </section>
 
@@ -706,8 +706,8 @@
         <div class="note-box"><div class="label">Generic local</div><p>Graph contribution is capped at 1.0; vector weight is 1.0.</p></div>
           <div class="note-box"><div class="label">Vector baseline</div><p>Weights are (0, 1). Legacy <code>hybrid_weight</code> is retained but unused.</p></div>
       </div>
-      <div class="callout">For Checkout, graph ranks such as <code>_validate</code>/<code>charge</code> meet vector ranks such as <code>PaymentGateway</code>/<code>checkout</code>; RRF fuses, deduplicates and keeps the top five. <code>k=60</code> is fixed smoothing, not a tuned claim.</div>
-      <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07. Graph and vector scores are not directly comparable, so each candidate contributes through its rank position with smoothing constant sixty. For the Checkout question, candidates such as <code>_validate</code>, <code>charge</code> and <code>PaymentGateway</code> are ranked independently, then RRF fuses the lists, deduplicates by base node and keeps the first five context items for the benchmark. The weight depends on the route: exact relation is graph-only with weight three, generic local caps graph weight at one and uses vector weight one, and vector-only sets graph weight to zero. The constant sixty is fixed smoothing, not an optimized hyperparameter.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <div class="callout">Demo-only trace: for Checkout, graph ranks such as <code>_validate</code>/<code>charge</code> meet vector ranks such as <code>PaymentGateway</code>/<code>checkout</code>; RRF fuses and keeps the top five for context. <code>rrf_score</code> is retrieval metadata, not an answer-quality score.</div>
+      <aside class="notes"><strong>Transcript:</strong> This is the RRF box from Core 07, illustrated with demo candidates. Graph and vector scores are not directly comparable, so each candidate contributes through its rank position with smoothing constant sixty. For the Checkout question, candidates such as <code>_validate</code>, <code>charge</code> and <code>PaymentGateway</code> are ranked independently, then RRF fuses the lists, deduplicates by base node and keeps the first five context items. The weight depends on the route: exact relation is graph-only with weight three, generic local caps graph weight at one and uses vector weight one, and vector-only sets graph weight to zero. This fixture is not sent to the answer-quality benchmark; any <code>rrf_score</code> shown here is retrieval metadata only. The constant sixty is fixed smoothing, not an optimized hyperparameter.<br><br><span class="small">[Sources] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/eval/answer_quality.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="Index lifecycle">

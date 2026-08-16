@@ -324,10 +324,10 @@
             <p>“When <code>Checkout.checkout</code> runs, what is the sequence, including logging and payment?”</p>
           </div>
           <div class="line-list fixture-output">
-            <p><strong>Graph output:</strong> <code>CALLS → _validate</code> and <code>_total</code>; <code>self.payment.charge</code> remains an unresolved call stub.</p>
-            <p><strong>Boundary:</strong> <code>self.log.start/end</code> also remain stubs because the logger target is absent from the fixture.</p>
-            <p><strong>Text-search output:</strong> meaning-based text still locates <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
-            <p><strong>Order:</strong> <code>start → validate → total → charge → end</code> comes from source text, not from <code>DEFINES</code>/<code>CALLS</code> alone.</p>
+            <p><strong>Graph:</strong> finds <code>_validate</code> and <code>_total</code>.</p>
+            <p><strong>Not linked yet:</strong> <code>payment.charge</code> and logging cannot be linked because their target code is not in the fixture.</p>
+            <p><strong>Meaning search:</strong> still finds <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
+            <p><strong>Execution order:</strong> <code>start → validate → total → charge → end</code> comes from the source code, not graph links alone.</p>
           </div>
         </div>
       </div>
@@ -341,7 +341,7 @@
       <div class="line-list">
         <p><strong>RQ1 · Answer quality:</strong> Do Faithfulness, Answer Relevancy and Answer Correctness change compared with vector-only retrieval?</p>
         <p><strong>RQ2 · Time and tokens:</strong> How do search time, answer time and token counts change?</p>
-        <p><strong>RQ3 · Confidence:</strong> Which differences stay above zero in the paired 95% confidence range?</p>
+        <p><strong>RQ3 · Confidence:</strong> Does the difference stay above zero in the paired 95% range?</p>
       </div>
       <p class="small">Scope: Python code indexing · one fixed LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
       <div class="callout">A higher average is not enough; the range tells us how strong the result is.</div>
@@ -360,7 +360,7 @@
           <tr><td>Reference answers</td><td>30 AI source-reviewed references</td><td>Independent human accuracy</td></tr>
         </tbody>
       </table>
-      <p class="small"><strong>Where this work fits:</strong> BM25 matches words; CodeBERT/GraphCodeBERT represent code; Microsoft GraphRAG uses graphs over a large corpus. This work combines Python code links, meaning-based search and source tracking for repository questions.</p>
+      <p class="small"><strong>Where this work fits:</strong> BM25 matches words. CodeBERT/GraphCodeBERT represent code. Microsoft GraphRAG uses graphs over large collections. This work combines Python code links, meaning-based search and source tracking for repository questions.</p>
       <div class="callout">The safe claim is “better on this fixed set of questions,” not “better for every RAG system.”</div>
       <aside class="notes"><strong>Cách hiểu:</strong> Đây là một test công bằng nhưng phạm vi nhỏ. Hybrid và vector-only dùng cùng source, cùng câu hỏi, cùng model, cùng judge và cùng số lần chạy. Thực nghiệm chỉ cover một Python repository: <code>llama-index-core==0.14.21</code>. Reference answers được AI source-review; chưa có independent human review. BM25, CodeBERT/GraphCodeBERT, graph-only và external GraphRAG chỉ là literature positioning, chưa phải baseline đã chạy trong thesis. Vì vậy claim an toàn là Hybrid tốt hơn trên workload cố định này, không phải tốt hơn mọi RAG system.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8; eval/gold/llama_index_core_answer_quality_v1.json</span></aside>
     </section>
@@ -398,11 +398,11 @@
         <rect x="36" y="218" width="200" height="68" rx="5" class="svg-process" />
         <text x="56" y="245" class="svg-title">User question</text><text x="56" y="266" class="svg-subtitle">repository scope optional</text>
         <rect x="322" y="218" width="180" height="68" rx="5" class="svg-process" />
-        <text x="342" y="245" class="svg-title">Question checker</text><text x="342" y="266" class="svg-subtitle">type + code name</text>
+        <text x="342" y="245" class="svg-title">Question type check</text><text x="342" y="266" class="svg-subtitle">question type + code name</text>
         <polygon points="595,207 642,252 595,297 548,252" class="svg-decision" />
         <text x="570" y="248" class="svg-title">route?</text>
         <rect x="710" y="198" width="334" height="46" rx="5" class="svg-process" />
-        <text x="730" y="218" class="svg-route">EXACT LINK</text><text x="880" y="218" class="svg-small">code map · text fallback</text>
+        <text x="730" y="218" class="svg-route">EXACT LINK</text><text x="880" y="218" class="svg-small">code map · text if needed</text>
         <rect x="710" y="264" width="334" height="46" rx="5" class="svg-evidence" />
         <text x="730" y="284" class="svg-route">LOCAL BEHAVIOR</text><text x="864" y="284" class="svg-small">two lists → combined results</text>
         <rect x="710" y="330" width="334" height="46" rx="5" class="svg-process" />
@@ -424,28 +424,28 @@
           <marker id="evidence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
         <text x="36" y="22" class="svg-route">CODE MAP · KNOWN LINKS</text>
-        <text x="756" y="22" class="svg-route">TEXT SEARCH · SIMILAR MEANING</text>
+        <text x="756" y="22" class="svg-route">TEXT SEARCH · RELATED CODE</text>
         <path d="M160 73 H188" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <path d="M312 73 H340" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <path d="M404 98 L468 138" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
         <rect x="36" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="54" y="78" class="svg-title">Module</text>
         <rect x="188" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="206" y="78" class="svg-title">Class</text>
         <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">checkout</text>
-        <text x="194" y="116" class="svg-edge-label">DEFINES</text><text x="348" y="116" class="svg-edge-label">CALLS</text>
+        <text x="194" y="116" class="svg-edge-label">DEFINES · contains</text><text x="348" y="116" class="svg-edge-label">CALLS · invokes</text>
 
         <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
         <text x="492" y="117" class="svg-small">QUESTION</text>
         <text x="492" y="145" class="svg-code">Checkout.checkout</text>
         <text x="492" y="169" class="svg-subtitle">What sequence does it follow?</text>
-        <text x="492" y="187" class="svg-small">targets: _validate · charge</text>
+        <text x="492" y="187" class="svg-small">targets: _validate · _total · charge</text>
 
         <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M740 239 L828 98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <path d="M764 73 L722 152" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
         <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title compact">Source info</text><text x="934" y="87" class="svg-small">repo · file · hash</text>
-        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title compact">Text meaning</text>
+        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title compact">Related text</text>
         <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title compact">Source chunk</text><text x="630" y="253" class="svg-small">body + payment</text>
-        <text x="790" y="116" class="svg-edge-label">nomic-embed-text</text>
+        <text x="790" y="116" class="svg-edge-label">embedding model</text>
       </svg>
       <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
       <div class="callout">Demo only: text search finds payment code; the code map shows the links. This fixture has no answer-quality score.</div>
@@ -470,28 +470,26 @@
         <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · local search</text>
         <path d="M298 83 L419 120" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
         <path d="M298 227 L419 190" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
-        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">order, not quality</text>
+        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank order, not quality</text>
         <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
         <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
-        <text x="584" y="78" class="svg-route">CODE SENT TO OLLAMA</text>
-        <text x="588" y="116" class="svg-title">combine top 20</text><text x="588" y="147" class="svg-title">remove duplicates</text><text x="588" y="178" class="svg-title">keep best 5 for the answer</text><text x="588" y="214" class="svg-edge-label">optional token/character limit</text>
+        <text x="584" y="78" class="svg-route">CONTEXT SENT TO OLLAMA</text>
+        <text x="588" y="116" class="svg-title">combine candidate lists</text><text x="588" y="147" class="svg-title">remove duplicates</text><text x="588" y="178" class="svg-title">keep context within the token budget</text><text x="588" y="214" class="svg-edge-label">optional character limit</text>
       </svg>
       <p class="svg-caption"><strong>Demo trace:</strong> graph contributes resolved nodes plus an unresolved stub; vector contributes source context. RRF prepares context and does not convert these candidates into an answer-quality score.</p>
-      <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
-      <p class="small">Local search: graph weight up to 1.0, text-search weight 1.0 · exact link: code-map weight 3.0 · text-only: (0, 1).</p>
       <div class="callout">Demo only: RRF combines the two result lists for the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
       <aside class="notes"><strong>Cách hiểu:</strong> Hai result lists có score khác thang đo, nên không cộng raw score trực tiếp. RRF nhìn vào rank position của từng candidate, kết hợp hai list, bỏ duplicate rồi giữ context trong budget để gửi cho Ollama. Với local question, graph và vector cùng đóng góp. Với clear-link question, graph có thể được ưu tiên; còn vector-only baseline thì tắt graph. Nhớ kỹ: <code>rrf_score</code> chỉ nói item đứng hạng nào trong context, không phải answer-quality score. Các con số trên slide giải thích method, không phải benchmark result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">Safety checks · 08 / 15</div>
-      <h2>Bad input stops early; updates reduce empty-index time.</h2>
+      <h2>Bad input stops early; safe updates protect the index.</h2>
       <div class="gate-flow">
-        <div class="gate"><strong>1 · Check the input</strong>Python repository + local Ollama only<span class="reject">Java or remote provider → reject</span></div>
-        <div class="gate"><strong>2 · Check the source</strong>Repository, digest, schema and embedding model<span class="reject">Different metadata → stop</span></div>
+        <div class="gate"><strong>1 · Input check</strong>Python repository + local Ollama only<span class="reject">Unsupported Java/provider → reject</span></div>
+        <div class="gate"><strong>2 · Same-source check</strong>Repository, source hash, schema and embedding model<span class="reject">Mismatch → stop</span></div>
         <div class="gate"><strong>3 · Prepare first</strong>Parse and embed before changing the database<span class="reject">Failure → keep old data</span></div>
-        <div class="gate publish"><strong>4 · Write before cleanup</strong>Write new records before removing old ones<span class="reject">Less time with an empty index</span></div>
-        <div class="gate publish"><strong>5 · Start a new cache</strong>New index gets a new cache name<span class="reject">Old answers cannot cross runs</span></div>
+        <div class="gate publish"><strong>4 · Safe update</strong>Write new records before removing old ones<span class="reject">Less empty-index time</span></div>
+        <div class="gate publish"><strong>5 · New cache</strong>Give the new index a new cache name<span class="reject">Old answers stay separate</span></div>
       </div>
       <div class="callout">These checks protect both the demo and the main test. They do not create new evidence.</div>
       <p class="small"><strong>Concrete checks:</strong> Java input → reject · source mismatch → stop the test · parse/embed failure → keep the old records.</p>
@@ -516,9 +514,9 @@
         <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 saved answers</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, kept for checking</text>
 
         <path d="M915 114 L540 164" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 question averages</text><text x="424" y="212" class="svg-subtitle">one Hybrid − vector value each</text>
+        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 paired differences</text><text x="424" y="212" class="svg-subtitle">one Hybrid − vector value per question</text>
         <path d="M680 197 H740" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 resamples</text><text x="764" y="212" class="svg-subtitle">resample 30 questions · seed 42</text>
+        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 bootstrap resamples</text><text x="764" y="212" class="svg-subtitle">repeat 30 paired differences · seed 42</text>
         <path d="M892 230 V268" class="svg-edge" marker-end="url(#experiment-arrow)" />
         <rect x="740" y="268" width="304" height="34" rx="5" class="svg-process" /><text x="764" y="290" class="svg-route">PAIRED 95% CONFIDENCE RANGE</text>
       </svg>
@@ -594,13 +592,13 @@
           <p><strong>Exploration:</strong> one-repository code map and multi-repository 3D/2D portal.</p>
         </div>
         <div class="line-list">
-          <p><strong>Safety:</strong> source tracking, write-new-before-delete-old updates, new cache names, local-only use and clear language limits.</p>
+          <p><strong>Safety:</strong> source tracking, safe updates, new cache names, local-only use and clear language limits.</p>
           <p><strong>Engineering:</strong> index only the requested repository, read Python structure and create local embeddings in parallel.</p>
           <p><strong>Testing:</strong> saved answers, repeatable 95% ranges and clear limits on what the results prove.</p>
         </div>
       </div>
       <p class="small"><strong>Concrete anchor:</strong> the Checkout fixture shows path choice, code links, text search and unresolved calls; the benchmark separately measures quality and time.</p>
-      <div class="callout">The contribution is integration and auditability; the experiment remains deliberately bounded.</div>
+      <div class="callout">The contribution is combining existing parts into a system that others can check. The experiment remains deliberately bounded.</div>
       <aside class="notes"><strong>Cách hiểu:</strong> Luận văn không claim phát minh ra code map, text search hay RRF. Điểm đóng góp là tích hợp chúng thành một local, repository-scoped system mà người khác có thể kiểm tra. Hệ thống có query-aware routing, provenance giữa source và hai index, folder summaries, failure boundaries và evaluation artifacts. Vì vậy contribution chính nằm ở integration + auditability. Các feature rộng hơn là system capabilities; không được nói như thể tất cả đều đã có benchmark evidence.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8; repository implementation và evaluation artifacts</span></aside>
     </section>
 
@@ -703,14 +701,14 @@
       <h2>The code map shows which file contains what and who calls whom.</h2>
       <div class="schema-map">
         <div class="schema-tree">
-          <div class="label">Observed ownership</div>
+          <div class="label">What contains what</div>
           <div class="schema-level"><span class="schema-node">demo_checkout/</span><span class="schema-edge">DEFINES</span></div>
           <div class="schema-level"><span class="schema-node">checkout.py</span><span class="schema-edge">DEFINES</span></div>
           <div class="schema-level"><span class="schema-node">Checkout</span><span class="schema-edge">DEFINES</span></div>
           <div class="schema-level"><span class="schema-node">checkout()</span></div>
         </div>
         <div class="dependency-path">
-          <div class="label">Observed dependency edges</div>
+          <div class="label">Linked relations</div>
           <div class="path-line"><strong>checkout.py</strong><span class="edge-tag">IMPORTS</span><strong>payment.py</strong></div>
           <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_validate</strong></div>
           <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_total</strong></div>
@@ -730,7 +728,7 @@
       <div class="detail-bridge"><strong>Core 06:</strong> code links must be checkable. <strong>Here:</strong> we show which calls link and which stay open.</div>
       <h2>We link a call only when the target is clear.</h2>
       <table class="metric-table">
-        <thead><tr><th>Call in fixture</th><th>Resolver evidence</th><th>Observed output</th></tr></thead>
+        <thead><tr><th>Call in fixture</th><th>Why we link it</th><th>Stored result</th></tr></thead>
         <tbody>
           <tr><td><code>self._validate(...)</code></td><td>same class</td><td><code>CALLS → Checkout._validate</code></td></tr>
           <tr><td><code>self._total(...)</code></td><td>same class</td><td><code>CALLS → Checkout._total</code></td></tr>
@@ -739,7 +737,7 @@
           <tr><td><code>PaymentGateway.charge()</code></td><td>same class</td><td><code>CALLS → _authorize, _capture</code></td></tr>
         </tbody>
       </table>
-      <p class="svg-caption">The resolver links only uniquely defensible targets; uncertainty remains visible for later audit.</p>
+      <p class="svg-caption">We link a call only when the target evidence is clear; unclear targets remain visible.</p>
       <div class="callout">Observed fixture result: <code>_validate</code> and <code>_total</code> link; <code>charge</code>, <code>start</code> and <code>end</code> stay as stubs; text search still surfaces <code>payment.py</code>.</div>
       <aside class="notes"><strong>Cách hiểu:</strong> Bảng này cho thấy resolver link như thế nào. Hai call trong cùng <code>Checkout</code> có target rõ nên link được tới <code>_validate</code> và <code>_total</code>. Với <code>self.payment.charge</code>, resolver không tự đoán nó chắc chắn là <code>PaymentGateway.charge</code>, nên giữ stub. Logger calls cũng là stub vì logger code không nằm trong fixture. Ngược lại, bên trong <code>PaymentGateway.charge</code>, hai call <code>_authorize</code> và <code>_capture</code> rõ ràng nên link được. Giữ uncertainty lộ ra sẽ an toàn hơn là tạo một relation sai nhưng không ai biết.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/entity_resolver.py; tests/unit/test_entity_resolver.py</span></aside>
     </section>
@@ -750,14 +748,14 @@
       <h2>RRF combines list positions, not answer quality.</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <div class="alternatives">
-        <div class="alternative"><div class="label">Raw score sum</div><p>Not used: graph and vector scores use different scales.</p></div>
-        <div class="alternative"><div class="label">Borda / rank vote</div><p>Possible alternative; not benchmarked in this thesis.</p></div>
-        <div class="alternative"><div class="label">Learned reranker</div><p>Extra model, latency and calibration; out of scope.</p></div>
-        <div class="alternative chosen"><div class="label">RRF · chosen</div><p>Rank-only, deterministic and lightweight. Not proven best.</p></div>
+        <div class="alternative"><div class="label">CombSUM · raw score sum</div><p>Adds raw scores; graph and vector scores use different scales.</p></div>
+        <div class="alternative"><div class="label">Borda count · rank vote</div><p>Gives more points to higher ranks; not benchmarked here.</p></div>
+        <div class="alternative"><div class="label">Learned reranker</div><p>An extra model that reorders results; adds latency and calibration.</p></div>
+        <div class="alternative chosen"><div class="label">RRF · chosen</div><p>Combines rank positions; deterministic and lightweight. Not proven best.</p></div>
       </div>
       <p class="small route-weights"><strong>Route weights:</strong> clear link 3.0 · local graph ≤1.0 + text 1.0 · text-only (0, 1).</p>
       <div class="callout">Demo only: <code>_validate</code>/<code>_total</code>, unclear <code>__call__charge</code> and <code>payment.py</code> can all reach the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. RRF không xuất hiện vì thesis đã chứng minh nó tốt nhất. Câu hỏi thực tế là làm sao trộn graph/vector khi raw scores khác scale. Raw score sum cần calibration; Borda hoặc rank vote là alternatives nhưng chưa được benchmark; learned reranker thêm model, latency và bước calibration nên nằm ngoài scope. RRF được chọn như một design choice có giới hạn: chỉ dùng rank, deterministic và nhẹ, không thêm model. Vì vậy phải nói rõ: thesis chưa chứng minh RRF tốt hơn mọi fusion method khác.<br><br>Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate và giữ tối đa năm context phù hợp để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. RRF không xuất hiện vì thesis đã chứng minh nó tốt nhất. Câu hỏi thực tế là làm sao trộn graph/vector khi raw scores khác scale. <code>CombSUM</code> cộng raw scores nên cần calibration; <code>Borda count</code> là rank vote nhưng chưa được benchmark; learned reranker thêm model, latency và bước calibration nên nằm ngoài scope. RRF được chọn như một design choice có giới hạn: chỉ dùng rank, deterministic và nhẹ, không thêm model. Vì vậy phải nói rõ: thesis chưa chứng minh RRF tốt hơn mọi fusion method khác.<br><br>Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate rồi giữ context trong token budget để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
@@ -830,10 +828,10 @@
       <div class="steps">
         <div class="step">For each question and mode, average the three answers.</div>
         <div class="step">Compute Hybrid minus vector for the same 30 questions.</div>
-        <div class="step">Resample the 30 questions, with replacement, 10,000 times.</div>
-        <div class="step">Use the 2.5th and 97.5th percentiles as the 95% range.</div>
+        <div class="step">Bootstrap: resample the 30 paired differences, with replacement, 10,000 times.</div>
+        <div class="step">Use the middle 95% — the 2.5th and 97.5th percentiles — as the range.</div>
       </div>
-      <div class="callout">30 questions → 3 repeats → 30 differences → 10,000 resamples; seed 42 gives the same result each time.</div>
+      <div class="callout">30 questions → 3 repeats → 30 differences → 10,000 bootstrap resamples; seed 42 gives the same result each time.</div>
       <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu chạy 3 lần ở cả hai mode. Mình average các repeats của từng câu, tính <code>Hybrid − vector-only</code> để có 30 differences, rồi resample 30 differences đó 10.000 lần. Khoảng giữa 95% bootstrap results là confidence range. Ba lần trả lời của một câu chỉ là repeats, không phải ba câu hỏi độc lập. Seed 42 giúp chạy lại vẫn ra cùng cách tính.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 

@@ -176,8 +176,6 @@
     .progress { position: fixed; z-index: 5; left: 0; top: 0; width: 100%; height: 4px; background: rgba(29,42,52,.10); }
     .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--orange)); transition: width .2s ease; }
     .counter { position: fixed; z-index: 5; right: 8vw; bottom: 3vh; color: rgba(29,42,52,.62); font-size: 13px; letter-spacing: .1em; text-align: right; }
-    .detail-bridge { padding: .55rem .8rem; border-left: 3px solid var(--orange); background: rgba(182,92,60,.07); color: var(--muted); font-size: 14px; line-height: 1.35; }
-    .detail-bridge strong { color: var(--ink); }
     .notes { display: none; }
     body.show-notes .notes { display: block; position: fixed; z-index: 10; left: 8vw; right: 8vw; bottom: 7vh; max-height: 34vh; overflow: auto; padding: 1.1rem 1.25rem; border: 1px solid var(--cyan); border-radius: 6px; background: rgba(29,42,52,.98); color: #f7f4ec; font-size: 16px; line-height: 1.5; box-shadow: 0 18px 50px rgba(29,42,52,.25); }
 
@@ -210,6 +208,32 @@
     @keyframes diagram-reveal { to { opacity: 1; transform: translateY(0); } }
     .svg-diagram:focus { outline: 2px solid var(--cyan); outline-offset: 6px; }
     .svg-caption { margin-top: .35rem; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
+    .pipeline-demo { display: grid; grid-template-columns: .84fr 1.16fr; gap: 1.1rem; align-items: stretch; }
+    .pipeline-source-card, .pipeline-stage-output { min-width: 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); }
+    .pipeline-source-card { display: flex; flex-direction: column; }
+    .pipeline-source-card .label { margin-bottom: .1rem; }
+    .pipeline-code { margin: .45rem 0 0; color: var(--muted); font: 13px/1.38 "SFMono-Regular", Consolas, monospace; white-space: pre; }
+    .pipeline-code-line { display: block; padding: .08rem .28rem; border-left: 3px solid transparent; border-radius: 3px; transition: background .25s ease, border-color .25s ease, color .25s ease, opacity .25s ease; }
+    .pipeline-code-line.is-active { background: var(--svg-graph); border-left-color: var(--cyan); color: var(--ink); }
+    .pipeline-code-line.is-alert { background: var(--svg-limit); border-left-color: var(--orange); color: var(--ink); }
+    .pipeline-file-strip { margin-top: auto; padding-top: .6rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.3; }
+    .pipeline-file-strip code { color: var(--green); background: transparent; padding: 0; }
+    .pipeline-workflow { display: grid; gap: .65rem; min-width: 0; }
+    .pipeline-progress { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .35rem; }
+    .pipeline-step { min-width: 0; padding: .45rem .25rem; border: 1px solid var(--line); border-top: 3px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--muted); text-align: center; font-size: 11px; line-height: 1.1; transition: background .25s ease, border-color .25s ease, color .25s ease, opacity .25s ease; }
+    .pipeline-step strong { display: block; color: var(--ink); font-size: 12px; }
+    .pipeline-step.is-done { border-top-color: var(--green); background: var(--svg-evidence); }
+    .pipeline-step.is-active { border-top-color: var(--orange); background: var(--svg-limit); color: var(--ink); box-shadow: 0 5px 14px rgba(182,92,60,.12); }
+    .pipeline-status { color: var(--orange); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .pipeline-stage-output { min-height: 218px; }
+    .pipeline-output { display: none; gap: .6rem; align-content: start; }
+    .pipeline-output.is-visible { display: grid; }
+    .pipeline-output h3 { color: var(--ink); font-size: 21px; }
+    .pipeline-output p { color: var(--muted); font-size: 15px; line-height: 1.35; }
+    .pipeline-output-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .pipeline-output-block { padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 7px; background: var(--deep); color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .pipeline-output-block strong { display: block; margin-bottom: .2rem; color: var(--ink); }
+    .pipeline-output-block code { color: var(--green); background: transparent; padding: 0; }
     .process-note { display: grid; grid-template-columns: auto 1fr; gap: .65rem; align-items: center; }
     .process-note strong { color: var(--orange); font: 700 12px "SFMono-Regular", Consolas, monospace; letter-spacing: .05em; }
     .metric-table tbody tr:first-child td { border-top: 1px solid var(--line); }
@@ -235,10 +259,6 @@
     .demo-number { color: var(--orange); }
     .demo-action { color: var(--ink); }
     .demo-proof { color: var(--muted); }
-    .running-case { display: flex; align-items: center; gap: .7rem; min-height: 1.55rem; padding: .35rem 0 .45rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.2; letter-spacing: .035em; }
-    .running-case-label { color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-    .running-case code { color: var(--green); background: transparent; padding: 0; font-size: 1em; }
-    .running-case .stage { color: var(--orange); font-weight: 700; }
     @media (prefers-reduced-motion: reduce) { .progress span, .direction, .svg-diagram * { transition: none !important; animation: none !important; } .svg-diagram .reveal { opacity: 1; transform: none; } }
     @media (max-width: 800px) {
       html, body { height: auto; min-height: 100%; }
@@ -249,6 +269,8 @@
       .slide { padding: 6vh 7vw 9vh; }
       .counter { right: 7vw; bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
       .svg-diagram { max-height: 32vh; min-height: 180px; }
+      .pipeline-demo { grid-template-columns: 1fr; }
+      .pipeline-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .flow { flex-wrap: wrap; justify-content: flex-start; }
       .arrow { transform: rotate(90deg); }
       .diagram-row { grid-template-columns: 1fr; }
@@ -280,7 +302,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">The problem · 02 / 15</div>
       <h2>The problem: code questions need both meaning and structure.</h2>
-      <div class="running-case"><span class="running-case-label">Example question</span><code>Checkout.checkout</code><span class="stage">evidence across files</span></div>
       <div class="two-col fixture-layout">
         <div class="fixture-files">
           <div class="fixture-file">
@@ -351,7 +372,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">Index and search · 05 / 15</div>
       <h2>One index feeds three question paths.</h2>
-      <div class="running-case"><span class="running-case-label">System view</span><code>source → index → question</code><span class="stage">index once · route per question</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 390" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
         <title id="routing-title">Hybrid-RAG index and query overview</title>
         <desc id="routing-desc">Python source is parsed into a FalkorDB code graph and Qdrant vector chunks with shared provenance. A question checker then selects an exact-link, local-behavior or whole-repository path.</desc>
@@ -409,14 +429,12 @@
           <text x="720" y="328" class="svg-route">WHOLE REPOSITORY</text><text x="888" y="328" class="svg-small">folder summaries</text>
         </g>
       </svg>
-      <p class="svg-caption"><strong>Reading order:</strong> build the two searchable views once; then let the question decide which retrieval path to use. Detail 05.1 follows the index step with the Checkout example.</p>
       <aside class="notes"><strong>Cách hiểu:</strong> Core 05 chỉ là bản đồ tổng quát. Trước tiên repository được parse và chunk một lần thành hai view: FalkorDB giữ nodes và typed edges của code graph; Qdrant giữ source chunks và embeddings. Cả hai cùng mang provenance như source identity, schema version, embedding model và index run. Khi có câu hỏi, question checker mới chọn path: exact-link cho relation rõ, local behavior cho câu hỏi về cách một phần code hoạt động, hoặc whole-repository cho architecture và overview. Ở detail 05.1 mình sẽ zoom vào bước indexing bằng hai file Checkout.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">How the system finds evidence · 06 / 15</div>
       <h2>One function is seen in two ways.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">function → links + text</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="evidence-title evidence-desc">
         <title id="evidence-title">Graph and vector evidence for one function</title>
         <desc id="evidence-desc">Known code links and similar source text meet on the Checkout.checkout question.</desc>
@@ -454,7 +472,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">How results are combined · 07 / 15</div>
       <h2>Local questions combine two result lists.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">results → combine → answer</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
         <title id="rrf-title">Reciprocal rank fusion</title>
         <desc id="rrf-desc">Graph and vector ranked candidates converge at RRF and become a budgeted context list.</desc>
@@ -496,7 +513,6 @@
     <section class="slide" data-axis="core">
       <div class="kicker">How we tested it · 09 / 15</div>
       <h2>We compare the same question in both modes.</h2>
-      <div class="running-case"><span class="running-case-label">Test set</span><code>LlamaIndex Core · 30 questions</code><span class="stage">two modes → compare each question</span></div>
       <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
         <title id="experiment-title">Paired answer-quality experiment</title>
         <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
@@ -612,57 +628,58 @@
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Build the index">
       <div class="kicker">Core 05 → Build the index · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 05:</strong> one index feeds all three paths. <strong>Here:</strong> we follow two Checkout files until both stores are ready.</div>
-      <h2>Example: two Checkout files become two searchable views.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 350" role="img" tabindex="0" aria-labelledby="index-detail-title index-detail-desc">
-        <title id="index-detail-title">Checkout fixture indexing into FalkorDB and Qdrant</title>
-        <desc id="index-detail-desc">Two Python files are parsed into code nodes and relationships for FalkorDB, source chunks and embeddings for Qdrant, and shared provenance metadata.</desc>
-        <defs><marker id="index-detail-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
-
-        <text x="36" y="20" class="svg-route">ONE FIXTURE RUN</text>
-        <g class="reveal" style="--delay:.05s">
-          <rect x="36" y="40" width="230" height="126" rx="5" class="svg-source" />
-          <text x="56" y="66" class="svg-title">demo_checkout/</text>
-          <text x="56" y="94" class="svg-code">checkout.py</text><text x="56" y="112" class="svg-small">Checkout.checkout · _validate · _total</text>
-          <text x="56" y="140" class="svg-code">payment.py</text><text x="56" y="158" class="svg-small">PaymentGateway.charge · _authorize</text>
-        </g>
-        <g class="reveal" style="--delay:.22s">
-          <path d="M266 103 H330" class="svg-edge" marker-end="url(#index-detail-arrow)" />
-          <rect x="330" y="70" width="194" height="66" rx="5" class="svg-process" />
-          <text x="350" y="96" class="svg-title">Parse + split</text><text x="350" y="116" class="svg-subtitle">Tree-sitter Python AST</text>
-        </g>
-        <g class="reveal" style="--delay:.4s">
-          <path d="M524 103 L580 66" class="svg-edge graph" marker-end="url(#index-detail-arrow)" />
-          <path d="M524 103 L580 236" class="svg-edge vector" marker-end="url(#index-detail-arrow)" />
-          <rect x="580" y="28" width="236" height="112" rx="5" class="svg-store graph" />
-          <text x="600" y="54" class="svg-title">FalkorDB</text>
-          <text x="600" y="76" class="svg-subtitle">nodes: Module · Class · Function</text>
-          <text x="600" y="98" class="svg-subtitle">edges: DEFINES · CALLS · IMPORTS</text>
-          <text x="600" y="120" class="svg-code">Checkout.checkout → _total</text>
-          <rect x="580" y="180" width="236" height="112" rx="5" class="svg-store vector" />
-          <text x="600" y="206" class="svg-title">Qdrant</text>
-          <text x="600" y="228" class="svg-subtitle">source chunks + 768-d vectors</text>
-          <text x="600" y="250" class="svg-subtitle">payload: file_path · node_id</text>
-          <text x="600" y="272" class="svg-code">payment.py context</text>
-        </g>
-        <g class="reveal" style="--delay:.58s">
-          <path d="M816 84 L858 110" class="svg-edge graph" marker-end="url(#index-detail-arrow)" />
-          <path d="M816 236 L858 184" class="svg-edge vector" marker-end="url(#index-detail-arrow)" />
-          <rect x="858" y="91" width="186" height="112" rx="5" class="svg-merge" />
-          <text x="878" y="117" class="svg-title compact">Shared provenance</text>
-          <text x="878" y="140" class="svg-subtitle">schema 3</text>
-          <text x="878" y="158" class="svg-subtitle">nomic-embed-text</text>
-          <text x="878" y="176" class="svg-subtitle">index_run_id</text>
-          <text x="878" y="194" class="svg-subtitle">source identity</text>
-        </g>
-      </svg>
-      <p class="svg-caption"><strong>What this run creates:</strong> FalkorDB stores explainable code links; Qdrant stores searchable source chunks. Both are stamped with the same source and index metadata. This fixture demonstrates indexing only; it creates no benchmark score.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Đây là cùng một flow nhưng zoom vào bước build index. Hai file <code>checkout.py</code> và <code>payment.py</code> được parse bằng Tree-sitter Python. Kết quả graph đưa vào FalkorDB gồm các node kiểu Module, Class, Function và các edge như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Kết quả text được chia thành chunks, embed bằng <code>nomic-embed-text</code> rồi lưu vào Qdrant cùng payload như <code>file_path</code>, <code>node_id</code> và repository. Cả hai store đều gắn provenance: schema version, source identity và <code>index_run_id</code>. <code>index_run_id</code> là ID của một lần indexing; nó giúp phân biệt dữ liệu của các run khác nhau. Model trả lời như <code>gemma4:12b</code> không phải embedding model của Qdrant nên không đưa vào flow này. Đây vẫn chỉ là fixture demo, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
+      <h2>Watch Checkout become an index.</h2>
+      <div class="pipeline-demo" id="checkout-pipeline" data-stage="0">
+        <div class="pipeline-source-card">
+          <div class="label">Source code · checkout.py</div>
+          <pre class="pipeline-code"><code><span class="pipeline-code-line" data-focus="syntax">class Checkout:</span><span class="pipeline-code-line" data-focus="syntax">  def checkout(self, cart):</span><span class="pipeline-code-line" data-focus="body">    self.log.start()</span><span class="pipeline-code-line" data-focus="calls">    self._validate(cart)</span><span class="pipeline-code-line" data-focus="calls">    total = self._total(cart)</span><span class="pipeline-code-line" data-focus="uncertain">    self.payment.charge(total)</span><span class="pipeline-code-line" data-focus="body">    self.log.end()</span><span class="pipeline-code-line" data-focus="body">    return total</span></code></pre>
+          <div class="pipeline-file-strip"><code>payment.py</code> · <code>PaymentGateway.charge()</code> → <code>_authorize()</code> → <code>_capture()</code></div>
+        </div>
+        <div class="pipeline-workflow">
+          <div class="pipeline-progress" aria-label="Indexing stages">
+            <div class="pipeline-step" data-pipeline-step="0"><strong>1</strong>Source</div>
+            <div class="pipeline-step" data-pipeline-step="1"><strong>2</strong>Parse</div>
+            <div class="pipeline-step" data-pipeline-step="2"><strong>3</strong>Resolve</div>
+            <div class="pipeline-step" data-pipeline-step="3"><strong>4</strong>FalkorDB</div>
+            <div class="pipeline-step" data-pipeline-step="4"><strong>5</strong>Qdrant</div>
+            <div class="pipeline-step" data-pipeline-step="5"><strong>6</strong>Provenance</div>
+          </div>
+          <p class="pipeline-status" id="checkout-pipeline-status" aria-live="polite">Source files loaded</p>
+          <div class="pipeline-stage-output">
+            <section class="pipeline-output" data-pipeline-output="0">
+              <h3>Two Python files enter the pipeline.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>checkout.py</strong><code>Checkout.checkout()</code><br>logging, validation, total, payment</div><div class="pipeline-output-block"><strong>payment.py</strong><code>PaymentGateway.charge()</code><br>authorize, capture, return status</div></div>
+            </section>
+            <section class="pipeline-output" data-pipeline-output="1">
+              <h3>Tree-sitter reads Python syntax.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Nodes</strong><code>Module · Class · Function</code></div><div class="pipeline-output-block"><strong>Call sites</strong><code>_validate · _total · payment.charge</code></div></div>
+              <p>It builds syntax structure; it does not execute the function.</p>
+            </section>
+            <section class="pipeline-output" data-pipeline-output="2">
+              <h3>Resolution keeps clear links and exposes uncertainty.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Resolved</strong><code>CALLS → _validate</code><br><code>CALLS → _total</code></div><div class="pipeline-output-block"><strong>Still open</strong><code>payment.charge</code><br>kept as an unresolved stub</div></div>
+            </section>
+            <section class="pipeline-output" data-pipeline-output="3">
+              <h3>FalkorDB receives the code structure.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Nodes</strong><code>Checkout.checkout</code><br><code>PaymentGateway.charge</code></div><div class="pipeline-output-block"><strong>Edges</strong><code>DEFINES · CALLS · IMPORTS</code><br>clear calls stay queryable</div></div>
+            </section>
+            <section class="pipeline-output" data-pipeline-output="4">
+              <h3>Qdrant receives searchable source text.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Chunk</strong><code>Checkout.checkout()</code><br>source body and file path</div><div class="pipeline-output-block"><strong>Vector</strong><code>768 dimensions</code><br><code>nomic-embed-text</code> + payload</div></div>
+            </section>
+            <section class="pipeline-output" data-pipeline-output="5">
+              <h3>Both stores are tied to one index run.</h3>
+              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Shared metadata</strong><code>schema 3</code><br><code>index_run_id</code></div><div class="pipeline-output-block"><strong>Source identity</strong><code>repository</code><br><code>source_identity</code></div></div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <p class="small"><strong>Fixture boundary:</strong> this replay shows how the index is built; it does not create a benchmark score.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này phải kể như mình đang pause một lần indexing thật. Bắt đầu từ code: <code>_validate</code> và <code>_total</code> là các call rõ, còn <code>payment.charge</code> chưa đủ evidence để link chắc. Tree-sitter đọc syntax và tạo ra function/call sites, nhưng không chạy function. Sau đó resolver link những target rõ và giữ target mơ hồ thành stub. Graph structure được ghi vào FalkorDB: nodes và edges như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Source code được chunk và embed bằng <code>nomic-embed-text</code>, rồi vector cùng payload đi vào Qdrant. Cuối cùng cả hai store được gắn schema, source identity và <code>index_run_id</code>. Mỗi lần bấm phím mũi tên xuống sẽ mở stage kế tiếp; đi hết pipeline rồi mới bấm mũi tên phải để sang slide sau. Đây là fixture visualization, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">
       <div class="kicker">Core 05 → Whole-repo search · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 05:</strong> the question picks one of three paths. <strong>Here:</strong> we show the path for whole-repository questions.</div>
       <h2>Whole-repository questions use folder summaries.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 190" role="img" tabindex="0" aria-labelledby="community-title community-desc">
         <title id="community-title">Directory-based community summaries</title>
@@ -681,7 +698,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="What the code map contains">
       <div class="kicker">Core 06 → What the code map contains · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 06:</strong> one function is seen as links and text. <strong>Here:</strong> we show the links found in the fixture.</div>
       <h2>The code map shows which file contains what and who calls whom.</h2>
       <div class="schema-map">
         <div class="schema-tree">
@@ -708,7 +724,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="When a call can be linked">
       <div class="kicker">Core 06 → When a call can be linked · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 06:</strong> code links must be checkable. <strong>Here:</strong> we show which calls link and which stay open.</div>
       <h2>We link a call only when the target is clear.</h2>
       <table class="metric-table">
         <thead><tr><th>Call in fixture</th><th>Why we link it</th><th>Stored result</th></tr></thead>
@@ -726,7 +741,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="Combine the two lists">
       <div class="kicker">Core 07 → Combine the two lists · detail · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 07:</strong> two result lists become one answer context. <strong>Here:</strong> we show how RRF combines their positions.</div>
       <h2>RRF combines list positions, not answer quality.</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <div class="alternatives">
@@ -741,7 +755,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
       <div class="kicker">Core 08 → How index updates work · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 08:</strong> bad states stop early and updates reduce empty-index time. <strong>Here:</strong> we show the update order and the final check.</div>
       <h2>Safety checks happen before we trust a new index.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
         <title id="provenance-title">Final checks before the test</title>
@@ -772,7 +785,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Same code for both modes">
       <div class="kicker">Core 09 → Same code for both modes · detail · 1 / 3</div>
-      <div class="detail-bridge"><strong>Core 09:</strong> both modes must answer the same questions. <strong>Here:</strong> we show how we check that they use the same code.</div>
       <h2>Both modes must use the same code snapshot.</h2>
       <div class="line-list">
         <p><strong>Code package:</strong> <code>llama-index-core==0.14.21</code></p>
@@ -785,7 +797,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="What the test can prove">
       <div class="kicker">Core 09 → What the test can prove · detail · 2 / 3</div>
-      <div class="detail-bridge"><strong>Core 09:</strong> the test compares paired answers. <strong>Here:</strong> we show what is controlled and what is still a limit.</div>
       <h2>The test can be checked, but independent humans did not review it.</h2>
       <table class="metric-table">
         <thead><tr><th>What we fixed</th><th>What we did</th><th>What is still missing</th></tr></thead>
@@ -801,7 +812,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="How we build the 95% range">
       <div class="kicker">Core 09 → How we build the 95% range · detail · 3 / 3</div>
-      <div class="detail-bridge"><strong>Core 09:</strong> each question stays paired. <strong>Here:</strong> we show what we average and repeat.</div>
       <h2>We build the 95% range from 30 question differences.</h2>
       <div class="steps">
         <div class="step">For each question and mode, average the three answers.</div>
@@ -814,7 +824,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="What happens when something goes wrong">
       <div class="kicker">Core 08 → What happens when something goes wrong · detail · 2 / 2</div>
-      <div class="detail-bridge"><strong>Core 08:</strong> bad states stop visibly. <strong>Here:</strong> each check has a clear failure result.</div>
       <h2>Each safety check has a clear failure result.</h2>
       <table class="metric-table">
         <thead><tr><th>If this happens</th><th>What checks it</th><th>What the system does</th></tr></thead>
@@ -831,7 +840,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="What else the system can do">
       <div class="kicker">Core 14 → What else the system can do · appendix · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 14:</strong> the thesis builds a system we can check. <strong>Here:</strong> we show its other parts and their limits.</div>
       <h2>The system does more than the measured test.</h2>
       <table class="metric-table">
         <thead><tr><th>Part</th><th>What it can do</th><th>What the test does not prove</th></tr></thead>
@@ -846,7 +854,6 @@
 
     <section class="slide depth" data-axis="depth" data-parent="15" data-depth="1" data-depth-title="What remains to test">
       <div class="kicker">Core 15 → What remains to test · appendix · 1 / 1</div>
-      <div class="detail-bridge"><strong>Core 15:</strong> correctness is supported, but several results are still uncertain. <strong>Here:</strong> each open question gets a next test.</div>
       <h2>Each open question has a next test.</h2>
       <div class="line-list">
         <p><strong>Faithfulness + relevancy:</strong> ask independent human reviewers and use more independent questions.</p>
@@ -878,6 +885,19 @@
     const depthSlides = slides.filter(slide => slide.dataset.axis === 'depth');
     const progress = document.getElementById('progress');
     const counter = document.getElementById('counter');
+    const checkoutPipeline = document.getElementById('checkout-pipeline');
+    const pipelineSteps = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('[data-pipeline-step]')] : [];
+    const pipelineOutputs = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('[data-pipeline-output]')] : [];
+    const pipelineLines = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('.pipeline-code-line')] : [];
+    const pipelineStatus = checkoutPipeline ? document.getElementById('checkout-pipeline-status') : null;
+    const pipelineStageNames = [
+      'Source files loaded',
+      'Tree-sitter syntax nodes extracted',
+      'Clear calls resolved; uncertain calls kept as stubs',
+      'Code graph written to FalkorDB',
+      'Chunks embedded and upserted to Qdrant',
+      'Shared provenance saved for this index run',
+    ];
     const depthsByCore = new Map();
     depthSlides.forEach(slide => {
       const parent = Number(slide.dataset.parent);
@@ -887,6 +907,26 @@
     depthsByCore.forEach(items => items.sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth)));
     let currentCore = 1;
     let currentDepth = 0;
+    let pipelineStage = 0;
+    function setPipelineStage(stage) {
+      if (!checkoutPipeline) return;
+      pipelineStage = Math.max(0, Math.min(pipelineSteps.length - 1, stage));
+      checkoutPipeline.dataset.stage = String(pipelineStage);
+      pipelineSteps.forEach((step, index) => {
+        step.classList.toggle('is-active', index === pipelineStage);
+        step.classList.toggle('is-done', index < pipelineStage);
+      });
+      pipelineOutputs.forEach(output => {
+        output.classList.toggle('is-visible', Number(output.dataset.pipelineOutput) === pipelineStage);
+      });
+      const focusGroups = pipelineStage === 1 ? new Set(['syntax']) : new Set(['calls', 'uncertain']);
+      pipelineLines.forEach(line => {
+        const focus = line.dataset.focus;
+        line.classList.toggle('is-active', focusGroups.has(focus));
+        line.classList.toggle('is-alert', pipelineStage >= 3 && focus === 'uncertain');
+      });
+      if (pipelineStatus) pipelineStatus.textContent = pipelineStageNames[pipelineStage];
+    }
     function show(coreNumber, depthNumber = 0) {
       currentCore = Math.max(1, Math.min(coreSlides.length, coreNumber));
       const depths = depthsByCore.get(currentCore) || [];
@@ -894,19 +934,27 @@
       const target = currentDepth === 0 ? coreSlides[currentCore - 1] : depths[currentDepth - 1];
       slides.forEach(slide => slide.classList.toggle('active', slide === target));
       progress.style.width = `${(currentCore / coreSlides.length) * 100}%`;
+      if (!(currentCore === 5 && currentDepth === 1)) pipelineStage = 0;
+      setPipelineStage(pipelineStage);
       counter.textContent = currentDepth === 0
         ? String(currentCore)
         : `${currentCore}.${currentDepth}`;
       history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
     }
     function help() {
-      alert('Left / Right or Space: previous or next main slide\nDown or D: open the detail below this slide\nUp or Escape: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
+      alert('Left / Right or Space: previous or next main slide\nDown: next pipeline stage on 5.1; from a core slide, open its detail\nD: open the next detail level\nUp: return one level\nEscape or C: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
     }
     window.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' && currentCore === 5 && currentDepth === 1) {
+        event.preventDefault();
+        if (pipelineStage < pipelineSteps.length - 1) setPipelineStage(pipelineStage + 1);
+        return;
+      }
       if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(currentCore + 1, 0); }
       if (event.key === 'ArrowLeft') show(currentCore - 1, 0);
       if (event.key === 'ArrowDown' || event.key.toLowerCase() === 'd') show(currentCore, currentDepth + 1);
-      if (event.key === 'ArrowUp' || event.key === 'Escape' || event.key.toLowerCase() === 'c') show(currentCore, 0);
+      if (event.key === 'ArrowUp') show(currentCore, currentDepth - 1);
+      if (event.key === 'Escape' || event.key.toLowerCase() === 'c') show(currentCore, 0);
       if (event.key === 'Home') show(1, 0);
       if (event.key === 'End') show(coreSlides.length, 0);
       if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 't') document.body.classList.toggle('show-notes');

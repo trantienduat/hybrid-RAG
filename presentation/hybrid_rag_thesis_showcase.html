@@ -53,17 +53,7 @@
       background-size: 4rem 4rem, 4rem 4rem, auto;
     }
     .slide.active { display: flex; }
-    .slide::after {
-      content: "HYBRID-RAG / MASTER'S THESIS";
-      position: absolute;
-      right: 8vw;
-      bottom: 3vh;
-      color: rgba(29,42,52,.46);
-      font-size: 11px;
-      letter-spacing: .16em;
-    }
     .slide.depth { background: var(--deep); }
-    .slide.depth::after { content: "HYBRID-RAG / SUPPORTING DETAIL"; }
     h1, h2, h3, p { margin: 0; }
     h1, h2 { font-family: "Aptos Display", Aptos, "Segoe UI", ui-sans-serif, system-ui, sans-serif; font-weight: 700; text-wrap: balance; }
     h1 { max-width: 1080px; font-size: clamp(44px, 6vw, 78px); line-height: 1.02; letter-spacing: -.045em; }
@@ -185,11 +175,7 @@
     code { color: var(--green); font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; background: rgba(61,111,88,.08); padding: .05em .2em; }
     .progress { position: fixed; z-index: 5; left: 0; top: 0; width: 100%; height: 4px; background: rgba(29,42,52,.10); }
     .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--orange)); transition: width .2s ease; }
-    .counter { position: fixed; z-index: 5; left: 8vw; bottom: 3vh; color: rgba(29,42,52,.62); font-size: 13px; letter-spacing: .1em; }
-    .hint { position: fixed; z-index: 5; right: 8vw; top: 3vh; color: rgba(29,42,52,.62); font-size: 12px; }
-    .depth-cue { position: absolute; z-index: 3; left: 50%; bottom: 2.6vh; transform: translateX(-50%); color: rgba(45,111,120,.78); font-size: 12px; letter-spacing: .08em; white-space: nowrap; }
-    .depth-cue strong { color: var(--cyan); }
-    .depth-parent { position: absolute; z-index: 3; left: 8vw; top: 3vh; color: rgba(45,111,120,.78); font-size: 12px; letter-spacing: .08em; }
+    .counter { position: fixed; z-index: 5; right: 8vw; bottom: 3vh; color: rgba(29,42,52,.62); font-size: 13px; letter-spacing: .1em; text-align: right; }
     .detail-bridge { padding: .55rem .8rem; border-left: 3px solid var(--orange); background: rgba(182,92,60,.07); color: var(--muted); font-size: 14px; line-height: 1.35; }
     .detail-bridge strong { color: var(--ink); }
     .notes { display: none; }
@@ -261,12 +247,8 @@
       .slide { position: relative; inset: auto; min-height: 100svh; height: auto; overflow: visible; justify-content: flex-start; }
       .two-col, .three-col, .alternatives { grid-template-columns: 1fr; gap: 1rem; }
       .slide { padding: 6vh 7vw 9vh; }
-      .counter { bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
-      .hint { left: 7vw; right: 7vw; top: 3vh; text-align: center; font-size: 10px; line-height: 1.25; }
-      .depth-cue { left: 7vw; right: 7vw; bottom: 1.4vh; transform: none; max-width: 86vw; white-space: normal; text-align: center; font-size: 10px; line-height: 1.25; }
-      .depth-parent { top: 6vh; font-size: 10px; }
+      .counter { right: 7vw; bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
       .svg-diagram { max-height: 32vh; min-height: 180px; }
-      .slide::after { display: none; }
       .flow { flex-wrap: wrap; justify-content: flex-start; }
       .arrow { transform: rotate(90deg); }
       .diagram-row { grid-template-columns: 1fr; }
@@ -277,7 +259,7 @@
     @media print {
       body { overflow: visible; background: white; color: black; }
       .slide { display: flex !important; position: relative; min-height: 100vh; page-break-after: always; background: white; color: black; }
-      .slide::after, .progress, .counter, .hint { display: none; }
+      .progress, .counter { display: none; }
       .svg-diagram .reveal { opacity: 1; transform: none; animation: none; }
     }
   </style>
@@ -285,7 +267,6 @@
 <body>
   <div class="progress"><span id="progress"></span></div>
   <div class="counter" id="counter"></div>
-  <div class="hint">← → main slide · ↓ detail · ↑ return · N transcript · H help</div>
   <main class="deck">
     <section class="slide active" data-axis="core">
       <div class="kicker">Master's thesis</div>
@@ -904,19 +885,6 @@
       depthsByCore.get(parent).push(slide);
     });
     depthsByCore.forEach(items => items.sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth)));
-    depthsByCore.forEach((items, coreNumber) => {
-      const cue = document.createElement('div');
-      cue.className = 'depth-cue';
-      const names = items.map(item => item.dataset.depthTitle).join(' · ');
-      cue.innerHTML = `<strong>↓ supporting detail</strong> · ${names}`;
-      coreSlides[coreNumber - 1].appendChild(cue);
-      items.forEach(item => {
-        const parentCue = document.createElement('div');
-        parentCue.className = 'depth-parent';
-        parentCue.textContent = `↑ return to core ${String(coreNumber).padStart(2, '0')}`;
-        item.appendChild(parentCue);
-      });
-    });
     let currentCore = 1;
     let currentDepth = 0;
     function show(coreNumber, depthNumber = 0) {
@@ -926,10 +894,9 @@
       const target = currentDepth === 0 ? coreSlides[currentCore - 1] : depths[currentDepth - 1];
       slides.forEach(slide => slide.classList.toggle('active', slide === target));
       progress.style.width = `${(currentCore / coreSlides.length) * 100}%`;
-      const coreLabel = `CORE ${String(currentCore).padStart(2, '0')} / ${String(coreSlides.length).padStart(2, '0')}`;
       counter.textContent = currentDepth === 0
-        ? coreLabel
-        : `${coreLabel} · DETAIL ${currentDepth} / ${depths.length}`;
+        ? String(currentCore)
+        : `${currentCore}.${currentDepth}`;
       history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
     }
     function help() {

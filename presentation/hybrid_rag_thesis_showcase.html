@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hybrid-RAG — master's thesis showcase</title>
+  <title>Research and Development of a Code Retrieval System Based on Hybrid-RAG Architecture Combining Knowledge Graphs and Semantic Search</title>
   <style>
     :root {
       --bg: #f2efe8;
@@ -74,6 +74,8 @@
     .depth .kicker { color: var(--cyan); }
     .lead { max-width: 980px; color: var(--muted); font-size: clamp(20px, 2.1vw, 29px); line-height: 1.38; }
     .small { color: var(--muted); font-size: 15px; line-height: 1.45; }
+    .thesis-title { max-width: 1180px; font-size: clamp(34px, 4.5vw, 62px); line-height: 1.04; letter-spacing: -.04em; }
+    .scope-note { max-width: 980px; color: var(--muted); font-size: 13px; line-height: 1.35; opacity: .72; font-style: italic; }
     .rule { width: 110px; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--orange)); }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; align-items: start; }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.7vw; align-items: start; }
@@ -285,17 +287,17 @@
   <main class="deck">
     <section class="slide active" data-axis="core">
       <div class="kicker">Master's thesis</div>
-      <h1>Finding the Right Code with Hybrid-RAG</h1>
+      <h1 class="thesis-title">Research and Development of a Code Retrieval System Based on Hybrid-RAG Architecture Combining Knowledge Graphs and Semantic Search</h1>
       <div class="rule"></div>
-      <p class="lead">Using a Python code map and meaning-based search to answer questions about one repository.</p>
+      <p class="lead"><strong>Finding the Right Code with Hybrid-RAG</strong><br>Using a Python code map and meaning-based search to answer questions about one repository.</p>
       <p class="small">Tran Tien Duat · Master of Software Engineering · 2026</p>
       <aside class="notes"><strong>Cách hiểu:</strong> Slide mở đầu phải nói rõ bài toán và phạm vi claim. Luận văn hỏi: khi người dùng hỏi về code, làm sao tìm đúng phần code và giải thích được các phần liên quan? Text search giúp tìm đoạn có ý nghĩa gần với câu hỏi, nhưng không tự cho mình biết các function nối với nhau thế nào. Vì vậy hệ thống dùng thêm code map được tạo từ Python source. Đóng góp ở đây là ghép các thành phần thành một hệ thống có thể kiểm tra, không claim phát minh ra một thuật toán retrieval hoàn toàn mới.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
       <div class="kicker">The problem · 02 / 15</div>
-      <h2>A code question often asks how parts connect.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">two files → local search</span></div>
+      <h2>The problem: code questions need both meaning and structure.</h2>
+      <div class="running-case"><span class="running-case-label">Example question</span><code>Checkout.checkout</code><span class="stage">evidence across files</span></div>
       <div class="two-col fixture-layout">
         <div class="fixture-files">
           <div class="fixture-file">
@@ -320,19 +322,20 @@
         </div>
         <div>
           <div class="note-box">
-            <div class="label">Local behavior question</div>
+            <div class="label">Question example</div>
             <p>“When <code>Checkout.checkout</code> runs, what is the sequence, including logging and payment?”</p>
           </div>
           <div class="line-list fixture-output">
-            <p><strong>Graph:</strong> finds <code>_validate</code> and <code>_total</code>.</p>
-            <p><strong>Not linked yet:</strong> <code>payment.charge</code> and logging cannot be linked because their target code is not in the fixture.</p>
-            <p><strong>Meaning search:</strong> still finds <code>payment.py</code> and the <code>PaymentGateway.charge</code> implementation.</p>
-            <p><strong>Execution order:</strong> <code>start → validate → total → charge → end</code> comes from the source code, not graph links alone.</p>
+            <p><strong>Meaning:</strong> find related code such as <code>payment.py</code>.</p>
+            <p><strong>Structure:</strong> show which functions call, define or import each other.</p>
+            <p><strong>Scale:</strong> keep the answer focused when evidence spans many files, modules or a monorepo.</p>
+            <p><strong>Trust:</strong> show where the evidence came from and when a link is uncertain.</p>
           </div>
         </div>
       </div>
-      <div class="callout">This two-file fixture shows how the system works; the main test uses the fixed LlamaIndex Core questions.</div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Mình dùng một fixture Checkout chỉ có hai file để nhìn thấy cơ chế thật rõ, chứ không dùng fixture này để tính điểm benchmark. Parser và resolver link được hai lời gọi trong cùng class: <code>_validate</code> và <code>_total</code>. Với <code>self.payment.charge</code> và <code>self.log.start/end</code>, target chưa đủ rõ nên hệ thống giữ chúng dưới dạng stub thay vì đoán. Text search vẫn tìm được <code>payment.py</code> và implementation của <code>PaymentGateway.charge</code>. Thứ tự <code>start → validate → total → charge → end</code> được đọc từ source text; graph edges một mình chưa đủ để chứng minh thứ tự chạy. Benchmark chính vẫn là workload LlamaIndex Core đã pin.<br><br><span class="small">[Giới hạn demo] Fixture hai file chỉ để minh họa, không phải benchmark evidence.</span></aside>
+      <div class="callout">The system must combine semantic search with code structure, keep the context bounded, and make the evidence traceable.</div>
+      <p class="scope-note">Scope: evaluated on one pinned Python repository. Larger repositories and monorepos are motivation, not measured evidence.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này đặt problem trước khi nói solution. Khi codebase lớn hơn hoặc trải rộng như một monorepo, evidence bị rải qua nhiều file, module hoặc service. Một câu hỏi có thể vừa hỏi “đoạn code này có ý nghĩa gì?” vừa hỏi “các phần của nó nối với nhau ra sao?”. Vector search có thể tìm source liên quan như <code>payment.py</code>, nhưng không tự biểu diễn đầy đủ các quan hệ <code>CALLS</code>, <code>DEFINES</code> và <code>IMPORTS</code>. Vì vậy problem của thesis là lấy được evidence vừa có meaning vừa có structure, trong context budget, có thể trace về source và chạy trong local boundary. Checkout chỉ là ví dụ làm problem dễ nhìn; benchmark chính vẫn là một pinned Python repository. Monorepo và repository lớn hơn là motivation/future validation, không phải evidence đã đo.<br><br><span class="small">[Nguồn] docs/thesis_report_en.tex, phần Problem Statement and Bottlenecks tại thesis snapshot; fixture Checkout chỉ để minh họa.</span></aside>
     </section>
 
     <section class="slide" data-axis="core">

@@ -220,6 +220,8 @@
     .svg-diagram .svg-route { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     .svg-diagram .svg-edge-label { font: 700 10px "SFMono-Regular", Consolas, monospace; fill: var(--muted); letter-spacing: .04em; }
     .svg-diagram .svg-uncertain { fill: var(--orange); }
+    .svg-diagram .reveal { opacity: 0; transform: translateY(8px); transform-box: fill-box; transform-origin: center; animation: diagram-reveal .6s ease-out var(--delay, 0s) forwards; }
+    @keyframes diagram-reveal { to { opacity: 1; transform: translateY(0); } }
     .svg-diagram:focus { outline: 2px solid var(--cyan); outline-offset: 6px; }
     .svg-caption { margin-top: .35rem; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
     .process-note { display: grid; grid-template-columns: auto 1fr; gap: .65rem; align-items: center; }
@@ -251,7 +253,7 @@
     .running-case-label { color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
     .running-case code { color: var(--green); background: transparent; padding: 0; font-size: 1em; }
     .running-case .stage { color: var(--orange); font-weight: 700; }
-    @media (prefers-reduced-motion: reduce) { .progress span, .direction, .svg-diagram * { transition: none !important; animation: none !important; } }
+    @media (prefers-reduced-motion: reduce) { .progress span, .direction, .svg-diagram * { transition: none !important; animation: none !important; } .svg-diagram .reveal { opacity: 1; transform: none; } }
     @media (max-width: 800px) {
       html, body { height: auto; min-height: 100%; }
       body { overflow: auto; }
@@ -276,6 +278,7 @@
       body { overflow: visible; background: white; color: black; }
       .slide { display: flex !important; position: relative; min-height: 100vh; page-break-after: always; background: white; color: black; }
       .slide::after, .progress, .counter, .hint { display: none; }
+      .svg-diagram .reveal { opacity: 1; transform: none; animation: none; }
     }
   </style>
 </head>
@@ -365,50 +368,68 @@
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">How the system searches · 05 / 15</div>
-      <h2>One codebase can use three search paths.</h2>
-      <div class="running-case"><span class="running-case-label">Demo case</span><code>Checkout.checkout</code><span class="stage">question → local search</span></div>
-      <svg class="svg-diagram" viewBox="0 0 1080 385" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
-        <title id="routing-title">Hybrid-RAG indexing and query routing</title>
-        <desc id="routing-desc">A two-file demo fixture creates a code map and searchable text. A question checker selects a clear-link, local or whole-codebase path.</desc>
+      <div class="kicker">Index and search · 05 / 15</div>
+      <h2>One index feeds three question paths.</h2>
+      <div class="running-case"><span class="running-case-label">System view</span><code>source → index → question</code><span class="stage">index once · route per question</span></div>
+      <svg class="svg-diagram" viewBox="0 0 1080 390" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
+        <title id="routing-title">Hybrid-RAG index and query overview</title>
+        <desc id="routing-desc">Python source is parsed into a FalkorDB code graph and Qdrant vector chunks with shared provenance. A question checker then selects an exact-link, local-behavior or whole-repository path.</desc>
         <defs>
-          <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
+          <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
         </defs>
-        <text x="36" y="20" class="svg-route">BUILD THE INDEX</text>
-        <path d="M236 78 L322 51" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M236 78 L322 133" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-        <path d="M502 51 L592 89" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M502 133 L592 117" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-        <rect x="36" y="44" width="200" height="68" rx="5" class="svg-source" />
-        <text x="56" y="71" class="svg-title compact">Demo checkout source</text><text x="56" y="92" class="svg-subtitle">2 files · demo corpus</text>
-        <rect x="322" y="17" width="180" height="68" rx="5" class="svg-store graph" />
-        <text x="342" y="44" class="svg-title compact">Code relation map</text><text x="342" y="65" class="svg-subtitle">FalkorDB · code links</text>
-        <rect x="322" y="99" width="180" height="68" rx="5" class="svg-store vector" />
-        <text x="342" y="126" class="svg-title compact">Meaning-based text</text><text x="342" y="147" class="svg-subtitle">Qdrant · source context</text>
-        <rect x="592" y="69" width="214" height="68" rx="5" class="svg-merge" />
-        <text x="612" y="96" class="svg-title">Same source record</text><text x="612" y="117" class="svg-subtitle">schema · model · run</text>
 
-        <text x="36" y="194" class="svg-route">CHOOSE A PATH</text>
-        <path d="M236 252 H322" class="svg-edge" marker-end="url(#routing-arrow)" />
-        <path d="M502 252 H548" class="svg-edge" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 L710 221" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 L710 287" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-        <path d="M642 252 L710 353" class="svg-edge" marker-end="url(#routing-arrow)" />
-        <rect x="36" y="218" width="200" height="68" rx="5" class="svg-process" />
-        <text x="56" y="245" class="svg-title">User question</text><text x="56" y="266" class="svg-subtitle">repository scope optional</text>
-        <rect x="322" y="218" width="180" height="68" rx="5" class="svg-process" />
-        <text x="342" y="245" class="svg-title">Question type check</text><text x="342" y="266" class="svg-subtitle">question type + code name</text>
-        <polygon points="595,207 642,252 595,297 548,252" class="svg-decision" />
-        <text x="570" y="248" class="svg-title">route?</text>
-        <rect x="710" y="198" width="334" height="46" rx="5" class="svg-process" />
-        <text x="730" y="218" class="svg-route">EXACT LINK</text><text x="880" y="218" class="svg-small">code map · text if needed</text>
-        <rect x="710" y="264" width="334" height="46" rx="5" class="svg-evidence" />
-        <text x="730" y="284" class="svg-route">LOCAL BEHAVIOR</text><text x="864" y="284" class="svg-small">two lists → combined results</text>
-        <rect x="710" y="330" width="334" height="46" rx="5" class="svg-process" />
-        <text x="730" y="350" class="svg-route">WHOLE CODEBASE</text><text x="812" y="350" class="svg-small">folder groups → summary</text>
+        <text x="36" y="20" class="svg-route">INDEX ONCE</text>
+        <g class="reveal" style="--delay:.05s">
+          <path d="M214 74 H282" class="svg-edge" marker-end="url(#routing-arrow)" />
+          <rect x="36" y="43" width="178" height="62" rx="5" class="svg-source" />
+          <text x="56" y="69" class="svg-title">Repository source</text><text x="56" y="89" class="svg-subtitle">Python files</text>
+        </g>
+        <g class="reveal" style="--delay:.2s">
+          <rect x="282" y="43" width="198" height="62" rx="5" class="svg-process" />
+          <text x="302" y="69" class="svg-title">Parse + chunk</text><text x="302" y="89" class="svg-subtitle">Tree-sitter + code text</text>
+        </g>
+        <g class="reveal" style="--delay:.36s">
+          <path d="M480 74 L570 45" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+          <path d="M480 74 L570 127" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+          <rect x="570" y="14" width="220" height="62" rx="5" class="svg-store graph" />
+          <text x="590" y="40" class="svg-title">FalkorDB</text><text x="590" y="60" class="svg-subtitle">nodes + typed edges</text>
+          <rect x="570" y="96" width="220" height="62" rx="5" class="svg-store vector" />
+          <text x="590" y="122" class="svg-title">Qdrant</text><text x="590" y="142" class="svg-subtitle">chunks + embeddings</text>
+        </g>
+        <g class="reveal" style="--delay:.52s">
+          <path d="M790 45 L840 75" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+          <path d="M790 127 L840 95" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+          <rect x="840" y="54" width="204" height="62" rx="5" class="svg-merge" />
+          <text x="860" y="80" class="svg-title compact">Shared provenance</text><text x="860" y="100" class="svg-subtitle">source · schema · model · run</text>
+        </g>
+
+        <text x="36" y="194" class="svg-route">SEARCH BY QUESTION</text>
+        <g class="reveal" style="--delay:.68s">
+          <path d="M214 250 H282" class="svg-edge" marker-end="url(#routing-arrow)" />
+          <rect x="36" y="219" width="178" height="62" rx="5" class="svg-process" />
+          <text x="56" y="245" class="svg-title">User question</text><text x="56" y="265" class="svg-subtitle">optional repository scope</text>
+          <rect x="282" y="219" width="198" height="62" rx="5" class="svg-process" />
+          <text x="302" y="245" class="svg-title compact">Question checker</text><text x="302" y="265" class="svg-subtitle">signal + code name</text>
+        </g>
+        <g class="reveal" style="--delay:.82s">
+          <path d="M480 250 H570" class="svg-edge" marker-end="url(#routing-arrow)" />
+          <polygon points="570,250 600,218 630,250 600,282" class="svg-decision" />
+          <text x="600" y="254" class="svg-title" text-anchor="middle">route?</text>
+        </g>
+        <g class="reveal" style="--delay:.96s">
+          <path d="M630 250 L700 220" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+          <path d="M630 250 H700" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+          <path d="M630 250 L700 340" class="svg-edge" marker-end="url(#routing-arrow)" />
+          <rect x="700" y="198" width="344" height="42" rx="5" class="svg-process" />
+          <text x="720" y="218" class="svg-route">EXACT LINK</text><text x="862" y="218" class="svg-small">graph · vector fallback</text>
+          <rect x="700" y="253" width="344" height="42" rx="5" class="svg-evidence" />
+          <text x="720" y="273" class="svg-route">LOCAL BEHAVIOR</text><text x="854" y="273" class="svg-small">graph + text → RRF</text>
+          <rect x="700" y="308" width="344" height="42" rx="5" class="svg-process" />
+          <text x="720" y="328" class="svg-route">WHOLE REPOSITORY</text><text x="888" y="328" class="svg-small">folder summaries</text>
+        </g>
       </svg>
-      <p class="svg-caption"><strong>Fixture trace:</strong> <code>checkout.py</code> → <code>Checkout</code> → <code>checkout</code>, <code>_validate</code>, <code>_total</code>; <code>payment.py</code> → <code>PaymentGateway</code> → <code>charge</code>, <code>_authorize</code>, <code>_capture</code>. The sequence question uses local search, so the code map and text search run together.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Cùng một source được index thành hai view: code map và searchable text. Sau đó question checker quyết định câu hỏi nên đi đường nào. Có ba path: câu hỏi về whole repository dùng folder summaries; câu hỏi có relation rõ và code name rõ thì ưu tiên graph lookup; câu hỏi local behavior như fixture Checkout thì chạy graph và text search cùng nhau rồi đưa kết quả vào RRF. Đây là query-aware retrieval, không phải lúc nào cũng chạy hai retriever giống hệt nhau. Đường Checkout chỉ là demo, không tạo benchmark score.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/query_analyzer.py</span></aside>
+      <p class="svg-caption"><strong>Reading order:</strong> build the two searchable views once; then let the question decide which retrieval path to use. Detail 05.1 follows the index step with the Checkout example.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core 05 chỉ là bản đồ tổng quát. Trước tiên repository được parse và chunk một lần thành hai view: FalkorDB giữ nodes và typed edges của code graph; Qdrant giữ source chunks và embeddings. Cả hai cùng mang provenance như source identity, schema version, embedding model và index run. Khi có câu hỏi, question checker mới chọn path: exact-link cho relation rõ, local behavior cho câu hỏi về cách một phần code hoạt động, hoặc whole-repository cho architecture và overview. Ở detail 05.1 mình sẽ zoom vào bước indexing bằng hai file Checkout.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -608,58 +629,54 @@
       <aside class="notes"><strong>Cách hiểu:</strong> Kết luận phải giữ hẹp nhưng chắc. Trên 30 câu hỏi LlamaIndex đã pin, Hybrid tăng judged Answer Correctness thêm 0.046 và paired 95% range [0.002, 0.094] nằm hoàn toàn trên zero. Chi phí đo được là thêm khoảng 237 ms retrieval latency. Faithfulness, Relevancy, generation time và token reduction chưa đủ chắc để claim. Nói ngắn gọn: Hybrid có bằng chứng cải thiện Correctness trên workload này, nhưng chưa có bằng chứng generalize cho mọi repo, mọi language hay mọi baseline.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Pick a path">
-      <div class="kicker">Core 05 → Pick a path · detail · 1 / 2</div>
-      <div class="detail-bridge"><strong>Core 05:</strong> one codebase has three search paths. <strong>Here:</strong> the question picks one before search starts.</div>
-      <h2>The question picks the path before search starts.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 360" role="img" tabindex="0" aria-labelledby="route-detail-title route-detail-desc">
-        <title id="route-detail-title">Question routing decision flow</title>
-        <desc id="route-detail-desc">The question checker first looks for a whole-repository signal. If there is none, it checks for an explicit relation and code name. Otherwise the question uses the local behavior path with graph and text search.</desc>
-        <defs><marker id="route-detail-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Build the index">
+      <div class="kicker">Core 05 → Build the index · detail · 1 / 2</div>
+      <div class="detail-bridge"><strong>Core 05:</strong> one index feeds all three paths. <strong>Here:</strong> we follow two Checkout files until both stores are ready.</div>
+      <h2>Example: two Checkout files become two searchable views.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 350" role="img" tabindex="0" aria-labelledby="index-detail-title index-detail-desc">
+        <title id="index-detail-title">Checkout fixture indexing into FalkorDB and Qdrant</title>
+        <desc id="index-detail-desc">Two Python files are parsed into code nodes and relationships for FalkorDB, source chunks and embeddings for Qdrant, and shared provenance metadata.</desc>
+        <defs><marker id="index-detail-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
 
-        <text x="36" y="20" class="svg-route">QUESTION → SIGNAL CHECK</text>
-        <path d="M246 66 H292" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <rect x="36" y="36" width="210" height="60" rx="5" class="svg-source" />
-        <text x="56" y="62" class="svg-route">USER QUESTION</text>
-        <text x="56" y="83" class="svg-code">Checkout.checkout?</text><text x="56" y="96" class="svg-small">sequence question</text>
-        <rect x="292" y="36" width="220" height="60" rx="5" class="svg-process" />
-        <text x="312" y="62" class="svg-route">QUESTION CHECKER</text>
-        <text x="312" y="83" class="svg-subtitle">signal + code name</text>
-
-        <path d="M512 66 L550 80" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <polygon points="550,80 600,45 650,80 600,115" class="svg-decision" />
-        <text x="600" y="84" class="svg-title" text-anchor="middle">whole repo?</text>
-
-        <path d="M650 80 H710" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <text x="666" y="70" class="svg-edge-label">YES</text>
-        <rect x="710" y="48" width="334" height="64" rx="5" class="svg-process" />
-        <text x="730" y="72" class="svg-route">WHOLE REPOSITORY</text>
-        <text x="730" y="91" class="svg-small">architecture · overview · dependency flow</text>
-        <text x="730" y="106" class="svg-code">→ folder summaries</text>
-
-        <path d="M600 115 V145" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <text x="610" y="135" class="svg-edge-label">NO</text>
-        <polygon points="550,180 600,145 650,180 600,215" class="svg-decision" />
-        <text x="600" y="177" class="svg-small" text-anchor="middle">relation +</text>
-        <text x="600" y="193" class="svg-small" text-anchor="middle">code name?</text>
-
-        <path d="M650 180 H710" class="svg-edge graph" marker-end="url(#route-detail-arrow)" />
-        <text x="666" y="170" class="svg-edge-label">YES</text>
-        <rect x="710" y="148" width="334" height="64" rx="5" class="svg-store graph" />
-        <text x="730" y="172" class="svg-route">CLEAR LINK</text>
-        <text x="730" y="191" class="svg-small">imports · calls · defines + Checkout</text>
-        <text x="730" y="206" class="svg-code">→ graph lookup · vector fallback</text>
-
-        <path d="M600 215 L710 300" class="svg-edge" marker-end="url(#route-detail-arrow)" />
-        <text x="636" y="253" class="svg-edge-label">NO</text>
-        <rect x="710" y="268" width="334" height="64" rx="5" class="svg-evidence" />
-        <text x="730" y="292" class="svg-route">LOCAL BEHAVIOR</text>
-        <text x="730" y="311" class="svg-small">sequence · how it works · no clear relation</text>
-        <text x="730" y="326" class="svg-code">→ graph + text → RRF</text>
+        <text x="36" y="20" class="svg-route">ONE FIXTURE RUN</text>
+        <g class="reveal" style="--delay:.05s">
+          <rect x="36" y="40" width="230" height="126" rx="5" class="svg-source" />
+          <text x="56" y="66" class="svg-title">demo_checkout/</text>
+          <text x="56" y="94" class="svg-code">checkout.py</text><text x="56" y="112" class="svg-small">Checkout.checkout · _validate · _total</text>
+          <text x="56" y="140" class="svg-code">payment.py</text><text x="56" y="158" class="svg-small">PaymentGateway.charge · _authorize</text>
+        </g>
+        <g class="reveal" style="--delay:.22s">
+          <path d="M266 103 H330" class="svg-edge" marker-end="url(#index-detail-arrow)" />
+          <rect x="330" y="70" width="194" height="66" rx="5" class="svg-process" />
+          <text x="350" y="96" class="svg-title">Parse + split</text><text x="350" y="116" class="svg-subtitle">Tree-sitter Python AST</text>
+        </g>
+        <g class="reveal" style="--delay:.4s">
+          <path d="M524 103 L580 66" class="svg-edge graph" marker-end="url(#index-detail-arrow)" />
+          <path d="M524 103 L580 236" class="svg-edge vector" marker-end="url(#index-detail-arrow)" />
+          <rect x="580" y="28" width="236" height="112" rx="5" class="svg-store graph" />
+          <text x="600" y="54" class="svg-title">FalkorDB</text>
+          <text x="600" y="76" class="svg-subtitle">nodes: Module · Class · Function</text>
+          <text x="600" y="98" class="svg-subtitle">edges: DEFINES · CALLS · IMPORTS</text>
+          <text x="600" y="120" class="svg-code">Checkout.checkout → _total</text>
+          <rect x="580" y="180" width="236" height="112" rx="5" class="svg-store vector" />
+          <text x="600" y="206" class="svg-title">Qdrant</text>
+          <text x="600" y="228" class="svg-subtitle">source chunks + 768-d vectors</text>
+          <text x="600" y="250" class="svg-subtitle">payload: file_path · node_id</text>
+          <text x="600" y="272" class="svg-code">payment.py context</text>
+        </g>
+        <g class="reveal" style="--delay:.58s">
+          <path d="M816 84 L858 110" class="svg-edge graph" marker-end="url(#index-detail-arrow)" />
+          <path d="M816 236 L858 184" class="svg-edge vector" marker-end="url(#index-detail-arrow)" />
+          <rect x="858" y="91" width="186" height="112" rx="5" class="svg-merge" />
+          <text x="878" y="117" class="svg-title compact">Shared provenance</text>
+          <text x="878" y="140" class="svg-subtitle">schema 3</text>
+          <text x="878" y="158" class="svg-subtitle">nomic-embed-text</text>
+          <text x="878" y="176" class="svg-subtitle">index_run_id</text>
+          <text x="878" y="194" class="svg-subtitle">source identity</text>
+        </g>
       </svg>
-      <p class="svg-caption"><strong>Concrete trace:</strong> “What sequence does <code>Checkout.checkout</code> follow?” → no whole-repo signal → no explicit relation/code-name pair → local behavior → concurrent graph + vector retrieval → RRF context.</p>
-      <p class="small"><strong>Baseline note:</strong> <code>skip_graph=True</code> is only the comparison setting; it turns off the code map on the same questions.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Diagram này đọc từ trên xuống dưới. Đầu tiên question checker xem câu hỏi có signal whole-repository như architecture, overview hoặc dependency flow không. Nếu có thì đi tới folder summaries. Nếu không, nó kiểm tra relation rõ như imports/calls/defines cùng code name; khi đó ưu tiên graph lookup và chỉ fallback sang vector nếu không có target đủ rõ. Nếu cả hai signal trên đều không có, câu hỏi được xem là local behavior: graph và text search chạy song song rồi RRF combine kết quả. Câu hỏi Checkout đi đúng nhánh cuối: không có signal global, không có explicit relation/code-name pair, nên dùng local path. <code>skip_graph=True</code> chỉ là setting của vector-only comparison, không phải path thứ tư. Fixture này chỉ minh họa route, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <p class="svg-caption"><strong>What this run creates:</strong> FalkorDB stores explainable code links; Qdrant stores searchable source chunks. Both are stamped with the same source and index metadata. This fixture demonstrates indexing only; it creates no benchmark score.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là cùng một flow nhưng zoom vào bước build index. Hai file <code>checkout.py</code> và <code>payment.py</code> được parse bằng Tree-sitter Python. Kết quả graph đưa vào FalkorDB gồm các node kiểu Module, Class, Function và các edge như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Kết quả text được chia thành chunks, embed bằng <code>nomic-embed-text</code> rồi lưu vào Qdrant cùng payload như <code>file_path</code>, <code>node_id</code> và repository. Cả hai store đều gắn provenance: schema version, source identity và <code>index_run_id</code>. <code>index_run_id</code> là ID của một lần indexing; nó giúp phân biệt dữ liệu của các run khác nhau. Model trả lời như <code>gemma4:12b</code> không phải embedding model của Qdrant nên không đưa vào flow này. Đây vẫn chỉ là fixture demo, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">

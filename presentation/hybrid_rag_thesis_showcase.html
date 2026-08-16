@@ -675,7 +675,7 @@
         </div>
       </div>
       <p class="small"><strong>Fixture boundary:</strong> this replay shows how the index is built; it does not create a benchmark score.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Slide này phải kể như mình đang pause một lần indexing thật. Bắt đầu từ code: <code>_validate</code> và <code>_total</code> là các call rõ, còn <code>payment.charge</code> chưa đủ evidence để link chắc. Tree-sitter đọc syntax và tạo ra function/call sites, nhưng không chạy function. Sau đó resolver link những target rõ và giữ target mơ hồ thành stub. Graph structure được ghi vào FalkorDB: nodes và edges như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Source code được chunk và embed bằng <code>nomic-embed-text</code>, rồi vector cùng payload đi vào Qdrant. Cuối cùng cả hai store được gắn schema, source identity và <code>index_run_id</code>. Mỗi lần bấm phím mũi tên xuống sẽ mở stage kế tiếp; đi hết pipeline rồi mới bấm mũi tên phải để sang slide sau. Đây là fixture visualization, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này phải kể như mình đang pause một lần indexing thật. Bắt đầu từ code: <code>_validate</code> và <code>_total</code> là các call rõ, còn <code>payment.charge</code> chưa đủ evidence để link chắc. Tree-sitter đọc syntax và tạo ra function/call sites, nhưng không chạy function. Sau đó resolver link những target rõ và giữ target mơ hồ thành stub. Graph structure được ghi vào FalkorDB: nodes và edges như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Source code được chunk và embed bằng <code>nomic-embed-text</code>, rồi vector cùng payload đi vào Qdrant. Cuối cùng cả hai store được gắn schema, source identity và <code>index_run_id</code>. Mũi tên xuống mở stage kế tiếp, mũi tên lên quay lại stage trước; hai đầu pipeline đều dừng tại chỗ. Đi hết pipeline rồi mới bấm mũi tên phải để sang slide sau. Đây là fixture visualization, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">
@@ -942,12 +942,17 @@
       history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
     }
     function help() {
-      alert('Left / Right or Space: previous or next main slide\nDown: next pipeline stage on 5.1; from a core slide, open its detail\nD: open the next detail level\nUp: return one level\nEscape or C: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
+      alert('Left / Right or Space: previous or next main slide\nDown / Up: next or previous pipeline stage on 5.1; from a core slide, open or close detail\nD: open the next detail level\nEscape or C: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
     }
     window.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' && currentCore === 5 && currentDepth === 1) {
         event.preventDefault();
         if (pipelineStage < pipelineSteps.length - 1) setPipelineStage(pipelineStage + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 5 && currentDepth === 1) {
+        event.preventDefault();
+        if (pipelineStage > 0) setPipelineStage(pipelineStage - 1);
         return;
       }
       if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(currentCore + 1, 0); }

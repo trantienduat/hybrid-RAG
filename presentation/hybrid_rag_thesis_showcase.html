@@ -77,6 +77,12 @@
     .rule { width: 110px; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--orange)); }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; align-items: start; }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.7vw; align-items: start; }
+    .alternatives { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1vw; align-items: stretch; }
+    .alternative { padding: .72rem .82rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .alternative p { margin-top: .35rem; color: var(--muted); font-size: 14px; line-height: 1.3; }
+    .alternative.chosen { border-color: rgba(61,111,88,.62); background: rgba(227,240,230,.5); }
+    .alternative.chosen .label { color: var(--green); }
+    .route-weights { margin-top: -.45rem; }
     .line-list { display: grid; gap: 1rem; }
     .line-list p { padding-left: 1.1rem; border-left: 3px solid var(--cyan); color: var(--muted); font-size: clamp(17px, 1.55vw, 23px); line-height: 1.35; }
     .fixture-output { gap: .55rem; }
@@ -250,7 +256,7 @@
       body { overflow: auto; }
       .deck { height: auto; min-height: 100vh; }
       .slide { position: relative; inset: auto; min-height: 100svh; height: auto; overflow: visible; justify-content: flex-start; }
-      .two-col, .three-col { grid-template-columns: 1fr; gap: 1rem; }
+      .two-col, .three-col, .alternatives { grid-template-columns: 1fr; gap: 1rem; }
       .slide { padding: 6vh 7vw 9vh; }
       .counter { bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
       .hint { left: 7vw; right: 7vw; top: 3vh; text-align: center; font-size: 10px; line-height: 1.25; }
@@ -743,13 +749,15 @@
       <div class="detail-bridge"><strong>Core 07:</strong> two result lists become one answer context. <strong>Here:</strong> we show how RRF combines their positions.</div>
       <h2>RRF combines list positions, not answer quality.</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
-      <div class="three-col">
-        <div class="note-box"><div class="label">Clear link question</div><p>Use the code map alone with weight 3.0 after a target is found.</p></div>
-        <div class="note-box"><div class="label">Local question</div><p>Code-map weight is up to 1.0; text-search weight is 1.0.</p></div>
-          <div class="note-box"><div class="label">Text-only comparison</div><p>Weights are (0, 1). The old <code>hybrid_weight</code> setting is not used.</p></div>
+      <div class="alternatives">
+        <div class="alternative"><div class="label">Raw score sum</div><p>Not used: graph and vector scores use different scales.</p></div>
+        <div class="alternative"><div class="label">Borda / rank vote</div><p>Possible alternative; not benchmarked in this thesis.</p></div>
+        <div class="alternative"><div class="label">Learned reranker</div><p>Extra model, latency and calibration; out of scope.</p></div>
+        <div class="alternative chosen"><div class="label">RRF · chosen</div><p>Rank-only, deterministic and lightweight. Not proven best.</p></div>
       </div>
+      <p class="small route-weights"><strong>Route weights:</strong> clear link 3.0 · local graph ≤1.0 + text 1.0 · text-only (0, 1).</p>
       <div class="callout">Demo only: <code>_validate</code>/<code>_total</code>, unclear <code>__call__charge</code> and <code>payment.py</code> can all reach the answer. <code>rrf_score</code> shows result order, not answer quality.</div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate và giữ tối đa năm context phù hợp để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. RRF không xuất hiện vì thesis đã chứng minh nó tốt nhất. Câu hỏi thực tế là làm sao trộn graph/vector khi raw scores khác scale. Raw score sum cần calibration; Borda hoặc rank vote là alternatives nhưng chưa được benchmark; learned reranker thêm model, latency và bước calibration nên nằm ngoài scope. RRF được chọn như một design choice có giới hạn: chỉ dùng rank, deterministic và nhẹ, không thêm model. Vì vậy phải nói rõ: thesis chưa chứng minh RRF tốt hơn mọi fusion method khác.<br><br>Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate và giữ tối đa năm context phù hợp để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">

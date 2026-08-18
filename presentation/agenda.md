@@ -63,7 +63,7 @@ Tách biệt rõ 2 luồng xử lý cốt lõi:
 ### 3. THIẾT KẾ THỰC NGHIỆM (4 Phút)
 - **Experimental Design**:
   - Confirmatory workload: `llama-index-core==0.14.21` (30 câu hỏi: 10 simple, 10 medium, 10 hard).
-  - Transformers & LangChain được benchmark như **post-submission supplementary replications**; không nằm trong evidence hoặc confirmatory statistical conclusion của thesis đã nộp.
+  - Transformers & LangChain đã chạy **post-submission supplementary source-anchored slices** (10 case pairs mỗi repo); không nằm trong evidence hoặc confirmatory statistical conclusion của thesis đã nộp.
   - Source identity & Checksum (Đảm bảo minh bạch).
   - Baselines: Condition Vector-only vs. Hybrid-RAG.
   - Số lần chạy: 30 câu hỏi × 2 modes × 3 repeats = **180 raw records**.
@@ -71,7 +71,7 @@ Tách biệt rõ 2 luồng xử lý cốt lõi:
   - Metrics: RAGAS (Faithfulness, Answer Relevancy, Correctness).
   - Judge: Automated judge (`qwen2.5-coder:7b`), không phải human adjudication.
   - Cùng answer model, prompt settings, top_k, context_n cho cả 2 conditions.
-- **Method of Analysis**: Paired bootstrap resampling (10,000 resamples, seed 42) để tính 95% Confidence Intervals (CI). Confirmatory LlamaIndex dùng 30 case pairs; supplementary Transformers/LangChain dùng 10 case pairs mỗi repo.
+- **Method of Analysis**: Confirmatory LlamaIndex dùng paired bootstrap resampling (10,000 resamples, seed 42) trên 30 case pairs để tính 95% Confidence Intervals (CI). Supplementary Transformers/LangChain hiện báo cáo descriptive means/deltas trên 10 case pairs mỗi repo; không dùng cho pooled CI hoặc kết luận generalization.
 
 ### 4. KẾT QUẢ, DIỄN GIẢI THỐNG KÊ & HẠN CHẾ (5 Phút)
 - **Kết quả (Results) — Trình bày ĐẦY ĐỦ cả 3 metrics**:
@@ -99,7 +99,7 @@ Tách biệt rõ 2 luồng xử lý cốt lõi:
   - Hybrid có retrieval overhead đo được; mức giảm generation/token là point estimate, nhưng CI hiện tại vẫn chứa 0.
 - **Hạn chế (Threats to Validity)**:
   - Confirmatory benchmark trên 1 repo duy nhất (`llama-index-core`).
-  - Transformers/LangChain là post-submission source-anchored slices, chỉ dùng làm supplementary replication; không thay thế confirmatory workload và không chứng minh generalization.
+  - Transformers/LangChain là post-submission source-anchored slices, chỉ dùng làm supplementary replication; không thay thế confirmatory workload và không chứng minh generalization. Mở rộng lên 100 câu hỏi/full-repository vẫn là future work.
   - Chỉ hỗ trợ AST Python, chưa khái quát cho Java/Go.
   - Độ trễ generation LLM local cao (~87s) do giới hạn phần cứng suy luận.
   - Judge là automated (LLM), chưa có independent human annotation.
@@ -156,7 +156,7 @@ Q: Thời gian sinh câu trả lời LLM local 87s có quá chậm?
 A: Retrieval trung bình 371 ms; tổng thời gian khoảng 87 giây chủ yếu nằm ở local LLM generation trên phần cứng benchmark (Apple M4 mini). Đây là giới hạn triển khai hiện tại, không phải retrieval latency.
 
 Q: Cross-repo results (Transformers/LangChain) có CI tương đương không?
-A: Đã tính paired bootstrap 10,000 resamples trên 10 case pairs mỗi repo. Transformers cho Correctness Δ +0.041 nhưng CI [-0.041, +0.119] chứa 0; LangChain không cho thấy quality improvement có CI loại trừ 0. Cả hai đều cho thấy retrieval overhead và prompt-token reduction. Đây là post-submission supplementary evidence, không phải pooled CI hay bằng chứng generalization.
+A: Supplementary report hiện đã chạy 10 case pairs mỗi repo nhưng artifact đang checked-in chỉ báo cáo means/deltas, chưa dùng CI để kết luận quality hoặc generalization. Transformers có Correctness Δ +0.041; LangChain giảm Correctness trong slice này. Cả hai đều cho thấy retrieval overhead và prompt-token reduction. Đây là post-submission descriptive evidence, không phải pooled CI hay bằng chứng generalization.
 
 ## Về baseline coverage
 Q: Vì sao chưa có BM25/CodeBERT/GraphRAG baseline?

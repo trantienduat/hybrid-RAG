@@ -1,109 +1,214 @@
-# Hybrid-RAG demo scenario
+# Hybrid-RAG Live Demo Scenario & Script
 
-## Purpose
+## Purpose & Overview
 
-Show one complete, understandable path from a local code snapshot to a grounded answer, then demonstrate that unsupported Java indexing is rejected explicitly.
+Walk the thesis defense committee through a complete, live, interactive demonstration of the Hybrid-RAG system in **5–7 minutes**. 
 
-Target duration: 7–10 minutes.
+The demo proves the three core engineering and research mechanisms presented in the slides:
+1. **Dual Representation & Shared Provenance (Core 05 / Slide 5.1):** From raw Python source to synchronized FalkorDB graph facts and Qdrant vector chunks.
+2. **Dynamic Search Routing & Explicit Stubs (Core 06 / Slides 6.1–6.3):** How the Question Checker selects exact-link, local-behavior (RRF fusion), or whole-repository paths, while preserving honest uncertainty (`STUB`).
+3. **Live Incremental Indexing & Atomic Updates (Core 08 / Slide 8.1):** How adding a new module triggers fast, diff-based incremental re-indexing without rebuilding the entire graph or invalidating safe caches.
 
-## What the audience should see
+---
 
-1. FalkorDB and Qdrant are healthy.
-2. The question is scoped to one indexed repository.
-3. The answer cites relevant code context rather than receiving the whole repository.
-4. Graph relationships and vector similarity are complementary.
-5. Java is rejected instead of being silently treated as supported Python.
+## Fixture Structure
 
-## Preflight
+The live demo uses a small, transparent, and auditable fixture in `fixtures/demo_checkout/`:
 
-Run this before the presentation. Do not start a fresh large indexing job immediately before the demo.
+### Base Fixture (2 files):
+```text
+fixtures/demo_checkout/
+├── checkout.py    (Checkout class: calls _validate, _total, payment.charge, log.start/end)
+└── payment.py     (PaymentGateway class: charge() calls _authorize, _capture)
+```
+
+### Extension Fixture (added during Act III):
+```text
+└── logger.py      (ConsoleLogger class: start(), end())
+```
+
+---
+
+## Preflight & Setup
+
+Run before the defense presentation to ensure all local containers and models are active and start from a clean, reproducible state:
 
 ```bash
 cd /Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG
+
+# 1. Reset Clean Slate (Reproducible Prep - Purge demo-checkout)
+.venv/bin/python scripts/reset_demo_checkout.py
+
+# 2. Start Docker containers (FalkorDB + Qdrant + API + MCP)
 docker compose up -d
+
+# 3. Verify local Ollama model
 ollama list
-.venv/bin/hybrid-rag status
 ```
 
-The prepared answer-quality index uses:
+> [!TIP]
+> Lệnh `scripts/reset_demo_checkout.py` sẽ tự động:
+> 1. Xoá sạch toàn bộ nodes & edges của `demo-checkout` trong **FalkorDB**.
+> 2. Xoá sạch toàn bộ vector chunks của `demo-checkout` trong **Qdrant**.
+> 3. Xoá file mở rộng `logger.py` (nếu đã tạo trong lần demo trước).
+> Giúp bạn reset hệ thống về trạng thái ban đầu chỉ trong **1 giây** để demo nhiều lần mà không sợ rác dữ liệu!
 
+### Prepare Snippet File:
+Create a ready-to-copy extension snippet `fixtures/demo_checkout/logger.py.snippet`:
+```python
+"""Logging service extension module for incremental index demo."""
+
+
+class ConsoleLogger:
+    def __init__(self, prefix: str = "[CHECKOUT]") -> None:
+        self.prefix = prefix
+
+    def start(self) -> None:
+        print(f"{self.prefix} Transaction started")
+
+    def end(self) -> None:
+        print(f"{self.prefix} Transaction completed successfully")
+```
+
+---
+
+## Act I: Clean Slate & Live Dual Indexing (Core 05)
+
+**Objective:** Prove that the system does not use hardcoded or pre-baked databases, and visualize the real-time creation of dual representations.
+
+### Step 1: Show Clean State
+1. Open the Web Portal at `http://localhost:8000`.
+2. Point to the repository selector: verify that `demo-checkout` does not exist yet.
+3. *Narration:*
+   > “Thưa Hội đồng, để đảm bảo tính khách quan và chứng minh hệ thống hoạt động hoàn toàn theo thời gian thực (không hardcode dữ liệu), chúng ta bắt đầu từ một trạng thái sạch.”
+
+### Step 2: Trigger Live Indexing
+
+Bạn có thể kích hoạt Indexing theo 1 trong 2 cách:
+
+* **Cách A (Trực quan trên Web UI - Khuyên dùng):**
+  1. Bấm nút **`+ New Project`** ở góc trên thanh Sidebar.
+  2. Nhập:
+     - **Repository Directory Path**: `fixtures/demo_checkout` (hoặc `/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/fixtures/demo_checkout`)
+     - **Namespace / Repository Name**: `demo-checkout`
+  3. Bấm **Start Indexing**: Thanh tiến độ xuất hiện và đồ thị 3D tải ngay khi hoàn thành!
+
+* **Cách B (Qua CLI Terminal):**
+  ```bash
+  .venv/bin/hybrid-rag index fixtures/demo_checkout \
+    --repo-name demo-checkout \
+    --rebuild \
+    --no-incremental
+  ```
+
+Observe the real-time logs:
+- Tree-sitter AST parsing $\rightarrow$ Extracting `Module`, `Class`, `Function` nodes.
+- Entity Resolver $\rightarrow$ Classifying internal calls vs unresolved stubs.
+- Dual emission $\rightarrow$ FalkorDB graph facts + Qdrant 768-d vector chunks with shared provenance.
+
+### Step 3: Inspect 3D Graph & Dual Store Records
+1. Switch to the Web UI: the interactive **3D Force Graph** renders immediately.
+2. Rotate and zoom to show:
+   - `checkout.py` $\rightarrow$ `Checkout` $\rightarrow$ `checkout()`
+   - Internal edges: `CALLS → _validate`, `CALLS → _total`
+   - `payment.py` $\rightarrow$ `PaymentGateway` $\rightarrow$ `charge()`
+3. Open Qdrant Dashboard (`http://localhost:6333/dashboard`) or UI Chunks panel to show:
+   - Vector chunk payload containing `node_id`, `span: L12-L17`, `file_path: checkout.py`, and `schema_version: 3`.
+4. *Narration:*
+   > “Chỉ trong vài giây, 2 file code thật đã được chuyển hoá đồng thời thành 2 góc nhìn: Đồ thị FalkorDB lưu trữ các liên kết gọi hàm chính xác, và Vector Qdrant lưu trữ ngữ nghĩa để tìm kiếm văn bản. Cả hai được gắn kết chặt chẽ bởi cùng một Provenance run_id.”
+
+---
+
+## Act II: Multi-Path Search & Honest Uncertainty (Core 06)
+
+**Objective:** Demonstrate that different questions select distinct evidence paths, and observe the system's explicit handling of stubs without hallucination.
+
+### Query 1: Exact-Link Path (Focus: Deterministic AST & Stubs)
+* **Prompt:**
+  ```text
+  What does Checkout.checkout call?
+  ```
+* **System Execution:**
+  - Question Checker detects relation word `call` and symbol `Checkout.checkout` $\rightarrow$ routes to **FalkorDB Cypher query**.
+* **Audience Verification:**
+  - Returns `_validate` and `_total` as confirmed graph edges.
+  - Explicitly lists `self.payment.charge` and `self.log` as **`STUB`** (`__call__charge`, `__call__start`).
+* **Narration:**
+  > “Với câu hỏi về quan hệ gọi hàm, hệ thống đi thẳng vào Knowledge Graph. Quan hệ nào chứng minh được thì trả về kết quả; quan hệ nào chưa có mã nguồn như logger hay dynamic attribute thì hệ thống giữ nguyên dạng STUB chứ tuyệt đối không đoán mò.”
+
+---
+
+### Query 2: Local-Behavior Path (Focus: RRF Fusion & Cross-File Context)
+* **Prompt:**
+  ```text
+  How does checkout process payment?
+  ```
+* **System Execution:**
+  - Question Checker identifies behavioral intent $\rightarrow$ queries both FalkorDB (graph links) and Qdrant (semantic chunks).
+  - Retrieves `payment.py` chunk via vector search (semantic similarity on 'payment / charge').
+  - Applies **RRF (Reciprocal Rank Fusion)** to rank, deduplicate, and limit context window.
+* **Audience Verification:**
+  - Shows combined context from `checkout.py` and `payment.py` passed to the LLM prompt.
+  - Returns step-by-step business flow: `_validate → _total → charge (_authorize + _capture)`.
+* **Narration:**
+  > “Khi hỏi về luồng xử lý thanh toán, Semantic Search tìm ra file `payment.py` dù không có link cứng trực tiếp. Thuật toán RRF kết hợp bằng chứng từ cả 2 nguồn để LLM trả lời đầy đủ ngữ cảnh nghiệp vụ.”
+
+---
+
+### Query 3: Whole-Repository Path (Focus: Folder Community Summaries)
+* **Prompt:**
+  ```text
+  How do checkout and payment work together in this repository?
+  ```
+* **System Execution:**
+  - Question Checker detects repository-wide architectural query $\rightarrow$ reads pre-generated **Community Summary** from FalkorDB.
+* **Audience Verification:**
+  - Context contains high-level folder summary written by local Ollama model instead of polluting context with dozens of raw function bodies.
+* **Narration:**
+  > “Với câu hỏi toàn cảnh, hệ thống không nhồi nhét mã nguồn của từng hàm vào context mà sử dụng bản tóm tắt kiến trúc theo thư mục (Directory-based community) được sinh sẵn.”
+
+---
+
+## Act III: Live Code Extension & Incremental Indexing (Core 08)
+
+**Objective:** Prove live incremental indexing capability (Slide 08)—adding code updates the graph in milliseconds without full rebuilds.
+
+### Step 1: Add Extension Code
+Copy the snippet into the live fixture directory:
 ```bash
-REPO=llama-core-answer-v3
+cp fixtures/demo_checkout/logger.py.snippet fixtures/demo_checkout/logger.py
 ```
 
-The API uses the graph and Qdrant collection configured by the running service; the request supplies the repository scope.
-
-If the long answer-quality benchmark is still using Ollama, prefer the recorded output below or wait for it to finish. A live demo query competes for the same local model capacity.
-
-## Live path A — grounded code question
-
-Run one question about a source flow the audience can follow:
-
+### Step 2: Trigger Incremental Indexing
+Trigger an incremental update via Web UI or CLI:
 ```bash
-QUESTION='What sequence does BaseRetriever.retrieve follow when it receives a plain query string, including callbacks and recursive retrieval?'
-jq -n --arg question "$QUESTION" --arg repository "$REPO" \
-  '{question:$question, repository:$repository, top_k:20, context_n:5, codebase_query:true, stream:false}' \
-  | curl -sS http://127.0.0.1:8000/query \
-    -H 'Content-Type: application/json' \
-    -d @- \
-  | jq '{answer, sources, query_type, latency_ms}'
+.venv/bin/hybrid-rag index fixtures/demo_checkout \
+  --repo-name demo-checkout \
+  --incremental
 ```
 
-Narrate the output in this order:
+### Step 3: Verify the Incremental Update
+1. **Performance Check:** Notice the operation completes in **< 100ms** (only the changed file `logger.py` is hashed and parsed; `checkout.py` and `payment.py` are skipped).
+2. **Graph Visualizer Check:**
+   - The 3D graph dynamically adds the new cluster: `logger.py` $\rightarrow$ `ConsoleLogger` $\rightarrow$ `start()`, `end()`.
+3. **Re-query Test:**
+   ```text
+   How does Checkout log its operations?
+   ```
+   - The system immediately returns the answer grounded in the newly added `ConsoleLogger` methods.
 
-1. The query is repository-scoped.
-2. Vector retrieval finds semantically related retriever code.
-3. Graph retrieval contributes callback and recursive-retrieval relationships.
-4. RRF combines the ranked candidates.
-5. The API context assembler limits what reaches local Ollama.
-6. The response contains the generated answer and source paths.
+* **Narration:**
+  > “Khi bổ sung file `logger.py`, tính năng Incremental Indexing chỉ phân tích diff của file mới trong vài chục mili-giây. Đồ thị 3D lập tức cập nhật node mới, và khi hỏi lại, hệ thống có ngay câu trả lời chính xác mà không cần re-index toàn bộ kho mã.”
 
-Do not claim that the answer is universally correct from one demo. Say that the independent answer-quality benchmark measures faithfulness, relevancy, and correctness across repeated cases.
+---
 
-## Live path B — fail-closed Java boundary
+## Act IV: Academic Boundaries & Closing Statement
 
-Create a temporary Java fixture without touching the repository:
+To maintain academic rigor before the defense committee, state these boundaries explicitly:
 
-```bash
-DEMO_JAVA_DIR="$(mktemp -d /tmp/hybrid-rag-java-demo.XXXXXX)"
-printf 'class Demo { void run() {} }\n' > "$DEMO_JAVA_DIR/Demo.java"
-```
+1. **Teaching Fixture vs Benchmark:** `demo_checkout` is designed to visualize mechanisms (indexing, routing, stubs, incremental updates); the quantitative research claims (Answer Correctness +0.046, paired 95% range [0.002, 0.094]) are measured independently on the benchmark repository `llama-index-core`.
+2. **Static Links vs Runtime Guarantee:** Graph edges reflect static AST facts, not runtime dynamic traces.
+3. **Deterministic Partitioning:** Folder community grouping follows directory structure deterministically, avoiding non-deterministic Louvain clustering drift.
 
-Attempt indexing:
-
-```bash
-.venv/bin/hybrid-rag index "$DEMO_JAVA_DIR" --repo-name demo-java
-```
-
-Expected behavior: the command rejects the project with an explicit unsupported-language error. Explain that a false-success index would be more dangerous than a clear rejection because it could produce misleading answers.
-
-Clean up the temporary fixture after the demo:
-
-```bash
-rm -rf "$DEMO_JAVA_DIR"
-```
-
-## Optional evidence slide
-
-Show the completed benchmark artifact, with its generated and scored counts:
-
-```bash
-jq -r '
-  .records as $r |
-  ([ $r[] | select(.faithfulness != null and .answer_relevancy != null and .answer_correctness != null) ] | length) as $s |
-  "generated=" + (($r|length)|tostring) + ", scored=" + ($s|tostring)
-' results/answer_quality_benchmark_schema3.json
-```
-
-Expected completed artifact: `generated=180, scored=180`. Use the checked-in statistics file for the confidence intervals; do not present a stale checkpoint as final evidence.
-
-## Recovery plan
-
-- If Ollama is slow: use a saved output and explain the same retrieval path.
-- If the prepared index is unavailable: run `status` and present the architecture slide instead of indexing live.
-- If the Java command does not reject: stop the demo and treat it as a defect; do not continue with a misleading result.
-- If the benchmark is active: do not run another full evaluation concurrently.
-
-## Closing sentence
-
-“The important result is not only that the system can answer a code question; it can show which repository snapshot and retrieval context produced the answer, and it refuses unsupported input instead of pretending it succeeded.”
+### Closing Sentence:
+> 💬 *“Kịch bản demo trên vừa minh chứng trọn vẹn toàn bộ chu trình kỹ thuật của luận văn: từ phân tách mã nguồn thành 2 kho dữ liệu có nguồn gốc, định tuyến 3 đường tìm kiếm thông minh có nhận diện stub, cho đến khả năng cập nhật đồ thị tức thì qua incremental indexing.”*

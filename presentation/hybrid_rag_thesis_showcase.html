@@ -37,7 +37,7 @@
       color: var(--ink);
       font-family: Aptos, "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .deck { width: 100vw; height: 100vh; position: relative; }
+    .deck { width: 100vw; height: 100vh; position: relative; touch-action: manipulation; }
     .slide {
       display: none;
       position: absolute;
@@ -208,34 +208,61 @@
     @keyframes diagram-reveal { to { opacity: 1; transform: translateY(0); } }
     .svg-diagram:focus { outline: 2px solid var(--cyan); outline-offset: 6px; }
     .svg-caption { margin-top: .35rem; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
-    .pipeline-demo { display: grid; grid-template-columns: .84fr 1.16fr; gap: 1.1rem; align-items: stretch; }
-    .pipeline-source-card, .pipeline-stage-output { min-width: 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); }
-    .pipeline-source-card { display: flex; flex-direction: column; }
-    .pipeline-source-card .label { margin-bottom: .1rem; }
-    .pipeline-code { margin: .45rem 0 0; color: var(--muted); font: 13px/1.38 "SFMono-Regular", Consolas, monospace; white-space: pre; }
-    .pipeline-code-line { display: block; padding: .08rem .28rem; border-left: 3px solid transparent; border-radius: 3px; transition: background .25s ease, border-color .25s ease, color .25s ease, opacity .25s ease; }
-    .pipeline-code-line.is-active { background: var(--svg-graph); border-left-color: var(--cyan); color: var(--ink); }
-    .pipeline-code-line.is-alert { background: var(--svg-limit); border-left-color: var(--orange); color: var(--ink); }
-    .pipeline-file-strip { margin-top: auto; padding-top: .6rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.3; }
-    .pipeline-file-strip code { color: var(--green); background: transparent; padding: 0; }
-    .pipeline-workflow { display: grid; gap: .65rem; min-width: 0; }
-    .pipeline-progress { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .35rem; }
-    .pipeline-step { min-width: 0; padding: .45rem .25rem; border: 1px solid var(--line); border-top: 3px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--muted); text-align: center; font-size: 11px; line-height: 1.1; transition: background .25s ease, border-color .25s ease, color .25s ease, opacity .25s ease; }
-    .pipeline-step strong { display: block; color: var(--ink); font-size: 12px; }
-    .pipeline-step.is-done { border-top-color: var(--green); background: var(--svg-evidence); }
-    .pipeline-step.is-active { border-top-color: var(--orange); background: var(--svg-limit); color: var(--ink); box-shadow: 0 5px 14px rgba(182,92,60,.12); }
-    .pipeline-status { color: var(--orange); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-    .pipeline-stage-output { min-height: 218px; }
-    .pipeline-output { display: none; gap: .6rem; align-content: start; }
-    .pipeline-output.is-visible { display: grid; }
-    .pipeline-output h3 { color: var(--ink); font-size: 21px; }
-    .pipeline-output p { color: var(--muted); font-size: 15px; line-height: 1.35; }
-    .pipeline-output-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
-    .pipeline-output-block { padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 7px; background: var(--deep); color: var(--muted); font-size: 13px; line-height: 1.35; }
-    .pipeline-output-block strong { display: block; margin-bottom: .2rem; color: var(--ink); }
-    .pipeline-output-block code { color: var(--green); background: transparent; padding: 0; }
+    .story-frame { display: grid; gap: .35rem; width: 100%; }
+    .story-overline { display: flex; align-items: center; gap: 1.2rem; color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+    .story-overline strong { color: var(--cyan); }
+    .story-overline code { color: var(--orange); font-size: 12px; }
+    .story-diagram { max-height: 42vh; min-height: 250px; }
+    .story-diagram [data-story-stage], .story-diagram [data-pipeline-stage] { opacity: .14; transition: opacity .28s ease, filter .28s ease, transform .28s ease; }
+    .story-diagram [data-story-stage].is-done, .story-diagram [data-pipeline-stage].is-done { opacity: .72; }
+    .story-diagram [data-story-stage].is-active, .story-diagram [data-pipeline-stage].is-active { opacity: 1; filter: drop-shadow(0 5px 8px rgba(29,42,52,.12)); }
+    .story-diagram [data-story-stage].is-active rect, .story-diagram [data-pipeline-stage].is-active rect { stroke-width: 2.8; }
+    .story-diagram [data-story-stage].is-active .svg-edge, .story-diagram [data-pipeline-stage].is-active .svg-edge { stroke-width: 3.2; }
+    .story-caption { min-height: 1.5em; color: var(--muted); font-size: 15px; line-height: 1.35; }
+    .story-caption strong { color: var(--ink); }
+    .story-dots { display: flex; gap: .45rem; align-items: center; }
+    .story-dots span { width: .58rem; height: .58rem; border-radius: 50%; background: var(--line); transition: background .25s ease, transform .25s ease; }
+    .story-dots span.is-done { background: var(--cyan); }
+    .story-dots span.is-active { background: var(--orange); transform: scale(1.25); }
     .process-note { display: grid; grid-template-columns: auto 1fr; gap: .65rem; align-items: center; }
     .process-note strong { color: var(--orange); font: 700 12px "SFMono-Regular", Consolas, monospace; letter-spacing: .05em; }
+    .checkout-story { max-height: 43vh; min-height: 290px; }
+    .checkout-story [data-pipeline-stage] { opacity: .055; }
+    .checkout-story [data-pipeline-stage].is-done { opacity: .9; }
+    .checkout-story [data-pipeline-stage].is-active { opacity: 1; }
+    .svg-diagram .stage-number { fill: var(--panel); stroke-width: 1.5; }
+    .svg-diagram .stage-number.graph { stroke: var(--cyan); }
+    .svg-diagram .stage-number.vector { stroke: var(--orange); }
+    .svg-diagram .stage-number.provenance { stroke: var(--green); }
+    .svg-diagram .stage-number-text { font-size: 11px; font-weight: 900; text-anchor: middle; dominant-baseline: middle; }
+    .checkout-story .code-line { font: 600 11px "SFMono-Regular", Consolas, monospace; fill: var(--ink); }
+    .checkout-story .code-muted { fill: var(--muted); }
+    .checkout-story .call-label { font: 800 10px "SFMono-Regular", Consolas, monospace; letter-spacing: .02em; }
+    .checkout-story .flow-label { font: 800 9.5px "SFMono-Regular", Consolas, monospace; fill: var(--muted); letter-spacing: .03em; }
+    .checkout-story .highlight-structure { fill: rgba(45,111,120,.08); stroke: var(--cyan); stroke-width: 1; }
+    .checkout-story .highlight-call { fill: rgba(182,92,60,.1); stroke: var(--orange); stroke-width: 1; }
+    .whole-repo-story { max-height: 39vh; min-height: 270px; }
+    .whole-repo-story [data-story-stage] { opacity: .055; }
+    .whole-repo-story [data-story-stage].is-done { opacity: .9; }
+    .whole-repo-story [data-story-stage].is-active { opacity: 1; }
+    .routing-story { max-height: 42vh; min-height: 285px; }
+    .routing-story [data-story-stage] { opacity: .055; }
+    .routing-story [data-story-stage].is-done { opacity: .9; }
+    .routing-story [data-story-stage].is-active { opacity: 1; }
+    .rrf-story { max-height: 42vh; min-height: 285px; }
+    .rrf-story [data-story-stage] { opacity: .055; }
+    .rrf-story [data-story-stage].is-done { opacity: .9; }
+    .rrf-story [data-story-stage].is-active { opacity: 1; }
+    .rrf-story .shared-candidate { fill: var(--green); font-weight: 850; }
+    .safety-story, .reindex-story { max-height: 41vh; min-height: 275px; }
+    .safety-story [data-story-stage], .reindex-story [data-story-stage] { opacity: .055; }
+    .safety-story [data-story-stage].is-done, .reindex-story [data-story-stage].is-done { opacity: .9; }
+    .safety-story [data-story-stage].is-active, .reindex-story [data-story-stage].is-active { opacity: 1; }
+    .experiment-story, .bootstrap-story { max-height: 41vh; min-height: 275px; }
+    .experiment-story [data-story-stage], .bootstrap-story [data-story-stage] { opacity: .055; }
+    .experiment-story [data-story-stage].is-done, .bootstrap-story [data-story-stage].is-done { opacity: .9; }
+    .experiment-story [data-story-stage].is-active, .bootstrap-story [data-story-stage].is-active { opacity: 1; }
+    .bootstrap-story .sample-repeat { fill: var(--orange); font-weight: 850; }
     .metric-table tbody tr:first-child td { border-top: 1px solid var(--line); }
     .metric-table td:first-child { color: var(--ink); font-weight: 650; }
     .metric-table .signal-note { display: block; margin-top: .32rem; color: var(--muted); font-size: .78em; line-height: 1.35; font-weight: 400; }
@@ -269,8 +296,6 @@
       .slide { padding: 6vh 7vw 9vh; }
       .counter { right: 7vw; bottom: 6vh; font-size: 11px; letter-spacing: .06em; }
       .svg-diagram { max-height: 32vh; min-height: 180px; }
-      .pipeline-demo { grid-template-columns: 1fr; }
-      .pipeline-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .flow { flex-wrap: wrap; justify-content: flex-start; }
       .arrow { transform: rotate(90deg); }
       .diagram-row { grid-template-columns: 1fr; }
@@ -349,7 +374,6 @@
         <p><strong>RQ2 · Time and tokens:</strong> How do search time, answer time and token counts change?</p>
         <p><strong>RQ3 · Confidence:</strong> Does the difference stay above zero in the paired 95% range?</p>
       </div>
-      <p class="small">Scope: Python code indexing · one fixed LlamaIndex Core snapshot · local Ollama · Java rejected explicitly.</p>
       <aside class="notes"><strong>Cách hiểu:</strong> Ba RQ tương ứng với ba thứ hội đồng cần biết. RQ1 hỏi chất lượng câu trả lời có tốt hơn không: Faithfulness, Answer Relevancy và Answer Correctness. RQ2 hỏi cái giá phải trả: retrieval time, generation time và token footprint thay đổi thế nào. RQ3 hỏi evidence có đủ mạnh không: chênh lệch quan sát được có còn hợp lý khi tính paired 95% confidence range hay không. Mean cao hơn chưa đủ để claim improvement; phải nhìn cả khoảng tin cậy.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8</span></aside>
     </section>
 
@@ -370,172 +394,297 @@
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">Index and search · 05 / 15</div>
-      <h2>One index feeds three question paths.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 390" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
-        <title id="routing-title">Hybrid-RAG index and query overview</title>
-        <desc id="routing-desc">Python source is parsed into a FalkorDB code graph and Qdrant vector chunks with shared provenance. A question checker then selects an exact-link, local-behavior or whole-repository path.</desc>
-        <defs>
-          <marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
-        </defs>
+      <div class="kicker">Build the index · 05 / 15</div>
+      <h2>Build one index with two searchable views.</h2>
+      <div class="story-frame" id="index-overview" data-stage="0">
+        <div class="story-overline"><strong>Index once</strong><span>graph facts + searchable text</span></div>
+        <svg class="svg-diagram story-diagram" viewBox="0 0 1080 210" role="img" tabindex="0" aria-labelledby="routing-title routing-desc">
+          <title id="routing-title">Hybrid-RAG indexing overview</title>
+          <desc id="routing-desc">Python source is parsed once into a FalkorDB graph view and a Qdrant text view, with shared provenance linking both representations to the source.</desc>
+          <defs><marker id="routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" class="svg-arrow" /></marker></defs>
 
-        <text x="36" y="20" class="svg-route">INDEX ONCE</text>
-        <g class="reveal" style="--delay:.05s">
-          <path d="M214 74 H282" class="svg-edge" marker-end="url(#routing-arrow)" />
-          <rect x="36" y="43" width="178" height="62" rx="5" class="svg-source" />
-          <text x="56" y="69" class="svg-title">Repository source</text><text x="56" y="89" class="svg-subtitle">Python files</text>
-        </g>
-        <g class="reveal" style="--delay:.2s">
-          <rect x="282" y="43" width="198" height="62" rx="5" class="svg-process" />
-          <text x="302" y="69" class="svg-title">Parse + chunk</text><text x="302" y="89" class="svg-subtitle">Tree-sitter + code text</text>
-        </g>
-        <g class="reveal" style="--delay:.36s">
-          <path d="M480 74 L570 45" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-          <path d="M480 74 L570 127" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-          <rect x="570" y="14" width="220" height="62" rx="5" class="svg-store graph" />
-          <text x="590" y="40" class="svg-title">FalkorDB</text><text x="590" y="60" class="svg-subtitle">nodes + typed edges</text>
-          <rect x="570" y="96" width="220" height="62" rx="5" class="svg-store vector" />
-          <text x="590" y="122" class="svg-title">Qdrant</text><text x="590" y="142" class="svg-subtitle">chunks + embeddings</text>
-        </g>
-        <g class="reveal" style="--delay:.52s">
-          <path d="M790 45 L840 75" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-          <path d="M790 127 L840 95" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-          <rect x="840" y="54" width="204" height="62" rx="5" class="svg-merge" />
-          <text x="860" y="80" class="svg-title compact">Shared provenance</text><text x="860" y="100" class="svg-subtitle">source · schema · model · run</text>
-        </g>
+          <g data-story-stage="0">
+            <circle cx="55" cy="31" r="13" class="stage-number graph" /><text x="55" y="31" class="stage-number-text">1</text>
+            <text x="78" y="35" class="svg-route">BUILD TWO VIEWS</text>
+            <rect x="36" y="60" width="178" height="72" rx="7" class="svg-source" />
+            <text x="56" y="88" class="svg-title">Python source</text><text x="56" y="111" class="svg-subtitle">repository files</text>
+            <path d="M214 96 H282" class="svg-edge" marker-end="url(#routing-arrow)" />
+            <rect x="282" y="60" width="198" height="72" rx="7" class="svg-process" />
+            <text x="302" y="88" class="svg-title">Parse + split</text><text x="302" y="111" class="svg-subtitle">Tree-sitter + source spans</text>
+            <path d="M480 96 L570 60" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+            <path d="M480 96 L570 150" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+            <rect x="570" y="27" width="220" height="68" rx="7" class="svg-store graph" />
+            <text x="590" y="56" class="svg-title">FalkorDB</text><text x="590" y="78" class="svg-subtitle">nodes + typed edges</text>
+            <rect x="570" y="117" width="220" height="68" rx="7" class="svg-store vector" />
+            <text x="590" y="146" class="svg-title">Qdrant</text><text x="590" y="168" class="svg-subtitle">chunks + embeddings</text>
+          </g>
 
-        <text x="36" y="194" class="svg-route">SEARCH BY QUESTION</text>
-        <g class="reveal" style="--delay:.68s">
-          <path d="M214 250 H282" class="svg-edge" marker-end="url(#routing-arrow)" />
-          <rect x="36" y="219" width="178" height="62" rx="5" class="svg-process" />
-          <text x="56" y="245" class="svg-title">User question</text><text x="56" y="265" class="svg-subtitle">optional repository scope</text>
-          <rect x="282" y="219" width="198" height="62" rx="5" class="svg-process" />
-          <text x="302" y="245" class="svg-title compact">Question checker</text><text x="302" y="265" class="svg-subtitle">signal + code name</text>
-        </g>
-        <g class="reveal" style="--delay:.82s">
-          <path d="M480 250 H570" class="svg-edge" marker-end="url(#routing-arrow)" />
-          <polygon points="570,250 600,218 630,250 600,282" class="svg-decision" />
-          <text x="600" y="254" class="svg-title" text-anchor="middle">route?</text>
-        </g>
-        <g class="reveal" style="--delay:.96s">
-          <path d="M630 250 L700 220" class="svg-edge graph" marker-end="url(#routing-arrow)" />
-          <path d="M630 250 H700" class="svg-edge vector" marker-end="url(#routing-arrow)" />
-          <path d="M630 250 L700 340" class="svg-edge" marker-end="url(#routing-arrow)" />
-          <rect x="700" y="198" width="344" height="42" rx="5" class="svg-process" />
-          <text x="720" y="218" class="svg-route">EXACT LINK</text><text x="862" y="218" class="svg-small">graph · vector fallback</text>
-          <rect x="700" y="253" width="344" height="42" rx="5" class="svg-evidence" />
-          <text x="720" y="273" class="svg-route">LOCAL BEHAVIOR</text><text x="854" y="273" class="svg-small">graph + text → RRF</text>
-          <rect x="700" y="308" width="344" height="42" rx="5" class="svg-process" />
-          <text x="720" y="328" class="svg-route">WHOLE REPOSITORY</text><text x="888" y="328" class="svg-small">folder summaries</text>
-        </g>
-      </svg>
-      <aside class="notes"><strong>Cách hiểu:</strong> Core 05 chỉ là bản đồ tổng quát. Trước tiên repository được parse và chunk một lần thành hai view: FalkorDB giữ nodes và typed edges của code graph; Qdrant giữ source chunks và embeddings. Cả hai cùng mang provenance như source identity, schema version, embedding model và index run. Khi có câu hỏi, question checker mới chọn path: exact-link cho relation rõ, local behavior cho câu hỏi về cách một phần code hoạt động, hoặc whole-repository cho architecture và overview. Ở detail 05.1 mình sẽ zoom vào bước indexing bằng hai file Checkout.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
-    </section>
-
-    <section class="slide" data-axis="core">
-      <div class="kicker">How the system finds evidence · 06 / 15</div>
-      <h2>One function is seen in two ways.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="evidence-title evidence-desc">
-        <title id="evidence-title">Graph and vector evidence for one function</title>
-        <desc id="evidence-desc">Known code links and similar source text meet on the Checkout.checkout question.</desc>
-        <defs>
-          <marker id="evidence-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
-        </defs>
-        <text x="36" y="22" class="svg-route">CODE MAP · KNOWN LINKS</text>
-        <text x="756" y="22" class="svg-route">TEXT SEARCH · RELATED CODE</text>
-        <path d="M160 73 H188" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
-        <path d="M312 73 H340" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
-        <path d="M404 98 L468 138" class="svg-edge graph" marker-end="url(#evidence-arrow)" />
-        <rect x="36" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="54" y="78" class="svg-title">Module</text>
-        <rect x="188" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="206" y="78" class="svg-title">Class</text>
-        <rect x="340" y="48" width="124" height="50" rx="5" class="svg-store graph" /><text x="358" y="78" class="svg-title">checkout</text>
-        <text x="194" y="116" class="svg-edge-label">DEFINES · contains</text><text x="348" y="116" class="svg-edge-label">CALLS · invokes</text>
-
-        <rect x="468" y="86" width="254" height="104" rx="7" class="svg-evidence" />
-        <text x="492" y="117" class="svg-small">QUESTION</text>
-        <text x="492" y="145" class="svg-code">Checkout.checkout</text>
-        <text x="492" y="169" class="svg-subtitle">What sequence does it follow?</text>
-        <text x="492" y="187" class="svg-small">targets: _validate · _total · charge</text>
-
-        <path d="M916 73 H892" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <path d="M740 239 L828 98" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <path d="M764 73 L722 152" class="svg-edge vector" marker-end="url(#evidence-arrow)" />
-        <rect x="916" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="934" y="70" class="svg-title compact">Source info</text><text x="934" y="87" class="svg-small">repo · file · hash</text>
-        <rect x="764" y="48" width="128" height="50" rx="5" class="svg-store vector" /><text x="782" y="78" class="svg-title compact">Related text</text>
-        <rect x="612" y="214" width="128" height="50" rx="5" class="svg-store vector" /><text x="630" y="236" class="svg-title compact">Source chunk</text><text x="630" y="253" class="svg-small">body + payment</text>
-        <text x="790" y="116" class="svg-edge-label">embedding model</text>
-      </svg>
-      <p class="svg-caption"><strong>Observed demo output:</strong> graph resolves <code>_validate</code>/<code>_total</code> and preserves <code>charge</code>/<code>start</code>/<code>end</code> as stubs; vector context still surfaces <code>payment.py</code>.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Một function được nhìn từ hai phía. Code map cho thấy những relation nào có thể chứng minh được: trong fixture, <code>Checkout.checkout</code> link được tới <code>_validate</code> và <code>_total</code>. Nhưng <code>self.payment.charge</code> và logger calls chưa có target đủ rõ nên giữ stub. Text search thì vẫn tìm được <code>payment.py</code> vì nội dung có liên quan về mặt meaning. Nói ngắn gọn: graph cho mình links, vector cho mình source context. Không view nào tự nó chứng minh được toàn bộ runtime order. Đây chỉ là demo, không phải scored answer.<br><br><span class="small">[Nguồn] docs/schema/kg-schema.md; src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
-    </section>
-
-    <section class="slide" data-axis="core">
-      <div class="kicker">How results are combined · 07 / 15</div>
-      <h2>Local questions combine two result lists.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
-        <title id="rrf-title">Reciprocal rank fusion</title>
-        <desc id="rrf-desc">Graph and vector ranked candidates converge at RRF and become a budgeted context list.</desc>
-        <defs>
-          <marker id="rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
-        </defs>
-        <rect x="28" y="24" width="270" height="118" rx="6" class="svg-store graph" />
-        <text x="50" y="50" class="svg-route">GRAPH CANDIDATES · DEMO</text>
-        <text x="54" y="78" class="svg-code">01  _validate · resolved</text><text x="54" y="100" class="svg-code">02  _total · resolved</text><text x="54" y="122" class="svg-small">03  __call__charge · stub</text><text x="54" y="138" class="svg-edge-label">w = 1.0 · local search</text>
-        <rect x="28" y="168" width="270" height="118" rx="6" class="svg-store vector" />
-        <text x="50" y="194" class="svg-route">VECTOR CONTEXT · DEMO</text>
-        <text x="54" y="222" class="svg-code">01  payment.py · located</text><text x="54" y="244" class="svg-code">02  PaymentGateway.charge</text><text x="54" y="266" class="svg-small">03  checkout.py chunk</text><text x="54" y="282" class="svg-edge-label">w = 1.0 · local search</text>
-        <path d="M298 83 L419 120" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
-        <path d="M298 227 L419 190" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
-        <circle cx="452" cy="155" r="48" class="svg-merge" /><text x="426" y="150" class="svg-title">RRF</text><text x="419" y="170" class="svg-small">rank order, not quality</text>
-        <path d="M500 155 H560" class="svg-edge" marker-end="url(#rrf-arrow)" />
-        <rect x="560" y="50" width="492" height="210" rx="6" class="svg-evidence" />
-        <text x="584" y="78" class="svg-route">CONTEXT SENT TO OLLAMA</text>
-        <text x="588" y="116" class="svg-title">combine candidate lists</text><text x="588" y="147" class="svg-title">remove duplicates</text><text x="588" y="178" class="svg-title">keep context within the token budget</text><text x="588" y="214" class="svg-edge-label">optional character limit</text>
-      </svg>
-      <p class="svg-caption"><strong>Demo trace:</strong> graph contributes resolved nodes plus an unresolved stub; vector contributes source context. RRF prepares context and does not convert these candidates into an answer-quality score.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Hai result lists có score khác thang đo, nên không cộng raw score trực tiếp. RRF nhìn vào rank position của từng candidate, kết hợp hai list, bỏ duplicate rồi giữ context trong budget để gửi cho Ollama. Với local question, graph và vector cùng đóng góp. Với clear-link question, graph có thể được ưu tiên; còn vector-only baseline thì tắt graph. Nhớ kỹ: <code>rrf_score</code> chỉ nói item đứng hạng nào trong context, không phải answer-quality score. Các con số trên slide giải thích method, không phải benchmark result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
-    </section>
-
-    <section class="slide" data-axis="core">
-      <div class="kicker">Safety checks · 08 / 15</div>
-      <h2>Bad input stops early; safe updates protect the index.</h2>
-      <div class="gate-flow">
-        <div class="gate"><strong>1 · Input check</strong>Python repository + local Ollama only<span class="reject">Unsupported Java/provider → reject</span></div>
-        <div class="gate"><strong>2 · Same-source check</strong>Repository, source hash, schema and embedding model<span class="reject">Mismatch → stop</span></div>
-        <div class="gate"><strong>3 · Prepare first</strong>Parse and embed before changing the database<span class="reject">Failure → keep old data</span></div>
-        <div class="gate publish"><strong>4 · Safe update</strong>Write new records before removing old ones<span class="reject">Less empty-index time</span></div>
-        <div class="gate publish"><strong>5 · New cache</strong>Give the new index a new cache name<span class="reject">Old answers stay separate</span></div>
+          <g data-story-stage="1">
+            <path d="M790 61 L846 90" class="svg-edge graph" marker-end="url(#routing-arrow)" />
+            <path d="M790 151 L846 112" class="svg-edge vector" marker-end="url(#routing-arrow)" />
+            <circle cx="869" cy="31" r="13" class="stage-number provenance" /><text x="869" y="31" class="stage-number-text">2</text>
+            <text x="892" y="35" class="svg-route">KEEP THE TRAIL</text>
+            <rect x="846" y="70" width="198" height="68" rx="7" class="svg-merge" />
+            <text x="866" y="98" class="svg-title compact">Shared provenance</text>
+            <text x="866" y="120" class="svg-subtitle">source · span · schema · run</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-overview-dot="0"></span><span data-overview-dot="1"></span></div>
+        <p class="story-caption" id="index-overview-status"><strong>1. Build two views.</strong> Parse the source once into graph facts and searchable code text.</p>
       </div>
-      <p class="small"><strong>Concrete checks:</strong> Java input → reject · source mismatch → stop the test · parse/embed failure → keep the old records.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Reliability không chỉ là trả được answer; còn là biết lúc nào phải dừng. Hệ thống reject input không hỗ trợ như Java và remote provider. Nó kiểm tra repository, source digest, schema và embedding model có cùng một run hay không. Khi update index, parse và embed xong trước rồi mới thay đổi database; ghi data mới trước khi cleanup data cũ để giảm khoảng thời gian index rỗng. Đây chưa phải atomic live cutover. Cache generation mới cũng giúp answer của snapshot cũ không lẫn vào snapshot mới. Các check này bảo vệ demo và benchmark, nhưng không tự tạo thêm evidence về answer quality.<br><br><span class="small">[Nguồn] tests; src/hybrid_rag/ingestion/pipeline.py; results/answer_quality_benchmark_schema3.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core 05 chỉ trả lời một câu: index được build như thế nào? Bước 1, Python source được parse và split một lần thành hai representation: FalkorDB giữ nodes và typed edges; Qdrant giữ source chunks và embeddings. Bước 2, cả hai giữ chung provenance để truy ngược về source span, schema và index run. Phần chọn search path được chuyển sang Core 06. Nhấn ↓ lần nữa để zoom vào fixture Checkout ở 5.1.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
-      <div class="kicker">How we tested it · 09 / 15</div>
-      <h2>We compare the same question in both modes.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
-        <title id="experiment-title">Paired answer-quality experiment</title>
-        <desc id="experiment-desc">Thirty questions are evaluated in two modes with three repeats, reduced to thirty paired means, and resampled ten thousand times for confidence intervals.</desc>
-        <defs>
-          <marker id="experiment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker>
-        </defs>
-        <text x="36" y="20" class="svg-route">THE TEST SET</text>
-        <path d="M236 77 H286" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M486 77 H536" class="svg-edge" marker-end="url(#experiment-arrow)" /><path d="M736 77 H786" class="svg-edge" marker-end="url(#experiment-arrow)" />
-        <rect x="36" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="58" y="69" class="svg-title">30 questions</text><text x="58" y="89" class="svg-subtitle">10 simple · 10 medium</text><text x="58" y="105" class="svg-small">10 hard</text>
-        <rect x="286" y="40" width="200" height="74" rx="5" class="svg-store vector" /><text x="308" y="69" class="svg-title">2 modes</text><text x="308" y="91" class="svg-subtitle">vector · hybrid</text>
-        <rect x="536" y="40" width="200" height="74" rx="5" class="svg-process" /><text x="558" y="69" class="svg-title">3 repeats</text><text x="558" y="91" class="svg-subtitle">average each question</text>
-        <rect x="786" y="40" width="258" height="74" rx="5" class="svg-source" /><text x="808" y="69" class="svg-title">180 saved answers</text><text x="808" y="91" class="svg-subtitle">30 × 2 × 3, kept for checking</text>
+      <div class="kicker">Search by question · 06 / 15</div>
+      <h2>The question chooses one of three search paths.</h2>
+      <div class="story-frame" id="search-routing" data-stage="0">
+        <div class="story-overline"><strong>Route at query time</strong><code>demo_checkout</code><span id="search-routing-status">question checker</span></div>
+        <svg class="svg-diagram story-diagram routing-story" viewBox="0 0 1080 330" role="img" tabindex="0" aria-labelledby="search-routing-title search-routing-desc">
+          <title id="search-routing-title">Question-aware search routing</title>
+          <desc id="search-routing-desc">A question checker reads relation, symbol, behavior, and repository-level signals, then selects exact-link, local-behavior, or whole-repository search.</desc>
+          <defs><marker id="search-routing-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
 
-        <path d="M915 114 L540 164" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="400" y="164" width="280" height="66" rx="5" class="svg-evidence" /><text x="424" y="192" class="svg-title">30 paired differences</text><text x="424" y="212" class="svg-subtitle">one Hybrid − vector value per question</text>
-        <path d="M680 197 H740" class="svg-edge graph" marker-end="url(#experiment-arrow)" />
-        <rect x="740" y="164" width="304" height="66" rx="5" class="svg-merge" /><text x="764" y="192" class="svg-title">10,000 bootstrap resamples</text><text x="764" y="212" class="svg-subtitle">repeat 30 paired differences · seed 42</text>
-        <path d="M892 230 V268" class="svg-edge" marker-end="url(#experiment-arrow)" />
-        <rect x="740" y="268" width="304" height="34" rx="5" class="svg-process" /><text x="764" y="290" class="svg-route">PAIRED 95% CONFIDENCE RANGE</text>
-      </svg>
-      <p class="svg-caption">We save 180 answers, but the test uses 30 question-level differences.</p>
-      <p class="small">Model writing answers: <code>gemma4:12b</code> · model scoring answers: <code>qwen2.5-coder:7b</code> · text model: <code>nomic-embed-text</code>.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Confirmatory test có 30 câu: 10 simple, 10 medium, 10 hard. Mỗi câu chạy ở hai mode, mỗi mode 3 lần, nên lưu 180 answers. Nhưng 180 không có nghĩa là 180 independent observations. Mình average 3 repeats trong từng câu, rồi tạo một difference: Hybrid trừ vector-only. Vì vậy evidence thật sự là 30 paired question differences. Sau đó bootstrap 30 differences này 10.000 lần với seed 42 để tính paired 95% confidence range.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; scripts/analyze_answer_quality_statistics.py</span></aside>
+          <g data-story-stage="0">
+            <circle cx="55" cy="30" r="13" class="stage-number graph" /><text x="55" y="30" class="stage-number-text">1</text>
+            <text x="78" y="34" class="svg-route">READ THE QUESTION</text>
+            <rect x="36" y="54" width="300" height="96" rx="8" class="svg-source" />
+            <text x="56" y="82" class="svg-title">User question</text>
+            <text x="56" y="108" class="svg-code">symbol · relation · behavior</text>
+            <text x="56" y="132" class="svg-small">or repository-level intent</text>
+            <path d="M336 102 H418" class="svg-edge" marker-end="url(#search-routing-arrow)" />
+            <rect x="420" y="54" width="260" height="96" rx="8" class="svg-decision" />
+            <text x="442" y="82" class="svg-title">Question checker</text>
+            <text x="442" y="108" class="svg-subtitle">detect signal + code name</text>
+            <text x="442" y="132" class="svg-small">choose one primary path</text>
+          </g>
+
+          <g data-story-stage="1">
+            <circle cx="727" cy="30" r="13" class="stage-number graph" /><text x="727" y="30" class="stage-number-text">2</text>
+            <text x="750" y="34" class="svg-route">EXACT LINK</text>
+            <path d="M680 102 C724 102 714 79 754 79" class="svg-edge graph" marker-end="url(#search-routing-arrow)" />
+            <rect x="756" y="54" width="288" height="70" rx="8" class="svg-store graph" />
+            <text x="778" y="82" class="svg-title">Known code relation</text>
+            <text x="778" y="106" class="svg-subtitle">graph first · text fallback</text>
+          </g>
+
+          <g data-story-stage="2">
+            <circle cx="727" cy="155" r="13" class="stage-number vector" /><text x="727" y="155" class="stage-number-text">3</text>
+            <text x="750" y="159" class="svg-route">LOCAL BEHAVIOR</text>
+            <path d="M550 150 V190 H754" class="svg-edge vector" marker-end="url(#search-routing-arrow)" />
+            <rect x="756" y="175" width="288" height="70" rx="8" class="svg-evidence" />
+            <text x="778" y="203" class="svg-title">Graph + related text</text>
+            <text x="778" y="227" class="svg-subtitle">two ranked lists → RRF</text>
+          </g>
+
+          <g data-story-stage="3">
+            <circle cx="727" cy="276" r="13" class="stage-number provenance" /><text x="727" y="276" class="stage-number-text">4</text>
+            <text x="750" y="280" class="svg-route">WHOLE REPOSITORY</text>
+            <path d="M550 150 V282 H754" class="svg-edge" marker-end="url(#search-routing-arrow)" />
+            <rect x="756" y="258" width="288" height="62" rx="8" class="svg-process" />
+            <text x="778" y="285" class="svg-title">Folder summaries</text>
+            <text x="778" y="307" class="svg-subtitle">wider architecture context</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-search-route-dot="0"></span><span data-search-route-dot="1"></span><span data-search-route-dot="2"></span><span data-search-route-dot="3"></span></div>
+        <p class="story-caption" id="search-routing-caption"><strong>1. Read the question.</strong> Detect relation, symbol, behavior, or repository-level intent before searching.</p>
+      </div>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core 06 bắt đầu ở query time. Bước 1, question checker đọc signal và code name. Bước 2, câu hỏi relation rõ như “What does Checkout.checkout call?” đi vào exact-link path. Bước 3, câu hỏi giải thích behavior dùng cả graph neighborhood và related source text rồi đưa hai list sang RRF. Bước 4, câu hỏi architecture hoặc overview dùng folder summaries. Ba detail tiếp theo zoom vào từng path; Core 07 mới giải thích sâu RRF.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Inside the local-behavior path · 07 / 15</div>
+      <h2>How the local path combines graph and text results.</h2>
+      <div class="story-frame" id="rrf-pipeline" data-stage="0">
+        <div class="story-overline"><strong>Main two-list case</strong><code>local behavior</code><span id="rrf-pipeline-status">two rankings</span></div>
+        <svg class="svg-diagram story-diagram rrf-story" viewBox="0 0 1080 330" role="img" tabindex="0" aria-labelledby="rrf-title rrf-desc">
+          <title id="rrf-title">RRF followed by context assembly</title>
+          <desc id="rrf-desc">Graph and vector retrieval produce separate rankings. RRF merges matching candidate identities and creates one fused ranking. Context Assembler then packs that ranking within the prompt budget.</desc>
+          <defs><marker id="rrf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">TWO RANKINGS · DIFFERENT SCORE SCALES</text>
+            <rect x="22" y="45" width="280" height="112" rx="8" class="svg-store graph" />
+            <text x="42" y="72" class="svg-title">Graph ranking</text>
+            <text x="42" y="98" class="svg-code shared-candidate">01  Checkout.checkout · same ID</text>
+            <text x="42" y="121" class="svg-code">02  Checkout._validate</text>
+            <text x="42" y="144" class="svg-small">03  Checkout._total</text>
+            <rect x="22" y="184" width="280" height="112" rx="8" class="svg-store vector" />
+            <text x="42" y="211" class="svg-title">Vector ranking</text>
+            <text x="42" y="237" class="svg-code shared-candidate">01  checkout.py chunk · same ID</text>
+            <text x="42" y="260" class="svg-code">02  payment.py</text>
+            <text x="42" y="283" class="svg-small">03  PaymentGateway.charge</text>
+          </g>
+
+          <g data-story-stage="1">
+            <circle cx="351" cy="20" r="13" class="stage-number vector" /><text x="351" y="20" class="stage-number-text">2</text>
+            <text x="374" y="24" class="svg-route">RRF FUSION</text>
+            <path d="M302 101 C335 101 332 141 358 148" class="svg-edge graph" marker-end="url(#rrf-arrow)" />
+            <path d="M302 240 C335 240 332 199 358 192" class="svg-edge vector" marker-end="url(#rrf-arrow)" />
+            <circle cx="401" cy="170" r="43" class="svg-merge" />
+            <text x="378" y="165" class="svg-title">RRF</text>
+            <text x="371" y="184" class="svg-small">k = 60</text>
+            <path d="M444 170 H486" class="svg-edge" marker-end="url(#rrf-arrow)" />
+            <rect x="488" y="66" width="274" height="208" rx="8" class="svg-evidence" />
+            <text x="510" y="94" class="svg-title">Fused evidence ranking</text>
+            <text x="510" y="122" class="svg-code shared-candidate">01  Checkout.checkout · hybrid</text>
+            <text x="510" y="144" class="svg-small">1/61 + 1/61 = 0.0328</text>
+            <text x="510" y="178" class="svg-code">02  Checkout._validate · graph</text>
+            <text x="510" y="200" class="svg-small">1/62 = 0.0161</text>
+            <text x="510" y="232" class="svg-code">03  payment.py · vector</text>
+            <text x="510" y="254" class="svg-small">1/62 = 0.0161</text>
+          </g>
+
+          <g data-story-stage="2">
+            <circle cx="804" cy="20" r="13" class="stage-number provenance" /><text x="804" y="20" class="stage-number-text">3</text>
+            <text x="827" y="24" class="svg-route">CONTEXT ASSEMBLY</text>
+            <path d="M762 170 H812" class="svg-edge" marker-end="url(#rrf-arrow)" />
+            <rect x="814" y="58" width="244" height="142" rx="8" class="svg-process" />
+            <text x="836" y="87" class="svg-title compact">Context Assembler</text>
+            <text x="836" y="116" class="svg-subtitle">keep fused rank order</text>
+            <text x="836" y="141" class="svg-subtitle">one block per source file</text>
+            <text x="836" y="166" class="svg-subtitle">pack within token budget</text>
+            <text x="836" y="188" class="svg-small">default max_tokens = 2048</text>
+            <path d="M936 200 V226" class="svg-edge" marker-end="url(#rrf-arrow)" />
+            <rect x="814" y="228" width="244" height="68" rx="8" class="svg-merge" />
+            <text x="836" y="256" class="svg-title">Prompt context</text>
+            <text x="836" y="279" class="svg-subtitle">sent to local Ollama</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-rrf-dot="0"></span><span data-rrf-dot="1"></span><span data-rrf-dot="2"></span></div>
+        <p class="story-caption" id="rrf-pipeline-caption"><strong>1. Two rankings.</strong> Graph and vector retrieval order evidence independently; matching items share the same base node ID.</p>
+      </div>
+      <aside class="notes"><strong>Cách hiểu:</strong> Trong ba search paths ở Core 06, local-behavior là trường hợp chính cần combine hai ranked lists. Nhấn ↓ để đi từng bước. Bước 1, graph và vector trả về hai ranking riêng; raw scores không cùng thang đo. Ví dụ minh họa dùng cùng <code>base_node_id</code> cho <code>Checkout.checkout</code> ở cả hai list. Bước 2, RRF đổi mỗi rank position thành một contribution. Candidate xuất hiện ở cả hai list nhận hai contribution, được merge thành một item có source <code>hybrid</code>, rồi toàn bộ candidates được sắp thành fused evidence ranking. Đây là retrieval ranking, không phải answer-quality score. Bước 3 là một component khác: <code>ContextAssembler</code> giữ thứ tự fused, tránh lặp block của cùng file và pack evidence trong token budget trước khi gửi context cho Ollama. Exact-link vẫn có thể gọi cùng utility RRF với vector weight bằng 0, nhưng local-behavior mới là trường hợp hai-list cần giải thích ở đây. Các rankings trên slide là ví dụ mechanism từ fixture, không phải output benchmark.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/rrf.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Index update safety · 08 / 15</div>
+      <h2>Prepare first; publish new records before removing old ones.</h2>
+      <div class="story-frame" id="index-safety" data-stage="0">
+        <div class="story-overline"><strong>One index update</strong><span id="index-safety-status">validate first</span></div>
+        <svg class="svg-diagram story-diagram safety-story" viewBox="0 0 1080 275" role="img" tabindex="0" aria-labelledby="safety-title safety-desc">
+          <title id="safety-title">Failure-aware index update order</title>
+          <desc id="safety-desc">The system validates input, prepares parsing and embeddings before database mutation, publishes new graph and vector records before stale cleanup, then publishes metadata and advances the cache generation.</desc>
+          <defs><marker id="safety-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">VALIDATE BEFORE STORES</text>
+            <rect x="22" y="50" width="230" height="170" rx="8" class="svg-source" />
+            <text x="44" y="80" class="svg-title">Input checks</text>
+            <text x="44" y="111" class="svg-subtitle">repository path exists</text>
+            <text x="44" y="138" class="svg-subtitle">Python only</text>
+            <text x="44" y="165" class="svg-subtitle">local Ollama URL</text>
+            <text x="44" y="199" class="svg-small">invalid → reject, no writes</text>
+          </g>
+
+          <g data-story-stage="1">
+            <path d="M252 135 H284" class="svg-edge" marker-end="url(#safety-arrow)" />
+            <circle cx="299" cy="20" r="13" class="stage-number vector" /><text x="299" y="20" class="stage-number-text">2</text>
+            <text x="322" y="24" class="svg-route">PREPARE IN MEMORY</text>
+            <rect x="286" y="50" width="230" height="170" rx="8" class="svg-process" />
+            <text x="308" y="80" class="svg-title">Build the new run</text>
+            <text x="308" y="111" class="svg-subtitle">parse + resolve</text>
+            <text x="308" y="138" class="svg-subtitle">chunk + embed</text>
+            <text x="308" y="165" class="svg-subtitle">assign index_run_id</text>
+            <text x="308" y="199" class="svg-small">failure → old index unchanged</text>
+          </g>
+
+          <g data-story-stage="2">
+            <path d="M516 135 H548" class="svg-edge" marker-end="url(#safety-arrow)" />
+            <circle cx="563" cy="20" r="13" class="stage-number graph" /><text x="563" y="20" class="stage-number-text">3</text>
+            <text x="586" y="24" class="svg-route">PUBLISH, THEN CLEAN</text>
+            <rect x="550" y="50" width="230" height="170" rx="8" class="svg-evidence" />
+            <text x="572" y="80" class="svg-title">Update both views</text>
+            <text x="572" y="111" class="svg-subtitle">upsert FalkorDB</text>
+            <text x="572" y="138" class="svg-subtitle">upsert Qdrant</text>
+            <text x="572" y="165" class="svg-subtitle">remove stale records last</text>
+            <text x="572" y="199" class="svg-small">avoids an empty-index window</text>
+          </g>
+
+          <g data-story-stage="3">
+            <path d="M780 135 H812" class="svg-edge" marker-end="url(#safety-arrow)" />
+            <circle cx="827" cy="20" r="13" class="stage-number provenance" /><text x="827" y="20" class="stage-number-text">4</text>
+            <text x="850" y="24" class="svg-route">FINALIZE THE RUN</text>
+            <rect x="814" y="50" width="244" height="170" rx="8" class="svg-merge" />
+            <text x="836" y="80" class="svg-title">Publish identity</text>
+            <text x="836" y="111" class="svg-subtitle">save run metadata</text>
+            <text x="836" y="138" class="svg-subtitle">advance cache generation</text>
+            <text x="836" y="165" class="svg-subtitle">mark task completed</text>
+            <text x="836" y="199" class="svg-small">old cached keys are not reused</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-safety-dot="0"></span><span data-safety-dot="1"></span><span data-safety-dot="2"></span><span data-safety-dot="3"></span></div>
+        <p class="story-caption" id="index-safety-caption"><strong>1. Validate first.</strong> Reject an unsupported repository or remote inference endpoint before either store changes.</p>
+      </div>
+      <p class="small"><em>Boundary: FalkorDB and Qdrant do not share one transaction; this is not an atomic live cutover.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core 08 chỉ nói về index update lifecycle, không nói benchmark provenance. Nhấn ↓ để đi từng bước. Bước 1, system kiểm tra path, chỉ chấp nhận Python và chỉ cho phép local Ollama URL trước khi chạm stores. Bước 2, parse, resolve, chunk và tạo toàn bộ embeddings trong memory; nếu fail ở đây thì index cũ chưa bị mutate. Bước 3, system upsert graph và vectors mới trước, rồi mới xóa stale records, nên tránh khoảng thời gian cả index bị rỗng. Bước 4, sau khi write và cleanup hoàn tất, system mới lưu provenance metadata, tăng Redis cache generation và đánh dấu task completed. Giới hạn phải nói rõ: FalkorDB và Qdrant không có một transaction chung; nếu fail giữa publish thì có thể còn partial state và cần retry hoặc rebuild. Core 09 mới kiểm tra identity này trước khi biến nó thành benchmark result.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/config.py; src/hybrid_rag/utils/cache.py</span></aside>
+    </section>
+
+    <section class="slide" data-axis="core">
+      <div class="kicker">Paired experimental design · 09 / 15</div>
+      <h2>The statistical unit is the question—not each saved answer.</h2>
+      <div class="story-frame" id="experiment-design" data-stage="0">
+        <div class="story-overline"><strong>Confirmatory workload</strong><code>llama-index-core</code><span id="experiment-design-status">30 questions</span></div>
+        <svg class="svg-diagram story-diagram experiment-story" viewBox="0 0 1080 285" role="img" tabindex="0" aria-labelledby="experiment-title experiment-desc">
+          <title id="experiment-title">Paired question-level experimental design</title>
+          <desc id="experiment-desc">Thirty fixed questions run in vector and hybrid mode three times. Metrics are averaged within each question and mode, producing thirty paired differences that are bootstrapped for confidence intervals.</desc>
+          <defs><marker id="experiment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">FIXED WORKLOAD</text>
+            <rect x="22" y="50" width="230" height="170" rx="8" class="svg-source" />
+            <text x="44" y="80" class="svg-title">30 questions</text>
+            <text x="44" y="113" class="svg-subtitle">10 simple</text>
+            <text x="44" y="140" class="svg-subtitle">10 medium</text>
+            <text x="44" y="167" class="svg-subtitle">10 hard</text>
+            <text x="44" y="199" class="svg-small">one fixed repository snapshot</text>
+          </g>
+
+          <g data-story-stage="1">
+            <path d="M252 135 H284" class="svg-edge" marker-end="url(#experiment-arrow)" />
+            <circle cx="299" cy="20" r="13" class="stage-number vector" /><text x="299" y="20" class="stage-number-text">2</text>
+            <text x="322" y="24" class="svg-route">PAIRED RUNS</text>
+            <rect x="286" y="50" width="230" height="170" rx="8" class="svg-process" />
+            <text x="308" y="80" class="svg-title">Same question</text>
+            <rect x="308" y="101" width="186" height="40" rx="5" class="svg-store vector" />
+            <text x="324" y="126" class="svg-subtitle">Vector-only × 3</text>
+            <rect x="308" y="150" width="186" height="40" rx="5" class="svg-store graph" />
+            <text x="324" y="175" class="svg-subtitle">Hybrid × 3</text>
+            <text x="308" y="210" class="svg-small">30 × 2 × 3 = 180 records</text>
+          </g>
+
+          <g data-story-stage="2">
+            <path d="M516 135 H548" class="svg-edge" marker-end="url(#experiment-arrow)" />
+            <circle cx="563" cy="20" r="13" class="stage-number graph" /><text x="563" y="20" class="stage-number-text">3</text>
+            <text x="586" y="24" class="svg-route">QUESTION-LEVEL DELTAS</text>
+            <rect x="550" y="50" width="230" height="170" rx="8" class="svg-evidence" />
+            <text x="572" y="80" class="svg-title compact">Average each metric</text>
+            <text x="572" y="111" class="svg-subtitle">within question + mode</text>
+            <text x="572" y="144" class="svg-code">Δq = Hybrid − Vector</text>
+            <text x="572" y="174" class="svg-subtitle">one delta per question</text>
+            <text x="572" y="205" class="svg-small">30 statistical units</text>
+          </g>
+
+          <g data-story-stage="3">
+            <path d="M780 135 H812" class="svg-edge" marker-end="url(#experiment-arrow)" />
+            <circle cx="827" cy="20" r="13" class="stage-number provenance" /><text x="827" y="20" class="stage-number-text">4</text>
+            <text x="850" y="24" class="svg-route">PAIRED INFERENCE</text>
+            <rect x="814" y="50" width="244" height="170" rx="8" class="svg-merge" />
+            <text x="836" y="80" class="svg-title">Bootstrap deltas</text>
+            <text x="836" y="113" class="svg-subtitle">sample 30 with replacement</text>
+            <text x="836" y="140" class="svg-subtitle">10,000 times · seed 42</text>
+            <text x="836" y="172" class="svg-title compact">2.5th → 97.5th percentile</text>
+            <text x="836" y="203" class="svg-small">paired 95% confidence interval</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-experiment-dot="0"></span><span data-experiment-dot="1"></span><span data-experiment-dot="2"></span><span data-experiment-dot="3"></span></div>
+        <p class="story-caption" id="experiment-design-caption"><strong>1. Fixed workload.</strong> Thirty questions cover three difficulty levels on one fixed LlamaIndex Core snapshot.</p>
+      </div>
+      <p class="small">Answer model: <code>gemma4:12b</code> · Judge model: <code>qwen2.5-coder:7b</code> · Embedding model: <code>nomic-embed-text</code>.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core 09 giải thích unit of analysis. Nhấn ↓ để đi từng bước. Bước 1 có 30 câu cố định: 10 simple, 10 medium, 10 hard. Bước 2, cùng một câu chạy ở Vector-only và Hybrid, mỗi mode 3 lần, nên lưu 180 records để audit. Nhưng 180 records không phải 180 independent samples. Bước 3, với từng metric, mình average ba repeats trong mỗi question/mode rồi tính <code>Hybrid − Vector</code>; kết quả là 30 paired question-level deltas. Bước 4, bootstrap đúng 30 deltas này 10.000 lần với replacement và seed 42 để tạo paired 95% CI. Đây là paired design vì hai modes luôn được so trên cùng question.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json; doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -580,14 +729,14 @@
 
     <section class="slide" data-axis="core">
       <div class="kicker">Live demo · 13 / 15</div>
-      <h2>The demo shows the path, the evidence and one failure case.</h2>
+      <h2>The demo replays indexing and query routing on two files.</h2>
       <div class="demo-sequence">
         <div class="demo-head">Step</div><div class="demo-head">Action</div><div class="demo-head">What the audience can verify</div>
-        <div class="demo-number">01</div><div class="demo-action">Load the two-file <code>demo_checkout</code> corpus</div><div class="demo-proof"><code>checkout.py</code> and <code>payment.py</code> are indexed separately; no benchmark row is created</div>
-        <div class="demo-number">02</div><div class="demo-action">Ask one local <code>Checkout.checkout</code> question</div><div class="demo-proof">The code map finds <code>_validate</code>/<code>_total</code> and keeps unclear calls as stubs</div>
-        <div class="demo-number">03</div><div class="demo-action">Show the answer, <code>file_path</code>, <code>source</code> and <code>rrf_score</code></div><div class="demo-proof">Vector surfaces <code>payment.py</code>; ranking metadata is visible, not answer-quality evidence</div>
+        <div class="demo-number">01</div><div class="demo-action">Load <code>demo_checkout</code></div><div class="demo-proof"><code>checkout.py</code> and <code>payment.py</code> provide one small, traceable fixture</div>
+        <div class="demo-number">02</div><div class="demo-action">Replay Core 05 indexing</div><div class="demo-proof">AST, resolver, FalkorDB, Qdrant and shared provenance remain visible step by step</div>
+        <div class="demo-number">03</div><div class="demo-action">Replay Core 06 routing</div><div class="demo-proof">Exact-link, local-behavior and whole-repository questions use different evidence paths</div>
       </div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Live demo chỉ để cho hội đồng thấy một flow có thể quan sát được. Mình dùng fixture <code>demo_checkout</code>, hỏi một local question, rồi cho xem graph links, vector context, RRF result, source paths và các call vẫn còn stub. <code>rrf_score</code> chỉ là thứ tự result, không phải quality score. Java là một failure case riêng để cho thấy hệ thống reject input không hỗ trợ. Demo giải thích mechanism; kết quả đo được phải lấy từ LlamaIndex benchmark, không lấy từ fixture.<br><br><span class="small">[Kịch bản demo] presentation/hybrid_rag_demo_scenario.md; cần khớp với Checkout fixture trước buổi bảo vệ.</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Live demo chỉ replay mechanism đã trình bày ở Core 05 và Core 06 bằng fixture hai file. Phần indexing cho thấy source trở thành graph facts và searchable text, cùng provenance. Phần query-time cho thấy exact-link, local-behavior và whole-repository path khác nhau ở loại evidence được dùng. Fixture không tạo benchmark row và một demo response không chứng minh answer quality; kết quả đo vẫn phải lấy từ LlamaIndex benchmark.<br><br><span class="small">[Kịch bản demo] presentation/hybrid_rag_demo_scenario.md</span></aside>
     </section>
 
     <section class="slide" data-axis="core">
@@ -628,102 +777,253 @@
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Build the index">
       <div class="kicker">Core 05 → Build the index · detail · 1 / 2</div>
-      <h2>Watch Checkout become an index.</h2>
-      <div class="pipeline-demo" id="checkout-pipeline" data-stage="0">
-        <div class="pipeline-source-card">
-          <div class="label">Source code · checkout.py</div>
-          <pre class="pipeline-code"><code><span class="pipeline-code-line" data-focus="syntax">class Checkout:</span><span class="pipeline-code-line" data-focus="syntax">  def checkout(self, cart):</span><span class="pipeline-code-line" data-focus="body">    self.log.start()</span><span class="pipeline-code-line" data-focus="calls">    self._validate(cart)</span><span class="pipeline-code-line" data-focus="calls">    total = self._total(cart)</span><span class="pipeline-code-line" data-focus="uncertain">    self.payment.charge(total)</span><span class="pipeline-code-line" data-focus="body">    self.log.end()</span><span class="pipeline-code-line" data-focus="body">    return total</span></code></pre>
-          <div class="pipeline-file-strip"><code>payment.py</code> · <code>PaymentGateway.charge()</code> → <code>_authorize()</code> → <code>_capture()</code></div>
-        </div>
-        <div class="pipeline-workflow">
-          <div class="pipeline-progress" aria-label="Indexing stages">
-            <div class="pipeline-step" data-pipeline-step="0"><strong>1</strong>Source</div>
-            <div class="pipeline-step" data-pipeline-step="1"><strong>2</strong>Parse</div>
-            <div class="pipeline-step" data-pipeline-step="2"><strong>3</strong>Resolve</div>
-            <div class="pipeline-step" data-pipeline-step="3"><strong>4</strong>FalkorDB</div>
-            <div class="pipeline-step" data-pipeline-step="4"><strong>5</strong>Qdrant</div>
-            <div class="pipeline-step" data-pipeline-step="5"><strong>6</strong>Provenance</div>
-          </div>
-          <p class="pipeline-status" id="checkout-pipeline-status" aria-live="polite">Source files loaded</p>
-          <div class="pipeline-stage-output">
-            <section class="pipeline-output" data-pipeline-output="0">
-              <h3>Two Python files enter the pipeline.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>checkout.py</strong><code>Checkout.checkout()</code><br>logging, validation, total, payment</div><div class="pipeline-output-block"><strong>payment.py</strong><code>PaymentGateway.charge()</code><br>authorize, capture, return status</div></div>
-            </section>
-            <section class="pipeline-output" data-pipeline-output="1">
-              <h3>Tree-sitter reads Python syntax.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Nodes</strong><code>Module · Class · Function</code></div><div class="pipeline-output-block"><strong>Call sites</strong><code>_validate · _total · payment.charge</code></div></div>
-              <p>It builds syntax structure; it does not execute the function.</p>
-            </section>
-            <section class="pipeline-output" data-pipeline-output="2">
-              <h3>Resolution keeps clear links and exposes uncertainty.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Resolved</strong><code>CALLS → _validate</code><br><code>CALLS → _total</code></div><div class="pipeline-output-block"><strong>Still open</strong><code>payment.charge</code><br>kept as an unresolved stub</div></div>
-            </section>
-            <section class="pipeline-output" data-pipeline-output="3">
-              <h3>FalkorDB receives the code structure.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Nodes</strong><code>Checkout.checkout</code><br><code>PaymentGateway.charge</code></div><div class="pipeline-output-block"><strong>Edges</strong><code>DEFINES · CALLS · IMPORTS</code><br>clear calls stay queryable</div></div>
-            </section>
-            <section class="pipeline-output" data-pipeline-output="4">
-              <h3>Qdrant receives searchable source text.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Chunk</strong><code>Checkout.checkout()</code><br>source body and file path</div><div class="pipeline-output-block"><strong>Vector</strong><code>768 dimensions</code><br><code>nomic-embed-text</code> + payload</div></div>
-            </section>
-            <section class="pipeline-output" data-pipeline-output="5">
-              <h3>Both stores are tied to one index run.</h3>
-              <div class="pipeline-output-grid"><div class="pipeline-output-block"><strong>Shared metadata</strong><code>schema 3</code><br><code>index_run_id</code></div><div class="pipeline-output-block"><strong>Source identity</strong><code>repository</code><br><code>source_identity</code></div></div>
-            </section>
-          </div>
-        </div>
+      <h2>One Python function becomes a graph and searchable text.</h2>
+      <div class="story-frame" id="checkout-pipeline" data-stage="0">
+        <div class="story-overline"><strong>Build one index</strong><code>demo_checkout/checkout.py</code><span id="checkout-pipeline-status">source</span></div>
+
+        <svg class="svg-diagram story-diagram checkout-story" viewBox="0 0 1080 350" role="img" tabindex="0" aria-labelledby="checkout-story-title checkout-story-desc">
+          <title id="checkout-story-title">Checkout indexing pipeline</title>
+          <desc id="checkout-story-desc">Checkout source code is parsed into a syntax tree. Calls are resolved into graph facts for FalkorDB, while source spans become embedded chunks for Qdrant. Both stores retain shared provenance.</desc>
+          <defs>
+            <marker id="checkout-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker>
+            <marker id="checkout-graph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--cyan)" /></marker>
+            <marker id="checkout-vector-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--orange)" /></marker>
+            <marker id="checkout-provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--green)" /></marker>
+          </defs>
+
+          <g data-pipeline-stage="0">
+            <circle cx="27" cy="31" r="13" class="stage-number graph" /><text x="27" y="31" class="stage-number-text">1</text>
+            <text x="48" y="35" class="svg-route">PYTHON SOURCE</text>
+            <rect x="18" y="50" width="280" height="250" rx="8" class="svg-source" />
+            <text x="38" y="77" class="svg-title">checkout.py</text>
+            <text x="38" y="104" class="code-line">class Checkout:</text>
+            <text x="50" y="127" class="code-line">def checkout(self, cart):</text>
+            <rect x="57" y="139" width="187" height="21" rx="3" class="highlight-call" />
+            <text x="66" y="154" class="code-line">self._validate(cart)</text>
+            <rect x="57" y="163" width="196" height="21" rx="3" class="highlight-call" />
+            <text x="66" y="178" class="code-line">total = self._total(cart)</text>
+            <rect x="57" y="187" width="218" height="21" rx="3" class="highlight-call" />
+            <text x="66" y="202" class="code-line">self.payment.charge(total)</text>
+            <line x1="38" y1="224" x2="278" y2="224" stroke="var(--line)" />
+            <text x="38" y="247" class="svg-subtitle">Tree-sitter reads syntax.</text>
+            <text x="38" y="270" class="svg-subtitle">Chunker keeps the source span.</text>
+          </g>
+
+          <g data-pipeline-stage="1">
+            <path d="M298 126 H348" class="svg-edge" marker-end="url(#checkout-arrow)" />
+            <text x="311" y="115" class="flow-label">PARSE</text>
+            <circle cx="371" cy="31" r="13" class="stage-number graph" /><text x="371" y="31" class="stage-number-text">2</text>
+            <text x="392" y="35" class="svg-route">TREE-SITTER AST</text>
+            <rect x="350" y="50" width="285" height="132" rx="8" class="svg-process" />
+            <rect x="369" y="68" width="76" height="25" rx="5" class="highlight-structure" />
+            <text x="381" y="85" class="svg-title compact">Module</text><text x="456" y="85" class="svg-code">checkout.py</text>
+            <path d="M407 93 V108 H428" class="svg-edge" />
+            <rect x="428" y="98" width="70" height="25" rx="5" class="highlight-structure" />
+            <text x="443" y="115" class="svg-title compact">Class</text><text x="508" y="115" class="svg-code">Checkout</text>
+            <path d="M463 123 V139 H483" class="svg-edge" />
+            <rect x="483" y="129" width="81" height="25" rx="5" class="highlight-structure" />
+            <text x="493" y="146" class="svg-title compact">Function</text><text x="574" y="146" class="svg-code">checkout</text>
+            <text x="369" y="171" class="svg-small">Structure and source spans are extracted.</text>
+          </g>
+
+          <g data-pipeline-stage="2">
+            <path d="M493 182 V204" class="svg-edge" marker-end="url(#checkout-arrow)" />
+            <circle cx="371" cy="220" r="13" class="stage-number graph" /><text x="371" y="220" class="stage-number-text">3</text>
+            <text x="392" y="224" class="svg-route">ENTITY RESOLVER</text>
+            <rect x="350" y="239" width="285" height="61" rx="8" class="svg-process" />
+            <text x="369" y="261" class="call-label" fill="var(--cyan)">CALLS</text><text x="422" y="261" class="code-line">_validate · _total</text>
+            <text x="369" y="284" class="call-label" fill="var(--orange)">STUB</text><text x="422" y="284" class="code-line">payment.charge</text>
+          </g>
+
+          <g data-pipeline-stage="3">
+            <path d="M635 269 C690 269 686 98 742 98" class="svg-edge graph" marker-end="url(#checkout-graph-arrow)" />
+            <text x="650" y="188" class="flow-label" fill="var(--cyan)">NODES + TYPED EDGES</text>
+            <path d="M298 270 C500 334 672 236 742 236" class="svg-edge vector" marker-end="url(#checkout-vector-arrow)" />
+            <text x="535" y="327" class="flow-label" fill="var(--orange)">SOURCE SPAN → CHUNK → 768-D EMBEDDING</text>
+            <circle cx="765" cy="31" r="13" class="stage-number graph" /><text x="765" y="31" class="stage-number-text">4A</text>
+            <text x="786" y="35" class="svg-route">GRAPH VIEW</text>
+            <rect x="744" y="50" width="318" height="100" rx="8" class="svg-store graph" />
+            <text x="764" y="77" class="svg-title">FalkorDB</text>
+            <text x="764" y="101" class="svg-code">Checkout.checkout</text>
+            <text x="764" y="124" class="code-line">— CALLS → _validate · _total</text>
+            <text x="764" y="141" class="code-line code-muted">— STUB → payment.charge</text>
+            <circle cx="765" cy="170" r="13" class="stage-number vector" /><text x="765" y="170" class="stage-number-text">4B</text>
+            <text x="786" y="174" class="svg-route">TEXT VIEW</text>
+            <rect x="744" y="189" width="318" height="93" rx="8" class="svg-store vector" />
+            <text x="764" y="216" class="svg-title">Qdrant</text>
+            <text x="764" y="239" class="code-line">text: "def checkout(self, cart)…"</text>
+            <text x="764" y="261" class="code-line code-muted">file: checkout.py · span: L1–L5</text>
+          </g>
+
+          <g data-pipeline-stage="4">
+            <path d="M903 150 V303" class="svg-edge graph" marker-end="url(#checkout-provenance-arrow)" />
+            <path d="M940 282 V303" class="svg-edge vector" marker-end="url(#checkout-provenance-arrow)" />
+            <circle cx="765" cy="320" r="13" class="stage-number provenance" /><text x="765" y="320" class="stage-number-text">5</text>
+            <rect x="787" y="302" width="275" height="36" rx="7" class="svg-merge" />
+            <text x="803" y="324" class="svg-title compact">Shared provenance</text>
+            <text x="925" y="324" class="svg-small">source · span · run</text>
+          </g>
+        </svg>
+
+        <div class="story-dots" aria-hidden="true"><span data-pipeline-dot="0"></span><span data-pipeline-dot="1"></span><span data-pipeline-dot="2"></span><span data-pipeline-dot="3"></span><span data-pipeline-dot="4"></span></div>
+        <p class="story-caption" id="checkout-pipeline-caption"><strong>1. Source.</strong> Start with one real function and highlight the calls that must be understood.</p>
       </div>
-      <p class="small"><strong>Fixture boundary:</strong> this replay shows how the index is built; it does not create a benchmark score.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Slide này phải kể như mình đang pause một lần indexing thật. Bắt đầu từ code: <code>_validate</code> và <code>_total</code> là các call rõ, còn <code>payment.charge</code> chưa đủ evidence để link chắc. Tree-sitter đọc syntax và tạo ra function/call sites, nhưng không chạy function. Sau đó resolver link những target rõ và giữ target mơ hồ thành stub. Graph structure được ghi vào FalkorDB: nodes và edges như <code>DEFINES</code>, <code>CALLS</code>, <code>IMPORTS</code>. Source code được chunk và embed bằng <code>nomic-embed-text</code>, rồi vector cùng payload đi vào Qdrant. Cuối cùng cả hai store được gắn schema, source identity và <code>index_run_id</code>. Mũi tên xuống mở stage kế tiếp, mũi tên lên quay lại stage trước; hai đầu pipeline đều dừng tại chỗ. Đi hết pipeline rồi mới bấm mũi tên phải để sang slide sau. Đây là fixture visualization, không phải benchmark evidence.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py; docs/architecture.md</span></aside>
+      <p class="small"><em>Fixture boundary: this example explains indexing mechanics; it is not benchmark evidence.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mình đi từng bước bằng phím ↓. Bước 1 bắt đầu từ hàm <code>checkout</code> thật và ba lời gọi cần hiểu. Bước 2, Tree-sitter dựng AST theo thứ tự Module → Class → Function, đồng thời giữ source span. Bước 3, Entity Resolver nối được <code>_validate</code> và <code>_total</code> thành quan hệ CALLS; <code>payment.charge</code> chưa resolve chắc chắn nên được giữ dưới dạng stub. Bước 4 tách thành hai nhánh: các node và typed edge đi vào FalkorDB; source span được chunk, embed thành vector 768 chiều rồi đi vào Qdrant. Bước 5 cho thấy hai representation vẫn giữ chung source, span và index run để truy ngược evidence. Fixture chỉ minh họa mechanism, không tham gia benchmark.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py; src/hybrid_rag/ingestion/chunker.py; src/hybrid_rag/ingestion/pipeline.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="Whole-repo search">
-      <div class="kicker">Core 05 → Whole-repo search · detail · 2 / 2</div>
-      <h2>Whole-repository questions use folder summaries.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 190" role="img" tabindex="0" aria-labelledby="community-title community-desc">
-        <title id="community-title">Directory-based community summaries</title>
-        <desc id="community-desc">Code items from one repository are grouped by folder, summarized locally, and used for whole-codebase search.</desc>
-        <defs><marker id="community-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
-        <path d="M236 88 H286" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M486 88 H536" class="svg-edge" marker-end="url(#community-arrow)" /><path d="M736 88 H786" class="svg-edge" marker-end="url(#community-arrow)" />
-        <rect x="36" y="51" width="200" height="74" rx="5" class="svg-source" /><text x="58" y="80" class="svg-title">Code items</text><text x="58" y="102" class="svg-subtitle">from one repository</text>
-        <rect x="286" y="51" width="200" height="74" rx="5" class="svg-process" /><text x="308" y="80" class="svg-title">Folder groups</text><text x="308" y="102" class="svg-subtitle">same folder, one group</text>
-        <rect x="536" y="51" width="200" height="74" rx="5" class="svg-evidence" /><text x="558" y="80" class="svg-title">Folder summaries</text><text x="558" y="102" class="svg-subtitle">written by Ollama</text>
-        <rect x="786" y="51" width="258" height="74" rx="5" class="svg-merge" /><text x="808" y="80" class="svg-title">Whole-codebase search</text><text x="808" y="102" class="svg-subtitle">summary text</text>
-        <text x="286" y="151" class="svg-edge-label">repository + folder set the group</text>
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="3" data-depth-title="Whole-repo search">
+      <div class="kicker">Core 06 → Whole-repo search · detail · 3 / 3</div>
+      <h2>For architecture questions, search folder summaries.</h2>
+      <div class="story-frame" id="whole-repo-pipeline" data-stage="0">
+        <div class="story-overline"><strong>Whole-repo path</strong><code>architecture question</code><span id="whole-repo-status">folder groups</span></div>
+        <svg class="svg-diagram story-diagram whole-repo-story" viewBox="0 0 1080 320" role="img" tabindex="0" aria-labelledby="whole-repo-title whole-repo-desc">
+          <title id="whole-repo-title">Build and read folder-level community summaries</title>
+          <desc id="whole-repo-desc">Repository folders are grouped by their existing directory boundaries. A local model summarizes each group and stores Community nodes in FalkorDB. A whole-repository question retrieves those community summaries for answer context.</desc>
+          <defs><marker id="whole-repo-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">GROUP THE FIXTURE</text>
+            <rect x="22" y="42" width="232" height="100" rx="8" class="svg-source" />
+            <text x="42" y="69" class="svg-title">Fixture folder</text>
+            <text x="42" y="94" class="svg-code">demo_checkout/</text>
+            <text x="42" y="118" class="svg-small">checkout.py · payment.py</text>
+            <path d="M254 92 H316" class="svg-edge" marker-end="url(#whole-repo-arrow)" />
+            <rect x="318" y="42" width="244" height="100" rx="8" class="svg-process" />
+            <text x="338" y="69" class="svg-title">Folder group</text>
+            <text x="338" y="94" class="svg-subtitle">Membership follows directory structure</text>
+            <text x="338" y="118" class="svg-small">one folder → one summary unit</text>
+          </g>
+
+          <g data-story-stage="1">
+            <circle cx="645" cy="20" r="13" class="stage-number graph" /><text x="645" y="20" class="stage-number-text">2</text>
+            <text x="668" y="24" class="svg-route">SUMMARIZE + INDEX</text>
+            <path d="M562 92 H622" class="svg-edge" marker-end="url(#whole-repo-arrow)" />
+            <rect x="624" y="42" width="192" height="100" rx="8" class="svg-evidence" />
+            <text x="644" y="69" class="svg-title">Summarize</text>
+            <text x="644" y="94" class="svg-subtitle">Local Ollama model</text>
+            <text x="644" y="118" class="svg-small">role + public exports</text>
+            <path d="M816 92 H864" class="svg-edge graph" marker-end="url(#whole-repo-arrow)" />
+            <rect x="866" y="42" width="192" height="100" rx="8" class="svg-store graph" />
+            <text x="886" y="69" class="svg-title">FalkorDB</text>
+            <text x="886" y="94" class="svg-subtitle">Community node</text>
+            <text x="886" y="118" class="svg-small">members + generated summary</text>
+          </g>
+
+          <g data-story-stage="2">
+            <circle cx="35" cy="182" r="13" class="stage-number provenance" /><text x="35" y="182" class="stage-number-text">3</text>
+            <text x="58" y="186" class="svg-route">ANSWER A WHOLE-REPO QUESTION</text>
+            <rect x="22" y="204" width="280" height="82" rx="8" class="svg-process" />
+            <text x="42" y="231" class="svg-title compact">“How does checkout work</text>
+            <text x="42" y="253" class="svg-title compact">across the repository?”</text>
+            <text x="42" y="274" class="svg-small">whole-repository signal</text>
+            <path d="M302 245 H362" class="svg-edge" marker-end="url(#whole-repo-arrow)" />
+            <rect x="364" y="204" width="220" height="82" rx="8" class="svg-process" />
+            <text x="384" y="231" class="svg-title">Read communities</text>
+            <text x="384" y="255" class="svg-subtitle">query FalkorDB</text>
+            <text x="384" y="274" class="svg-small">scoped by repository</text>
+            <path d="M584 245 H644" class="svg-edge graph" marker-end="url(#whole-repo-arrow)" />
+            <rect x="646" y="204" width="186" height="82" rx="8" class="svg-store graph" />
+            <text x="666" y="231" class="svg-title compact">Community context</text>
+            <text x="666" y="255" class="svg-code">demo_checkout/</text>
+            <text x="666" y="274" class="svg-small">generated summary</text>
+            <path d="M832 245 H880" class="svg-edge" marker-end="url(#whole-repo-arrow)" />
+            <rect x="882" y="204" width="176" height="82" rx="8" class="svg-merge" />
+            <text x="902" y="231" class="svg-title">Answer context</text>
+            <text x="902" y="255" class="svg-subtitle">repository-level view</text>
+            <text x="902" y="274" class="svg-small">passed to generation</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-whole-repo-dot="0"></span><span data-whole-repo-dot="1"></span><span data-whole-repo-dot="2"></span></div>
+        <p class="story-caption" id="whole-repo-caption"><strong>1. Group folders.</strong> Folder membership follows the repository structure deterministically.</p>
+      </div>
+      <p class="small"><em>Boundary: this implementation groups by directory; Louvain clustering was not evaluated.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Bước 1, system dùng folder có sẵn trong repository làm group; với fixture này, <code>demo_checkout/</code> chứa cả <code>checkout.py</code> và <code>payment.py</code>. Phần membership này là deterministic. Bước 2, Ollama tạo một summary về vai trò và public exports của folder; system lưu summary đó thành <code>Community</code> node trong FalkorDB và nối các code node bằng <code>IN_COMMUNITY</code>. Không nên gọi nội dung summary là hoàn toàn deterministic vì nó vẫn do model sinh. Bước 3, khi gặp câu hỏi kiến trúc như “How does checkout work across the repository?”, global path đọc các community summaries thuộc repository từ FalkorDB rồi đưa chúng vào answer context. Implementation hiện tại không semantic-rank community summaries bằng Qdrant. Luận văn không chạy hay benchmark Louvain community detection.<br><br><span class="small">[Nguồn] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+    </section>
+
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="Exact-link path">
+      <div class="kicker">Core 06 → Exact-link path · detail · 1 / 3</div>
+      <h2>Exact-link questions start from known code relations.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 270" role="img" tabindex="0" aria-labelledby="exact-link-title exact-link-desc">
+        <title id="exact-link-title">Exact-link retrieval path</title>
+        <desc id="exact-link-desc">A relation word and code symbol route the question to a graph lookup. Resolved relations are returned directly, while unclear or empty graph evidence can use text search as a fallback.</desc>
+        <defs><marker id="exact-link-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+        <circle cx="50" cy="28" r="13" class="stage-number graph" /><text x="50" y="28" class="stage-number-text">1</text>
+        <text x="73" y="32" class="svg-route">QUESTION SIGNAL</text>
+        <rect x="30" y="50" width="280" height="104" rx="8" class="svg-source" />
+        <text x="52" y="80" class="svg-title compact">“What does Checkout.checkout call?”</text>
+        <text x="52" y="108" class="svg-code">relation: call</text>
+        <text x="52" y="132" class="svg-code">symbol: Checkout.checkout</text>
+
+        <path d="M310 102 H382" class="svg-edge graph" marker-end="url(#exact-link-arrow)" />
+        <circle cx="405" cy="28" r="13" class="stage-number graph" /><text x="405" y="28" class="stage-number-text">2</text>
+        <text x="428" y="32" class="svg-route">GRAPH LOOKUP</text>
+        <rect x="384" y="50" width="278" height="104" rx="8" class="svg-store graph" />
+        <text x="406" y="80" class="svg-title">FalkorDB</text>
+        <text x="406" y="108" class="svg-code">Checkout.checkout -[:CALLS]→</text>
+        <text x="406" y="132" class="svg-small">resolved targets + visible stubs</text>
+
+        <path d="M662 102 H734" class="svg-edge graph" marker-end="url(#exact-link-arrow)" />
+        <circle cx="757" cy="28" r="13" class="stage-number provenance" /><text x="757" y="28" class="stage-number-text">3</text>
+        <text x="780" y="32" class="svg-route">EVIDENCE</text>
+        <rect x="736" y="50" width="314" height="104" rx="8" class="svg-evidence" />
+        <text x="758" y="80" class="svg-code">_validate · _total</text>
+        <text x="758" y="108" class="svg-code">payment.charge · stub</text>
+        <text x="758" y="132" class="svg-small">source paths retained</text>
+
+        <path d="M523 154 V205 H735" class="svg-edge limit" marker-end="url(#exact-link-arrow)" />
+        <rect x="736" y="185" width="314" height="58" rx="8" class="svg-limit" />
+        <text x="758" y="209" class="svg-title compact">Text fallback when graph evidence is weak</text>
+        <text x="758" y="229" class="svg-small">fallback is visible; it is not a guessed graph edge</text>
       </svg>
-      <p class="svg-caption">Community identity follows repository and directory; the implementation does not use Louvain clustering.</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Whole-repository path dành cho câu hỏi kiểu “repository này có architecture thế nào?”. Hệ thống gom code theo folder, dùng Ollama viết summary cho từng group, rồi index các summary đó để trả lời câu hỏi tổng quan. Đây là directory-based grouping đơn giản, không phải Louvain clustering và cũng chưa phải thực nghiệm Microsoft GraphRAG. Checkout fixture là local question nên không đi path này.<br><br><span class="small">[Nguồn] src/hybrid_rag/graph/community_builder.py; src/hybrid_rag/retrieval/hybrid_retriever.py</span></aside>
+      <p class="story-caption"><strong>Exact-link path:</strong> use a known relation when available; keep uncertainty visible and fall back to text rather than inventing a link.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Exact-link path dành cho câu hỏi có relation word rõ và code symbol cụ thể, ví dụ “What does Checkout.checkout call?”. Question checker đưa query vào graph lookup. FalkorDB trả về hai target đã resolve là <code>_validate</code> và <code>_total</code>, đồng thời vẫn cho thấy <code>payment.charge</code> là stub. Nếu graph evidence thiếu hoặc không đủ rõ, system có thể dùng text search fallback; fallback không biến thành một graph edge được đoán. Detail resolver ở 5.2 giải thích tại sao một call được link hoặc giữ stub.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/query_analyzer.py; src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="What the code map contains">
-      <div class="kicker">Core 06 → What the code map contains · detail · 1 / 2</div>
-      <h2>The code map shows which file contains what and who calls whom.</h2>
-      <div class="schema-map">
-        <div class="schema-tree">
-          <div class="label">What contains what</div>
-          <div class="schema-level"><span class="schema-node">demo_checkout/</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">checkout.py</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">Checkout</span><span class="schema-edge">DEFINES</span></div>
-          <div class="schema-level"><span class="schema-node">checkout()</span></div>
-        </div>
-        <div class="dependency-path">
-          <div class="label">Linked relations</div>
-          <div class="path-line"><strong>checkout.py</strong><span class="edge-tag">IMPORTS</span><strong>payment.py</strong></div>
-          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_validate</strong></div>
-          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS</span><strong>_total</strong></div>
-          <div class="path-line"><strong>checkout()</strong><span class="edge-tag">CALLS?</span><strong>charge · stub</strong></div>
-        </div>
-      </div>
-      <div class="two-col">
-        <div class="note-box"><div class="label">Demo graph output</div><p><code>DEFINES</code> gives <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>; <code>CALLS</code> resolves <code>_validate</code>/<code>_total</code> but keeps <code>charge</code> unresolved.</p></div>
-        <div class="note-box"><div class="label">Demo text-search output</div><p>The <code>checkout()</code> chunk contains <code>payment.charge</code>, so text search can surface <code>payment.py</code> even without a linked call.</p></div>
-      </div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Đây là output thật của fixture hai file. Code map cho thấy ownership: <code>demo_checkout/ → checkout.py → Checkout → checkout()</code>. Nó cũng ghi import tới <code>payment.py</code>, rồi link được <code>_validate</code> và <code>_total</code>. Call <code>self.payment.charge</code> không đủ thông tin để link chắc chắn nên được giữ là <code>__call__charge</code>. Text search vẫn có thể tìm <code>payment.py</code>. Điểm quan trọng: các edge này cho biết quan hệ, nhưng chưa tự chứng minh thứ tự runtime; thứ tự đó phải đọc từ source body.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/parser.py; src/hybrid_rag/ingestion/entity_resolver.py</span></aside>
+    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="Local-behavior path">
+      <div class="kicker">Core 06 → Local-behavior path · detail · 2 / 3</div>
+      <h2>Local behavior uses graph links and related source text.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 270" role="img" tabindex="0" aria-labelledby="local-path-title local-path-desc">
+        <title id="local-path-title">Local-behavior retrieval path</title>
+        <desc id="local-path-desc">A behavior question runs graph and vector retrieval in parallel, combines their ranked lists with RRF, removes duplicates, and keeps context within the generation budget.</desc>
+        <defs><marker id="local-path-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+        <circle cx="50" cy="28" r="13" class="stage-number graph" /><text x="50" y="28" class="stage-number-text">1</text>
+        <text x="73" y="32" class="svg-route">BEHAVIOR QUESTION</text>
+        <rect x="30" y="50" width="280" height="118" rx="8" class="svg-source" />
+        <text x="52" y="80" class="svg-title compact">“How does checkout process payment?”</text>
+        <text x="52" y="110" class="svg-subtitle">needs links and source meaning</text>
+        <text x="52" y="142" class="svg-small">repository: demo-checkout</text>
+
+        <path d="M310 109 H374" class="svg-edge" marker-end="url(#local-path-arrow)" />
+        <circle cx="397" cy="28" r="13" class="stage-number vector" /><text x="397" y="28" class="stage-number-text">2</text>
+        <text x="420" y="32" class="svg-route">SEARCH BOTH VIEWS</text>
+        <rect x="376" y="50" width="300" height="70" rx="8" class="svg-store graph" />
+        <text x="398" y="78" class="svg-title">Graph neighborhood</text>
+        <text x="398" y="102" class="svg-subtitle">resolved calls + explicit stubs</text>
+        <rect x="376" y="136" width="300" height="70" rx="8" class="svg-store vector" />
+        <text x="398" y="164" class="svg-title">Related source chunks</text>
+        <text x="398" y="188" class="svg-subtitle">checkout.py + payment.py</text>
+
+        <path d="M676 85 L748 112" class="svg-edge graph" marker-end="url(#local-path-arrow)" />
+        <path d="M676 171 L748 132" class="svg-edge vector" marker-end="url(#local-path-arrow)" />
+        <circle cx="771" cy="28" r="13" class="stage-number provenance" /><text x="771" y="28" class="stage-number-text">3</text>
+        <text x="794" y="32" class="svg-route">PREPARE CONTEXT</text>
+        <rect x="750" y="50" width="300" height="156" rx="8" class="svg-evidence" />
+        <text x="772" y="80" class="svg-title">RRF combines list positions</text>
+        <text x="772" y="111" class="svg-subtitle">remove duplicates</text>
+        <text x="772" y="139" class="svg-subtitle">keep source metadata</text>
+        <text x="772" y="167" class="svg-subtitle">fit the context budget</text>
+        <text x="772" y="192" class="svg-small">Core 07 explains fusion in detail</text>
+      </svg>
+      <p class="story-caption"><strong>Local-behavior path:</strong> retrieve complementary evidence first; Core 07 explains how the two ranked lists are fused.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Local-behavior path dành cho câu hỏi cần giải thích một flow hoặc function hoạt động ra sao. System chạy graph retrieval và vector retrieval song song: graph cho known links và stubs, vector cho source chunks liên quan như <code>checkout.py</code> và <code>payment.py</code>. Hai ranked list được đưa qua RRF, bỏ duplicate, giữ provenance và giới hạn context trước khi gửi cho Ollama. Slide này chỉ đặt path vào đúng vị trí; Core 07 mới giải thích RRF chi tiết và các alternatives.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="When a call can be linked">
-      <div class="kicker">Core 06 → When a call can be linked · detail · 2 / 2</div>
+    <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="When a call can be linked">
+      <div class="kicker">Core 05 → When a call can be linked · detail · 2 / 2</div>
       <h2>We link a call only when the target is clear.</h2>
       <table class="metric-table">
         <thead><tr><th>Call in fixture</th><th>Why we link it</th><th>Stored result</th></tr></thead>
@@ -740,8 +1040,8 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="Combine the two lists">
-      <div class="kicker">Core 07 → Combine the two lists · detail · 1 / 1</div>
-      <h2>RRF combines list positions, not answer quality.</h2>
+      <div class="kicker">Core 07 → Why RRF · detail · 1 / 1</div>
+      <h2>Why use RRF instead of score fusion or a reranker?</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <div class="alternatives">
         <div class="alternative"><div class="label">CombSUM · raw score sum</div><p>Adds raw scores; graph and vector scores use different scales.</p></div>
@@ -749,93 +1049,217 @@
         <div class="alternative"><div class="label">Learned reranker</div><p>An extra model that reorders results; adds latency and calibration.</p></div>
         <div class="alternative chosen"><div class="label">RRF · chosen</div><p>Combines rank positions; deterministic and lightweight. Not proven best.</p></div>
       </div>
-      <p class="small route-weights"><strong>Route weights:</strong> clear link 3.0 · local graph ≤1.0 + text 1.0 · text-only (0, 1).</p>
-      <aside class="notes"><strong>Cách hiểu:</strong> Đây là bước combine nhưng đã gắn vào fixture. RRF không xuất hiện vì thesis đã chứng minh nó tốt nhất. Câu hỏi thực tế là làm sao trộn graph/vector khi raw scores khác scale. <code>CombSUM</code> cộng raw scores nên cần calibration; <code>Borda count</code> là rank vote nhưng chưa được benchmark; learned reranker thêm model, latency và bước calibration nên nằm ngoài scope. RRF được chọn như một design choice có giới hạn: chỉ dùng rank, deterministic và nhẹ, không thêm model. Vì vậy phải nói rõ: thesis chưa chứng minh RRF tốt hơn mọi fusion method khác.<br><br>Graph đóng góp các call đã resolve và giữ <code>__call__charge</code> là stub. Text search bổ sung source của payment. RRF nhìn rank position của hai list, bỏ duplicate rồi giữ context trong token budget để gửi cho model. Exact rank nên lấy từ live API response; diagram này chỉ giải thích method, không phải benchmark result. <code>rrf_score</code> chỉ cho biết thứ tự result.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/hybrid_retriever.py; src/hybrid_rag/retrieval/context_assembler.py</span></aside>
+      <p class="small route-weights"><em>Boundary: k = 60 follows the original RRF default; it was not tuned here. These alternatives were not experimentally compared.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Core slide đã giải thích RRF chạy như thế nào; detail này chỉ trả lời vì sao chọn nó. <code>CombSUM</code> cộng raw scores nên cần calibration giữa graph và vector. <code>Borda count</code> cũng dùng rank nhưng chưa được benchmark trong thesis. Learned reranker có thể mạnh hơn, nhưng thêm model inference, latency, training hoặc calibration. RRF được chọn vì chỉ cần rank position, deterministic và nhẹ. Đây là một design choice, không phải empirical claim rằng RRF tốt nhất. <code>k=60</code> lấy theo default trong RRF paper và chưa tune trên development set riêng. Nếu hội đồng hỏi weights: local two-list path dùng graph weight bị cap ở 1.0 và vector weight 1.0; clear-link route có thể tăng graph influence, nhưng đó không phải trọng tâm của slide này.<br><br><span class="small">[Nguồn] src/hybrid_rag/retrieval/rrf.py; src/hybrid_rag/retrieval/hybrid_retriever.py; Cormack et al. 2009</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
       <div class="kicker">Core 08 → How index updates work · detail · 1 / 2</div>
-      <h2>Safety checks happen before we trust a new index.</h2>
-      <svg class="svg-diagram" viewBox="0 0 1080 220" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
-        <title id="provenance-title">Final checks before the test</title>
-        <desc id="provenance-desc">The code version and index details are checked before the test, or the run stops.</desc>
-        <defs><marker id="provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="svg-arrow" /></marker></defs>
-        <path d="M196 76 H226" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M396 76 H426" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M596 76 H626" class="svg-edge" marker-end="url(#provenance-arrow)" /><path d="M796 76 H826" class="svg-edge graph" marker-end="url(#provenance-arrow)" />
-        <rect x="36" y="39" width="160" height="74" rx="5" class="svg-source" /><text x="56" y="68" class="svg-title">Source files</text><text x="56" y="90" class="svg-subtitle">version + file hash</text>
-        <rect x="226" y="39" width="170" height="74" rx="5" class="svg-process" /><text x="246" y="68" class="svg-title compact">Source fingerprint</text><text x="246" y="90" class="svg-subtitle">same code check</text>
-        <rect x="426" y="39" width="170" height="74" rx="5" class="svg-store graph" /><text x="446" y="68" class="svg-title">New index</text><text x="446" y="90" class="svg-subtitle">code map + text data</text>
-        <rect x="626" y="39" width="170" height="74" rx="5" class="svg-decision" /><text x="646" y="68" class="svg-title">Final check</text><text x="646" y="90" class="svg-subtitle">schema + model</text>
-        <rect x="826" y="39" width="218" height="74" rx="5" class="svg-evidence" /><text x="846" y="68" class="svg-title">Run the test</text><text x="846" y="90" class="svg-subtitle">measure or report</text>
-        <path d="M711 113 V166" class="svg-edge limit" marker-end="url(#provenance-arrow)" /><rect x="602" y="166" width="218" height="34" rx="5" class="svg-limit" /><text x="624" y="188" class="svg-route svg-uncertain">DIFFERENT → STOP</text>
-      </svg>
-      <p class="svg-caption">The final check stops mixed or old code from becoming a test result.</p>
-      <div class="flow">
-        <div class="node">Read + embed<span>before changes</span></div>
-        <div class="arrow">→</div>
-        <div class="node">Write new data<span>new records first</span></div>
-        <div class="arrow">→</div>
-        <div class="node">Remove old data<span>after publish</span></div>
-        <div class="arrow">→</div>
-        <div class="node">Start a new cache<span>new name</span></div>
-        <div class="arrow">→</div>
-        <div class="node">Final check<span>then test</span></div>
+      <h2>Re-indexing Checkout moves the stores from run A to run B.</h2>
+      <div class="story-frame" id="checkout-reindex" data-stage="0">
+        <div class="story-overline"><strong>Concrete update trace</strong><code>demo_checkout</code><span id="checkout-reindex-status">run A active</span></div>
+        <svg class="svg-diagram story-diagram reindex-story" viewBox="0 0 1080 300" role="img" tabindex="0" aria-labelledby="reindex-title reindex-desc">
+          <title id="reindex-title">Checkout fixture re-index state sequence</title>
+          <desc id="reindex-desc">The Checkout fixture starts with run A in FalkorDB and Qdrant. Run B is prepared in memory, published before stale cleanup, then finalized with run B metadata and a new cache generation.</desc>
+          <defs><marker id="reindex-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">EXISTING STATE</text>
+            <rect x="22" y="50" width="232" height="190" rx="8" class="svg-source" />
+            <text x="44" y="80" class="svg-title">Run A is active</text>
+            <text x="44" y="111" class="svg-code">demo_checkout</text>
+            <rect x="44" y="130" width="188" height="38" rx="5" class="svg-store graph" />
+            <text x="60" y="154" class="svg-subtitle">FalkorDB · run A</text>
+            <rect x="44" y="177" width="188" height="38" rx="5" class="svg-store vector" />
+            <text x="60" y="201" class="svg-subtitle">Qdrant · run A</text>
+            <text x="44" y="229" class="svg-small">cache generation n</text>
+          </g>
+
+          <g data-story-stage="1">
+            <path d="M254 145 H282" class="svg-edge" marker-end="url(#reindex-arrow)" />
+            <circle cx="297" cy="20" r="13" class="stage-number vector" /><text x="297" y="20" class="stage-number-text">2</text>
+            <text x="320" y="24" class="svg-route">PREPARE RUN B</text>
+            <rect x="284" y="50" width="232" height="190" rx="8" class="svg-process" />
+            <text x="306" y="80" class="svg-title">Build in memory</text>
+            <text x="306" y="111" class="svg-code">checkout.py · payment.py</text>
+            <text x="306" y="143" class="svg-subtitle">AST + resolved calls</text>
+            <text x="306" y="170" class="svg-subtitle">chunks + embeddings</text>
+            <text x="306" y="197" class="svg-subtitle">index_run_id = B</text>
+            <text x="306" y="225" class="svg-small">stores still serve run A</text>
+          </g>
+
+          <g data-story-stage="2">
+            <path d="M516 145 H544" class="svg-edge" marker-end="url(#reindex-arrow)" />
+            <circle cx="559" cy="20" r="13" class="stage-number graph" /><text x="559" y="20" class="stage-number-text">3</text>
+            <text x="582" y="24" class="svg-route">PUBLISH B FIRST</text>
+            <rect x="546" y="50" width="232" height="190" rx="8" class="svg-evidence" />
+            <text x="568" y="80" class="svg-title">Upsert new records</text>
+            <rect x="568" y="102" width="188" height="42" rx="5" class="svg-store graph" />
+            <text x="584" y="128" class="svg-subtitle">FalkorDB · upsert B</text>
+            <rect x="568" y="153" width="188" height="42" rx="5" class="svg-store vector" />
+            <text x="584" y="179" class="svg-subtitle">Qdrant · upsert B</text>
+            <text x="568" y="225" class="svg-small">stale A is cleaned afterward</text>
+          </g>
+
+          <g data-story-stage="3">
+            <path d="M778 145 H806" class="svg-edge" marker-end="url(#reindex-arrow)" />
+            <circle cx="821" cy="20" r="13" class="stage-number provenance" /><text x="821" y="20" class="stage-number-text">4</text>
+            <text x="844" y="24" class="svg-route">FINAL RUN B</text>
+            <rect x="808" y="50" width="250" height="190" rx="8" class="svg-merge" />
+            <text x="830" y="80" class="svg-title">Finalize identity</text>
+            <text x="830" y="111" class="svg-subtitle">delete stale run A records</text>
+            <text x="830" y="140" class="svg-subtitle">metadata = run B</text>
+            <text x="830" y="169" class="svg-subtitle">cache generation n + 1</text>
+            <text x="830" y="198" class="svg-subtitle">task = completed</text>
+            <text x="830" y="225" class="svg-small">queries now use run B identity</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-reindex-dot="0"></span><span data-reindex-dot="1"></span><span data-reindex-dot="2"></span><span data-reindex-dot="3"></span></div>
+        <p class="story-caption" id="checkout-reindex-caption"><strong>1. Existing state.</strong> FalkorDB, Qdrant and query-cache keys refer to the currently published run A.</p>
       </div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Detail này tách hai lớp bảo vệ. Lớp đầu là update order: đọc và embed source trước, ghi data mới, cleanup data cũ, rồi tạo cache generation mới. Cách này giảm empty-index period nhưng không phải live switch atomic cho mọi reader. Lớp hai là preflight trước benchmark: check code version, source hash, schema, embedding model và metadata của hai index. Nếu có mismatch thì dừng, không biến một state lẫn lộn thành measurement.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/eval/preflight.py</span></aside>
+      <p class="small"><em>Fixture boundary: this trace explains update order; it does not measure incremental-index speedup.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này zoom Core 08 vào fixture Checkout. Bước 1, FalkorDB và Qdrant đang phục vụ identity run A; cache key cũng chứa generation hiện tại. Bước 2, system re-index hai file và tạo AST, resolved calls, chunks, embeddings cùng <code>index_run_id=B</code> hoàn toàn trước database writes. Bước 3, graph và vector records của B được upsert trước; stale records của A chỉ bị xóa sau đó. Bước 4, khi cleanup xong, metadata của repository được chuyển sang B, Redis generation tăng từ n lên n+1 và task mới được đánh dấu completed. Đây là update order, không phải atomic transaction; một failure ở giữa publish được giải thích ở 8.2. Fixture không được dùng để claim incremental speedup.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/vector/qdrant_store.py; src/hybrid_rag/utils/cache.py</span></aside>
     </section>
 
-    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Same code for both modes">
-      <div class="kicker">Core 09 → Same code for both modes · detail · 1 / 3</div>
-      <h2>Both modes must use the same code snapshot.</h2>
-      <div class="line-list">
-        <p><strong>Code package:</strong> <code>llama-index-core==0.14.21</code></p>
-        <p><strong>Package hash:</strong> <code>4a807d31…cad42</code></p>
-        <p><strong>Extracted code hash:</strong> <code>sha256:13b55bcf…509</code></p>
-        <p><strong>Index details:</strong> schema 3 · <code>nomic-embed-text</code> · run <code>9ca6e68a…af5</code></p>
-      </div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Muốn so sánh công bằng thì vector-only và Hybrid phải trả lời cùng câu hỏi trên cùng code snapshot và cùng index data. Vì vậy mỗi run lưu package version, source hash, schema, text model và index run name. Nếu một mode dùng code mới hơn hoặc index khác source, kết quả không còn là paired comparison nữa. Đây là lý do provenance check phải đứng trước benchmark.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+    <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Provenance gate">
+      <div class="kicker">Core 09 → Provenance gate · detail · 1 / 3</div>
+      <h2>The benchmark runs only when gold, graph and vector identities match.</h2>
+      <svg class="svg-diagram" viewBox="0 0 1080 310" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
+        <title id="provenance-title">Benchmark provenance validation gate</title>
+        <desc id="provenance-desc">The gold dataset, FalkorDB metadata and Qdrant metadata converge on a validation gate. Matching source, run, schema and embedding model allow the benchmark; a mismatch stops it.</desc>
+        <defs><marker id="provenance-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+        <rect x="20" y="18" width="285" height="76" rx="8" class="svg-source" />
+        <text x="42" y="47" class="svg-title">Gold dataset</text>
+        <text x="42" y="73" class="svg-code">source_identity …509</text>
+
+        <rect x="20" y="116" width="285" height="76" rx="8" class="svg-store graph" />
+        <text x="42" y="145" class="svg-title">FalkorDB metadata</text>
+        <text x="42" y="171" class="svg-subtitle">run …af5 · schema 3 · clean source</text>
+
+        <rect x="20" y="214" width="285" height="76" rx="8" class="svg-store vector" />
+        <text x="42" y="243" class="svg-title">Qdrant metadata</text>
+        <text x="42" y="269" class="svg-subtitle">one value for the same run and model</text>
+
+        <path d="M305 56 L423 120" class="svg-edge" marker-end="url(#provenance-arrow)" />
+        <path d="M305 154 H423" class="svg-edge" marker-end="url(#provenance-arrow)" />
+        <path d="M305 252 L423 188" class="svg-edge" marker-end="url(#provenance-arrow)" />
+
+        <rect x="425" y="84" width="300" height="140" rx="8" class="svg-process" />
+        <text x="449" y="116" class="svg-title">Validate before measuring</text>
+        <text x="449" y="146" class="svg-subtitle">source identity · index run ID</text>
+        <text x="449" y="173" class="svg-subtitle">schema version · embedding model</text>
+        <text x="449" y="200" class="svg-small">check the same index run again after the test</text>
+
+        <path d="M725 133 H785" class="svg-edge graph" marker-end="url(#provenance-arrow)" />
+        <text x="744" y="119" class="svg-edge-label">MATCH</text>
+        <rect x="787" y="84" width="270" height="98" rx="8" class="svg-evidence" />
+        <text x="813" y="122" class="svg-title">Allow the benchmark</text>
+        <text x="813" y="151" class="svg-subtitle">Vector-only and Hybrid use one snapshot</text>
+
+        <path d="M725 175 L787 245" class="svg-edge limit" marker-end="url(#provenance-arrow)" />
+        <text x="730" y="218" class="svg-edge-label">MISMATCH</text>
+        <rect x="787" y="226" width="270" height="64" rx="8" class="svg-limit" />
+        <text x="813" y="254" class="svg-title">Stop and rebuild</text>
+        <text x="813" y="277" class="svg-small">do not publish a score</text>
+      </svg>
+      <p class="small">Recorded snapshot: <code>llama-index-core==0.14.21</code> · source <code>sha256:13b55bcf…509</code> · run <code>9ca6e68a…af5</code>.</p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này là cái cổng trước benchmark. Gold dataset nói bộ câu hỏi thuộc source snapshot nào. FalkorDB giữ metadata của index; Qdrant phải chỉ chứa đúng cùng source identity, run ID, schema và embedding model. Code còn từ chối indexed working tree bị dirty, schema cũ hoặc embedding model khác. Khi bắt đầu chạy, gold source hash tiếp tục phải khớp source hash của index. Chạy xong system kiểm tra lại index run ID; nếu index đã đổi giữa chừng thì bỏ kết quả và chạy lại. Match thì mới đo Vector-only và Hybrid trên cùng snapshot; mismatch thì stop, rebuild index, không publish score.<br><br><span class="small">[Nguồn] src/hybrid_rag/eval/preflight.py; src/hybrid_rag/eval/answer_quality.py; scripts/run_answer_quality_benchmark.py; eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="What the test can prove">
       <div class="kicker">Core 09 → What the test can prove · detail · 2 / 3</div>
-      <h2>The test can be checked, but independent humans did not review it.</h2>
+      <h2>The evidence is reproducible, but the evaluation remains automated.</h2>
       <table class="metric-table">
         <thead><tr><th>What we fixed</th><th>What we did</th><th>What is still missing</th></tr></thead>
         <tbody>
           <tr><td>Question set</td><td>30 fixed cases with difficulty labels</td><td>One repository</td></tr>
           <tr><td>Reference answers</td><td>Answers checked against fixed source</td><td>Reviewer was Codex</td></tr>
           <tr><td>Scoring model</td><td><code>qwen2.5-coder:7b</code>, separate from answer model</td><td>Still automated scoring</td></tr>
-          <tr><td>Source check</td><td>All 180 answers point to a source</td><td>A source hit does not guarantee a correct answer</td></tr>
+          <tr><td>Source check</td><td>All 180 records retrieved at least one expected source file</td><td>An expected-source hit does not guarantee a correct answer</td></tr>
         </tbody>
       </table>
-      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu có reference answer và expected source files. Một local judge model chấm answer, và 180 raw records đều có score cùng source-hit information. Nhưng reference answers được source-review trong phạm vi project; chưa có một nhóm human độc lập vào chấm lại toàn bộ. Vì vậy đây là controlled, repeatable automated test — không phải human accuracy rate hay production accuracy.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu có reference answer và danh sách expected source files. <code>source_hit=1</code> nghĩa là retrieval lấy được ít nhất một file nằm trong danh sách đó; nó không có nghĩa câu trả lời đã cite file, và càng không tự chứng minh answer đúng. Trong 180 records, tất cả đều có expected-source hit và đủ ba quality scores. Tuy nhiên reference answers được Codex source-review trong phạm vi project, còn quality được một local judge model chấm; chưa có nhóm human độc lập chấm lại toàn bộ. Vì vậy đây là automated evidence có thể audit và chạy lại, không phải human accuracy rate hay production accuracy.<br><br><span class="small">[Nguồn] eval/gold/llama_index_core_answer_quality_v1.json; results/answer_quality_benchmark_schema3.json; src/hybrid_rag/eval/answer_quality.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="How we build the 95% range">
       <div class="kicker">Core 09 → How we build the 95% range · detail · 3 / 3</div>
-      <h2>We build the 95% range from 30 question differences.</h2>
-      <div class="steps">
-        <div class="step">For each question and mode, average the three answers.</div>
-        <div class="step">Compute Hybrid minus vector for the same 30 questions.</div>
-        <div class="step">Bootstrap: resample the 30 paired differences, with replacement, 10,000 times.</div>
-        <div class="step">Use the middle 95% — the 2.5th and 97.5th percentiles — as the range.</div>
+      <h2>Bootstrap keeps the Vector–Hybrid pairing intact.</h2>
+      <div class="story-frame" id="bootstrap-pipeline" data-stage="0">
+        <div class="story-overline"><strong>One metric at a time</strong><code>Hybrid − Vector</code><span id="bootstrap-pipeline-status">metric means</span></div>
+        <svg class="svg-diagram story-diagram bootstrap-story" viewBox="0 0 1080 285" role="img" tabindex="0" aria-labelledby="bootstrap-title bootstrap-desc">
+          <title id="bootstrap-title">Paired bootstrap from per-question metric differences</title>
+          <desc id="bootstrap-desc">Metric scores are averaged over repeats for each question and mode. Thirty paired differences are sampled with replacement ten thousand times, and percentile bounds form the paired confidence interval.</desc>
+          <defs><marker id="bootstrap-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--svg-edge)" /></marker></defs>
+
+          <g data-story-stage="0">
+            <circle cx="35" cy="20" r="13" class="stage-number graph" /><text x="35" y="20" class="stage-number-text">1</text>
+            <text x="58" y="24" class="svg-route">MEAN PER QUESTION</text>
+            <rect x="22" y="50" width="230" height="170" rx="8" class="svg-source" />
+            <text x="44" y="82" class="svg-title">Question Q01</text>
+            <text x="44" y="116" class="svg-subtitle">Vector metric: 3 repeats → mean</text>
+            <text x="44" y="149" class="svg-subtitle">Hybrid metric: 3 repeats → mean</text>
+            <text x="44" y="184" class="svg-code">one mean per mode</text>
+            <text x="44" y="208" class="svg-small">repeat for Q01 … Q30</text>
+          </g>
+
+          <g data-story-stage="1">
+            <path d="M252 135 H284" class="svg-edge" marker-end="url(#bootstrap-arrow)" />
+            <circle cx="299" cy="20" r="13" class="stage-number vector" /><text x="299" y="20" class="stage-number-text">2</text>
+            <text x="322" y="24" class="svg-route">PAIRED DELTAS</text>
+            <rect x="286" y="50" width="230" height="170" rx="8" class="svg-process" />
+            <text x="308" y="82" class="svg-title">Keep each pair</text>
+            <text x="308" y="117" class="svg-code">Δq = H̄q − V̄q</text>
+            <text x="308" y="151" class="svg-subtitle">Δ01 · Δ02 · … · Δ30</text>
+            <text x="308" y="184" class="svg-title compact">30 question-level values</text>
+            <text x="308" y="208" class="svg-small">not 180 independent samples</text>
+          </g>
+
+          <g data-story-stage="2">
+            <path d="M516 135 H548" class="svg-edge" marker-end="url(#bootstrap-arrow)" />
+            <circle cx="563" cy="20" r="13" class="stage-number graph" /><text x="563" y="20" class="stage-number-text">3</text>
+            <text x="586" y="24" class="svg-route">RESAMPLE WITH REPLACEMENT</text>
+            <rect x="550" y="50" width="230" height="170" rx="8" class="svg-evidence" />
+            <text x="572" y="82" class="svg-title">Draw 30 deltas</text>
+            <text x="572" y="119" class="svg-subtitle">Q03 · <tspan class="sample-repeat">Q03</tspan> · Q17 · Q01</text>
+            <text x="572" y="148" class="svg-subtitle">… · Q28</text>
+            <text x="572" y="181" class="svg-title compact">duplicates are allowed</text>
+            <text x="572" y="208" class="svg-small">compute one sample mean delta</text>
+          </g>
+
+          <g data-story-stage="3">
+            <path d="M780 135 H812" class="svg-edge" marker-end="url(#bootstrap-arrow)" />
+            <circle cx="827" cy="20" r="13" class="stage-number provenance" /><text x="827" y="20" class="stage-number-text">4</text>
+            <text x="850" y="24" class="svg-route">BUILD THE RANGE</text>
+            <rect x="814" y="50" width="244" height="170" rx="8" class="svg-merge" />
+            <text x="836" y="82" class="svg-title">Repeat 10,000 times</text>
+            <text x="836" y="116" class="svg-subtitle">10,000 sample mean deltas</text>
+            <text x="836" y="150" class="svg-code">2.5% → 97.5%</text>
+            <text x="836" y="182" class="svg-title compact">paired 95% CI</text>
+            <text x="836" y="208" class="svg-small">nonparametric · seed 42</text>
+          </g>
+        </svg>
+        <div class="story-dots" aria-hidden="true"><span data-bootstrap-dot="0"></span><span data-bootstrap-dot="1"></span><span data-bootstrap-dot="2"></span><span data-bootstrap-dot="3"></span></div>
+        <p class="story-caption" id="bootstrap-pipeline-caption"><strong>1. Average metric scores.</strong> For each question and mode, average the metric values from three repeats.</p>
       </div>
-      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi câu chạy 3 lần ở cả hai mode. Mình average các repeats của từng câu, tính <code>Hybrid − vector-only</code> để có 30 differences, rồi resample 30 differences đó 10.000 lần. Khoảng giữa 95% bootstrap results là confidence range. Ba lần trả lời của một câu chỉ là repeats, không phải ba câu hỏi độc lập. Seed 42 giúp chạy lại vẫn ra cùng cách tính.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py</span></aside>
+      <aside class="notes"><strong>Cách hiểu:</strong> Slide này zoom vào bước thống kê của Core 09. Nhấn ↓ để đi từng bước. Bước 1, với từng metric riêng, mình lấy ba score của mỗi question/mode và average các score đó; không phải nối hay average phần text của ba câu trả lời. Bước 2, cùng một question tạo một cặp, rồi tính <code>Hybrid mean − Vector mean</code>; 30 questions cho 30 deltas. Bước 3, mỗi bootstrap sample rút lại 30 deltas có replacement, nên một question có thể xuất hiện hai lần còn question khác không xuất hiện trong sample đó. Bước 4, lặp 10.000 samples với seed 42, lấy percentile 2.5 và 97.5 của các sample mean deltas thành paired 95% CI. Cách này giữ pairing vì resample difference của cùng question, không trộn Vector của câu này với Hybrid của câu khác.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:scripts/analyze_answer_quality_statistics.py; doc/thesis@78e5bd8:results/answer_quality_benchmark_statistics.json</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="What happens when something goes wrong">
       <div class="kicker">Core 08 → What happens when something goes wrong · detail · 2 / 2</div>
-      <h2>Each safety check has a clear failure result.</h2>
+      <h2>Each failure point leaves a visible system state.</h2>
       <table class="metric-table">
-        <thead><tr><th>If this happens</th><th>What checks it</th><th>What the system does</th></tr></thead>
+        <thead><tr><th>Failure point</th><th>Index state</th><th>System response</th></tr></thead>
         <tbody>
-          <tr><td>Gate 1 · Unsupported Java/provider</td><td>Language/provider check</td><td>Reject the input</td></tr>
-          <tr><td>Gate 2 · Mixed index data</td><td>Source and index check</td><td>Stop the test</td></tr>
-          <tr><td>Gate 3 · Parse/embed failure</td><td>Prepare before changes</td><td>Keep the old data</td></tr>
-          <tr><td>Gate 4 · Partial update</td><td>Write new before removing old</td><td>Less empty-index time; no live cutover promise</td></tr>
-          <tr><td>Gate 5 · Old cached answer</td><td>New cache name</td><td>New index gets a new cache space</td></tr>
+          <tr><td>Validation fails</td><td>Neither store changed</td><td>Reject unsupported language, path or remote Ollama URL</td></tr>
+          <tr><td>Parse, resolve or embed fails</td><td>Published run A remains</td><td>Fail the task before database mutation</td></tr>
+          <tr><td>Publish, cleanup or metadata fails</td><td>Partial or mixed records may remain</td><td>Fail the task; no cross-store rollback—retry or rebuild</td></tr>
+          <tr><td>Cache generation bump fails</td><td>New index remains usable</td><td>Disable/fail open the cache; run uncached queries</td></tr>
         </tbody>
       </table>
-      <aside class="notes"><strong>Cách hiểu:</strong> Mỗi failure contract đều trả về một hành vi rõ. Repository filter chặn result từ repo khác. Source hoặc index mismatch thì stop test. Parse/embed fail thì giữ data cũ. Ghi data mới trước cleanup làm giảm empty-index period nhưng không hứa hẹn live switch. Cache name mới ngăn answer cũ đi sang index mới. Java bị reject vì Java code reading chưa được implement. Tất cả đây là safety behavior, không phải answer-quality evidence thêm vào benchmark.<br><br><span class="small">[Nguồn] tests; src/hybrid_rag</span></aside>
+      <p class="small"><em>Next: Core 09 separately checks source and index identity before accepting any benchmark measurement.</em></p>
+      <aside class="notes"><strong>Cách hiểu:</strong> Bảng này không lặp lại happy path; nó nói state thực tế sau failure. Validation fail thì stores chưa đổi. Parse, resolution hoặc embedding fail thì run cũ còn nguyên vì mutation chưa bắt đầu. Nếu fail sau khi publish bắt đầu, FalkorDB và Qdrant không có transaction chung nên có thể còn partial hoặc mixed records; task phải fail và operator cần retry hoặc rebuild, không được claim rollback tự động. Nếu Redis generation bump fail, index mới vẫn usable nhưng cache chuyển sang fail-open hoặc disabled để query chạy không cache. Phần source identity, schema, embedding model và same index run không còn ở Core 08; Core 09 dùng evaluation preflight để stop measurement nếu chúng mismatch.<br><br><span class="small">[Nguồn] src/hybrid_rag/ingestion/pipeline.py; src/hybrid_rag/utils/cache.py; src/hybrid_rag/eval/preflight.py</span></aside>
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="14" data-depth="1" data-depth-title="What else the system can do">
@@ -869,34 +1293,114 @@
   <script>
     const deck = document.querySelector('.deck');
     const sourceSlides = [...deck.querySelectorAll('.slide')];
-    const narrativeOrder = [
-      0, 1, 2, 3,
-      4, 15, 16,
-      5, 17, 18,
-      6, 19,
-      7, 20,
-      8, 21, 24,
-      9, 22, 23, 25,
-      10, 11, 12, 13, 26, 14,
-    ];
-    narrativeOrder.map(index => sourceSlides[index]).forEach(slide => deck.appendChild(slide));
+    const sourceCoreSlides = sourceSlides.filter(slide => slide.dataset.axis === 'core');
+    const sourceDepthSlides = sourceSlides.filter(slide => slide.dataset.axis === 'depth');
+    sourceCoreSlides.forEach((coreSlide, index) => {
+      deck.appendChild(coreSlide);
+      sourceDepthSlides
+        .filter(slide => Number(slide.dataset.parent) === index + 1)
+        .sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth))
+        .forEach(slide => deck.appendChild(slide));
+    });
     const slides = [...deck.querySelectorAll('.slide')];
     const coreSlides = slides.filter(slide => slide.dataset.axis === 'core');
     const depthSlides = slides.filter(slide => slide.dataset.axis === 'depth');
     const progress = document.getElementById('progress');
     const counter = document.getElementById('counter');
+    const indexOverview = document.getElementById('index-overview');
+    const overviewParts = indexOverview ? [...indexOverview.querySelectorAll('[data-story-stage]')] : [];
+    const overviewDots = indexOverview ? [...indexOverview.querySelectorAll('[data-overview-dot]')] : [];
+    const overviewCaption = indexOverview ? document.getElementById('index-overview-status') : null;
     const checkoutPipeline = document.getElementById('checkout-pipeline');
-    const pipelineSteps = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('[data-pipeline-step]')] : [];
-    const pipelineOutputs = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('[data-pipeline-output]')] : [];
-    const pipelineLines = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('.pipeline-code-line')] : [];
+    const pipelineParts = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('.checkout-story [data-pipeline-stage]')] : [];
+    const pipelineDots = checkoutPipeline ? [...checkoutPipeline.querySelectorAll('[data-pipeline-dot]')] : [];
     const pipelineStatus = checkoutPipeline ? document.getElementById('checkout-pipeline-status') : null;
-    const pipelineStageNames = [
-      'Source files loaded',
-      'Tree-sitter syntax nodes extracted',
-      'Clear calls resolved; uncertain calls kept as stubs',
-      'Code graph written to FalkorDB',
-      'Chunks embedded and upserted to Qdrant',
-      'Shared provenance saved for this index run',
+    const pipelineCaption = checkoutPipeline ? document.getElementById('checkout-pipeline-caption') : null;
+    const searchRouting = document.getElementById('search-routing');
+    const searchRoutingParts = searchRouting ? [...searchRouting.querySelectorAll('[data-story-stage]')] : [];
+    const searchRoutingDots = searchRouting ? [...searchRouting.querySelectorAll('[data-search-route-dot]')] : [];
+    const searchRoutingStatus = searchRouting ? document.getElementById('search-routing-status') : null;
+    const searchRoutingCaption = searchRouting ? document.getElementById('search-routing-caption') : null;
+    const wholeRepoPipeline = document.getElementById('whole-repo-pipeline');
+    const wholeRepoParts = wholeRepoPipeline ? [...wholeRepoPipeline.querySelectorAll('[data-story-stage]')] : [];
+    const wholeRepoDots = wholeRepoPipeline ? [...wholeRepoPipeline.querySelectorAll('[data-whole-repo-dot]')] : [];
+    const wholeRepoStatus = wholeRepoPipeline ? document.getElementById('whole-repo-status') : null;
+    const wholeRepoCaption = wholeRepoPipeline ? document.getElementById('whole-repo-caption') : null;
+    const rrfPipeline = document.getElementById('rrf-pipeline');
+    const rrfParts = rrfPipeline ? [...rrfPipeline.querySelectorAll('[data-story-stage]')] : [];
+    const rrfDots = rrfPipeline ? [...rrfPipeline.querySelectorAll('[data-rrf-dot]')] : [];
+    const rrfStatus = rrfPipeline ? document.getElementById('rrf-pipeline-status') : null;
+    const rrfCaption = rrfPipeline ? document.getElementById('rrf-pipeline-caption') : null;
+    const indexSafety = document.getElementById('index-safety');
+    const safetyParts = indexSafety ? [...indexSafety.querySelectorAll('[data-story-stage]')] : [];
+    const safetyDots = indexSafety ? [...indexSafety.querySelectorAll('[data-safety-dot]')] : [];
+    const safetyStatus = indexSafety ? document.getElementById('index-safety-status') : null;
+    const safetyCaption = indexSafety ? document.getElementById('index-safety-caption') : null;
+    const checkoutReindex = document.getElementById('checkout-reindex');
+    const reindexParts = checkoutReindex ? [...checkoutReindex.querySelectorAll('[data-story-stage]')] : [];
+    const reindexDots = checkoutReindex ? [...checkoutReindex.querySelectorAll('[data-reindex-dot]')] : [];
+    const reindexStatus = checkoutReindex ? document.getElementById('checkout-reindex-status') : null;
+    const reindexCaption = checkoutReindex ? document.getElementById('checkout-reindex-caption') : null;
+    const experimentDesign = document.getElementById('experiment-design');
+    const experimentParts = experimentDesign ? [...experimentDesign.querySelectorAll('[data-story-stage]')] : [];
+    const experimentDots = experimentDesign ? [...experimentDesign.querySelectorAll('[data-experiment-dot]')] : [];
+    const experimentStatus = experimentDesign ? document.getElementById('experiment-design-status') : null;
+    const experimentCaption = experimentDesign ? document.getElementById('experiment-design-caption') : null;
+    const bootstrapPipeline = document.getElementById('bootstrap-pipeline');
+    const bootstrapParts = bootstrapPipeline ? [...bootstrapPipeline.querySelectorAll('[data-story-stage]')] : [];
+    const bootstrapDots = bootstrapPipeline ? [...bootstrapPipeline.querySelectorAll('[data-bootstrap-dot]')] : [];
+    const bootstrapStatus = bootstrapPipeline ? document.getElementById('bootstrap-pipeline-status') : null;
+    const bootstrapCaption = bootstrapPipeline ? document.getElementById('bootstrap-pipeline-caption') : null;
+    const overviewCaptions = [
+      '<strong>1. Build two views.</strong> Parse the source once into graph facts and searchable code text.',
+      '<strong>2. Keep the trail.</strong> Both views retain the source, span, schema and index-run identity.',
+    ];
+    const pipelineStages = [
+      { label: 'source', caption: '<strong>1. Source.</strong> Start with one real function and highlight the calls that must be understood.' },
+      { label: 'Tree-sitter AST', caption: '<strong>2. Parse.</strong> Tree-sitter turns the source into a Module → Class → Function hierarchy and keeps its source span.' },
+      { label: 'resolved calls', caption: '<strong>3. Resolve.</strong> Internal calls become typed CALLS facts; the unclear external call remains an explicit stub.' },
+      { label: 'two index views', caption: '<strong>4. Split.</strong> Graph facts go to FalkorDB; the source span is chunked, embedded and stored in Qdrant.' },
+      { label: 'shared provenance', caption: '<strong>5. Keep the trail.</strong> Both stores retain the source, span and index-run identity needed to trace evidence.' },
+    ];
+    const searchRoutingStages = [
+      { label: 'question checker', caption: '<strong>1. Read the question.</strong> Detect relation, symbol, behavior, or repository-level intent before searching.' },
+      { label: 'exact-link path', caption: '<strong>2. Exact link.</strong> A clear relation and symbol start with known graph links, with text as a visible fallback.' },
+      { label: 'local-behavior path', caption: '<strong>3. Local behavior.</strong> Search graph links and related source text, then combine their ranked lists.' },
+      { label: 'whole-repository path', caption: '<strong>4. Whole repository.</strong> Architecture and overview questions retrieve folder summaries for wider context.' },
+    ];
+    const wholeRepoStages = [
+      { label: 'folder groups', caption: '<strong>1. Group folders.</strong> Folder membership follows the repository structure deterministically.' },
+      { label: 'community summaries', caption: '<strong>2. Store community summaries.</strong> Ollama summarizes each folder; FalkorDB stores the summary and its member links.' },
+      { label: 'read communities', caption: '<strong>3. Answer the question.</strong> The global path reads community summaries for the selected repository and passes them into answer context.' },
+    ];
+    const rrfStages = [
+      { label: 'two rankings', caption: '<strong>1. Two rankings.</strong> Graph and vector retrieval order evidence independently; matching items share the same base node ID.' },
+      { label: 'fused evidence', caption: '<strong>2. Fuse by rank.</strong> RRF adds rank contributions, merges the shared candidate and returns one evidence ranking.' },
+      { label: 'prompt context', caption: '<strong>3. Assemble context.</strong> A separate component packs the fused results within the prompt budget before generation.' },
+    ];
+    const safetyStages = [
+      { label: 'validate first', caption: '<strong>1. Validate first.</strong> Reject an unsupported repository or remote inference endpoint before either store changes.' },
+      { label: 'prepare in memory', caption: '<strong>2. Prepare first.</strong> Parse, resolve and embed the new run before mutating the published index.' },
+      { label: 'publish then clean', caption: '<strong>3. Publish before cleanup.</strong> Upsert both new views, then remove stale records to avoid an empty-index window.' },
+      { label: 'finalize identity', caption: '<strong>4. Finalize the run.</strong> Publish metadata, advance the cache generation and only then mark the task completed.' },
+    ];
+    const reindexStages = [
+      { label: 'run A active', caption: '<strong>1. Existing state.</strong> FalkorDB, Qdrant and query-cache keys refer to the currently published run A.' },
+      { label: 'run B prepared', caption: '<strong>2. Prepare run B.</strong> Build the Checkout graph and embeddings in memory while the stores still serve run A.' },
+      { label: 'run B published', caption: '<strong>3. Publish B first.</strong> Upsert B into both stores before cleaning stale records from A.' },
+      { label: 'run B finalized', caption: '<strong>4. Finalize run B.</strong> Remove stale A records, publish B metadata and advance the cache generation.' },
+    ];
+    const experimentStages = [
+      { label: '30 questions', caption: '<strong>1. Fixed workload.</strong> Thirty questions cover three difficulty levels on one fixed LlamaIndex Core snapshot.' },
+      { label: '180 saved records', caption: '<strong>2. Repeat both modes.</strong> Every question runs three times in Vector-only and three times in Hybrid, producing 180 auditable records.' },
+      { label: '30 paired deltas', caption: '<strong>3. Return to question level.</strong> Average each metric within question and mode, then compute one Hybrid − Vector delta per question.' },
+      { label: 'paired 95% CI', caption: '<strong>4. Measure uncertainty.</strong> Bootstrap the 30 paired deltas 10,000 times to build the confidence interval.' },
+    ];
+    const bootstrapStages = [
+      { label: 'metric means', caption: '<strong>1. Average metric scores.</strong> For each question and mode, average the metric values from three repeats.' },
+      { label: '30 paired deltas', caption: '<strong>2. Keep each pair.</strong> Subtract the Vector mean from the Hybrid mean for the same question.' },
+      { label: 'resample 30 deltas', caption: '<strong>3. Sample with replacement.</strong> Draw 30 question deltas; duplicates are allowed in each bootstrap sample.' },
+      { label: 'paired 95% CI', caption: '<strong>4. Build the range.</strong> Repeat 10,000 times and take the 2.5th and 97.5th percentiles of the sample mean deltas.' },
     ];
     const depthsByCore = new Map();
     depthSlides.forEach(slide => {
@@ -907,25 +1411,108 @@
     depthsByCore.forEach(items => items.sort((a, b) => Number(a.dataset.depth) - Number(b.dataset.depth)));
     let currentCore = 1;
     let currentDepth = 0;
+    let overviewStage = 0;
     let pipelineStage = 0;
+    let searchRoutingStage = 0;
+    let wholeRepoStage = 0;
+    let rrfStage = 0;
+    let safetyStage = 0;
+    let reindexStage = 0;
+    let experimentStage = 0;
+    let bootstrapStage = 0;
+    function maxStoryStage(parts) {
+      return parts.reduce((max, part) => Math.max(max, Number(part.dataset.storyStage ?? part.dataset.pipelineStage)), 0);
+    }
+    const overviewMaxStage = maxStoryStage(overviewParts);
+    const pipelineMaxStage = maxStoryStage(pipelineParts);
+    const searchRoutingMaxStage = maxStoryStage(searchRoutingParts);
+    const wholeRepoMaxStage = maxStoryStage(wholeRepoParts);
+    const rrfMaxStage = maxStoryStage(rrfParts);
+    const safetyMaxStage = maxStoryStage(safetyParts);
+    const reindexMaxStage = maxStoryStage(reindexParts);
+    const experimentMaxStage = maxStoryStage(experimentParts);
+    const bootstrapMaxStage = maxStoryStage(bootstrapParts);
+    function applyStoryState(parts, dots, stage) {
+      parts.forEach(part => {
+        const partStage = Number(part.dataset.storyStage ?? part.dataset.pipelineStage);
+        part.classList.toggle('is-active', partStage === stage);
+        part.classList.toggle('is-done', partStage < stage);
+      });
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('is-active', index === stage);
+        dot.classList.toggle('is-done', index < stage);
+      });
+    }
+    function setOverviewStage(stage) {
+      if (!indexOverview) return;
+      overviewStage = Math.max(0, Math.min(overviewMaxStage, stage));
+      indexOverview.dataset.stage = String(overviewStage);
+      applyStoryState(overviewParts, overviewDots, overviewStage);
+      if (overviewCaption) overviewCaption.innerHTML = overviewCaptions[overviewStage];
+    }
     function setPipelineStage(stage) {
       if (!checkoutPipeline) return;
-      pipelineStage = Math.max(0, Math.min(pipelineSteps.length - 1, stage));
+      pipelineStage = Math.max(0, Math.min(pipelineMaxStage, stage));
       checkoutPipeline.dataset.stage = String(pipelineStage);
-      pipelineSteps.forEach((step, index) => {
-        step.classList.toggle('is-active', index === pipelineStage);
-        step.classList.toggle('is-done', index < pipelineStage);
-      });
-      pipelineOutputs.forEach(output => {
-        output.classList.toggle('is-visible', Number(output.dataset.pipelineOutput) === pipelineStage);
-      });
-      const focusGroups = pipelineStage === 1 ? new Set(['syntax']) : new Set(['calls', 'uncertain']);
-      pipelineLines.forEach(line => {
-        const focus = line.dataset.focus;
-        line.classList.toggle('is-active', focusGroups.has(focus));
-        line.classList.toggle('is-alert', pipelineStage >= 3 && focus === 'uncertain');
-      });
-      if (pipelineStatus) pipelineStatus.textContent = pipelineStageNames[pipelineStage];
+      applyStoryState(pipelineParts, pipelineDots, pipelineStage);
+      if (pipelineStatus) pipelineStatus.textContent = pipelineStages[pipelineStage].label;
+      if (pipelineCaption) pipelineCaption.innerHTML = pipelineStages[pipelineStage].caption;
+    }
+    function setSearchRoutingStage(stage) {
+      if (!searchRouting) return;
+      searchRoutingStage = Math.max(0, Math.min(searchRoutingMaxStage, stage));
+      searchRouting.dataset.stage = String(searchRoutingStage);
+      applyStoryState(searchRoutingParts, searchRoutingDots, searchRoutingStage);
+      if (searchRoutingStatus) searchRoutingStatus.textContent = searchRoutingStages[searchRoutingStage].label;
+      if (searchRoutingCaption) searchRoutingCaption.innerHTML = searchRoutingStages[searchRoutingStage].caption;
+    }
+    function setWholeRepoStage(stage) {
+      if (!wholeRepoPipeline) return;
+      wholeRepoStage = Math.max(0, Math.min(wholeRepoMaxStage, stage));
+      wholeRepoPipeline.dataset.stage = String(wholeRepoStage);
+      applyStoryState(wholeRepoParts, wholeRepoDots, wholeRepoStage);
+      if (wholeRepoStatus) wholeRepoStatus.textContent = wholeRepoStages[wholeRepoStage].label;
+      if (wholeRepoCaption) wholeRepoCaption.innerHTML = wholeRepoStages[wholeRepoStage].caption;
+    }
+    function setRrfStage(stage) {
+      if (!rrfPipeline) return;
+      rrfStage = Math.max(0, Math.min(rrfMaxStage, stage));
+      rrfPipeline.dataset.stage = String(rrfStage);
+      applyStoryState(rrfParts, rrfDots, rrfStage);
+      if (rrfStatus) rrfStatus.textContent = rrfStages[rrfStage].label;
+      if (rrfCaption) rrfCaption.innerHTML = rrfStages[rrfStage].caption;
+    }
+    function setSafetyStage(stage) {
+      if (!indexSafety) return;
+      safetyStage = Math.max(0, Math.min(safetyMaxStage, stage));
+      indexSafety.dataset.stage = String(safetyStage);
+      applyStoryState(safetyParts, safetyDots, safetyStage);
+      if (safetyStatus) safetyStatus.textContent = safetyStages[safetyStage].label;
+      if (safetyCaption) safetyCaption.innerHTML = safetyStages[safetyStage].caption;
+    }
+    function setReindexStage(stage) {
+      if (!checkoutReindex) return;
+      reindexStage = Math.max(0, Math.min(reindexMaxStage, stage));
+      checkoutReindex.dataset.stage = String(reindexStage);
+      applyStoryState(reindexParts, reindexDots, reindexStage);
+      if (reindexStatus) reindexStatus.textContent = reindexStages[reindexStage].label;
+      if (reindexCaption) reindexCaption.innerHTML = reindexStages[reindexStage].caption;
+    }
+    function setExperimentStage(stage) {
+      if (!experimentDesign) return;
+      experimentStage = Math.max(0, Math.min(experimentMaxStage, stage));
+      experimentDesign.dataset.stage = String(experimentStage);
+      applyStoryState(experimentParts, experimentDots, experimentStage);
+      if (experimentStatus) experimentStatus.textContent = experimentStages[experimentStage].label;
+      if (experimentCaption) experimentCaption.innerHTML = experimentStages[experimentStage].caption;
+    }
+    function setBootstrapStage(stage) {
+      if (!bootstrapPipeline) return;
+      bootstrapStage = Math.max(0, Math.min(bootstrapMaxStage, stage));
+      bootstrapPipeline.dataset.stage = String(bootstrapStage);
+      applyStoryState(bootstrapParts, bootstrapDots, bootstrapStage);
+      if (bootstrapStatus) bootstrapStatus.textContent = bootstrapStages[bootstrapStage].label;
+      if (bootstrapCaption) bootstrapCaption.innerHTML = bootstrapStages[bootstrapStage].caption;
     }
     function show(coreNumber, depthNumber = 0) {
       currentCore = Math.max(1, Math.min(coreSlides.length, coreNumber));
@@ -934,25 +1521,143 @@
       const target = currentDepth === 0 ? coreSlides[currentCore - 1] : depths[currentDepth - 1];
       slides.forEach(slide => slide.classList.toggle('active', slide === target));
       progress.style.width = `${(currentCore / coreSlides.length) * 100}%`;
-      if (!(currentCore === 5 && currentDepth === 1)) pipelineStage = 0;
-      setPipelineStage(pipelineStage);
+      if (currentCore === 5 && currentDepth === 0) setOverviewStage(overviewStage);
+      else if (currentCore === 5 && currentDepth === 1) setPipelineStage(pipelineStage);
+      else if (currentCore === 6 && currentDepth === 0) setSearchRoutingStage(searchRoutingStage);
+      else if (currentCore === 6 && currentDepth === 3) setWholeRepoStage(wholeRepoStage);
+      else if (currentCore === 7 && currentDepth === 0) setRrfStage(rrfStage);
+      else if (currentCore === 8 && currentDepth === 0) setSafetyStage(safetyStage);
+      else if (currentCore === 8 && currentDepth === 1) setReindexStage(reindexStage);
+      else if (currentCore === 9 && currentDepth === 0) setExperimentStage(experimentStage);
+      else if (currentCore === 9 && currentDepth === 3) setBootstrapStage(bootstrapStage);
+      else if (currentCore !== 5 && currentCore !== 6 && currentCore !== 7 && currentCore !== 8 && currentCore !== 9) {
+        overviewStage = 0;
+        pipelineStage = 0;
+        searchRoutingStage = 0;
+        wholeRepoStage = 0;
+        rrfStage = 0;
+        safetyStage = 0;
+        reindexStage = 0;
+        experimentStage = 0;
+        bootstrapStage = 0;
+        setOverviewStage(overviewStage);
+        setPipelineStage(pipelineStage);
+        setSearchRoutingStage(searchRoutingStage);
+        setWholeRepoStage(wholeRepoStage);
+        setRrfStage(rrfStage);
+        setSafetyStage(safetyStage);
+        setReindexStage(reindexStage);
+        setExperimentStage(experimentStage);
+        setBootstrapStage(bootstrapStage);
+      }
       counter.textContent = currentDepth === 0
         ? String(currentCore)
         : `${currentCore}.${currentDepth}`;
       history.replaceState(null, '', `#${currentCore}${currentDepth ? `.${currentDepth}` : ''}`);
     }
     function help() {
-      alert('Left / Right or Space: previous or next main slide\nDown / Up: next or previous pipeline stage on 5.1; from a core slide, open or close detail\nD: open the next detail level\nEscape or C: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
+      alert('Left / Right or Space: previous or next main slide\nDown / Up: build or undo one state on 5, 5.1, 6, 6.3, 7, 8, 8.1, 9 and 9.3\nD: open the next detail level\nEscape or C: return to the main slide\nHome / End: first or last main slide\nN or T: toggle the presenter transcript\nP: print the deck');
     }
     window.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' && currentCore === 5 && currentDepth === 0) {
+        event.preventDefault();
+        if (overviewStage < overviewMaxStage) setOverviewStage(overviewStage + 1);
+        else show(5, 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 5 && currentDepth === 0) {
+        event.preventDefault();
+        if (overviewStage > 0) setOverviewStage(overviewStage - 1);
+        return;
+      }
       if (event.key === 'ArrowDown' && currentCore === 5 && currentDepth === 1) {
         event.preventDefault();
-        if (pipelineStage < pipelineSteps.length - 1) setPipelineStage(pipelineStage + 1);
+        if (pipelineStage < pipelineMaxStage) setPipelineStage(pipelineStage + 1);
+        else show(5, 2);
         return;
       }
       if (event.key === 'ArrowUp' && currentCore === 5 && currentDepth === 1) {
         event.preventDefault();
         if (pipelineStage > 0) setPipelineStage(pipelineStage - 1);
+        else show(5, 0);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 6 && currentDepth === 0) {
+        event.preventDefault();
+        if (searchRoutingStage < searchRoutingMaxStage) setSearchRoutingStage(searchRoutingStage + 1);
+        else show(6, 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 6 && currentDepth === 0) {
+        event.preventDefault();
+        if (searchRoutingStage > 0) setSearchRoutingStage(searchRoutingStage - 1);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 6 && currentDepth === 3) {
+        event.preventDefault();
+        if (wholeRepoStage < wholeRepoMaxStage) setWholeRepoStage(wholeRepoStage + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 6 && currentDepth === 3) {
+        event.preventDefault();
+        if (wholeRepoStage > 0) setWholeRepoStage(wholeRepoStage - 1);
+        else show(6, 2);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 7 && currentDepth === 0) {
+        event.preventDefault();
+        if (rrfStage < rrfMaxStage) setRrfStage(rrfStage + 1);
+        else show(7, 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 7 && currentDepth === 0) {
+        event.preventDefault();
+        if (rrfStage > 0) setRrfStage(rrfStage - 1);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 8 && currentDepth === 0) {
+        event.preventDefault();
+        if (safetyStage < safetyMaxStage) setSafetyStage(safetyStage + 1);
+        else show(8, 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 8 && currentDepth === 0) {
+        event.preventDefault();
+        if (safetyStage > 0) setSafetyStage(safetyStage - 1);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 8 && currentDepth === 1) {
+        event.preventDefault();
+        if (reindexStage < reindexMaxStage) setReindexStage(reindexStage + 1);
+        else show(8, 2);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 8 && currentDepth === 1) {
+        event.preventDefault();
+        if (reindexStage > 0) setReindexStage(reindexStage - 1);
+        else show(8, 0);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 9 && currentDepth === 0) {
+        event.preventDefault();
+        if (experimentStage < experimentMaxStage) setExperimentStage(experimentStage + 1);
+        else show(9, 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 9 && currentDepth === 0) {
+        event.preventDefault();
+        if (experimentStage > 0) setExperimentStage(experimentStage - 1);
+        return;
+      }
+      if (event.key === 'ArrowDown' && currentCore === 9 && currentDepth === 3) {
+        event.preventDefault();
+        if (bootstrapStage < bootstrapMaxStage) setBootstrapStage(bootstrapStage + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentCore === 9 && currentDepth === 3) {
+        event.preventDefault();
+        if (bootstrapStage > 0) setBootstrapStage(bootstrapStage - 1);
+        else show(9, 2);
         return;
       }
       if (event.key === 'ArrowRight' || event.key === ' ') { event.preventDefault(); show(currentCore + 1, 0); }
@@ -966,6 +1671,39 @@
       if (event.key.toLowerCase() === 'h') help();
       if (event.key.toLowerCase() === 'p') window.print();
     });
+    let touchStart = null;
+    function triggerNavigationKey(key) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    }
+    window.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) {
+        touchStart = null;
+        return;
+      }
+      const touch = event.touches[0];
+      touchStart = { x: touch.clientX, y: touch.clientY, time: performance.now() };
+    }, { passive: true });
+    window.addEventListener('touchend', event => {
+      if (!touchStart || event.changedTouches.length !== 1) return;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - touchStart.x;
+      const dy = touch.clientY - touchStart.y;
+      const elapsed = performance.now() - touchStart.time;
+      touchStart = null;
+      if (elapsed > 500 || Math.max(Math.abs(dx), Math.abs(dy)) > 24) return;
+
+      const x = touch.clientX / window.innerWidth;
+      const y = touch.clientY / window.innerHeight;
+      let key = null;
+      if (x < .2) key = 'ArrowLeft';
+      else if (x > .8) key = 'ArrowRight';
+      else if (y < .2) key = 'ArrowUp';
+      else if (y > .8) key = 'ArrowDown';
+      if (key) {
+        event.preventDefault();
+        triggerNavigationKey(key);
+      }
+    }, { passive: false });
     const initial = location.hash.slice(1).split('.').map(Number);
     show(Number.isFinite(initial[0]) && initial[0] > 0 ? initial[0] : 1, Number.isFinite(initial[1]) ? initial[1] : 0);
   </script>

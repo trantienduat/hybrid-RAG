@@ -77,17 +77,21 @@ class CommunityBuilder:
         self._timeout = timeout
         self._client = httpx.Client(timeout=timeout)
 
-    def build_communities(self) -> int:
+    def build_communities(self, repository: str | None = None) -> int:
         """
         Partition the graph, generate summaries via Ollama, and writeback to FalkorDB.
+        Can be scoped to a specific repository or applied globally.
 
         Returns the number of communities created.
         """
-        logger.info("Starting directory-based community building pipeline")
+        logger.info(
+            "Starting directory-based community building pipeline%s",
+            f" for repository '{repository}'" if repository else "",
+        )
 
-        # ── 1. Fetch entire graph from FalkorDB ──────────────────────────────
-        nodes = self._fetch_all_nodes()
-        edges = self._fetch_all_edges()
+        # ── 1. Fetch scoped graph from FalkorDB ──────────────────────────────
+        nodes = self._fetch_all_nodes(repository)
+        edges = self._fetch_all_edges(repository)
 
         if not nodes:
             logger.warning("FalkorDB graph is empty, skipping community detection.")
@@ -105,7 +109,7 @@ class CommunityBuilder:
         if len(code_nodes) < 2:
             logger.warning("Not enough nodes for community detection.")
             # Create a single trivial community if there is at least one node
-            self._write_trivial_community(code_nodes, code_edges)
+            self._write_trivial_community(code_nodes, code_edges, repository=repository)
             return 1
 
         # ── 2. Run Directory-Based Partitioning ──────────────────────────────
@@ -120,14 +124,14 @@ class CommunityBuilder:
         dir_to_nodes: dict[tuple[str, str], set[str]] = {}
         for node in code_nodes:
             fp = node.get("file_path", "")
-            repository = node.get("repository", "")
+            node_repo = node.get("repository") or repository or ""
             if fp:
                 dir_path = os.path.dirname(fp)
                 if not dir_path:
                     dir_path = "."
             else:
                 dir_path = "root"
-            dir_to_nodes.setdefault((repository, dir_path), set()).add(node["id"])
+            dir_to_nodes.setdefault((node_repo, dir_path), set()).add(node["id"])
 
         logger.info("Grouped codebase into %d directory-based communities", len(dir_to_nodes))
 
@@ -142,8 +146,9 @@ class CommunityBuilder:
         compiled_communities = []
 
         for comm_idx, community_key in enumerate(community_keys):
-            repository, dir_path = community_key
-            comm_id = f"community_lvl_0_{comm_idx}"
+            comm_repo, dir_path = community_key
+            prefix = f"{repository}__" if repository else ""
+            comm_id = f"{prefix}community_lvl_0_{comm_idx}"
             comm_nodes = dir_to_nodes[community_key]
             logger.info(
                 "Summarizing community %d/%d (%s, Path: %s) with %d nodes…",
@@ -209,12 +214,12 @@ class CommunityBuilder:
                     "name": title,
                     "summary": summary,
                     "nodes": list(comm_nodes),
-                    "repository": repository,
+                    "repository": comm_repo,
                 }
             )
 
         # ── 4. Write back to FalkorDB ─────────────────────────────────────────
-        self._write_communities_to_db(compiled_communities, node_to_comm, code_edges)
+        self._write_communities_to_db(compiled_communities, node_to_comm, code_edges, repository=repository)
 
         logger.info("Successfully wrote %d communities to FalkorDB", len(compiled_communities))
         return len(compiled_communities)
@@ -224,14 +229,23 @@ class CommunityBuilder:
 
     # ── Internal Helpers ──────────────────────────────────────────────────
 
-    def _fetch_all_nodes(self) -> list[dict[str, Any]]:
-        """Fetch all nodes with plain Cypher projection to avoid driver object mismatches."""
-        cypher = (
-            "MATCH (n) RETURN n.id AS id, n.name AS name, labels(n)[0] AS label, "
-            "n.file_path AS file_path, n.repository AS repository"
-        )
+    def _fetch_all_nodes(self, repository: str | None = None) -> list[dict[str, Any]]:
+        """Fetch nodes with plain Cypher projection, optionally scoped by repository."""
+        if repository:
+            cypher = (
+                "MATCH (n) WHERE (n.repository = $repository OR n.repo = $repository) "
+                "RETURN n.id AS id, n.name AS name, labels(n)[0] AS label, "
+                "n.file_path AS file_path, n.repository AS repository"
+            )
+            params = {"repository": repository}
+        else:
+            cypher = (
+                "MATCH (n) RETURN n.id AS id, n.name AS name, labels(n)[0] AS label, "
+                "n.file_path AS file_path, n.repository AS repository"
+            )
+            params = {}
         try:
-            res = self._store.query(cypher)
+            res = self._store.query(cypher, params)
             results = []
             for row in res.result_set or []:
                 results.append(
@@ -245,14 +259,23 @@ class CommunityBuilder:
                 )
             return results
         except Exception as exc:
-            logger.error("Failed to fetch all nodes from FalkorDB: %s", exc)
+            logger.error("Failed to fetch nodes from FalkorDB: %s", exc)
             return []
 
-    def _fetch_all_edges(self) -> list[dict[str, Any]]:
-        """Fetch all edges with plain Cypher projection."""
-        cypher = "MATCH (a)-[r]->(b) RETURN a.id AS src_id, type(r) AS rel, b.id AS dst_id"
+    def _fetch_all_edges(self, repository: str | None = None) -> list[dict[str, Any]]:
+        """Fetch edges with plain Cypher projection, optionally scoped by repository."""
+        if repository:
+            cypher = (
+                "MATCH (a)-[r]->(b) WHERE (a.repository = $repository OR a.repo = $repository) "
+                "AND (b.repository = $repository OR b.repo = $repository) "
+                "RETURN a.id AS src_id, type(r) AS rel, b.id AS dst_id"
+            )
+            params = {"repository": repository}
+        else:
+            cypher = "MATCH (a)-[r]->(b) RETURN a.id AS src_id, type(r) AS rel, b.id AS dst_id"
+            params = {}
         try:
-            res = self._store.query(cypher)
+            res = self._store.query(cypher, params)
             results = []
             for row in res.result_set or []:
                 results.append(
@@ -264,7 +287,7 @@ class CommunityBuilder:
                 )
             return results
         except Exception as exc:
-            logger.error("Failed to fetch all edges from FalkorDB: %s", exc)
+            logger.error("Failed to fetch edges from FalkorDB: %s", exc)
             return []
 
     def _generate_community_report(self, comm_id: str, prompt: str) -> tuple[str, str]:
@@ -275,7 +298,7 @@ class CommunityBuilder:
             "stream": False,
             "options": {
                 "temperature": 0.2,
-                "num_predict": 2048,
+                "num_predict": 1024,
             },
         }
         try:
@@ -313,19 +336,31 @@ class CommunityBuilder:
             )
 
     def _write_trivial_community(
-        self, nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
+        self,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        repository: str | None = None,
     ) -> None:
         """Fallback for trivial or empty codebases."""
-        comm_id = "community_lvl_0_0"
+        prefix = f"{repository}__" if repository else ""
+        comm_id = f"{prefix}community_lvl_0_0"
         node_ids = [n["id"] for n in nodes]
         entity_list_str = "\n".join(f"  • {n['id']} ({n['label']})" for n in nodes)
         summary = f"This single community aggregates all modules in a small codebase.\n\n### Entities:\n{entity_list_str}"
 
-        self._store.query("MATCH (c:Community) DETACH DELETE c")
-        self._store.query(
-            "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
-            {"id": comm_id, "name": "Codebase Core Core", "summary": summary},
-        )
+        if repository:
+            self._store.query("MATCH (c:Community) WHERE c.repository = $repository DETACH DELETE c", {"repository": repository})
+            self._store.query(
+                "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0, c.repository = $repository",
+                {"id": comm_id, "name": f"{repository} Core", "summary": summary, "repository": repository},
+            )
+        else:
+            self._store.query("MATCH (c:Community) DETACH DELETE c")
+            self._store.query(
+                "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
+                {"id": comm_id, "name": "Codebase Core", "summary": summary},
+            )
+
         if node_ids:
             self._store.query(
                 "UNWIND $node_ids AS nid MATCH (n) WHERE n.id = nid "
@@ -338,16 +373,21 @@ class CommunityBuilder:
         communities: list[dict[str, Any]],
         node_to_comm: dict[str, int],
         edges: list[dict[str, Any]],
+        repository: str | None = None,
     ) -> None:
-        """Clear previous communities and write new communities and links to FalkorDB."""
-        # 1. Clear existing communities and edges
-        self._store.query("MATCH (c:Community) DETACH DELETE c")
+        """Clear previous communities for this scope and write new communities and links to FalkorDB."""
+        # 1. Clear existing communities
+        if repository:
+            self._store.query("MATCH (c:Community) WHERE c.repository = $repository DETACH DELETE c", {"repository": repository})
+        else:
+            self._store.query("MATCH (c:Community) DETACH DELETE c")
 
         # 2. Write new Community nodes
         for comm in communities:
+            comm_repo = comm.get("repository") or repository or ""
             self._store.query(
-                "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0",
-                {"id": comm["id"], "name": comm["name"], "summary": comm["summary"]},
+                "MERGE (c:Community {id: $id}) SET c.name = $name, c.summary = $summary, c.level = 0, c.repository = $repository",
+                {"id": comm["id"], "name": comm["name"], "summary": comm["summary"], "repository": comm_repo},
             )
 
             # 3. Create IN_COMMUNITY relationships for all member nodes in batch
@@ -359,7 +399,6 @@ class CommunityBuilder:
                 )
 
         # 4. Write inter-community dependencies (COMMUNITY_DEPENDS)
-        # Count connections between different communities
         comm_deps: dict[tuple[int, int], int] = {}
         for edge in edges:
             src_comm = node_to_comm.get(edge["src_id"])
@@ -368,9 +407,10 @@ class CommunityBuilder:
                 key = (src_comm, dst_comm)
                 comm_deps[key] = comm_deps.get(key, 0) + 1
 
+        prefix = f"{repository}__" if repository else ""
         for (src_idx, dst_idx), weight in comm_deps.items():
-            src_comm_id = f"community_lvl_0_{src_idx}"
-            dst_comm_id = f"community_lvl_0_{dst_idx}"
+            src_comm_id = f"{prefix}community_lvl_0_{src_idx}"
+            dst_comm_id = f"{prefix}community_lvl_0_{dst_idx}"
             self._store.query(
                 "MATCH (a:Community {id: $src}) MATCH (b:Community {id: $dst}) "
                 "MERGE (a)-[r:COMMUNITY_DEPENDS]->(b) SET r.weight = $weight",

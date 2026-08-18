@@ -193,9 +193,12 @@ class QdrantStore(VectorStore):
 
     def set_repository_metadata(self, repository: str, metadata: dict[str, Any]) -> None:
         """Stamp every repository vector after a successful indexing run."""
+        payload = dict(metadata)
+        if "last_indexed_commit" in payload and "indexed_commit" not in payload:
+            payload["indexed_commit"] = payload.pop("last_indexed_commit")
         self._client.set_payload(
             collection_name=self._collection,
-            payload=metadata,
+            payload=payload,
             points=Filter(
                 must=[
                     FieldCondition(key="repository", match=MatchValue(value=repository)),

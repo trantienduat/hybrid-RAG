@@ -229,6 +229,10 @@ def translate_path_for_docker(path: str | None) -> str | None:
     if not path:
         return path
     if not os.path.exists("/Volumes/Kioxia_SSD") and os.path.isdir("/codebases"):
+        if path.startswith("/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG"):
+            return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG", "/codebases")
         if path.startswith("/Volumes/Kioxia_SSD/SSD_workspace/Personal"):
             return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal", "/codebases")
+        if not path.startswith("/") and os.path.exists(f"/codebases/{path}"):
+            return f"/codebases/{path}"
     return path

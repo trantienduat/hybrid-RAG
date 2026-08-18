@@ -4,7 +4,6 @@ import logging
 import re
 from pathlib import Path
 
-import tree_sitter_java as tsjava
 import tree_sitter_python as tspython
 from tree_sitter import Language, Node, Parser
 
@@ -12,12 +11,18 @@ logger = logging.getLogger(__name__)
 
 # Setup tree-sitter languages
 _PY_LANG = Language(tspython.language())
-_JAVA_LANG = Language(tsjava.language())
 
 _PARSERS: dict[str, Parser] = {
     "python": Parser(_PY_LANG),
-    "java": Parser(_JAVA_LANG),
 }
+
+try:
+    import tree_sitter_java as tsjava
+    _JAVA_LANG = Language(tsjava.language())
+    _PARSERS["java"] = Parser(_JAVA_LANG)
+except ImportError:
+    tsjava = None
+    _JAVA_LANG = None
 
 
 def _text(node: Node, src: bytes) -> str:

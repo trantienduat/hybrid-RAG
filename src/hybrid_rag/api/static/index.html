@@ -1203,7 +1203,7 @@
     <div class="sidebar-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <label for="repoSelect" style="margin-bottom: 0;">Active Repository</label>
-        <button id="openIndexModalBtn" type="button" title="Index New Repository" style="padding: 2px 8px; border-radius: 4px; border: 1px solid var(--accent); background: rgba(0, 240, 255, 0.12); color: var(--accent); cursor: pointer; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+        <button id="openIndexModalBtn" onclick="openIndexModal()" type="button" title="Index New Repository" style="padding: 2px 8px; border-radius: 4px; border: 1px solid var(--accent); background: rgba(0, 240, 255, 0.12); color: var(--accent); cursor: pointer; font-size: 10px; font-weight: bold; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
           <span style="font-size: 13px; line-height: 1;">+</span> New Project
         </button>
       </div>
@@ -3280,102 +3280,110 @@ function renderSearchSuggestions() {
 window.clearRecentSearches = clearRecentSearches;
 window.selectSearchSuggestion = selectSearchSuggestion;
 
-// ── Index New Repository Modal Handlers ──
-const indexRepoModal = document.getElementById('indexRepoModal');
-const openIndexModalBtn = document.getElementById('openIndexModalBtn');
-const closeIndexModalBtn = document.getElementById('closeIndexModalBtn');
-const cancelIndexModalBtn = document.getElementById('cancelIndexModalBtn');
-const indexRepoForm = document.getElementById('indexRepoForm');
-const indexModalError = document.getElementById('indexModalError');
-
 function openIndexModal() {
-  if (indexModalError) indexModalError.style.display = 'none';
-  if (indexRepoForm) indexRepoForm.reset();
-  if (indexRepoModal) {
-    indexRepoModal.style.display = 'flex';
+  const modal = document.getElementById('indexRepoModal');
+  const errorBox = document.getElementById('indexModalError');
+  const form = document.getElementById('indexRepoForm');
+  if (errorBox) errorBox.style.display = 'none';
+  if (form) form.reset();
+  if (modal) {
+    modal.style.display = 'flex';
     setTimeout(() => document.getElementById('newRepoPath')?.focus(), 50);
   }
 }
 
 function closeIndexModal() {
-  if (indexRepoModal) indexRepoModal.style.display = 'none';
+  const modal = document.getElementById('indexRepoModal');
+  if (modal) modal.style.display = 'none';
 }
 
-if (openIndexModalBtn) openIndexModalBtn.addEventListener('click', openIndexModal);
-if (closeIndexModalBtn) closeIndexModalBtn.addEventListener('click', closeIndexModal);
-if (cancelIndexModalBtn) cancelIndexModalBtn.addEventListener('click', closeIndexModal);
+window.openIndexModal = openIndexModal;
+window.closeIndexModal = closeIndexModal;
 
-if (indexRepoModal) {
-  indexRepoModal.addEventListener('click', (e) => {
-    if (e.target === indexRepoModal) closeIndexModal();
-  });
-}
-
-if (indexRepoForm) {
-  indexRepoForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const repoPathInput = document.getElementById('newRepoPath');
-    const repoNameInput = document.getElementById('newRepoName');
-    const rebuildInput = document.getElementById('newRepoRebuild');
-    const submitBtn = document.getElementById('submitIndexModalBtn');
-    
-    const repoPath = repoPathInput?.value?.trim();
-    if (!repoPath) return;
-    
-    let repoName = repoNameInput?.value?.trim();
-    if (!repoName) {
-      const parts = repoPath.replace(/\\/g, '/').split('/').filter(Boolean);
-      repoName = parts[parts.length - 1] || 'repository';
-    }
-    
-    const rebuild = Boolean(rebuildInput?.checked);
-    
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Queueing...';
-    }
-    if (indexModalError) indexModalError.style.display = 'none';
-    
-    try {
-      const res = await fetch(`${API}/graph/index`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repo_path: repoPath,
-          repo_name: repoName,
-          incremental: !rebuild,
-          rebuild: rebuild
-        })
-      });
+document.addEventListener('DOMContentLoaded', () => {
+  const openBtn = document.getElementById('openIndexModalBtn');
+  const closeBtn = document.getElementById('closeIndexModalBtn');
+  const cancelBtn = document.getElementById('cancelIndexModalBtn');
+  const modal = document.getElementById('indexRepoModal');
+  const form = document.getElementById('indexRepoForm');
+  
+  if (openBtn) openBtn.addEventListener('click', openIndexModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeIndexModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeIndexModal);
+  
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeIndexModal();
+    });
+  }
+  
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const repoPathInput = document.getElementById('newRepoPath');
+      const repoNameInput = document.getElementById('newRepoName');
+      const rebuildInput = document.getElementById('newRepoRebuild');
+      const submitBtn = document.getElementById('submitIndexModalBtn');
+      const errorBox = document.getElementById('indexModalError');
       
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Server returned status ${res.status}`);
+      const repoPath = repoPathInput?.value?.trim();
+      if (!repoPath) return;
+      
+      let repoName = repoNameInput?.value?.trim();
+      if (!repoName) {
+        const parts = repoPath.replace(/\\/g, '/').split('/').filter(Boolean);
+        repoName = parts[parts.length - 1] || 'repository';
       }
       
-      closeIndexModal();
+      const rebuild = Boolean(rebuildInput?.checked);
       
-      // Update repository select and task polling
-      await loadRepositories();
-      repoSelect.value = repoName;
-      repoSelect.dispatchEvent(new Event('change'));
-      updateGlobalTasks();
-      
-    } catch (err) {
-      if (indexModalError) {
-        indexModalError.textContent = err.message;
-        indexModalError.style.display = 'block';
-      } else {
-        alert('Indexing error: ' + err.message);
-      }
-    } finally {
       if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Start Indexing';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Queueing...';
       }
-    }
-  });
-}
+      if (errorBox) errorBox.style.display = 'none';
+      
+      try {
+        const res = await fetch(`${API}/graph/index`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repo_path: repoPath,
+            repo_name: repoName,
+            incremental: !rebuild,
+            rebuild: rebuild
+          })
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Server returned status ${res.status}`);
+        }
+        
+        closeIndexModal();
+        
+        // Update repository select and task polling
+        await loadRepositories();
+        repoSelect.value = repoName;
+        repoSelect.dispatchEvent(new Event('change'));
+        updateGlobalTasks();
+        
+      } catch (err) {
+        if (errorBox) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = 'block';
+        } else {
+          alert('Indexing error: ' + err.message);
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Start Indexing';
+        }
+      }
+    });
+  }
+});
 </script>
 
 <!-- ── Index New Repository Modal ── -->
@@ -3385,7 +3393,7 @@ if (indexRepoForm) {
       <h3 style="margin: 0; font-size: 15px; color: var(--accent); font-weight: 700; display: flex; align-items: center; gap: 8px;">
         <span>📂</span> Index New Repository
       </h3>
-      <button id="closeIndexModalBtn" type="button" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; padding: 0 4px;">✕</button>
+      <button id="closeIndexModalBtn" onclick="closeIndexModal()" type="button" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; padding: 0 4px;">✕</button>
     </div>
     <form id="indexRepoForm" style="display: flex; flex-direction: column; gap: 14px;">
       <div>
@@ -3402,7 +3410,7 @@ if (indexRepoForm) {
       </div>
       <div id="indexModalError" style="display: none; color: #ff6b6b; font-size: 11px; background: rgba(255, 80, 80, 0.1); padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255, 80, 80, 0.2); line-height: 1.35;"></div>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
-        <button type="button" id="cancelIndexModalBtn" style="padding: 7px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 11px; font-weight: 600;">Cancel</button>
+        <button type="button" id="cancelIndexModalBtn" onclick="closeIndexModal()" style="padding: 7px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 11px; font-weight: 600;">Cancel</button>
         <button type="submit" id="submitIndexModalBtn" style="padding: 7px 18px; border-radius: 6px; border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 230, 115, 0.2)); color: var(--accent); cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;">Start Indexing</button>
       </div>
     </form>

@@ -231,6 +231,21 @@ def test_qdrant_store_repository_metadata():
     assert payload_indexes["index_schema_version"] == PayloadSchemaType.INTEGER
 
 
+def test_qdrant_store_repository_metadata_maps_graph_commit_field():
+    mock_client = MagicMock()
+
+    with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):
+        store = QdrantStore(host="localhost", port=6333, collection="test_col")
+        store.set_repository_metadata(
+            "repo123",
+            {"last_indexed_commit": "commit456", "index_run_id": "run-1"},
+        )
+
+    payload = mock_client.set_payload.call_args.kwargs["payload"]
+    assert payload["indexed_commit"] == "commit456"
+    assert "last_indexed_commit" not in payload
+
+
 def test_qdrant_store_delete_repository():
     mock_client = MagicMock()
     with patch("hybrid_rag.vector.qdrant_store.QdrantClient", return_value=mock_client):

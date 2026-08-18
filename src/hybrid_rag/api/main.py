@@ -1605,40 +1605,46 @@ async def process_indexing_task(
                 add_log("Indexing completed but was flagged as aborted.")
                 return
 
-            # ── Auto community-build post-processing ─────────────────────────
-            add_log("Starting automatic community-build post-processing...")
-            app_state.indexing_tasks[task_id]["current_step"] = "community_build"
-            app_state.indexing_tasks[task_id]["current_message"] = "Running community detection..."
-            app_state.indexing_tasks[task_id]["progress"] = 1.0
-
-            try:
-                from hybrid_rag.graph.community_builder import CommunityBuilder
-
-                community_builder = CommunityBuilder(
-                    graph_store=app_state.graph_store,
-                    ollama_url=_OLLAMA_URL,
-                    llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
-                )
-                n_communities = await asyncio.to_thread(community_builder.build_communities)
-                add_log(f"Community build completed: {n_communities} communities generated.")
-            except Exception as community_exc:
-                add_log(f"Community build failed (non-fatal): {community_exc}")
-                logger.warning(
-                    "Auto community-build failed for task %s: %s", task_id, community_exc
-                )
-
             if await app_state.query_cache.bump_generation():
                 add_log("Invalidated cached query responses for the previous index generation.")
             else:
                 add_log("Query cache unavailable; caching remains disabled or fail-open.")
 
             task["status"] = "completed"
+            task["progress"] = 1.0
+            task["current_step"] = "complete"
+            task["current_message"] = "Indexing completed successfully."
             task["completed_at"] = datetime.datetime.now().isoformat()
             add_log(
                 f"Indexing completed successfully. Elapsed: {result['elapsed_seconds']:.2f}s. "
                 f"Nodes: {result['nodes_upserted']}, Edges: {result['edges_upserted']}, "
                 f"Vectors: {result['vectors_upserted']}."
             )
+
+            # ── Async Auto community-build in background (non-blocking) ───
+            async def _bg_community_build(repo_name: str, tid: str) -> None:
+                try:
+                    from hybrid_rag.graph.community_builder import CommunityBuilder
+
+                    community_builder = CommunityBuilder(
+                        graph_store=app_state.graph_store,
+                        ollama_url=_OLLAMA_URL,
+                        llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
+                    )
+                    n_comm = await asyncio.to_thread(
+                        community_builder.build_communities, repository=repo_name
+                    )
+                    logger.info(
+                        "Background community build for %s: %d communities generated.",
+                        repo_name,
+                        n_comm,
+                    )
+                except Exception as c_exc:
+                    logger.warning(
+                        "Background community-build failed for %s: %s", repo_name, c_exc
+                    )
+
+            asyncio.create_task(_bg_community_build(task["repository"], task_id))
 
         except Exception as exc:
             if task.get("status") == "aborted" or "Task aborted by user" in str(exc):

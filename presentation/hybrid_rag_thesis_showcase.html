@@ -321,6 +321,7 @@
       <div class="rule"></div>
       <p class="lead"><strong>Finding the Right Code with Hybrid-RAG</strong><br>Using a Python code map and meaning-based search to answer questions about one repository.</p>
       <p class="small">Tran Tien Duat · Master of Software Engineering · 2026</p>
+      <p class="small">Supervisor: Doan Xuan Huy Minh</p>
       <aside class="notes">Bài toán của luận văn là tìm đúng code evidence và giải thích được quan hệ giữa các phần code khi người dùng đặt câu hỏi về một repository. Semantic search tìm các đoạn gần nghĩa với câu hỏi; knowledge graph bổ sung cấu trúc như function nào định nghĩa, gọi hoặc import function nào. Hybrid-RAG kết hợp hai loại evidence này trong một hệ thống chạy local và có thể truy ngược về source. Đóng góp chính là cách tích hợp và kiểm chứng hệ thống, không phải một thuật toán retrieval hoàn toàn mới.<br><br><span class="small">[Nguồn] doc/thesis@78e5bd8:docs/thesis_report_en.tex</span></aside>
     </section>
 
@@ -776,7 +777,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="1" data-depth-title="Build the index">
-      <div class="kicker">Core 05 → Build the index · detail · 1 / 2</div>
+      <div class="kicker">Build the index · detail · 1 / 2</div>
       <h2>One Python function becomes a graph and searchable text.</h2>
       <div class="story-frame" id="checkout-pipeline" data-stage="0">
         <div class="story-overline"><strong>Build one index</strong><code>demo_checkout/checkout.py</code><span id="checkout-pipeline-status">source</span></div>
@@ -873,7 +874,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="3" data-depth-title="Whole-repo search">
-      <div class="kicker">Core 06 → Whole-repo search · detail · 3 / 3</div>
+      <div class="kicker">Whole-repo search · detail · 3 / 3</div>
       <h2>For architecture questions, search folder summaries.</h2>
       <div class="story-frame" id="whole-repo-pipeline" data-stage="0">
         <div class="story-overline"><strong>Whole-repo path</strong><code>architecture question</code><span id="whole-repo-status">folder groups</span></div>
@@ -943,7 +944,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="1" data-depth-title="Exact-link path">
-      <div class="kicker">Core 06 → Exact-link path · detail · 1 / 3</div>
+      <div class="kicker">Exact-link path · detail · 1 / 3</div>
       <h2>Exact-link questions start from known code relations.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 270" role="img" tabindex="0" aria-labelledby="exact-link-title exact-link-desc">
         <title id="exact-link-title">Exact-link retrieval path</title>
@@ -983,7 +984,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="6" data-depth="2" data-depth-title="Local-behavior path">
-      <div class="kicker">Core 06 → Local-behavior path · detail · 2 / 3</div>
+      <div class="kicker">Local-behavior path · detail · 2 / 3</div>
       <h2>Local behavior uses graph links and related source text.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 270" role="img" tabindex="0" aria-labelledby="local-path-title local-path-desc">
         <title id="local-path-title">Local-behavior retrieval path</title>
@@ -1023,7 +1024,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="5" data-depth="2" data-depth-title="When a call can be linked">
-      <div class="kicker">Core 05 → When a call can be linked · detail · 2 / 2</div>
+      <div class="kicker">When a call can be linked · detail · 2 / 2</div>
       <h2>We link a call only when the target is clear.</h2>
       <table class="metric-table">
         <thead><tr><th>Call in fixture</th><th>Why we link it</th><th>Stored result</th></tr></thead>
@@ -1040,7 +1041,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="7" data-depth="1" data-depth-title="Combine the two lists">
-      <div class="kicker">Core 07 → Why RRF · detail · 1 / 1</div>
+      <div class="kicker">Why RRF · detail · 1 / 1</div>
       <h2>Why use RRF instead of score fusion or a reranker?</h2>
       <div class="formula">RRF(d) = Σ wₘ / (60 + rankₘ(d))</div>
       <div class="alternatives">
@@ -1054,7 +1055,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="1" data-depth-title="How index updates work">
-      <div class="kicker">Core 08 → How index updates work · detail · 1 / 2</div>
+      <div class="kicker">How index updates work · detail · 1 / 2</div>
       <h2>Re-indexing Checkout moves the stores from run A to run B.</h2>
       <div class="story-frame" id="checkout-reindex" data-stage="0">
         <div class="story-overline"><strong>Concrete update trace</strong><code>demo_checkout</code><span id="checkout-reindex-status">run A active</span></div>
@@ -1123,7 +1124,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="1" data-depth-title="Provenance gate">
-      <div class="kicker">Core 09 → Provenance gate · detail · 1 / 3</div>
+      <div class="kicker">Provenance gate · detail · 1 / 3</div>
       <h2>The benchmark runs only when gold, graph and vector identities match.</h2>
       <svg class="svg-diagram" viewBox="0 0 1080 310" role="img" tabindex="0" aria-labelledby="provenance-title provenance-desc">
         <title id="provenance-title">Benchmark provenance validation gate</title>
@@ -1169,7 +1170,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="2" data-depth-title="What the test can prove">
-      <div class="kicker">Core 09 → What the test can prove · detail · 2 / 3</div>
+      <div class="kicker">What the test can prove · detail · 2 / 3</div>
       <h2>The evidence is reproducible, but the evaluation remains automated.</h2>
       <table class="metric-table">
         <thead><tr><th>What we fixed</th><th>What we did</th><th>What is still missing</th></tr></thead>
@@ -1184,7 +1185,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="9" data-depth="3" data-depth-title="How we build the 95% range">
-      <div class="kicker">Core 09 → How we build the 95% range · detail · 3 / 3</div>
+      <div class="kicker">How we build the 95% range · detail · 3 / 3</div>
       <h2>Bootstrap keeps the Vector–Hybrid pairing intact.</h2>
       <div class="story-frame" id="bootstrap-pipeline" data-stage="0">
         <div class="story-overline"><strong>One metric at a time</strong><code>Hybrid − Vector</code><span id="bootstrap-pipeline-status">metric means</span></div>
@@ -1247,7 +1248,7 @@
     </section>
 
     <section class="slide depth" data-axis="depth" data-parent="8" data-depth="2" data-depth-title="What happens when something goes wrong">
-      <div class="kicker">Core 08 → What happens when something goes wrong · detail · 2 / 2</div>
+      <div class="kicker">What happens when something goes wrong · detail · 2 / 2</div>
       <h2>Each failure point leaves a visible system state.</h2>
       <table class="metric-table">
         <thead><tr><th>Failure point</th><th>Index state</th><th>System response</th></tr></thead>

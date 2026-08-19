@@ -47,11 +47,11 @@ ollama list
 ```
 
 > [!TIP]
-> Lệnh `scripts/reset_demo_checkout.py` sẽ tự động:
-> 1. Xoá sạch toàn bộ nodes & edges của `demo-checkout` trong **FalkorDB**.
-> 2. Xoá sạch toàn bộ vector chunks của `demo-checkout` trong **Qdrant**.
-> 3. Xoá file mở rộng `logger.py` (nếu đã tạo trong lần demo trước).
-> Giúp bạn reset hệ thống về trạng thái ban đầu chỉ trong **1 giây** để demo nhiều lần mà không sợ rác dữ liệu!
+> The `scripts/reset_demo_checkout.py` command automatically:
+> 1. Purges all `demo-checkout` nodes and edges from **FalkorDB**.
+> 2. Purges all `demo-checkout` vector chunks from **Qdrant**.
+> 3. Deletes the extension file `logger.py` (if created in a previous demo run).
+> This resets the environment to a pristine state in **~1 second**, enabling repeatable demonstrations without data remnants!
 
 ### Prepare Snippet File:
 Create a ready-to-copy extension snippet `fixtures/demo_checkout/logger.py.snippet`:
@@ -80,20 +80,20 @@ class ConsoleLogger:
 1. Open the Web Portal at `http://localhost:8000`.
 2. Point to the repository selector: verify that `demo-checkout` does not exist yet.
 3. *Narration:*
-   > “Thưa Hội đồng, để đảm bảo tính khách quan và chứng minh hệ thống hoạt động hoàn toàn theo thời gian thực (không hardcode dữ liệu), chúng ta bắt đầu từ một trạng thái sạch.”
+   > “Distinguished Committee members, to ensure objectivity and demonstrate that our system operates purely in real time without hardcoded or pre-baked data, we begin from a completely clean state.”
 
 ### Step 2: Trigger Live Indexing
 
-Bạn có thể kích hoạt Indexing theo 1 trong 2 cách:
+You can trigger indexing via either method:
 
-* **Cách A (Trực quan trên Web UI - Khuyên dùng):**
-  1. Bấm nút **`+ New Project`** ở góc trên thanh Sidebar.
-  2. Nhập:
-     - **Repository Directory Path**: `fixtures/demo_checkout` (hoặc `/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/fixtures/demo_checkout`)
+* **Option A (Interactive Web UI — Recommended):**
+  1. Click the **`+ New Project`** button in the sidebar.
+  2. Enter:
+     - **Repository Directory Path**: `fixtures/demo_checkout` (or `/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG/fixtures/demo_checkout`)
      - **Namespace / Repository Name**: `demo-checkout`
-  3. Bấm **Start Indexing**: Thanh tiến độ xuất hiện và đồ thị 3D tải ngay khi hoàn thành!
+  3. Click **Start Indexing**: The live progress bar appears and the interactive 3D graph loads immediately upon completion!
 
-* **Cách B (Qua CLI Terminal):**
+* **Option B (CLI Terminal):**
   ```bash
   .venv/bin/hybrid-rag index fixtures/demo_checkout \
     --repo-name demo-checkout \
@@ -114,8 +114,50 @@ Observe the real-time logs:
    - `payment.py` $\rightarrow$ `PaymentGateway` $\rightarrow$ `charge()`
 3. Open Qdrant Dashboard (`http://localhost:6333/dashboard`) or UI Chunks panel to show:
    - Vector chunk payload containing `node_id`, `span: L12-L17`, `file_path: checkout.py`, and `schema_version: 3`.
+
+#### 🛠️ Or run these 2 Terminal commands to inspect data directly from both databases:
+
+* **Command 1: Extract Knowledge Graph from FalkorDB (Nodes, Edges, Metadata)**
+  ```bash
+  .venv/bin/python -c "
+  from hybrid_rag.graph.falkordb_store import FalkorDBStore
+  f = FalkorDBStore()
+  print('=== 1. REPOSITORY METADATA ===')
+  print(f.get_repository_metadata('demo-checkout'))
+
+  print('\n=== 2. GRAPH NODES ===')
+  nodes = f.query(\"MATCH (n) WHERE n.repository = 'demo-checkout' OR n.repo = 'demo-checkout' RETURN labels(n)[0], n.id, n.file_path\").result_set or []
+  for r in nodes:
+      print(f'{r[0]:<18} | {r[1]} ({r[2]})')
+
+  print('\n=== 3. GRAPH EDGES ===')
+  edges = f.query(\"MATCH (a)-[r]->(b) WHERE (a.repository = 'demo-checkout' OR a.repo = 'demo-checkout') AND (b.repository = 'demo-checkout' OR b.repo = 'demo-checkout') RETURN a.id, type(r), b.id\").result_set or []
+  for r in edges:
+      print(f'{r[0]} --[{r[1]}]--> {r[2]}')
+  "
+  ```
+
+* **Command 2: Extract Vector Chunks from Qdrant (Embeddings & Payloads)**
+  ```bash
+  .venv/bin/python -c "
+  from qdrant_client.models import Filter, FieldCondition, MatchValue
+  from hybrid_rag.vector.qdrant_store import QdrantStore
+  q = QdrantStore()
+  f = Filter(must=[FieldCondition(key='repository', match=MatchValue(value='demo-checkout'))])
+  cnt = q._client.count(collection_name=q._collection, count_filter=f, exact=True).count
+  print(f'=== QDRANT VECTORS ({cnt} points) ===')
+  points, _ = q._client.scroll(collection_name=q._collection, scroll_filter=f, limit=50, with_payload=True)
+  for p in points:
+      lbl = p.payload.get('label', '')
+      nid = p.payload.get('node_id', '')
+      fp = p.payload.get('file_path', '')
+      txt = p.payload.get('text', '').replace('\n', ' ')[:70]
+      print(f'[{lbl:<8}] {nid:<45} | file: {fp:<12} | text: {txt}...')
+  "
+  ```
+
 4. *Narration:*
-   > “Chỉ trong vài giây, 2 file code thật đã được chuyển hoá đồng thời thành 2 góc nhìn: Đồ thị FalkorDB lưu trữ các liên kết gọi hàm chính xác, và Vector Qdrant lưu trữ ngữ nghĩa để tìm kiếm văn bản. Cả hai được gắn kết chặt chẽ bởi cùng một Provenance run_id.”
+   > “In just a few seconds, two raw source files were simultaneously transformed into dual complementary representations: the FalkorDB graph captures deterministic function call links, while Qdrant stores semantic vector embeddings for text retrieval. Both representations remain bound by the exact same provenance run_id.”
 
 ---
 
@@ -134,7 +176,7 @@ Observe the real-time logs:
   - Returns `_validate` and `_total` as confirmed graph edges.
   - Explicitly lists `self.payment.charge` and `self.log` as **`STUB`** (`__call__charge`, `__call__start`).
 * **Narration:**
-  > “Với câu hỏi về quan hệ gọi hàm, hệ thống đi thẳng vào Knowledge Graph. Quan hệ nào chứng minh được thì trả về kết quả; quan hệ nào chưa có mã nguồn như logger hay dynamic attribute thì hệ thống giữ nguyên dạng STUB chứ tuyệt đối không đoán mò.”
+  > “For structural call-graph questions, the system routes directly into the Knowledge Graph. Confirmed relationships are returned with certainty; missing or external dependencies such as loggers or dynamic attributes are explicitly preserved as STUB references rather than hallucinated.”
 
 ---
 
@@ -151,7 +193,7 @@ Observe the real-time logs:
   - Shows combined context from `checkout.py` and `payment.py` passed to the LLM prompt.
   - Returns step-by-step business flow: `_validate → _total → charge (_authorize + _capture)`.
 * **Narration:**
-  > “Khi hỏi về luồng xử lý thanh toán, Semantic Search tìm ra file `payment.py` dù không có link cứng trực tiếp. Thuật toán RRF kết hợp bằng chứng từ cả 2 nguồn để LLM trả lời đầy đủ ngữ cảnh nghiệp vụ.”
+  > “When inquiring about payment processing behavior, Semantic Vector Search identifies `payment.py` even without an explicit direct call link. The RRF algorithm fuses evidence from both representations so the LLM receives complete, grounded domain context.”
 
 ---
 
@@ -165,7 +207,7 @@ Observe the real-time logs:
 * **Audience Verification:**
   - Context contains high-level folder summary written by local Ollama model instead of polluting context with dozens of raw function bodies.
 * **Narration:**
-  > “Với câu hỏi toàn cảnh, hệ thống không nhồi nhét mã nguồn của từng hàm vào context mà sử dụng bản tóm tắt kiến trúc theo thư mục (Directory-based community) được sinh sẵn.”
+  > “For whole-repository architectural questions, the system avoids flooding the context window with dozens of individual function bodies, providing instead a pre-synthesized directory-based community summary.”
 
 ---
 
@@ -198,7 +240,7 @@ Trigger an incremental update via Web UI or CLI:
    - The system immediately returns the answer grounded in the newly added `ConsoleLogger` methods.
 
 * **Narration:**
-  > “Khi bổ sung file `logger.py`, tính năng Incremental Indexing chỉ phân tích diff của file mới trong vài chục mili-giây. Đồ thị 3D lập tức cập nhật node mới, và khi hỏi lại, hệ thống có ngay câu trả lời chính xác mà không cần re-index toàn bộ kho mã.”
+  > “When adding `logger.py`, the incremental indexer only processes the single file diff in tens of milliseconds. The 3D graph dynamically updates with the new node, and re-querying immediately provides accurate answers without rebuilding the entire codebase index.”
 
 ---
 
@@ -211,4 +253,4 @@ To maintain academic rigor before the defense committee, state these boundaries 
 3. **Deterministic Partitioning:** Folder community grouping follows directory structure deterministically, avoiding non-deterministic Louvain clustering drift.
 
 ### Closing Sentence:
-> 💬 *“Kịch bản demo trên vừa minh chứng trọn vẹn toàn bộ chu trình kỹ thuật của luận văn: từ phân tách mã nguồn thành 2 kho dữ liệu có nguồn gốc, định tuyến 3 đường tìm kiếm thông minh có nhận diện stub, cho đến khả năng cập nhật đồ thị tức thì qua incremental indexing.”*
+> 💬 *“This demonstration verifies the complete end-to-end technical pipeline of our thesis: from dual-store code decomposition with shared provenance and three-way intelligent evidence routing with stub awareness, to instantaneous graph updates powered by incremental indexing.”*

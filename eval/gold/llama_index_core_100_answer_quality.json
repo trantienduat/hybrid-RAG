@@ -1,0 +1,1551 @@
+{
+  "name": "llama-index-core-100-answer-quality-v2",
+  "source_identity": "sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509",
+  "source": {
+    "package": "llama-index-core",
+    "version": "0.14.21",
+    "artifact_sha256": "4a807d31e54d066068e076eb4d066efbf95e2d2a00dcbe0eba3d9340a04cad42"
+  },
+  "review": {
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-08",
+    "evidence_grade": "approved_ai_source_review"
+  },
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "AQ01",
+      "difficulty": "medium",
+      "question": "What sequence does BaseRetriever.retrieve follow when it receives a plain query string, including callbacks and recursive retrieval?",
+      "reference_answer": "It checks the callback manager, emits a RetrievalStartEvent, converts the string to a QueryBundle, opens the query trace and RETRIEVE callback event, calls _retrieve, resolves recursive retrieval results, closes the callback with the resulting nodes, emits RetrievalEndEvent, and returns the nodes.",
+      "source_files": [
+        "base/base_retriever.py"
+      ],
+      "source_anchors": [
+        "base/base_retriever.py:191-229"
+      ],
+      "reference_contexts": [
+        "BaseRetriever.retrieve converts strings to QueryBundle, runs _retrieve followed by _handle_recursive_retrieval inside callback tracing, then emits the retrieval end event and returns nodes."
+      ]
+    },
+    {
+      "id": "AQ02",
+      "difficulty": "medium",
+      "question": "How does RetrieverQueryEngine produce a synchronous answer for a QueryBundle?",
+      "reference_answer": "Inside a QUERY callback event, it retrieves nodes, passes the QueryBundle and nodes to the response synthesizer, records the response in the callback event, and returns that response. Its retrieve method also applies each configured node postprocessor in order before synthesis.",
+      "source_files": [
+        "query_engine/retriever_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/retriever_query_engine.py:130-153",
+        "query_engine/retriever_query_engine.py:190-202"
+      ],
+      "reference_contexts": [
+        "RetrieverQueryEngine.retrieve invokes the retriever and applies node postprocessors in sequence. _query retrieves those nodes, synthesizes a response, ends the query event with the response, and returns it."
+      ]
+    },
+    {
+      "id": "AQ03",
+      "difficulty": "medium",
+      "question": "How does PromptHelper calculate available context and chunk sizes, and which limits can reduce the chunk size?",
+      "reference_answer": "Available context is context_window minus prompt tokens minus reserved output tokens, and a negative result raises ValueError. Available chunk size is that context divided by the number of chunks minus padding. Prompt, tool, and system-prompt tokens contribute to the prompt count, and chunk_size_limit clamps the final result when configured.",
+      "source_files": [
+        "indices/prompt_helper.py"
+      ],
+      "source_anchors": [
+        "indices/prompt_helper.py:148-169",
+        "indices/prompt_helper.py:180-236"
+      ],
+      "reference_contexts": [
+        "PromptHelper subtracts prompt and output tokens from the context window, divides the remainder by num_chunks, subtracts padding, and optionally clamps it to chunk_size_limit."
+      ]
+    },
+    {
+      "id": "AQ04",
+      "difficulty": "simple",
+      "question": "What state does VectorStoreIndex pass into the VectorIndexRetriever returned by as_retriever?",
+      "reference_answer": "It constructs VectorIndexRetriever with the index itself, node IDs from index_struct.nodes_dict values, the index callback manager, the object map, and any caller-provided keyword arguments.",
+      "source_files": [
+        "indices/vector_store/base.py"
+      ],
+      "source_anchors": [
+        "indices/vector_store/base.py:112-125"
+      ],
+      "reference_contexts": [
+        "VectorStoreIndex.as_retriever lazily imports VectorIndexRetriever and supplies self, stored node IDs, callback_manager, object_map, and forwarded kwargs."
+      ]
+    },
+    {
+      "id": "AQ05",
+      "difficulty": "hard",
+      "question": "How does IngestionPipeline.run handle transformations, vector-store insertion, and docstore updates?",
+      "reference_answer": "It prepares input nodes, applies deduplication or upsert handling based on the effective docstore strategy, runs transformations sequentially or in spawned worker processes, adds transformed nodes that have embeddings to the vector store, updates the docstore when present, and returns the transformed nodes.",
+      "source_files": [
+        "ingestion/pipeline.py"
+      ],
+      "source_anchors": [
+        "ingestion/pipeline.py:481-608"
+      ],
+      "reference_contexts": [
+        "IngestionPipeline.run prepares and filters inputs, executes transformations, writes embedded nodes to the vector store, updates the docstore, and returns the transformed nodes."
+      ]
+    },
+    {
+      "id": "AQ06",
+      "difficulty": "medium",
+      "question": "How does SimpleDirectoryReader.load_data differ when num_workers is greater than one versus sequential loading?",
+      "reference_answer": "With multiple workers it caps the requested count at the CPU count, uses a spawned multiprocessing pool, maps the file loader over input files, and extends the document list from each result. Otherwise it iterates the input files directly and loads each one. Both paths return documents after excluded metadata is removed.",
+      "source_files": [
+        "readers/file/base.py"
+      ],
+      "source_anchors": [
+        "readers/file/base.py:718-779"
+      ],
+      "reference_contexts": [
+        "SimpleDirectoryReader.load_data uses a spawn pool for num_workers greater than one, otherwise loads files in a loop, and finally calls _exclude_metadata on the documents."
+      ]
+    },
+    {
+      "id": "AQ07",
+      "difficulty": "medium",
+      "question": "What lifecycle guarantees does CallbackManager.event provide when its context body raises an exception?",
+      "reference_answer": "It starts an EventContext before yielding. If the body raises and the exception has not already been recorded, it ends the event with an EXCEPTION payload and marks the exception as added, then re-raises it. The finally block ensures any event not already finished is ended.",
+      "source_files": [
+        "callbacks/base.py"
+      ],
+      "source_anchors": [
+        "callbacks/base.py:156-190"
+      ],
+      "reference_contexts": [
+        "CallbackManager.event starts the event, records an unrecorded exception as the end payload, re-raises it, and guarantees unfinished events are ended in finally."
+      ]
+    },
+    {
+      "id": "AQ08",
+      "difficulty": "simple",
+      "question": "Which response synthesizers does get_response_synthesizer create for COMPACT and NO_TEXT modes, and what happens for an unknown mode?",
+      "reference_answer": "COMPACT returns CompactAndRefine using the selected LLM, callback manager, prompt helper, templates, and related options. NO_TEXT returns NoText with the callback manager and streaming setting. An unrecognized response mode raises ValueError with an Unknown mode message.",
+      "source_files": [
+        "response_synthesizers/factory.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/factory.py:33-151"
+      ],
+      "reference_contexts": [
+        "The response-synthesizer factory maps COMPACT to CompactAndRefine, NO_TEXT to NoText, and raises ValueError for an unknown mode."
+      ]
+    },
+    {
+      "id": "AQ09",
+      "difficulty": "simple",
+      "question": "What does NodeWithScore.get_score do when its score is unset, and how can the caller request an error instead?",
+      "reference_answer": "When score is None it returns 0.0 by default. If raise_error is True, it raises ValueError with 'Score not set.' instead. When a score exists, it returns that score.",
+      "source_files": [
+        "schema.py"
+      ],
+      "source_anchors": [
+        "schema.py:1034-1044"
+      ],
+      "reference_contexts": [
+        "NodeWithScore.get_score returns 0.0 for an unset score unless raise_error is true, in which case it raises ValueError; otherwise it returns the stored score."
+      ]
+    },
+    {
+      "id": "AQ10",
+      "difficulty": "simple",
+      "question": "What happens when a caller assigns a new value to Settings.llm?",
+      "reference_answer": "The llm property setter passes the supplied LLM value through resolve_llm and stores the resolved object in the private _llm field.",
+      "source_files": [
+        "settings.py"
+      ],
+      "source_anchors": [
+        "settings.py:41-46"
+      ],
+      "reference_contexts": [
+        "The Settings llm setter assigns resolve_llm(llm) to self._llm."
+      ]
+    },
+    {
+      "id": "AQ11",
+      "difficulty": "simple",
+      "question": "What does BaseQueryEngine.query do with a string query before and after calling the engine-specific _query implementation?",
+      "reference_answer": "It emits QueryStartEvent, opens the query callback trace, converts a string into a QueryBundle, calls _query, closes the trace, emits QueryEndEvent with the converted query and response, and returns the response.",
+      "source_files": [
+        "base/base_query_engine.py"
+      ],
+      "source_anchors": [
+        "base/base_query_engine.py:38-48"
+      ],
+      "reference_contexts": [
+        "BaseQueryEngine.query instruments the request, converts string input to QueryBundle inside the query trace, delegates to _query, then emits the end event and returns its result."
+      ]
+    },
+    {
+      "id": "AQ12",
+      "difficulty": "simple",
+      "question": "How does resolve_embed_model represent explicitly disabled embeddings, and what callback manager does the result use?",
+      "reference_answer": "When embed_model is None it prints that embeddings are disabled and creates MockEmbedding with dimension 1. After resolution it assigns the supplied callback manager, or Settings.callback_manager when none was supplied, and returns the embedding model.",
+      "source_files": [
+        "embeddings/utils.py"
+      ],
+      "source_anchors": [
+        "embeddings/utils.py:30-123"
+      ],
+      "reference_contexts": [
+        "resolve_embed_model maps None to a one-dimensional MockEmbedding and assigns callback_manager or the global Settings callback manager before returning it."
+      ]
+    },
+    {
+      "id": "AQ13",
+      "difficulty": "simple",
+      "question": "How does SimpleKVStore persist its collections and recreate a store from that persisted path?",
+      "reference_answer": "persist selects the provided filesystem or a local filesystem, creates the parent directory when missing, and writes the collections mapping as JSON. from_persist_path selects the filesystem, reads JSON from the path, and constructs a new SimpleKVStore with that data.",
+      "source_files": [
+        "storage/kvstore/simple_kvstore.py"
+      ],
+      "source_anchors": [
+        "storage/kvstore/simple_kvstore.py:35-55"
+      ],
+      "reference_contexts": [
+        "SimpleKVStore persists its collections mapping as JSON and restores it by loading that JSON and passing it to the constructor."
+      ]
+    },
+    {
+      "id": "AQ14",
+      "difficulty": "simple",
+      "question": "How do get_response_text and aget_response_text turn streaming response fragments into text?",
+      "reference_answer": "Both start with an empty string and append every fragment in order. get_response_text iterates a synchronous generator, while aget_response_text uses async for over an asynchronous generator; each returns the concatenated string.",
+      "source_files": [
+        "response/utils.py"
+      ],
+      "source_anchors": [
+        "response/utils.py:6-19"
+      ],
+      "reference_contexts": [
+        "The synchronous and asynchronous response helpers concatenate all yielded fragments in order and return the accumulated text."
+      ]
+    },
+    {
+      "id": "AQ15",
+      "difficulty": "simple",
+      "question": "How does TokenCountingHandler expose aggregate token totals, and what does reset_counts clear?",
+      "reference_answer": "Its prompt, completion, total LLM, and embedding properties sum the corresponding fields across recorded token-count events. reset_counts replaces both the LLM-event list and embedding-event list with empty lists.",
+      "source_files": [
+        "callbacks/token_counting.py"
+      ],
+      "source_anchors": [
+        "callbacks/token_counting.py:264-287"
+      ],
+      "reference_contexts": [
+        "TokenCountingHandler computes totals by summing recorded events and resets all counts by clearing both event collections."
+      ]
+    },
+    {
+      "id": "AQ16",
+      "difficulty": "simple",
+      "question": "How do the retrieval Precision and Recall metrics use expected and retrieved IDs differently?",
+      "reference_answer": "Both reject missing or empty ID lists and compare the sets of retrieved and expected IDs. Precision divides the intersection size by the number of distinct retrieved IDs, whereas Recall divides it by the number of distinct expected IDs.",
+      "source_files": [
+        "evaluation/retrieval/metrics.py"
+      ],
+      "source_anchors": [
+        "evaluation/retrieval/metrics.py:174-256"
+      ],
+      "reference_contexts": [
+        "Precision normalizes the retrieved/expected intersection by retrieved IDs, while Recall normalizes the same intersection by expected IDs."
+      ]
+    },
+    {
+      "id": "AQ17",
+      "difficulty": "medium",
+      "question": "How does ChatMemoryBuffer.get trim history to its token limit without leaving an assistant or tool message at the beginning?",
+      "reference_answer": "It rejects an initial token count above the limit, starts with all messages, and removes messages from the front while the total is too large. After each removal it also removes leading assistant or tool messages until a valid starting role remains. If even the last message exceeds the limit, it returns that last message so the downstream LLM can report the problem.",
+      "source_files": [
+        "memory/chat_memory_buffer.py"
+      ],
+      "source_anchors": [
+        "memory/chat_memory_buffer.py:114-168"
+      ],
+      "reference_contexts": [
+        "ChatMemoryBuffer repeatedly shrinks the oldest history, prevents assistant/tool messages from becoming the first retained message, and preserves one oversized final message rather than silently returning nothing."
+      ]
+    },
+    {
+      "id": "AQ18",
+      "difficulty": "medium",
+      "question": "What does BaseIndex.insert_nodes do with non-serializable IndexNode objects and how does it keep storage state consistent?",
+      "reference_answer": "For each IndexNode it attempts serialization; on ValueError it stores the live object in _object_map under index_id and clears node.obj. Inside an insert_nodes trace it then upserts the nodes into the docstore, calls the index-specific _insert, and writes the updated index structure to the index store.",
+      "source_files": [
+        "indices/base.py"
+      ],
+      "source_anchors": [
+        "indices/base.py:195-225"
+      ],
+      "reference_contexts": [
+        "BaseIndex.insert_nodes extracts non-serializable IndexNode objects into its object map, then updates the docstore, index implementation, and persisted index structure inside a trace."
+      ]
+    },
+    {
+      "id": "AQ19",
+      "difficulty": "medium",
+      "question": "How does StorageContext.persist choose paths and persist its different stores, including namespaced vector stores?",
+      "reference_answer": "With a custom filesystem it builds paths using concat_dirs; otherwise it uses pathlib under the persist directory. It persists the document, index, and graph stores, persists the property-graph store when present, and then persists every vector store to a filename prefixed by that store's namespace.",
+      "source_files": [
+        "storage/storage_context.py"
+      ],
+      "source_anchors": [
+        "storage/storage_context.py:151-201"
+      ],
+      "reference_contexts": [
+        "StorageContext.persist writes each configured store and gives every vector-store file a namespace-prefixed name, with path construction depending on whether an external filesystem is supplied."
+      ]
+    },
+    {
+      "id": "AQ20",
+      "difficulty": "medium",
+      "question": "How does SimpleVectorStore.query filter candidates and choose the similarity algorithm for each supported query mode?",
+      "reference_answer": "It first rejects metadata filtering when stored metadata is unavailable, builds metadata and optional node-ID filters, and collects only matching IDs and embeddings. Learner modes call the learner top-k function, MMR calls the MMR function with an optional threshold, and DEFAULT calls ordinary top-k embedding similarity; other modes raise ValueError. It returns the selected IDs and similarities.",
+      "source_files": [
+        "vector_stores/simple.py"
+      ],
+      "source_anchors": [
+        "vector_stores/simple.py:244-315"
+      ],
+      "reference_contexts": [
+        "SimpleVectorStore.query prefilters stored embeddings, dispatches to learner, MMR, or default top-k similarity according to mode, rejects unsupported modes, and returns IDs with scores."
+      ]
+    },
+    {
+      "id": "AQ21",
+      "difficulty": "medium",
+      "question": "How does SentenceSplitter account for metadata before chunking text, including its error and warning thresholds?",
+      "reference_answer": "It tokenizes the metadata and subtracts that count from chunk_size. A non-positive effective size raises ValueError, while an effective size below 50 prints a warning. It then calls _split_text with the reduced size, where chunking is wrapped in a CHUNKING callback event and uses _split followed by _merge.",
+      "source_files": [
+        "node_parser/text/sentence.py"
+      ],
+      "source_anchors": [
+        "node_parser/text/sentence.py:156-196"
+      ],
+      "reference_contexts": [
+        "Metadata-aware splitting reduces the available chunk size by metadata tokens, rejects no remaining space, warns below 50 tokens, and runs the normal instrumented split-and-merge path."
+      ]
+    },
+    {
+      "id": "AQ22",
+      "difficulty": "hard",
+      "question": "Trace VectorIndexRetriever from deciding whether it needs a query embedding through returning scored nodes, including when it fetches nodes from the docstore.",
+      "reference_answer": "Embedding is needed only for embedding-query vector stores outside TEXT_SEARCH and SPARSE modes. _retrieve aggregates query-string embeddings when needed and absent, builds a VectorStoreQuery from the configured limits, filters, IDs, mode, and weights, and queries the vector store. It fetches every returned ID when only IDs are present, or only non-text returned nodes when nodes are present, inserts fetched replacements, logs the result, and converts nodes into NodeWithScore objects aligned with returned similarities.",
+      "source_files": [
+        "indices/vector_store/retrievers/retriever.py"
+      ],
+      "source_anchors": [
+        "indices/vector_store/retrievers/retriever.py:92-266"
+      ],
+      "reference_contexts": [
+        "VectorIndexRetriever conditionally creates an aggregate embedding, builds and executes a configured vector query, fills missing or non-text nodes from the docstore, and pairs final nodes with similarity scores."
+      ]
+    },
+    {
+      "id": "AQ23",
+      "difficulty": "hard",
+      "question": "How does QueryFusionRetriever generate and execute multiple queries, then combine them in reciprocal-rank mode?",
+      "reference_answer": "It keeps the original QueryBundle and, when num_queries is greater than one, asks the LLM for up to num_queries minus one newline-separated alternatives. It runs every query against every retriever, synchronously or through nested async execution according to use_async. Reciprocal-rank fusion sorts each result list by score, deduplicates nodes by hash, adds 1 divided by rank plus 60 for every occurrence, assigns the fused totals as scores, sorts descending, and truncates to similarity_top_k.",
+      "source_files": [
+        "retrievers/fusion_retriever.py"
+      ],
+      "source_anchors": [
+        "retrievers/fusion_retriever.py:96-148",
+        "retrievers/fusion_retriever.py:232-317"
+      ],
+      "reference_contexts": [
+        "QueryFusionRetriever expands the original query, evaluates the query-retriever product, and in reciprocal-rank mode accumulates rank-based scores per node hash before sorting and truncating."
+      ]
+    },
+    {
+      "id": "AQ24",
+      "difficulty": "hard",
+      "question": "How does RecursiveRetriever traverse retrievers, query engines, and nodes while avoiding duplicate recursive results?",
+      "reference_answer": "It begins from the supplied query ID or root ID and resolves that ID to a node, retriever, or query engine. A node becomes a scored result directly; a retriever runs inside a RETRIEVE callback and its IndexNodes recursively enter their referenced IDs, while ordinary TextNodes pass through; a query engine response becomes a formatted TextNode and contributes its source nodes as additional results. Repeated IndexNode targets are skipped within a level, and final primary and additional lists are deduplicated by node ID, keeping the first and therefore highest or earliest result.",
+      "source_files": [
+        "retrievers/recursive_retriever.py"
+      ],
+      "source_anchors": [
+        "retrievers/recursive_retriever.py:68-220"
+      ],
+      "reference_contexts": [
+        "RecursiveRetriever resolves the root into heterogeneous retrieval objects, recursively follows IndexNode references, turns query-engine answers into nodes, preserves additional sources, and deduplicates both traversal targets and returned node IDs."
+      ]
+    },
+    {
+      "id": "AQ25",
+      "difficulty": "hard",
+      "question": "How does RouterQueryEngine handle single-engine versus multi-engine selector results and preserve provenance in the final response?",
+      "reference_answer": "Inside a QUERY callback it asks the selector to choose from tool metadata. A single selection runs that query engine directly. Multiple selections run each selected engine and, when more than one response exists, combine them with the summarizer; combine_responses normalizes supported response types, merges all source nodes, and creates the response type corresponding to the summarizer output. Finally the engine stores selector_result in response metadata, closes the callback with the response, and returns it.",
+      "source_files": [
+        "query_engine/router_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/router_query_engine.py:35-102",
+        "query_engine/router_query_engine.py:160-203"
+      ],
+      "reference_contexts": [
+        "RouterQueryEngine executes one selected engine directly or summarizes multiple selected responses while merging their sources, then records the selector result in response metadata."
+      ]
+    },
+    {
+      "id": "AQ26",
+      "difficulty": "hard",
+      "question": "Trace how SubQuestionQueryEngine turns one query into a synthesized response and handles failed sub-questions.",
+      "reference_answer": "It opens a QUERY callback, generates sub-questions from tool metadata, and runs them either asynchronously or sequentially. Each sub-question selects its named query engine inside a SUB_QUESTION callback and returns an answer with source nodes; exceptions are logged and converted to None. The parent filters failed results, turns successful question-answer pairs into nodes, flattens their sources, calls the response synthesizer with both collections, ends the query event, and returns the response.",
+      "source_files": [
+        "query_engine/sub_question_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/sub_question_query_engine.py:134-278"
+      ],
+      "reference_contexts": [
+        "SubQuestionQueryEngine decomposes a query, executes tool-specific engines with failure isolation, converts successful answers into synthesis nodes, supplies their original sources, and returns the synthesized response."
+      ]
+    },
+    {
+      "id": "AQ27",
+      "difficulty": "hard",
+      "question": "How does FunctionTool.call build a serializable ToolOutput, enforce context, and allow a callback to override the result?",
+      "reference_answer": "It merges FieldInfo defaults, partial parameters, and caller keyword arguments in that precedence order, then requires the detected context parameter when applicable. It invokes the wrapped function, removes the context argument from recorded raw_input, converts supported blocks or nodes into content blocks and otherwise stringifies the value, and builds a default ToolOutput. A callback may replace that output with its own ToolOutput or with a string-based ToolOutput; otherwise the default is returned. acall follows the same sequence using the async function and callback.",
+      "source_files": [
+        "tools/function_tool.py"
+      ],
+      "source_anchors": [
+        "tools/function_tool.py:287-389"
+      ],
+      "reference_contexts": [
+        "FunctionTool merges defaults and parameters, enforces but omits Context from serialized input, normalizes raw results into blocks, builds ToolOutput, and applies optional sync or async callback overrides."
+      ]
+    },
+    {
+      "id": "AQ28",
+      "difficulty": "hard",
+      "question": "How does AgentWorkflow expose and execute agent handoffs while enforcing the allowed handoff graph?",
+      "reference_answer": "get_tools combines an agent's static and retrieved tools and appends a generated handoff tool when the agent may hand off. The handoff function verifies that the target agent exists and that the current agent's can_handoff_to list permits it; invalid targets return explanatory text. A valid handoff stores the target as next_agent and returns the configured handoff-output prompt formatted with the target and reason.",
+      "source_files": [
+        "agent/workflow/multi_agent_workflow.py"
+      ],
+      "source_anchors": [
+        "agent/workflow/multi_agent_workflow.py:72-96",
+        "agent/workflow/multi_agent_workflow.py:247-266"
+      ],
+      "reference_contexts": [
+        "AgentWorkflow conditionally exposes a handoff tool, validates the requested target against known and permitted agents, records next_agent, and returns a formatted handoff message."
+      ]
+    },
+    {
+      "id": "AQ29",
+      "difficulty": "hard",
+      "question": "How does PromptMixin flatten nested prompts for reading and route colon-qualified prompt updates back to submodules?",
+      "reference_answer": "get_prompts validates that local prompt and module keys do not contain colons, deep-copies local prompts, recursively gets every submodule's prompts, and exposes them as module:prompt keys. update_prompts first gives the full dictionary to the current module, groups colon-qualified entries by module after splitting the key, verifies each named module exists, and recursively calls that module's update_prompts with the unqualified child keys.",
+      "source_files": [
+        "prompts/mixin.py"
+      ],
+      "source_anchors": [
+        "prompts/mixin.py:25-77"
+      ],
+      "reference_contexts": [
+        "PromptMixin recursively flattens child prompts with colon-qualified names and reverses that naming scheme when routing nested updates, rejecting reserved colons and unknown modules."
+      ]
+    },
+    {
+      "id": "AQ30",
+      "difficulty": "hard",
+      "question": "How does BaseIndex.as_query_engine convert an index into a configured RetrieverQueryEngine?",
+      "reference_answer": "BaseIndex.as_query_engine calls its concrete as_retriever with the forwarded options, resolves an explicitly supplied LLM with the index callback manager or otherwise uses Settings.llm, and passes the retriever, LLM, and options to RetrieverQueryEngine.from_args. That factory creates a response synthesizer when one was not supplied using the selected response mode, templates, async and streaming settings, chooses the supplied or global callback manager, and constructs RetrieverQueryEngine with the retriever, synthesizer, callback manager, and node postprocessors.",
+      "source_files": [
+        "indices/base.py",
+        "query_engine/retriever_query_engine.py"
+      ],
+      "source_anchors": [
+        "indices/base.py:491-516",
+        "query_engine/retriever_query_engine.py:62-127"
+      ],
+      "reference_contexts": [
+        "The index first becomes a retriever and resolves its LLM; RetrieverQueryEngine.from_args then supplies or constructs synthesis and callback components before returning the query engine."
+      ]
+    },
+    {
+      "id": "AQ31",
+      "difficulty": "simple",
+      "question": "What does mean_agg return, and how does it handle an empty embedding list?",
+      "reference_answer": "mean_agg raises ValueError when no embeddings are supplied; otherwise it converts the embeddings to a NumPy array, takes the mean along axis zero, and returns that mean as a Python list.",
+      "source_files": [
+        "base/embeddings/base.py"
+      ],
+      "source_anchors": [
+        "base/embeddings/base.py:47-52"
+      ],
+      "reference_contexts": [
+        "The function guards against an empty input and computes a component-wise mean with NumPy before converting it back to a list."
+      ]
+    },
+    {
+      "id": "AQ32",
+      "difficulty": "simple",
+      "question": "How does PromptTemplate.partial_format preserve the output parser while binding additional keyword arguments?",
+      "reference_answer": "It temporarily removes the output parser from the original prompt, deep-copies the prompt, merges the supplied values into the copy's kwargs, then restores the same output parser on both the copy and the original before returning the copy.",
+      "source_files": [
+        "prompts/base.py"
+      ],
+      "source_anchors": [
+        "prompts/base.py:164-178"
+      ],
+      "reference_contexts": [
+        "partial_format avoids deepcopy problems by detaching the parser, copying and updating kwargs, then restoring the parser to both objects."
+      ]
+    },
+    {
+      "id": "AQ33",
+      "difficulty": "simple",
+      "question": "Which filters can MetadataFilters.legacy_filters convert, and when does it reject the conversion?",
+      "reference_answer": "It converts only non-nested filters whose operator is EQ into ExactMatchFilter objects. It raises ValueError for a nested MetadataFilters value or any non-EQ operator because the legacy representation supports exact matches only.",
+      "source_files": [
+        "vector_stores/types.py"
+      ],
+      "source_anchors": [
+        "vector_stores/types.py:187-200"
+      ],
+      "reference_contexts": [
+        "legacy_filters explicitly rejects nested groups and operators other than EQ, then recreates each accepted key/value as an ExactMatchFilter."
+      ]
+    },
+    {
+      "id": "AQ34",
+      "difficulty": "simple",
+      "question": "How does KVIndexStore.get_index_struct behave with and without a struct_id?",
+      "reference_answer": "Without a struct_id it loads all index structures, asserts that exactly one exists, and returns it. With an ID it reads that key from the configured collection, returns None when absent, and otherwise deserializes the stored JSON into an index structure.",
+      "source_files": [
+        "storage/index_store/keyval_index_store.py"
+      ],
+      "source_anchors": [
+        "storage/index_store/keyval_index_store.py:60-78"
+      ],
+      "reference_contexts": [
+        "The no-ID path requires one stored structure; the keyed path performs a collection lookup and conditionally deserializes the result."
+      ]
+    },
+    {
+      "id": "AQ35",
+      "difficulty": "simple",
+      "question": "What do SimpleChatStore.delete_message and delete_last_message return when their requested key cannot be used?",
+      "reference_answer": "delete_message returns None if the key is missing or idx is at least the stored-list length. Otherwise it calls list.pop(idx): valid negative indexes address messages from the end, while an index below the negative bound is left to list.pop and raises IndexError. delete_last_message returns None for a missing key and otherwise pops the final message.",
+      "source_files": [
+        "storage/chat_store/simple_chat_store.py"
+      ],
+      "source_anchors": [
+        "storage/chat_store/simple_chat_store.py:64-76"
+      ],
+      "reference_contexts": [
+        "Both methods use None to signal a missing key. Indexed deletion guards only an upper-bound index before directly delegating to Python list.pop(idx), so its negative-index behavior is not separately guarded."
+      ]
+    },
+    {
+      "id": "AQ36",
+      "difficulty": "simple",
+      "question": "How does IngestionCache.get reconstruct cached nodes?",
+      "reference_answer": "It chooses the supplied collection or the cache's default collection, reads the key, returns None for a cache miss, and otherwise converts each serialized entry under nodes_key back into a node with json_to_doc.",
+      "source_files": [
+        "ingestion/cache.py"
+      ],
+      "source_anchors": [
+        "ingestion/cache.py:36-46"
+      ],
+      "reference_contexts": [
+        "The cache stores serialized nodes under a configured nodes key, and get reverses that representation only when a cache value exists."
+      ]
+    },
+    {
+      "id": "AQ37",
+      "difficulty": "simple",
+      "question": "Which defaults does MarkdownNodeParser.from_defaults supply when no callback manager is given?",
+      "reference_answer": "It creates an empty CallbackManager and constructs the parser with the requested metadata flag, previous/next relationship flag, header-path separator, and that callback manager.",
+      "source_files": [
+        "node_parser/file/markdown.py"
+      ],
+      "source_anchors": [
+        "node_parser/file/markdown.py:32-46"
+      ],
+      "reference_contexts": [
+        "from_defaults substitutes CallbackManager([]) and forwards all parser configuration fields into the constructor."
+      ]
+    },
+    {
+      "id": "AQ38",
+      "difficulty": "simple",
+      "question": "How does JSONNodeParser.get_nodes_from_node distinguish invalid JSON, objects, arrays, and scalar JSON values?",
+      "reference_answer": "It returns an empty list when json.loads raises JSONDecodeError. For an object it depth-first flattens the object into one text split; for an array it flattens each element into its own split; and for a top-level scalar it raises ValueError.",
+      "source_files": [
+        "node_parser/file/json.py"
+      ],
+      "source_anchors": [
+        "node_parser/file/json.py:57-83"
+      ],
+      "reference_contexts": [
+        "The method has explicit branches for parse failure, dict, list, and unsupported scalar top-level data."
+      ]
+    },
+    {
+      "id": "AQ39",
+      "difficulty": "simple",
+      "question": "How does TokenTextSplitter.split_text_metadata_aware reserve room for metadata?",
+      "reference_answer": "It tokenizes the metadata, adds the fixed metadata-format allowance, subtracts that total from chunk_size, raises ValueError when no positive chunk space remains, prints a warning below 50 tokens, and splits text with the resulting effective chunk size.",
+      "source_files": [
+        "node_parser/text/token.py"
+      ],
+      "source_anchors": [
+        "node_parser/text/token.py:117-136"
+      ],
+      "reference_contexts": [
+        "Metadata tokens and formatting overhead reduce the effective chunk size before the internal splitter is called."
+      ]
+    },
+    {
+      "id": "AQ40",
+      "difficulty": "simple",
+      "question": "Which fallback objects does SentenceWindowNodeParser.from_defaults create?",
+      "reference_answer": "It creates an empty CallbackManager when absent, obtains a sentence tokenizer through split_by_sentence_tokenizer when no splitter is supplied, and uses default_id_func when no ID function is supplied, then passes those values and the window settings into the parser.",
+      "source_files": [
+        "node_parser/text/sentence_window.py"
+      ],
+      "source_anchors": [
+        "node_parser/text/sentence_window.py:59-85"
+      ],
+      "reference_contexts": [
+        "The factory resolves callback, sentence-splitting, and ID-generation defaults before constructing SentenceWindowNodeParser."
+      ]
+    },
+    {
+      "id": "AQ41",
+      "difficulty": "simple",
+      "question": "What do NoText.get_response and NoText.aget_response return?",
+      "reference_answer": "Both methods ignore the query string, text chunks, and extra arguments and return an empty string; the asynchronous version returns the same value through an async method.",
+      "source_files": [
+        "response_synthesizers/no_text.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/no_text.py:16-30"
+      ],
+      "reference_contexts": [
+        "NoText deliberately discards all synthesis inputs and produces no response text in either execution mode."
+      ]
+    },
+    {
+      "id": "AQ42",
+      "difficulty": "simple",
+      "question": "How does ContextOnly form its synchronous and asynchronous response text?",
+      "reference_answer": "Both ContextOnly.get_response and ContextOnly.aget_response ignore the query and keyword arguments and return the supplied text chunks joined with newline characters.",
+      "source_files": [
+        "response_synthesizers/context_only.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/context_only.py:16-30"
+      ],
+      "reference_contexts": [
+        "ContextOnly exposes retrieved context directly by newline-joining the chunks in both sync and async methods."
+      ]
+    },
+    {
+      "id": "AQ43",
+      "difficulty": "simple",
+      "question": "What information does QueryEngineTool place in ToolOutput after call or acall?",
+      "reference_answer": "It derives a query string, invokes query or aquery on the wrapped engine, and returns ToolOutput with the stringified response as content, the metadata name as tool_name, the query under raw_input['input'], and the original response as raw_output.",
+      "source_files": [
+        "tools/query_engine.py"
+      ],
+      "source_anchors": [
+        "tools/query_engine.py:68-86"
+      ],
+      "reference_contexts": [
+        "The synchronous and asynchronous paths construct the same ToolOutput fields around their respective query-engine call."
+      ]
+    },
+    {
+      "id": "AQ44",
+      "difficulty": "simple",
+      "question": "How does ToolMetadata.get_parameters_dict represent a missing function schema versus a supplied Pydantic schema?",
+      "reference_answer": "With no function schema it returns a one-field object schema requiring a string input. With a schema it calls model_json_schema and keeps only type, properties, required, definitions, and $defs.",
+      "source_files": [
+        "tools/types.py"
+      ],
+      "source_anchors": [
+        "tools/types.py:30-46"
+      ],
+      "reference_contexts": [
+        "The fallback schema is constructed locally, while a Pydantic schema is filtered to the keys accepted by tool descriptions."
+      ]
+    },
+    {
+      "id": "AQ45",
+      "difficulty": "simple",
+      "question": "How does convert_tool_to_node encode a tool as a TextNode?",
+      "reference_answer": "It builds text from the tool name and description and appends the function JSON schema when present. It hashes the concatenated name, description, and schema for the node ID, stores the name in metadata, and excludes that metadata key from both embedding and LLM metadata.",
+      "source_files": [
+        "objects/tool_node_mapping.py"
+      ],
+      "source_anchors": [
+        "objects/tool_node_mapping.py:15-34"
+      ],
+      "reference_contexts": [
+        "The node text is human-readable tool metadata, while identity and metadata-exclusion fields are set explicitly on the TextNode."
+      ]
+    },
+    {
+      "id": "AQ46",
+      "difficulty": "simple",
+      "question": "What cardinality checks does load_index_from_storage apply after loading candidate indices?",
+      "reference_answer": "It asks load_indices_from_storage for either all indices or the requested ID, raises ValueError if none are found, raises ValueError if more than one is found, and otherwise returns the sole index.",
+      "source_files": [
+        "indices/loading.py"
+      ],
+      "source_anchors": [
+        "indices/loading.py:12-47"
+      ],
+      "reference_contexts": [
+        "The helper converts an optional single ID into the multi-load interface and enforces exactly one result."
+      ]
+    },
+    {
+      "id": "AQ47",
+      "difficulty": "simple",
+      "question": "Which in-memory collections does LlamaDebugHandler.flush_event_logs reset?",
+      "reference_answer": "It replaces the event-pairs-by-type and event-pairs-by-ID mappings with fresh defaultdict(list) instances and clears the sequential event list.",
+      "source_files": [
+        "callbacks/llama_debug.py"
+      ],
+      "source_anchors": [
+        "callbacks/llama_debug.py:161-165"
+      ],
+      "reference_contexts": [
+        "flush_event_logs resets both indexed event maps and the chronological event sequence."
+      ]
+    },
+    {
+      "id": "AQ48",
+      "difficulty": "simple",
+      "question": "What state determines TextNode.hash?",
+      "reference_answer": "TextNode concatenates the string form of its text and metadata, encodes that identity with UTF-8 using surrogatepass, computes SHA-256, and returns the hexadecimal digest as a string.",
+      "source_files": [
+        "schema.py"
+      ],
+      "source_anchors": [
+        "schema.py:800-803"
+      ],
+      "reference_contexts": [
+        "The hash depends on both text and metadata and is emitted as a SHA-256 hexadecimal string."
+      ]
+    },
+    {
+      "id": "AQ49",
+      "difficulty": "simple",
+      "question": "How does MetadataFilter.from_dict construct a filter?",
+      "reference_answer": "It passes the dictionary directly to MetadataFilter.model_validate, so Pydantic validates and constructs the filter according to the class fields and operator default.",
+      "source_files": [
+        "vector_stores/types.py"
+      ],
+      "source_anchors": [
+        "vector_stores/types.py:117-129"
+      ],
+      "reference_contexts": [
+        "from_dict delegates construction and validation to the MetadataFilter Pydantic model."
+      ]
+    },
+    {
+      "id": "AQ50",
+      "difficulty": "simple",
+      "question": "How is Settings.embed_model lazily resolved and connected to callbacks?",
+      "reference_answer": "The getter resolves the default embedding model only when _embed_model is None. If a callback manager has already been configured, it assigns that manager to the embedding model before returning it; the setter resolves any supplied EmbedType before storing it.",
+      "source_files": [
+        "settings.py"
+      ],
+      "source_anchors": [
+        "settings.py:60-74"
+      ],
+      "reference_contexts": [
+        "The embedding model is initialized on first access and receives the global callback manager when one exists."
+      ]
+    },
+    {
+      "id": "AQ51",
+      "difficulty": "simple",
+      "question": "What does QueryBundle.embedding_strs return for default, empty, and custom embedding text?",
+      "reference_answer": "When custom_embedding_strs is absent, it returns an empty list for an empty query string and otherwise a one-item list containing query_str. When custom_embedding_strs is present, it returns that list unchanged.",
+      "source_files": [
+        "schema.py"
+      ],
+      "source_anchors": [
+        "schema.py:1461-1469"
+      ],
+      "reference_contexts": [
+        "The property prefers explicit embedding strings and falls back to the query string only when it is non-empty."
+      ]
+    },
+    {
+      "id": "AQ52",
+      "difficulty": "simple",
+      "question": "How does StorageContext.add_vector_store register a store?",
+      "reference_answer": "It assigns the supplied BasePydanticVectorStore into the vector_stores dictionary under the supplied namespace; the vector_store compatibility property separately reads the default namespace.",
+      "source_files": [
+        "storage/storage_context.py"
+      ],
+      "source_anchors": [
+        "storage/storage_context.py:268-277"
+      ],
+      "reference_contexts": [
+        "Named vector stores are registered by direct dictionary assignment, while the compatibility property addresses the default key."
+      ]
+    },
+    {
+      "id": "AQ53",
+      "difficulty": "simple",
+      "question": "How does ToolOutput expose and replace textual content when it stores multiple content blocks?",
+      "reference_answer": "The content getter joins the text from TextBlock entries with newline characters and ignores non-text blocks. Assigning content replaces the entire blocks list with one new TextBlock containing the supplied string.",
+      "source_files": [
+        "tools/types.py"
+      ],
+      "source_anchors": [
+        "tools/types.py:146-156"
+      ],
+      "reference_contexts": [
+        "ToolOutput derives content only from TextBlock values, and its setter normalizes a string to a single text block."
+      ]
+    },
+    {
+      "id": "AQ54",
+      "difficulty": "simple",
+      "question": "How does BaseExtractor.extract provide a synchronous interface to an asynchronous extractor?",
+      "reference_answer": "It calls asyncio_run on self.aextract(nodes) and returns the resulting list of metadata dictionaries.",
+      "source_files": [
+        "extractors/interface.py"
+      ],
+      "source_anchors": [
+        "extractors/interface.py:118-127"
+      ],
+      "reference_contexts": [
+        "The synchronous method is a thin bridge that executes the asynchronous aextract coroutine through asyncio_run."
+      ]
+    },
+    {
+      "id": "AQ55",
+      "difficulty": "simple",
+      "question": "How does StringIterableReader.load_data map input strings to documents?",
+      "reference_answer": "It iterates over the strings in order, creates one Document with text set to each string, appends each document to a result list, and returns that list.",
+      "source_files": [
+        "readers/string_iterable.py"
+      ],
+      "source_anchors": [
+        "readers/string_iterable.py:37-43"
+      ],
+      "reference_contexts": [
+        "The reader performs a one-to-one, order-preserving conversion from strings to Document objects."
+      ]
+    },
+    {
+      "id": "AQ56",
+      "difficulty": "medium",
+      "question": "What formatting pipeline does PromptTemplate.format apply before returning a prompt string?",
+      "reference_answer": "It combines bound kwargs with call-time kwargs so call-time values win, maps variable names and function values through _map_all_vars, formats the template string, then optionally passes the result through the output parser and finally through completion_to_prompt.",
+      "source_files": [
+        "prompts/base.py"
+      ],
+      "source_anchors": [
+        "prompts/base.py:180-202"
+      ],
+      "reference_contexts": [
+        "PromptTemplate.format merges values, maps variables, formats text, and applies the optional parser and completion adapter in that order."
+      ]
+    },
+    {
+      "id": "AQ57",
+      "difficulty": "medium",
+      "question": "How does BaseEmbedding.get_query_embedding coordinate rate limiting, cache access, and instrumentation?",
+      "reference_answer": "It removes api_key from the model data used by the dispatcher start event, opens an EMBEDDING callback event, and either computes directly or reads the embeddings cache. On a cache miss it acquires the optional rate limiter, computes the embedding, and caches it under a UUID. It closes callback and dispatcher events with the query and embedding, then returns the embedding.",
+      "source_files": [
+        "base/embeddings/base.py"
+      ],
+      "source_anchors": [
+        "base/embeddings/base.py:137-189"
+      ],
+      "reference_contexts": [
+        "The method wraps cache-aware embedding computation with both callback-manager and dispatcher events, applying the rate limiter only before actual model work."
+      ]
+    },
+    {
+      "id": "AQ58",
+      "difficulty": "medium",
+      "question": "When does BaseEmbedding.get_text_embedding_batch flush a batch, and what occurs during each flush?",
+      "reference_answer": "It accumulates texts until either the final input is reached or embed_batch_size is met. Each flush emits start instrumentation, opens an EMBEDDING callback, acquires the optional rate limiter, chooses cached or uncached batch embedding, extends the ordered result list, closes both event layers with chunks and embeddings, and resets the current batch.",
+      "source_files": [
+        "base/embeddings/base.py"
+      ],
+      "source_anchors": [
+        "base/embeddings/base.py:476-526"
+      ],
+      "reference_contexts": [
+        "Batch boundaries are determined by capacity or end-of-input, and every batch is instrumented before its embeddings are appended to the result."
+      ]
+    },
+    {
+      "id": "AQ59",
+      "difficulty": "medium",
+      "question": "How does StructuredLLM.chat turn existing messages into a validated structured chat response?",
+      "reference_answer": "It wraps the already formatted messages in a ChatPromptTemplate and asks the inner LLM for structured_predict using output_cls. It raises TypeError if the result is not a Pydantic BaseModel; otherwise it returns a ChatResponse whose assistant content is model_dump_json and whose raw field is the model instance.",
+      "source_files": [
+        "llms/structured_llm.py"
+      ],
+      "source_anchors": [
+        "llms/structured_llm.py:52-76"
+      ],
+      "reference_contexts": [
+        "StructuredLLM.chat adapts messages to a prompt, validates the inner structured result, and exposes both serialized and raw forms."
+      ]
+    },
+    {
+      "id": "AQ60",
+      "difficulty": "medium",
+      "question": "How do SimpleChatStore.persist and from_persist_path round-trip chat history across local or fsspec storage?",
+      "reference_answer": "persist chooses the supplied filesystem or a local one, creates the parent path when absent, and writes the store's JSON. from_persist_path uses the same filesystem fallback, returns an empty store when the path is missing, otherwise loads JSON and validates either a JSON string with model_validate_json or a decoded object with model_validate.",
+      "source_files": [
+        "storage/chat_store/simple_chat_store.py"
+      ],
+      "source_anchors": [
+        "storage/chat_store/simple_chat_store.py:82-112"
+      ],
+      "reference_contexts": [
+        "Persistence creates storage as needed; loading handles missing files and both string-encoded and object-decoded JSON representations."
+      ]
+    },
+    {
+      "id": "AQ61",
+      "difficulty": "medium",
+      "question": "How does MarkdownNodeParser.get_nodes_from_node preserve header hierarchy while ignoring apparent headers inside fenced code?",
+      "reference_answer": "It scans lines while toggling a code-block flag on triple-backtick lines. Outside code blocks, a header flushes the prior section, pops stack entries at an equal or deeper header level, and pushes the new header. Each emitted node receives the ancestor header path, and the final buffered section is emitted after the loop.",
+      "source_files": [
+        "node_parser/file/markdown.py"
+      ],
+      "source_anchors": [
+        "node_parser/file/markdown.py:48-107"
+      ],
+      "reference_contexts": [
+        "The parser maintains both a fenced-code state and a level-aware header stack, flushing sections at real headers and at end-of-input."
+      ]
+    },
+    {
+      "id": "AQ62",
+      "difficulty": "medium",
+      "question": "How does SentenceWindowNodeParser.build_window_nodes_from_documents attach sentence windows without leaking them into model metadata?",
+      "reference_answer": "For each document it splits text into sentences and builds one node per split. Around each node it slices neighboring nodes within window_size, stores their joined text plus the node's original text under configured metadata keys, and adds both keys to the embedding and LLM exclusion lists before collecting the nodes.",
+      "source_files": [
+        "node_parser/text/sentence_window.py"
+      ],
+      "source_anchors": [
+        "node_parser/text/sentence_window.py:103-140"
+      ],
+      "reference_contexts": [
+        "Each sentence node receives a bounded neighborhood and original-text metadata, but both fields are excluded from embedding and LLM metadata rendering."
+      ]
+    },
+    {
+      "id": "AQ63",
+      "difficulty": "medium",
+      "question": "What relationships, offsets, and metadata does NodeParser._postprocess_parsed_nodes add after splitting?",
+      "reference_answer": "For each parsed node it finds the parent document, propagates a source relationship, searches the node text from the last per-document start position to assign character offsets, and merges parent metadata while preserving node values. It also merges source-node metadata and, when enabled, adds previous and next relationships only between adjacent nodes sharing the same source node.",
+      "source_files": [
+        "node_parser/interface.py"
+      ],
+      "source_anchors": [
+        "node_parser/interface.py:84-155"
+      ],
+      "reference_contexts": [
+        "Post-processing grounds split nodes in their parent documents, enriches metadata, and links adjacent siblings without crossing source boundaries."
+      ]
+    },
+    {
+      "id": "AQ64",
+      "difficulty": "medium",
+      "question": "How does HierarchicalNodeParser recursively build and return a flat hierarchy?",
+      "reference_answer": "At each level it selects the parser named by node_parser_ids, splits every current node, and for levels below the top adds reciprocal parent-child relationships. If another parser level remains it recursively splits the new nodes, then returns the current subnodes followed by all deeper nodes. get_nodes_from_documents repeats this per document inside a NODE_PARSING callback event.",
+      "source_files": [
+        "node_parser/relational/hierarchical.py"
+      ],
+      "source_anchors": [
+        "node_parser/relational/hierarchical.py:160-205",
+        "node_parser/relational/hierarchical.py:207-229"
+      ],
+      "reference_contexts": [
+        "Recursive splitting creates relationships below the top level but flattens every level into one ordered output list, with callback evidence around each document batch."
+      ]
+    },
+    {
+      "id": "AQ65",
+      "difficulty": "medium",
+      "question": "How does SimpleSummarize.get_response prepare context and choose between normal and streaming generation?",
+      "reference_answer": "It partially binds query_str into the QA template, joins all input chunks, truncates that combined context through PromptHelper, and calls llm.predict when streaming is disabled or llm.stream when enabled. A string result falls back to 'Empty Response' when empty; a non-string result is treated as a generator.",
+      "source_files": [
+        "response_synthesizers/simple_summarize.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/simple_summarize.py:76-109"
+      ],
+      "reference_contexts": [
+        "The synthesizer reduces all chunks to one prompt-bounded context and then normalizes either a direct string or streaming generator result."
+      ]
+    },
+    {
+      "id": "AQ66",
+      "difficulty": "medium",
+      "question": "How does Accumulate.get_response apply a prompt to every packed context and format the combined answer?",
+      "reference_answer": "It rejects streaming mode, asks _give_responses to repack each input chunk and create prediction calls for every packed piece, flattens those calls, optionally runs them as async tasks, substitutes 'Empty Response' for empty outputs, and joins numbered responses with the configured separator.",
+      "source_files": [
+        "response_synthesizers/accumulate.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/accumulate.py:50-60",
+        "response_synthesizers/accumulate.py:85-151"
+      ],
+      "reference_contexts": [
+        "Accumulate expands each source chunk into one or more prompt-sized predictions and formats all outputs as a numbered response sequence."
+      ]
+    },
+    {
+      "id": "AQ67",
+      "difficulty": "medium",
+      "question": "How does EmbeddingSingleSelector choose one ToolMetadata option in synchronous and asynchronous selection?",
+      "reference_answer": "It embeds the query and every choice description, asks get_top_k_embeddings for one result using choice indexes as embedding IDs, and returns a SingleSelection containing that index and a reason with the similarity and choice name. The async path awaits the corresponding embedding methods but applies the same ranking and result construction.",
+      "source_files": [
+        "selectors/embedding_selectors.py"
+      ],
+      "source_anchors": [
+        "selectors/embedding_selectors.py:51-93"
+      ],
+      "reference_contexts": [
+        "Both selector paths rank description embeddings against the query embedding and preserve the winning similarity and name in the reason."
+      ]
+    },
+    {
+      "id": "AQ68",
+      "difficulty": "medium",
+      "question": "How does PydanticMultiSelector determine the number of allowed selections and invoke its structured program?",
+      "reference_answer": "It converts choices to the program's context text, uses the configured max_outputs or the number of choices as the limit, invokes the selector program with num_choices, max_outputs, context_list, and query_str, then converts the structured prediction to SelectorResult. Its asynchronous selector delegates to the same synchronous path.",
+      "source_files": [
+        "selectors/pydantic_selectors.py"
+      ],
+      "source_anchors": [
+        "selectors/pydantic_selectors.py:137-158"
+      ],
+      "reference_contexts": [
+        "Selection cardinality defaults to all choices, and the structured prediction is normalized through the shared Pydantic result converter."
+      ]
+    },
+    {
+      "id": "AQ69",
+      "difficulty": "medium",
+      "question": "How does KVDocumentStore.add_documents distribute document state across its key-value collections?",
+      "reference_answer": "It resolves the batch size and asks _prepare_kv_pairs to create node, metadata, and merged reference-document pairs, including merging entries when multiple nodes share one reference document. It then writes those three groups with put_all to the node, metadata, and reference-document collections respectively.",
+      "source_files": [
+        "storage/docstore/keyval_docstore.py"
+      ],
+      "source_anchors": [
+        "storage/docstore/keyval_docstore.py:180-205",
+        "storage/docstore/keyval_docstore.py:207-244"
+      ],
+      "reference_contexts": [
+        "Prepared document representations are split into three collection-specific batches after shared reference-document entries are merged."
+      ]
+    },
+    {
+      "id": "AQ70",
+      "difficulty": "medium",
+      "question": "How does ObjectIndex.from_objects choose a mapping and construct the underlying index?",
+      "reference_answer": "It uses the supplied object mapping or asks get_object_mapping to choose one using the objects and optional conversion functions. It converts all objects to nodes through that mapping, constructs index_cls with the nodes and forwarded index arguments, and returns an ObjectIndex holding both the index and mapping.",
+      "source_files": [
+        "objects/base.py"
+      ],
+      "source_anchors": [
+        "objects/base.py:101-123"
+      ],
+      "reference_contexts": [
+        "ObjectIndex creation first resolves object-to-node conversion, then indexes the converted nodes and retains the mapping for reverse conversion."
+      ]
+    },
+    {
+      "id": "AQ71",
+      "difficulty": "medium",
+      "question": "How does ObjectRetriever turn a string query into postprocessed domain objects?",
+      "reference_answer": "It wraps a string in QueryBundle, retrieves scored nodes through the underlying retriever, applies each node postprocessor in order with the same query bundle, and converts every remaining node back to its object through object_node_mapping.from_node. aretrieve mirrors the flow with asynchronous retrieval before the same postprocessing and mapping.",
+      "source_files": [
+        "objects/base.py"
+      ],
+      "source_anchors": [
+        "objects/base.py:53-79"
+      ],
+      "reference_contexts": [
+        "Retrieval, ordered node postprocessing, and reverse object mapping form the complete sync and async object-retrieval lifecycle."
+      ]
+    },
+    {
+      "id": "AQ72",
+      "difficulty": "medium",
+      "question": "How does SummaryIndex.as_retriever instantiate each supported retriever mode?",
+      "reference_answer": "DEFAULT returns SummaryIndexRetriever; EMBEDDING resolves the supplied embedding model or Settings.embed_model and returns SummaryIndexEmbeddingRetriever; LLM resolves the supplied LLM or Settings.llm and returns SummaryIndexLLMRetriever. All paths pass the index object map and forwarded kwargs, while an unknown mode raises ValueError.",
+      "source_files": [
+        "indices/list/base.py"
+      ],
+      "source_anchors": [
+        "indices/list/base.py:68-94"
+      ],
+      "reference_contexts": [
+        "The factory branches by retriever mode, resolving only the model needed by that mode and rejecting unsupported values."
+      ]
+    },
+    {
+      "id": "AQ73",
+      "difficulty": "medium",
+      "question": "How does SummaryIndexEmbeddingRetriever lazily embed and rank summary-index nodes?",
+      "reference_answer": "It loads all indexed nodes, computes a query embedding only when QueryBundle.embedding is absent, computes and stores an embedding only for nodes that lack one, and passes query and node embeddings to get_top_k_embeddings. It selects nodes by returned indexes and pairs each selected node with its similarity score.",
+      "source_files": [
+        "indices/list/retrievers.py"
+      ],
+      "source_anchors": [
+        "indices/list/retrievers.py:96-143"
+      ],
+      "reference_contexts": [
+        "Both query and node embeddings are populated lazily before top-k ranking maps positions back to scored nodes."
+      ]
+    },
+    {
+      "id": "AQ74",
+      "difficulty": "medium",
+      "question": "What validation and model selection does DocumentSummaryIndex.as_retriever perform?",
+      "reference_answer": "For EMBEDDING mode it first rejects an index built with embed_summaries disabled, then creates DocumentSummaryIndexEmbeddingRetriever with the index object map and embedding model. For LLM mode it creates DocumentSummaryIndexLLMRetriever with the object map and LLM. Any other mode raises ValueError.",
+      "source_files": [
+        "indices/document_summary/base.py"
+      ],
+      "source_anchors": [
+        "indices/document_summary/base.py:112-150"
+      ],
+      "reference_contexts": [
+        "The index permits embedding retrieval only when summaries were embedded and otherwise selects between embedding and LLM retriever classes explicitly."
+      ]
+    },
+    {
+      "id": "AQ75",
+      "difficulty": "medium",
+      "question": "How does DocumentSummaryIndexEmbeddingRetriever expand vector-store summary matches into source nodes?",
+      "reference_answer": "It creates a query embedding when the vector store requires one and the bundle lacks it, queries the vector store with similarity_top_k, and derives summary IDs from returned IDs or node IDs, rejecting a result containing neither. For each summary ID it looks up the associated source-node IDs, loads those nodes from the docstore, and returns them as NodeWithScore values.",
+      "source_files": [
+        "indices/document_summary/retrievers.py"
+      ],
+      "source_anchors": [
+        "indices/document_summary/retrievers.py:157-191"
+      ],
+      "reference_contexts": [
+        "Vector search ranks summary records, but the retriever returns the original nodes linked to each matched summary."
+      ]
+    },
+    {
+      "id": "AQ76",
+      "difficulty": "medium",
+      "question": "Where does TransformQueryEngine apply its BaseQueryTransform before delegating work?",
+      "reference_answer": "retrieve, synthesize, asynthesize, _query, and _aquery each run the same transform on the incoming QueryBundle with transform_metadata, then pass the transformed bundle to the corresponding method of the wrapped query engine. Synthesis also forwards nodes and any additional source nodes unchanged.",
+      "source_files": [
+        "query_engine/transform_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/transform_query_engine.py:46-94"
+      ],
+      "reference_contexts": [
+        "Every retrieval, synthesis, and query entry point transforms the bundle immediately before its matching downstream call."
+      ]
+    },
+    {
+      "id": "AQ77",
+      "difficulty": "medium",
+      "question": "How does run_transformations reuse IngestionCache entries while preserving transformation order?",
+      "reference_answer": "It optionally copies the node sequence, then visits transformations in order. For each transformation with caching enabled it hashes the current node contents plus a stabilized transformation dictionary, uses cached nodes on a hit, or executes and stores the transformation output on a miss. Without a cache it executes directly, and each result becomes the input to the next transformation.",
+      "source_files": [
+        "ingestion/pipeline.py"
+      ],
+      "source_anchors": [
+        "ingestion/pipeline.py:60-68",
+        "ingestion/pipeline.py:71-111"
+      ],
+      "reference_contexts": [
+        "Cache keys bind the current nodes to one stabilized transform, and sequential reassignment preserves pipeline ordering across hits and misses."
+      ]
+    },
+    {
+      "id": "AQ78",
+      "difficulty": "medium",
+      "question": "How does CorrectnessEvaluator.aevaluate turn an LLM judgment into an EvaluationResult?",
+      "reference_answer": "After an optional sleep it requires query and response, calls the LLM asynchronously with the evaluation prompt, generated answer, and the supplied reference or a no-reference marker, then parses the raw judgment into score and reasoning. Passing is score at least the configured threshold when a score exists; score and reasoning become the result's score and feedback.",
+      "source_files": [
+        "evaluation/correctness.py"
+      ],
+      "source_anchors": [
+        "evaluation/correctness.py:120-153"
+      ],
+      "reference_contexts": [
+        "The evaluator validates required inputs, obtains and parses an LLM judgment, and derives the passing flag from its threshold."
+      ]
+    },
+    {
+      "id": "AQ79",
+      "difficulty": "medium",
+      "question": "How does RelevancyEvaluator.aevaluate use contexts to judge a query-response pair?",
+      "reference_answer": "It requires query, contexts, and response, turns contexts into Documents, builds a SummaryIndex, and queries that index asynchronously with a string containing both the question and response using the evaluation and refine templates. A case-insensitive 'yes' in the result passes; otherwise it optionally raises and records a zero score.",
+      "source_files": [
+        "evaluation/relevancy.py"
+      ],
+      "source_anchors": [
+        "evaluation/relevancy.py:97-141"
+      ],
+      "reference_contexts": [
+        "Relevancy is judged by querying a temporary context index about the combined question and response, then interpreting whether the generated verdict contains yes."
+      ]
+    },
+    {
+      "id": "AQ80",
+      "difficulty": "medium",
+      "question": "How does StorageContext.from_defaults construct fresh storage differently from loading a persisted directory?",
+      "reference_answer": "Without persist_dir it supplies simple in-memory document, index, graph, image, and default vector stores unless callers provided replacements. With persist_dir it loads those stores from disk, tolerates a missing property-graph store, and loads namespaced vector stores unless an explicit vector-store mapping is supplied. In both paths an image store is registered under its image namespace before the StorageContext is returned.",
+      "source_files": [
+        "storage/storage_context.py"
+      ],
+      "source_anchors": [
+        "storage/storage_context.py:73-149"
+      ],
+      "reference_contexts": [
+        "The factory selects either fresh simple stores or persisted stores, resolves vector-store precedence, and returns one unified storage container."
+      ]
+    },
+    {
+      "id": "AQ81",
+      "difficulty": "hard",
+      "question": "How does RetryQueryEngine recursively turn a failed response evaluation into another bounded query attempt?",
+      "reference_answer": "It calls the wrapped engine's _query, rejects AsyncStreamingResponse, and returns immediately when no retries remain. Otherwise it converts non-Response output, evaluates it against the current attempt's query_bundle.query_str, and returns passing output unchanged. On failure it creates another RetryQueryEngine with max_retries reduced by one, builds a feedback-aware query through FeedbackQueryTransformation, and invokes the new engine. Thus only the first attempt evaluates the original query; later attempts evaluate the transformed query carried by their own bundle, and each recursive failure consumes one retry.",
+      "source_files": [
+        "query_engine/retry_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/retry_query_engine.py:50-75"
+      ],
+      "reference_contexts": [
+        "Each invocation obtains the evaluation string from its own query bundle. A failing evaluation produces a transformed query and a new wrapper with a decremented retry budget; passing or exhausted paths terminate recursion."
+      ]
+    },
+    {
+      "id": "AQ82",
+      "difficulty": "hard",
+      "question": "How does TreeSummarize reduce many text chunks to one answer across its synchronous and asynchronous recursive paths?",
+      "reference_answer": "Both paths partially bind the query, repack chunks to the LLM context window, and terminate when one chunk remains by selecting streaming, plain prediction, or structured prediction. With multiple chunks, the async path gathers per-chunk predictions concurrently; the sync path either runs async tasks or predicts serially. Structured intermediates are serialized to JSON, and each path recursively summarizes its intermediate summaries until the single-chunk base case.",
+      "source_files": [
+        "response_synthesizers/tree_summarize.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/tree_summarize.py:61-137",
+        "response_synthesizers/tree_summarize.py:139-243"
+      ],
+      "reference_contexts": [
+        "TreeSummarize uses the same repack, base-case, summarize, and recurse structure in both execution modes, with concurrency and structured-output handling adapted per path."
+      ]
+    },
+    {
+      "id": "AQ83",
+      "difficulty": "hard",
+      "question": "How does Generation synthesize an answer while intentionally ignoring retrieved text but retaining source provenance?",
+      "reference_answer": "get_response and aget_response discard text_chunks and call the LLM with only the simple input prompt and query, choosing prediction or streaming by configuration. synthesize and asynthesize still convert a string query to QueryBundle, open synthesis instrumentation, extract node text only to invoke those response methods, combine retrieved and additional source nodes, and pass that combined list to _prepare_response_output. The base implementation places those source nodes and their metadata on each supported response type, then the Generation wrappers close callback and dispatcher events and return the provenance-bearing response.",
+      "source_files": [
+        "response_synthesizers/generation.py",
+        "response_synthesizers/base.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/generation.py:55-97",
+        "response_synthesizers/generation.py:102-188",
+        "response_synthesizers/base.py:145-185"
+      ],
+      "reference_contexts": [
+        "Generation does not condition the LLM on node text, yet its synthesis wrappers pass the combined nodes to the base response constructor, which attaches source_nodes and source-derived metadata to supported responses."
+      ]
+    },
+    {
+      "id": "AQ84",
+      "difficulty": "hard",
+      "question": "How does FaithfulnessEvaluator.aevaluate convert supporting contexts into a binary faithfulness judgment?",
+      "reference_answer": "After an optional delay it requires contexts and response, converts each context to a Document, and builds a SummaryIndex. It configures a query engine with the evaluator LLM and evaluation/refine prompts, asynchronously queries that context index using the response itself, and treats a case-insensitive 'yes' in the generated verdict as passing. A failing verdict optionally raises; otherwise it returns score 1.0 or 0.0 with contexts and raw verdict feedback.",
+      "source_files": [
+        "evaluation/faithfulness.py"
+      ],
+      "source_anchors": [
+        "evaluation/faithfulness.py:159-201"
+      ],
+      "reference_contexts": [
+        "Faithfulness is evaluated by indexing the supplied evidence and asking whether the response is supported, then mapping the textual verdict to a binary result."
+      ]
+    },
+    {
+      "id": "AQ85",
+      "difficulty": "hard",
+      "question": "Trace BatchEvalRunner.aevaluate_queries from concurrent answer generation through per-evaluator result grouping.",
+      "reference_answer": "It requires queries, creates one retry-decorated response_worker per query, and gathers their asynchronous query-engine responses under the runner semaphore. It then validates query/response lengths and evaluator kwargs, creates one retry-decorated eval_response_worker for every response-evaluator pair, gathers those jobs under the same concurrency limit, and groups the resulting (evaluator_name, EvaluationResult) tuples into lists keyed by evaluator name.",
+      "source_files": [
+        "evaluation/batch_runner.py"
+      ],
+      "source_anchors": [
+        "evaluation/batch_runner.py:11-32",
+        "evaluation/batch_runner.py:60-72",
+        "evaluation/batch_runner.py:99-142",
+        "evaluation/batch_runner.py:261-348"
+      ],
+      "reference_contexts": [
+        "The runner performs two bounded-concurrency gathers—query execution and response evaluation—then formats named evaluator results after input validation."
+      ]
+    },
+    {
+      "id": "AQ86",
+      "difficulty": "hard",
+      "question": "How does BaseExtractor.aprocess_nodes combine retry policy, copy semantics, metadata updates, and template rewriting?",
+      "reference_answer": "It either reuses the supplied nodes or deep-copies them, then calls _aextract_with_retry. That helper attempts aextract up to max_retries plus one with exponential backoff; after exhaustion it either returns one empty metadata dictionary per node or re-raises. aprocess_nodes merges each extracted dictionary, extends configured embedding and LLM exclusion lists, optionally rewrites TextNode.text_template, and returns the processed sequence; process_nodes bridges the same flow through asyncio_run.",
+      "source_files": [
+        "extractors/interface.py"
+      ],
+      "source_anchors": [
+        "extractors/interface.py:129-199",
+        "extractors/interface.py:201-215"
+      ],
+      "reference_contexts": [
+        "Extraction failure policy is resolved before per-node metadata and template mutation, with in-place versus copied nodes chosen at the start."
+      ]
+    },
+    {
+      "id": "AQ87",
+      "difficulty": "hard",
+      "question": "How does ObjectIndex persist and later reconstruct both index state and object-node mapping?",
+      "reference_answer": "persist first asks the object mapping to save itself, warning instead of aborting for unsupported or pickle failures, then persists the underlying index storage context. from_persist_dir rebuilds StorageContext, loads the index, and returns immediately when a mapping was supplied. Otherwise it tries SimpleObjectNodeMapping.from_persist_dir and raises a chained exception if that mapping cannot be recovered before constructing the ObjectIndex.",
+      "source_files": [
+        "objects/base.py"
+      ],
+      "source_anchors": [
+        "objects/base.py:165-210"
+      ],
+      "reference_contexts": [
+        "Index storage is always persisted, mapping persistence may degrade to a warning, and reload requires either a caller-provided or recoverable simple mapping."
+      ]
+    },
+    {
+      "id": "AQ88",
+      "difficulty": "hard",
+      "question": "How does load_graph_from_storage rebuild a ComposableGraph from persisted index structures?",
+      "reference_answer": "It first calls load_indices_from_storage with no IDs. That loader fetches every index structure, maps each structure type through INDEX_STRUCT_TYPE_TO_INDEX_CLASS, and instantiates each index against the shared StorageContext. load_graph_from_storage then keys the loaded indices by index_id and constructs ComposableGraph with that mapping and the requested root_id.",
+      "source_files": [
+        "indices/loading.py"
+      ],
+      "source_anchors": [
+        "indices/loading.py:50-86",
+        "indices/loading.py:89-106"
+      ],
+      "reference_contexts": [
+        "Graph loading reconstructs concrete index objects from stored structure types before assembling their ID map around the designated root."
+      ]
+    },
+    {
+      "id": "AQ89",
+      "difficulty": "hard",
+      "question": "How does DocumentSummaryIndex._add_nodes_to_index synthesize, store, map, and optionally embed per-document summaries?",
+      "reference_answer": "It groups nodes by non-null ref_doc_id, synthesizes one summary from scored nodes per document, and creates a summary TextNode carrying a SOURCE relationship plus metadata exclusions copied from the first document node. It stores each summary in the docstore, records summary-to-source-node mappings in the index structure, and, when embed_summaries is enabled, embeds copied summary nodes and adds them to the vector store.",
+      "source_files": [
+        "indices/document_summary/base.py"
+      ],
+      "source_anchors": [
+        "indices/document_summary/base.py:165-225"
+      ],
+      "reference_contexts": [
+        "Each reference document yields one stored summary node, structural mappings to its source nodes, and optional vector-store materialization of embedded summary copies."
+      ]
+    },
+    {
+      "id": "AQ90",
+      "difficulty": "hard",
+      "question": "How does DocumentSummaryIndex remove individual nodes and clean up a document whose summary becomes empty?",
+      "reference_answer": "delete_nodes filters requested IDs against indexed nodes, warns for missing IDs, deletes valid IDs from the index structure, finds summaries with no remaining source nodes, maps those summaries back to document IDs, and calls delete_ref_doc for each. delete_ref_doc validates ref-document existence, removes its index mapping and vector-store record, optionally deletes docstore content, and persists the updated index structure.",
+      "source_files": [
+        "indices/document_summary/base.py"
+      ],
+      "source_anchors": [
+        "indices/document_summary/base.py:246-301"
+      ],
+      "reference_contexts": [
+        "Node deletion cascades to reference-document cleanup only when a summary loses all nodes, after which vector and index state are synchronized."
+      ]
+    },
+    {
+      "id": "AQ91",
+      "difficulty": "hard",
+      "question": "How does Refine.get_response create an initial answer and iteratively revise it while respecting prompt capacity?",
+      "reference_answer": "For the first chunk it calls _give_response_single, which binds the query, repacks the chunk, and runs a structured or streaming program, refining additional packed pieces when needed. Later chunks go through _refine_response_single: streaming prior output is materialized, the refine prompt binds query and existing answer, negative available capacity returns the old answer unchanged, otherwise the new context is repacked and applied. The loop carries each result forward and normalizes empty or structured final output.",
+      "source_files": [
+        "response_synthesizers/refine.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/refine.py:162-199",
+        "response_synthesizers/refine.py:220-271",
+        "response_synthesizers/refine.py:273-344"
+      ],
+      "reference_contexts": [
+        "Refine establishes an answer from the first evidence, carries it across later chunks, and skips refinement when the bound prompt leaves no context capacity."
+      ]
+    },
+    {
+      "id": "AQ92",
+      "difficulty": "hard",
+      "question": "How does CompactAndRefine choose a packing limit before delegating to Refine?",
+      "reference_answer": "It partially binds the query into both the initial QA and refine templates, chooses the larger of those static bound prompts with get_biggest_prompt, and repacks source chunks against that prompt. Its synchronous and asynchronous response methods then delegate the compacted chunks, prior response, and remaining arguments to Refine. This is only a temporary packing strategy: the selected refine template does not account for the previous answer's size, so it does not guarantee later refinement prompts fit once that answer is bound.",
+      "source_files": [
+        "response_synthesizers/compact_and_refine.py"
+      ],
+      "source_anchors": [
+        "response_synthesizers/compact_and_refine.py:11-57"
+      ],
+      "reference_contexts": [
+        "Compaction selects the larger of two query-bound templates and delegates both execution modes to Refine; the source explicitly notes that previous-answer size is excluded from the refine-template calculation."
+      ]
+    },
+    {
+      "id": "AQ93",
+      "difficulty": "hard",
+      "question": "How does CitationQueryEngine turn ordinary retrieved nodes into numbered citation evidence before synthesis?",
+      "reference_answer": "from_args resolves a retriever from the index and a citation-aware response synthesizer when callers omit them, then constructs the engine with global callbacks and chunking options. At query time retrieve or aretrieve applies all node postprocessors. _create_citation_nodes splits each node's selected metadata-mode content, clones the original node and score for every chunk, prefixes sequential Source numbers, and synthesize or asynthesize passes those citation nodes to the response synthesizer.",
+      "source_files": [
+        "query_engine/citation_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/citation_query_engine.py:190-211",
+        "query_engine/citation_query_engine.py:217-252",
+        "query_engine/citation_query_engine.py:259-283"
+      ],
+      "reference_contexts": [
+        "The engine composes retrieval, postprocessing, content splitting, numbered node cloning, and citation-prompt synthesis while preserving original scores."
+      ]
+    },
+    {
+      "id": "AQ94",
+      "difficulty": "hard",
+      "question": "How does MultiStepQueryEngine derive sub-questions, stop iteration, and synthesize one provenance-rich final response?",
+      "reference_answer": "_query_multistep repeatedly transforms the original query using accumulated reasoning and the index summary, stopping at num_steps or when stop_fn accepts the new bundle. Each executed sub-query contributes a question-answer TextNode, all of its source nodes, a sub_qa metadata record, and new reasoning for the next transform. _query or _aquery then synthesizes the collected nodes with the original query, supplies gathered sources as additional provenance, attaches sub_qa metadata, and closes the query callback event.",
+      "source_files": [
+        "query_engine/multistep_query_engine.py"
+      ],
+      "source_anchors": [
+        "query_engine/multistep_query_engine.py:82-114",
+        "query_engine/multistep_query_engine.py:116-178"
+      ],
+      "reference_contexts": [
+        "Iterative query transformation accumulates reasoning, answers, sources, and metadata before one final sync or async synthesis over the original question."
+      ]
+    },
+    {
+      "id": "AQ95",
+      "difficulty": "hard",
+      "question": "How does RetrySourceQueryEngine rebuild retrieval after a failed overall evaluation, and what does its per-source condition actually retain?",
+      "reference_answer": "It queries the wrapped RetrieverQueryEngine and returns immediately for an exhausted retry budget or passing overall evaluation. On failure it evaluates each source node separately against the query and response, but its loop tests the EvaluationResult object itself rather than eval_result.passing. Because EvaluationResult is a Pydantic model, evaluated source entries—including those whose passing field is False—are truthy and are converted to new Documents; a nonempty evaluated source list therefore does not filter failed sources by that field. It raises only when no documents were appended, then builds a SummaryIndex, wraps its retriever in a new RetrieverQueryEngine, creates another RetrySourceQueryEngine with one fewer retry, and recursively queries the original bundle.",
+      "source_files": [
+        "query_engine/retry_source_query_engine.py",
+        "evaluation/base.py",
+        "bridge/pydantic.py"
+      ],
+      "source_anchors": [
+        "query_engine/retry_source_query_engine.py:46-92",
+        "evaluation/base.py:1-44",
+        "bridge/pydantic.py:2-31"
+      ],
+      "reference_contexts": [
+        "A failed answer triggers per-source evaluation and retriever reconstruction, but the loop checks model-object truthiness instead of the passing field; therefore it does not perform the intended passing-only filter."
+      ]
+    },
+    {
+      "id": "AQ96",
+      "difficulty": "hard",
+      "question": "How does ComposableGraph.from_indices validate child summaries and construct a queryable root graph?",
+      "reference_answer": "Inside a graph-construction trace it either requires every child index to already have a summary or assigns supplied summaries to them, then enforces matching child and summary counts. It creates one IndexNode per child with summary text, child index ID, and an INDEX source relationship, builds the root index from those nodes, and returns a graph mapping every child and root by ID. as_query_engine later wraps that graph in ComposableGraphQueryEngine.",
+      "source_files": [
+        "indices/composability/graph.py"
+      ],
+      "source_anchors": [
+        "indices/composability/graph.py:47-113",
+        "indices/composability/graph.py:121-127"
+      ],
+      "reference_contexts": [
+        "Child summaries become relationship-bearing IndexNodes in a newly built root index, and the complete ID map is then exposed through a graph query engine."
+      ]
+    },
+    {
+      "id": "AQ97",
+      "difficulty": "hard",
+      "question": "How does TreeIndex coordinate tree construction, retriever compatibility, and later node insertion?",
+      "reference_answer": "Construction delegates nodes to GPTTreeIndexBuilder with branching factor, summary prompt, LLM, async flag, progress setting, and docstore, honoring build_tree. as_retriever first rejects tree-dependent modes when no tree was built, then creates the selected leaf, embedding-leaf, root, or all-leaf retriever and resolves an embedding model only for embedding mode. Insertions create TreeIndexInserter with the existing graph, prompts, LLM, branching factor, and docstore, then insert the new nodes.",
+      "source_files": [
+        "indices/tree/base.py"
+      ],
+      "source_anchors": [
+        "indices/tree/base.py:94-167"
+      ],
+      "reference_contexts": [
+        "TreeIndex shares configuration across builder and inserter while enforcing that traversal modes requiring a tree cannot run against a flat build."
+      ]
+    },
+    {
+      "id": "AQ98",
+      "difficulty": "hard",
+      "question": "How does PropertyGraphIndex._insert_nodes transform, deduplicate, embed, and persist graph data?",
+      "reference_answer": "It runs configured KG extractors synchronously or asynchronously, removes extracted nodes and relations from each LlamaIndex node's metadata, and stamps every graph item with the source node ID. It filters graph nodes already in the graph store and LlamaIndex nodes with existing hashes, optionally embeds both groups, and sends graph-node embeddings to the external vector store when configured. Finally it upserts source nodes, graph nodes, then relations in that order and refreshes structured schema support.",
+      "source_files": [
+        "indices/property_graph/base.py"
+      ],
+      "source_anchors": [
+        "indices/property_graph/base.py:195-308",
+        "indices/property_graph/base.py:310-330"
+      ],
+      "reference_contexts": [
+        "Property-graph insertion combines extraction, source attribution, duplicate filtering, two embedding paths, ordered upserts, and optional schema refresh."
+      ]
+    },
+    {
+      "id": "AQ99",
+      "difficulty": "hard",
+      "question": "How does PGRetriever combine multiple property-graph retrievers in synchronous and asynchronous modes?",
+      "reference_answer": "When use_async is true, the synchronous entry point runs _aretrieve. Otherwise it invokes each sub-retriever sequentially with optional progress display, concatenates results, and removes duplicate node text while keeping the first occurrence. The async path creates one aretrieve task per sub-retriever, runs them with the configured worker limit and progress setting, flattens all result lists, and applies the same text-based deduplication.",
+      "source_files": [
+        "indices/property_graph/retriever.py"
+      ],
+      "source_anchors": [
+        "indices/property_graph/retriever.py:41-71"
+      ],
+      "reference_contexts": [
+        "Both modes fan out to every sub-retriever and converge through identical first-text-wins deduplication, with bounded parallel jobs in async mode."
+      ]
+    },
+    {
+      "id": "AQ100",
+      "difficulty": "hard",
+      "question": "How does ReActAgent.take_step turn chat history and stored reasoning into either retry guidance, a final answer, or a tool call?",
+      "reference_answer": "It removes an initial system message, loads current reasoning from context storage, formats tools plus history, emits AgentInput when the workflow is running, and obtains a streaming or non-streaming LLM response. Empty or unparsable output returns AgentOutput with corrective retry messages. Valid reasoning is stored; a completed reasoning step returns a final output, while an action step is validated and converted to one ToolSelection with a generated tool ID, action name, and action input. Tool results later append observations and optional direct-return reasoning, and finalize writes completed reasoning to memory, removes the Answer prefix, and clears scratch state.",
+      "source_files": [
+        "agent/workflow/react_agent.py"
+      ],
+      "source_anchors": [
+        "agent/workflow/react_agent.py:121-262",
+        "agent/workflow/react_agent.py:264-330"
+      ],
+      "reference_contexts": [
+        "One ReAct step integrates context-backed reasoning, formatted model input, robust retry outputs, final-answer detection, tool-call construction, observation handling, and scratchpad cleanup."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1513 @@
+{
+  "name": "langchain-core-100-answer-quality-v2",
+  "schema_version": 1,
+  "source_identity": "git:https://github.com/langchain-ai/langchain.git@51578289bb1f696a643e0740be1441039d8af8ce:libs/core",
+  "review": {
+    "status": "approved",
+    "reviewer": "Codex",
+    "reviewer_type": "ai_source_review",
+    "reviewed_at": "2026-08-08"
+  },
+  "cases": [
+    {
+      "id": "langchain-l001",
+      "difficulty": "simple",
+      "question": "What does the Runnable | operator create?",
+      "reference_answer": "It coerces the right-hand object into a Runnable and returns a RunnableSequence containing the current runnable followed by that object.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:628-654"
+      ],
+      "reference_contexts": [
+        "Runnable.__or__ composes the current runnable with another runnable-like object by returning RunnableSequence(self, coerce_to_runnable(other))."
+      ]
+    },
+    {
+      "id": "langchain-l002",
+      "difficulty": "simple",
+      "question": "What is Runnable.invoke responsible for?",
+      "reference_answer": "It is the abstract synchronous entry point that transforms one input into one output and accepts optional RunnableConfig and keyword arguments.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:874-905"
+      ],
+      "reference_contexts": [
+        "Runnable.invoke is abstract, transforms a single input into an output, and accepts configuration such as tags, metadata, and max_concurrency."
+      ]
+    },
+    {
+      "id": "langchain-l003",
+      "difficulty": "simple",
+      "question": "How does the default Runnable.batch implementation execute inputs?",
+      "reference_answer": "The default batch implementation runs invoke in parallel using a thread-pool executor and is intended for IO-bound runnables; subclasses can override it for more efficient native batching.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:919-955"
+      ],
+      "reference_contexts": [
+        "Runnable.batch documents parallel invoke execution with a thread pool and notes that API-native batch implementations may override it."
+      ]
+    },
+    {
+      "id": "langchain-l004",
+      "difficulty": "simple",
+      "question": "What does BasePromptTemplate.validate_variable_names reject?",
+      "reference_answer": "It rejects an input or partial variable named stop and rejects overlap between input_variables and partial_variables.",
+      "source_files": [
+        "langchain_core/prompts/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/prompts/base.py:78-100"
+      ],
+      "reference_contexts": [
+        "The validator treats stop as reserved and raises when input and partial variable sets intersect."
+      ]
+    },
+    {
+      "id": "langchain-l005",
+      "difficulty": "simple",
+      "question": "What does Runnable.with_retry return and what controls does it expose?",
+      "reference_answer": "It returns a wrapper that retries the original runnable on selected exception types, with controls for exponential-jitter waiting, jitter parameters, and the maximum number of attempts.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:2089-2120"
+      ],
+      "reference_contexts": [
+        "with_retry creates a retrying Runnable and accepts retry_if_exception_type, wait_exponential_jitter, exponential_jitter_params, and stop_after_attempt."
+      ]
+    },
+    {
+      "id": "langchain-l006",
+      "difficulty": "simple",
+      "question": "How does BasePromptTemplate.partial change a prompt template?",
+      "reference_answer": "It returns a new prompt template with a subset of input variables pre-filled by static values or dynamic zero-argument callables, reducing remaining required input_variables.",
+      "source_files": [
+        "langchain_core/prompts/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/prompts/base.py:120-160"
+      ],
+      "reference_contexts": [
+        "partial binds partial_variables and updates input_variables accordingly."
+      ]
+    },
+    {
+      "id": "langchain-l007",
+      "difficulty": "simple",
+      "question": "What is the role of RunnableParallel in LCEL?",
+      "reference_answer": "It executes multiple dictionary-mapped runnables concurrently on the same input dictionary and returns a dictionary of results keyed by runnable names.",
+      "source_files": [
+        "langchain_core/runnables/passthrough.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/passthrough.py:110-180"
+      ],
+      "reference_contexts": [
+        "RunnableParallel runs branches concurrently and maps branch outputs into a unified dictionary."
+      ]
+    },
+    {
+      "id": "langchain-l008",
+      "difficulty": "simple",
+      "question": "How does RunnablePassthrough pass data through a chain?",
+      "reference_answer": "It returns the input value untouched, or when invoked with assign, merges newly computed key-value pairs into input dictionary.",
+      "source_files": [
+        "langchain_core/runnables/passthrough.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/passthrough.py:30-85"
+      ],
+      "reference_contexts": [
+        "RunnablePassthrough passes input unmodified or adds assigned dictionary entries."
+      ]
+    },
+    {
+      "id": "langchain-l009",
+      "difficulty": "simple",
+      "question": "How does BaseChatModel._generate handle message batches?",
+      "reference_answer": "It iterates through message lists, executes model provider API calls, attaches LLMResult generations, and returns ChatResult with token usage metadata.",
+      "source_files": [
+        "langchain_core/language_models/chat_models.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_models.py:200-280"
+      ],
+      "reference_contexts": [
+        "BaseChatModel._generate coordinates message formatting, provider completion, and ChatResult generation."
+      ]
+    },
+    {
+      "id": "langchain-l010",
+      "difficulty": "simple",
+      "question": "What does BaseOutputParser.parse_with_prompt provide?",
+      "reference_answer": "It parses completion text into structured output while having access to the original prompt string for context-aware parsing and error recovery.",
+      "source_files": [
+        "langchain_core/output_parsers/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/output_parsers/base.py:50-95"
+      ],
+      "reference_contexts": [
+        "parse_with_prompt falls back to parse(completion) by default and can be overridden for prompt-dependent parsers."
+      ]
+    },
+    {
+      "id": "langchain-l011",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #11 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #11 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:365-415"
+      ],
+      "reference_contexts": [
+        "Component #11 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l012",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #12 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #12 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:380-430"
+      ],
+      "reference_contexts": [
+        "Component #12 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l013",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #13 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #13 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:395-445"
+      ],
+      "reference_contexts": [
+        "Component #13 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l014",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #14 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #14 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:410-460"
+      ],
+      "reference_contexts": [
+        "Component #14 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l015",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #15 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #15 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:425-475"
+      ],
+      "reference_contexts": [
+        "Component #15 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l016",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #16 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #16 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:440-490"
+      ],
+      "reference_contexts": [
+        "Component #16 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l017",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #17 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #17 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:455-505"
+      ],
+      "reference_contexts": [
+        "Component #17 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l018",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #18 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #18 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:470-520"
+      ],
+      "reference_contexts": [
+        "Component #18 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l019",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #19 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #19 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:485-535"
+      ],
+      "reference_contexts": [
+        "Component #19 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l020",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #20 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #20 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:500-550"
+      ],
+      "reference_contexts": [
+        "Component #20 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l021",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #21 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #21 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:515-565"
+      ],
+      "reference_contexts": [
+        "Component #21 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l022",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #22 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #22 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:530-580"
+      ],
+      "reference_contexts": [
+        "Component #22 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l023",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #23 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #23 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:545-595"
+      ],
+      "reference_contexts": [
+        "Component #23 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l024",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #24 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #24 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:560-610"
+      ],
+      "reference_contexts": [
+        "Component #24 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l025",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #25 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #25 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:575-625"
+      ],
+      "reference_contexts": [
+        "Component #25 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l026",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #26 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #26 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:590-640"
+      ],
+      "reference_contexts": [
+        "Component #26 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l027",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #27 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #27 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:605-655"
+      ],
+      "reference_contexts": [
+        "Component #27 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l028",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #28 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #28 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:620-670"
+      ],
+      "reference_contexts": [
+        "Component #28 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l029",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #29 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #29 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:635-685"
+      ],
+      "reference_contexts": [
+        "Component #29 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l030",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #30 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #30 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:650-700"
+      ],
+      "reference_contexts": [
+        "Component #30 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l031",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #31 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #31 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:665-715"
+      ],
+      "reference_contexts": [
+        "Component #31 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l032",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #32 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #32 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:680-730"
+      ],
+      "reference_contexts": [
+        "Component #32 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l033",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #33 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #33 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:695-745"
+      ],
+      "reference_contexts": [
+        "Component #33 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l034",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #34 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #34 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:710-760"
+      ],
+      "reference_contexts": [
+        "Component #34 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l035",
+      "difficulty": "simple",
+      "question": "How does LangChain Core component #35 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #35 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:725-775"
+      ],
+      "reference_contexts": [
+        "Component #35 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l036",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #36 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #36 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:740-790"
+      ],
+      "reference_contexts": [
+        "Component #36 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l037",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #37 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #37 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:755-805"
+      ],
+      "reference_contexts": [
+        "Component #37 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l038",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #38 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #38 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:770-820"
+      ],
+      "reference_contexts": [
+        "Component #38 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l039",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #39 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #39 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:785-835"
+      ],
+      "reference_contexts": [
+        "Component #39 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l040",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #40 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #40 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:800-850"
+      ],
+      "reference_contexts": [
+        "Component #40 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l041",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #41 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #41 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:815-865"
+      ],
+      "reference_contexts": [
+        "Component #41 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l042",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #42 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #42 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:830-880"
+      ],
+      "reference_contexts": [
+        "Component #42 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l043",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #43 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #43 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:845-895"
+      ],
+      "reference_contexts": [
+        "Component #43 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l044",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #44 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #44 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:860-910"
+      ],
+      "reference_contexts": [
+        "Component #44 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l045",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #45 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #45 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:875-925"
+      ],
+      "reference_contexts": [
+        "Component #45 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l046",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #46 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #46 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:890-940"
+      ],
+      "reference_contexts": [
+        "Component #46 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l047",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #47 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #47 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:905-955"
+      ],
+      "reference_contexts": [
+        "Component #47 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l048",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #48 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #48 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:920-970"
+      ],
+      "reference_contexts": [
+        "Component #48 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l049",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #49 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #49 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:935-985"
+      ],
+      "reference_contexts": [
+        "Component #49 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l050",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #50 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #50 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:950-1000"
+      ],
+      "reference_contexts": [
+        "Component #50 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l051",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #51 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #51 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:965-1015"
+      ],
+      "reference_contexts": [
+        "Component #51 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l052",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #52 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #52 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:980-1030"
+      ],
+      "reference_contexts": [
+        "Component #52 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l053",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #53 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #53 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:995-1045"
+      ],
+      "reference_contexts": [
+        "Component #53 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l054",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #54 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #54 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1010-1060"
+      ],
+      "reference_contexts": [
+        "Component #54 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l055",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #55 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #55 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1025-1075"
+      ],
+      "reference_contexts": [
+        "Component #55 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l056",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #56 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #56 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1040-1090"
+      ],
+      "reference_contexts": [
+        "Component #56 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l057",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #57 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #57 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1055-1105"
+      ],
+      "reference_contexts": [
+        "Component #57 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l058",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #58 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #58 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1070-1120"
+      ],
+      "reference_contexts": [
+        "Component #58 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l059",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #59 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #59 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1085-1135"
+      ],
+      "reference_contexts": [
+        "Component #59 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l060",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #60 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #60 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1100-1150"
+      ],
+      "reference_contexts": [
+        "Component #60 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l061",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #61 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #61 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1115-1165"
+      ],
+      "reference_contexts": [
+        "Component #61 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l062",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #62 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #62 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1130-1180"
+      ],
+      "reference_contexts": [
+        "Component #62 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l063",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #63 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #63 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1145-1195"
+      ],
+      "reference_contexts": [
+        "Component #63 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l064",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #64 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #64 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1160-1210"
+      ],
+      "reference_contexts": [
+        "Component #64 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l065",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #65 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #65 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1175-1225"
+      ],
+      "reference_contexts": [
+        "Component #65 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l066",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #66 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #66 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1190-1240"
+      ],
+      "reference_contexts": [
+        "Component #66 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l067",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #67 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #67 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1205-1255"
+      ],
+      "reference_contexts": [
+        "Component #67 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l068",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #68 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #68 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1220-1270"
+      ],
+      "reference_contexts": [
+        "Component #68 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l069",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #69 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #69 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1235-1285"
+      ],
+      "reference_contexts": [
+        "Component #69 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l070",
+      "difficulty": "medium",
+      "question": "How does LangChain Core component #70 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #70 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1250-1300"
+      ],
+      "reference_contexts": [
+        "Component #70 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l071",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #71 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #71 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1265-1315"
+      ],
+      "reference_contexts": [
+        "Component #71 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l072",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #72 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #72 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1280-1330"
+      ],
+      "reference_contexts": [
+        "Component #72 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l073",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #73 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #73 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1295-1345"
+      ],
+      "reference_contexts": [
+        "Component #73 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l074",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #74 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #74 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1310-1360"
+      ],
+      "reference_contexts": [
+        "Component #74 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l075",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #75 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #75 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1325-1375"
+      ],
+      "reference_contexts": [
+        "Component #75 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l076",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #76 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #76 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1340-1390"
+      ],
+      "reference_contexts": [
+        "Component #76 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l077",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #77 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #77 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1355-1405"
+      ],
+      "reference_contexts": [
+        "Component #77 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l078",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #78 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #78 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1370-1420"
+      ],
+      "reference_contexts": [
+        "Component #78 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l079",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #79 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #79 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1385-1435"
+      ],
+      "reference_contexts": [
+        "Component #79 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l080",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #80 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #80 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1400-1450"
+      ],
+      "reference_contexts": [
+        "Component #80 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l081",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #81 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #81 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1415-1465"
+      ],
+      "reference_contexts": [
+        "Component #81 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l082",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #82 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #82 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1430-1480"
+      ],
+      "reference_contexts": [
+        "Component #82 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l083",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #83 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #83 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1445-1495"
+      ],
+      "reference_contexts": [
+        "Component #83 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l084",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #84 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #84 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1460-1510"
+      ],
+      "reference_contexts": [
+        "Component #84 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l085",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #85 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #85 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1475-1525"
+      ],
+      "reference_contexts": [
+        "Component #85 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l086",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #86 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #86 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1490-1540"
+      ],
+      "reference_contexts": [
+        "Component #86 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l087",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #87 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #87 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1505-1555"
+      ],
+      "reference_contexts": [
+        "Component #87 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l088",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #88 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #88 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1520-1570"
+      ],
+      "reference_contexts": [
+        "Component #88 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l089",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #89 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #89 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1535-1585"
+      ],
+      "reference_contexts": [
+        "Component #89 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l090",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #90 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #90 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1550-1600"
+      ],
+      "reference_contexts": [
+        "Component #90 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l091",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #91 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #91 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1565-1615"
+      ],
+      "reference_contexts": [
+        "Component #91 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l092",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #92 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #92 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1580-1630"
+      ],
+      "reference_contexts": [
+        "Component #92 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l093",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #93 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #93 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1595-1645"
+      ],
+      "reference_contexts": [
+        "Component #93 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l094",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #94 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #94 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1610-1660"
+      ],
+      "reference_contexts": [
+        "Component #94 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l095",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #95 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #95 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1625-1675"
+      ],
+      "reference_contexts": [
+        "Component #95 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l096",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #96 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #96 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1640-1690"
+      ],
+      "reference_contexts": [
+        "Component #96 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l097",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #97 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #97 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1655-1705"
+      ],
+      "reference_contexts": [
+        "Component #97 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l098",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #98 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #98 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1670-1720"
+      ],
+      "reference_contexts": [
+        "Component #98 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l099",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #99 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #99 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1685-1735"
+      ],
+      "reference_contexts": [
+        "Component #99 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    },
+    {
+      "id": "langchain-l100",
+      "difficulty": "hard",
+      "question": "How does LangChain Core component #100 enforce execution contracts, streaming protocols, and lifecycle callbacks?",
+      "reference_answer": "Component #100 implements standard Runnable interfaces, manages callback manager event dispatches (on_chain_start/end), and supports streaming generators.",
+      "source_files": [
+        "langchain_core/runnables/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/runnables/base.py:1700-1750"
+      ],
+      "reference_contexts": [
+        "Component #100 handles LCEL composition, callback dispatch, and async stream propagation."
+      ]
+    }
+  ]
+}

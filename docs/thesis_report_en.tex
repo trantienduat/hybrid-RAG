@@ -517,6 +517,8 @@ When a retrieval path returns one or two ranked lists, the \gls{rrf} algorithm \
 
 where $k = 60$ is the default smoothing parameter and $W_r$ is the weight for retrieval source $r$. With the checked-in configuration, a successful exact-relation path uses graph-only fusion with configured graph weight 3.0. Generic local fusion caps the graph contribution at 1.0 and uses vector weight 1.0 so noisy neighborhood expansion cannot overpower semantic ranking; vector-only mode uses weights $(0,1)$. The legacy \texttt{hybrid\_weight} setting is retained for compatibility but is not applied by the current retriever. Figure~\ref{fig:rrf_flow} illustrates the two-list accumulation mechanism.
 
+RRF was selected instead of adding graph and vector scores directly because the two retrieval channels do not expose scores on a guaranteed common scale. Direct weighted addition would therefore require an additional normalization and calibration rule before the weights could be interpreted consistently. Rank fusion avoids that cross-channel scale assumption, while the configured weights still express the intended priority of each channel. A normalized weighted-sum fusion is a reasonable alternative, but it was not implemented as a controlled baseline in this thesis; the results therefore do not claim that RRF is universally superior.
+
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
@@ -654,7 +656,7 @@ The codebase is validated via 313 passing automated tests, with 27 explicitly sk
 We selected evaluation metrics based on: (i) suitability to the code retrieval task, and (ii) comparability with prior research.
 
 \begin{itemize}
-    \item \textbf{Hit Rate @K} (K=5): Measures the frequency of relevant documents appearing in the top-K returned results. Selected over Precision@K because in developer assistance, the user needs *at least one correct code block* to proceed, rather than all K blocks being correct \cite{thakur2021beir}.
+    \item \textbf{Hit Rate @K} (K=5): Measures the frequency of relevant documents appearing in the top-K returned results. It is retained as a diagnostic metric definition because a developer often needs at least one correct code block to proceed, rather than all K blocks being correct \cite{thakur2021beir}. However, no valid schema-v3 Hit Rate@5 result is used as confirmatory evidence in this thesis: the historical structural report was generated against schema-v2 and failed the current provenance check.
     \item \textbf{Faithfulness} (RAGAS \cite{shahul2023ragas}): Evaluates how loyal the generated answer is to the retrieved context, revealing LLM hallucinations.
     \item \textbf{Answer Relevancy} (RAGAS \cite{shahul2023ragas}): Measures how relevant the generated answer is to the user's question, complementary to Faithfulness.
     \item \textbf{Answer Correctness} (RAGAS \cite{shahul2023ragas}): Compares the generated answer with the reviewed reference answer.
@@ -669,6 +671,8 @@ The repository also contains a historical 50-case structural report generated ag
 
 \section{Independent Answer-Quality Benchmark}
 We separately measured generated-answer quality with the RAGAS metrics \cite{shahul2023ragas}. The workload contains 30 source-reviewed cases (10 simple, 10 medium, and 10 hard), evaluates vector-only and Hybrid-RAG modes, and repeats each case three times with seed 42. The answer model is local \texttt{gemma4:12b}; an independent local \texttt{qwen2.5-coder:7b} judge scores Faithfulness, Answer Relevancy, and Answer Correctness. The complete workload contains 180 generated and scored records.
+
+The gold dataset is a manually maintained, checked-in artifact rather than a live dataset synchronized automatically with the latest repository release. Each case is reviewed against the pinned source snapshot, and the dataset stores the wheel and source digests together with the review type. A benchmark run is accepted only when these identities and the index provenance match; otherwise the run is rejected or treated as draft evidence. This makes the current dataset auditable, but the manual maintenance process remains a limitation and does not replace independent human annotation.
 
 \begin{table}[H]
     \centering
@@ -690,7 +694,7 @@ We separately measured generated-answer quality with the RAGAS metrics \cite{sha
 The point estimates favor Hybrid-RAG for all three metrics, but the paired intervals change the strength of the conclusion. Faithfulness includes both negative and positive differences. Answer Relevancy is borderline and still touches zero at the reported precision. Only Answer Correctness has a 95\% interval entirely above zero. This is evidence uncertainty, not proof of a software defect. All 180 records received valid scores and all had a source hit. The gold answers were approved by an AI source review, not independent human annotation; therefore the result is controlled local evidence rather than a human-evaluated production accuracy rate.
 
 \section{Generalizability and Baseline Coverage}
-The instructor's requested multi-repository evaluation is not yet complete. Table~\ref{tab:evaluation_coverage} separates completed evidence from planned experiments.
+The requested multi-repository evaluation is not yet complete. Table~\ref{tab:evaluation_coverage} separates completed evidence from planned experiments.
 
 \begin{table}[H]
     \centering
@@ -738,6 +742,8 @@ The completed answer-quality benchmark recorded retrieval, local generation, and
 \end{table}
 
 Hybrid retrieval adds a measured 237 ms of retrieval time, with a paired 95\% interval of 208--266 ms, in this workload. The intervals for generation latency and token deltas include zero, so their apparent reductions are not conclusive. Local generation dominates end-to-end latency for both modes; the result supports a sub-second mean retrieval claim on this machine, not a sub-second answer-response SLA.
+
+The end-to-end user experience includes retrieval, context assembly, prompt processing, and local answer generation. Consequently, the measured retrieval target and the total time before a developer receives an answer are separate quantities: sub-second retrieval does not imply interactive end-to-end response time when local generation takes approximately 87--97 seconds.
 
 \section{Case Study}
 To illustrate practical feasibility, we trace the benchmark query: ``\textit{What sequence does BaseRetriever.retrieve follow when it receives a plain query string, including callbacks and recursive retrieval?}''.
@@ -797,6 +803,7 @@ The principal technical contributions are:
     \item \textbf{Ambiguous Cross-Repository Resolution:} Extend the current unique-match resolver with import-aware namespace disambiguation, then evaluate cross-repository relation questions explicitly.
     \item \textbf{Human Review and Power Analysis:} Add independent human reference review and determine the number of cases required to narrow the confidence intervals for each quality metric.
     \item \textbf{Adaptive RRF Weights:} Tune graph and vector weights on a separate development set and evaluate them on untouched repositories to avoid test-set optimization.
+    \item \textbf{Literature Refresh:} Add verified 2025--2026 references on code-RAG, repository-level retrieval, and agentic software engineering before the final report submission.
 \end{itemize}
 
 % ──────────────────────────────────────────────────────────────────────────────

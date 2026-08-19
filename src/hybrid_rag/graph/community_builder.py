@@ -329,11 +329,15 @@ class CommunityBuilder:
             return title, summary
 
         except Exception as exc:
-            logger.warning("Ollama generation failed for %s: %s. Using fallback.", comm_id, exc)
-            return (
-                f"Community {comm_id} (Summary Generation Failed)",
-                f"System was unable to contact Ollama model {self._llm_model} to generate report: {exc}",
+            logger.warning("Ollama generation failed for %s: %s. Using structural fallback.", comm_id, exc)
+            clean_title = f"{comm_id.replace('__', ' - ').replace('_', ' ').title()}"
+            entity_preview = "\n".join(f"- `{e.get('id')}` ({e.get('label')})" for e in entities[:10])
+            fallback_summary = (
+                f"### {clean_title}\n\n"
+                f"This community cluster encapsulates {node_count} codebase entities under `{dir_path or 'root'}`.\n\n"
+                f"**Key Entities:**\n{entity_preview}"
             )
+            return (clean_title, fallback_summary)
 
     def _write_trivial_community(
         self,

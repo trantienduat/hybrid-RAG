@@ -224,13 +224,20 @@ def _detect_git_changes(
         return None
 
     try:
-        # Get tracked changes relative to last_commit (includes working dir modifications)
-        diff_out = run_git(["diff", "--name-status", last_commit])
-        # Get untracked files
-        status_out = run_git(["status", "--porcelain"])
+        try:
+            git_root_str = run_git(["rev-parse", "--show-toplevel"])
+            git_root = Path(git_root_str).resolve() if git_root_str else repo.resolve()
+        except Exception:
+            git_root = repo.resolve()
+        repo_resolved = repo.resolve()
 
-        modified_files = set()
-        deleted_files = set()
+        # Get tracked changes relative to last_commit (includes working dir modifications)
+        diff_out = run_git(["diff", "--name-status", last_commit, "--", str(repo_resolved)])
+        # Get untracked files
+        status_out = run_git(["status", "--porcelain", str(repo_resolved)])
+
+        raw_modified = set()
+        raw_deleted = set()
 
         for line in diff_out.splitlines():
             if not line:
@@ -238,16 +245,34 @@ def _detect_git_changes(
             parts = line.split("\t")
             status = parts[0]
             if status.startswith("D"):
-                deleted_files.add(parts[1])
+                raw_deleted.add(parts[1])
             elif status.startswith("R"):
-                deleted_files.add(parts[1])
-                modified_files.add(parts[2])
+                raw_deleted.add(parts[1])
+                raw_modified.add(parts[2])
             else:
-                modified_files.add(parts[1])
+                raw_modified.add(parts[1])
 
         for line in status_out.splitlines():
             if line.startswith("?? "):
-                modified_files.add(line[3:])
+                raw_modified.add(line[3:].strip())
+
+        def to_repo_rel(f_str: str) -> str | None:
+            p = Path(f_str)
+            if p.is_absolute():
+                try:
+                    return str(p.relative_to(repo_resolved))
+                except ValueError:
+                    return None
+            if git_root == repo_resolved:
+                return str(p)
+            try:
+                full = (git_root / p).resolve()
+                return str(full.relative_to(repo_resolved))
+            except ValueError:
+                return None
+
+        modified_files = {to_repo_rel(f) for f in raw_modified if to_repo_rel(f)}
+        deleted_files = {to_repo_rel(f) for f in raw_deleted if to_repo_rel(f)}
 
         # Filtering logic
         import os
@@ -262,7 +287,6 @@ def _detect_git_changes(
             else {
                 ".venv",
                 "venv",
-                "fixtures",
                 "experiments",
                 "dist",
                 "build",

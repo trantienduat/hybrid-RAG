@@ -1864,7 +1864,7 @@ async function triggerRepoSync(rebuild = false) {
   try {
     const statusRes = await fetch(`${API}/graph/repositories/${encodeURIComponent(repoName)}/status`);
     const statusData = await statusRes.json();
-    let path = statusData.repo_path;
+    let path = statusData.repo_path || statusData.effective_path;
     
     if (!path) {
       path = prompt("Cannot locate local repository path in database. Please enter the absolute path to this repository on your machine:");
@@ -2551,6 +2551,42 @@ function renderMessages() {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function formatTraceHtml(queryType, sourceCount) {
+  if (!queryType || queryType === 'general') return '';
+  let pathLabel = 'LOCAL-BEHAVIOR (Hybrid Fusion)';
+  let step2Label = `Retrieved <strong>${sourceCount}</strong> structural source chunks from FalkorDB & Qdrant`;
+  let step3Label = `Fused and ranked results using <strong>Reciprocal Rank Fusion (RRF)</strong>`;
+
+  if (queryType === 'global') {
+    pathLabel = 'GLOBAL (Architectural Summary)';
+    step2Label = `Retrieved <strong>${sourceCount}</strong> hierarchical community summaries from FalkorDB`;
+    step3Label = `Synthesized multi-level architectural context across communities`;
+  } else if (queryType.startsWith('exact_link')) {
+    const parts = queryType.split(':');
+    const rel = parts[1] || 'Structural Graph';
+    pathLabel = `EXACT-LINK (Structural Graph: ${rel})`;
+    step2Label = `Retrieved <strong>${sourceCount}</strong> AST graph relations & vector chunks from FalkorDB & Qdrant`;
+    step3Label = `Resolved deterministic graph edges & preserved explicit <strong>STUB</strong> references`;
+  }
+
+  return `
+    <div class="rag-trace">
+      <div class="trace-step">
+        <span class="trace-icon">🔍</span>
+        <span>Evidence Path: <strong>${escHtml(pathLabel)}</strong></span>
+      </div>
+      <div class="trace-step">
+        <span class="trace-icon">🗂️</span>
+        <span>${step2Label}</span>
+      </div>
+      <div class="trace-step">
+        <span class="trace-icon">🎛️</span>
+        <span>${step3Label}</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderMessage(m) {
   const isUser   = m.role === 'user';
   let bodyHtml = '';
@@ -2559,26 +2595,8 @@ function renderMessage(m) {
     bodyHtml = escHtml(m.text);
   } else {
     // 1. Render RAG Pipeline Trace if available
-    let traceHtml = '';
-    if (m.query_type && m.query_type !== 'general') {
-      const sourceCount = m.sources ? m.sources.length : 0;
-      traceHtml = `
-        <div class="rag-trace">
-          <div class="trace-step">
-            <span class="trace-icon">🔍</span>
-            <span>Query classified as: <strong>${escHtml(m.query_type.toUpperCase())}</strong> query</span>
-          </div>
-          <div class="trace-step">
-            <span class="trace-icon">🗂️</span>
-            <span>Retrieved <strong>${sourceCount}</strong> structural source chunks from FalkorDB & Qdrant</span>
-          </div>
-          <div class="trace-step">
-            <span class="trace-icon">🎛️</span>
-            <span>Fused and ranked results using <strong>Reciprocal Rank Fusion (RRF)</strong></span>
-          </div>
-        </div>
-      `;
-    }
+    const sourceCount = m.sources ? m.sources.length : 0;
+    let traceHtml = formatTraceHtml(m.query_type, sourceCount);
 
     // 2. Parse Thinking and Response
     const parsed = parseThinkingAndResponse(m.text, m.streaming);
@@ -2812,25 +2830,7 @@ async function doAsk() {
             const queryType = (activeMsg && activeMsg.query_type) || q_type;
             const sourcesList = (activeMsg && activeMsg.sources) || capturedSources || [];
 
-            let traceHtml = '';
-            if (queryType && queryType !== 'general') {
-              traceHtml = `
-                <div class="rag-trace">
-                  <div class="trace-step">
-                    <span class="trace-icon">🔍</span>
-                    <span>Query classified as: <strong>${escHtml(queryType.toUpperCase())}</strong> query</span>
-                  </div>
-                  <div class="trace-step">
-                    <span class="trace-icon">🗂️</span>
-                    <span>Retrieved <strong>${sourcesList.length}</strong> structural source chunks from FalkorDB & Qdrant</span>
-                  </div>
-                  <div class="trace-step">
-                    <span class="trace-icon">🎛️</span>
-                    <span>Fused and ranked results using <strong>Reciprocal Rank Fusion (RRF)</strong></span>
-                  </div>
-                </div>
-              `;
-            }
+            let traceHtml = formatTraceHtml(queryType, sourcesList.length);
 
             const parsed = parseThinkingAndResponse(streamBuf);
             let thinkingHtml = '';

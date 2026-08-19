@@ -173,8 +173,11 @@ def get_components() -> tuple[FalkorDBStore, QdrantStore, HybridRetriever]:
 
 @mcp.tool()
 def query_codebase(
-    question: str,
+    question: str | None = None,
+    query: str | None = None,
     repository: str | None = None,
+    repository_name: str | None = None,
+    repo_name: str | None = None,
     top_k: int = 20,
     max_tokens: int = 1024,
 ) -> str:
@@ -185,21 +188,29 @@ def query_codebase(
 
     Args:
         question: The natural language query or question about the codebase.
+        query: Alias for question.
         repository: Scope search to a specific repository name (optional).
+        repository_name: Alias for repository.
+        repo_name: Alias for repository.
         top_k: Number of candidate chunks to retrieve initially (default: 20).
-        max_tokens: Limit on assembled context token size (default: 2048).
+        max_tokens: Limit on assembled context token size (default: 1024).
     """
+    effective_question = question or query
+    if not effective_question:
+        raise ToolError("Missing required parameter: question (or query).")
+    effective_repo = repository or repository_name or repo_name
+
     try:
         graph_store, vector_store, retriever = get_components()
         ctx = retriever.retrieve_with_context(
-            query=question,
+            query=effective_question,
             top_k=top_k,
             max_tokens=max_tokens,
-            repository=repository,
+            repository=effective_repo,
         )
         text = ctx.text or "(No relevant codebase context was retrieved for this query.)"
-        if repository:
-            status = _index_status(graph_store, vector_store, repository)
+        if effective_repo:
+            status = _index_status(graph_store, vector_store, effective_repo)
             if status["stale"]:
                 if status.get("provenance_valid", True) is False:
                     reason = status["provenance_error"]
@@ -209,7 +220,7 @@ def query_codebase(
                     reason = (
                         f"indexed {status['indexed_commit']}, current {status['current_commit']}"
                     )
-                text = f"[Index warning: {repository} is stale; {reason}]\n\n{text}"
+                text = f"[Index warning: {effective_repo} is stale; {reason}]\n\n{text}"
         return text
     except Exception as exc:
         logger.exception("MCP query_codebase failed")
@@ -228,33 +239,58 @@ def list_repositories() -> list[str]:
 
 
 @mcp.tool()
-def get_index_status(repository: str) -> dict[str, Any]:
-    """Return indexed/current commits and whether a repository index is stale."""
+def get_index_status(
+    repository: str | None = None,
+    repository_name: str | None = None,
+    repo_name: str | None = None,
+) -> dict[str, Any]:
+    """Return indexed/current commits and whether a repository index is stale.
+
+    Args:
+        repository: Repository namespace name.
+        repository_name: Alias for repository.
+        repo_name: Alias for repository.
+    """
+    effective_repo = repository or repository_name or repo_name
+    if not effective_repo:
+        raise ToolError("Missing required parameter: repository (or repository_name).")
+
     try:
         graph_store, vector_store, _ = get_components()
-        return _index_status(graph_store, vector_store, repository)
+        return _index_status(graph_store, vector_store, effective_repo)
     except Exception as exc:
         logger.exception("MCP get_index_status failed")
-        raise ToolError(f"Unable to inspect index status for {repository}.") from exc
+        raise ToolError(f"Unable to inspect index status for {effective_repo}.") from exc
 
 
 @mcp.tool()
 def search_ast_nodes(
-    query: str,
+    query: str | None = None,
+    name: str | None = None,
     repository: str | None = None,
+    repository_name: str | None = None,
+    repo_name: str | None = None,
     limit: int = 20,
 ) -> list[dict[str, Any]]:
     """Search for code entities (modules, classes, methods, functions) by name.
 
     Args:
         query: Part or all of the entity name to search for (case-sensitive).
+        name: Alias for query.
         repository: Scope query to a specific repository namespace (optional).
+        repository_name: Alias for repository.
+        repo_name: Alias for repository.
         limit: Max nodes to return (default: 20, max: 50).
     """
+    effective_query = query or name
+    if not effective_query:
+        raise ToolError("Missing required parameter: query (or name).")
+    effective_repo = repository or repository_name or repo_name
+
     try:
         graph_store, _, _ = get_components()
         sanitized_limit = min(max(1, limit), 50)
-        return graph_store.find_nodes(name=query, repository=repository, limit=sanitized_limit)
+        return graph_store.find_nodes(name=effective_query, repository=effective_repo, limit=sanitized_limit)
     except Exception:
         logger.exception("MCP search_ast_nodes failed")
         raise ToolError("AST node search failed.") from None
@@ -262,7 +298,9 @@ def search_ast_nodes(
 
 @mcp.tool()
 def get_ast_neighbors(
-    node_id: str,
+    node_id: str | None = None,
+    id: str | None = None,
+    name: str | None = None,
     direction: str = "both",
     limit: int = 30,
 ) -> list[dict[str, Any]]:
@@ -272,9 +310,15 @@ def get_ast_neighbors(
 
     Args:
         node_id: Fully Qualified Name (FQN) of the node (e.g. package.module.Class.method).
+        id: Alias for node_id.
+        name: Alias for node_id.
         direction: Direction to traverse: 'in' (incoming), 'out' (outgoing), or 'both' (default).
         limit: Max relationship records to return (default: 30).
     """
+    effective_node_id = node_id or id or name
+    if not effective_node_id:
+        raise ToolError("Missing required parameter: node_id (or id).")
+
     if direction not in ("in", "out", "both"):
         direction = "both"
 
@@ -284,7 +328,7 @@ def get_ast_neighbors(
         edges = []
         seen = set()
         for d in directions:
-            raw = graph_store.find_neighbors(node_id=node_id, direction=d, max_hops=1, limit=limit)
+            raw = graph_store.find_neighbors(node_id=effective_node_id, direction=d, max_hops=1, limit=limit)
             for nb in raw:
                 # Deduplicate edges returned from both directions
                 key = (nb.get("rel", ""), nb.get("dst_id", ""))
@@ -292,7 +336,7 @@ def get_ast_neighbors(
                     seen.add(key)
                     edges.append(
                         {
-                            "src_id": node_id,
+                            "src_id": effective_node_id,
                             "rel": nb.get("rel", ""),
                             "dst_id": nb.get("dst_id", ""),
                             "dst_name": nb.get("dst_name", ""),
@@ -304,26 +348,34 @@ def get_ast_neighbors(
         return edges
     except Exception:
         logger.exception("MCP get_ast_neighbors failed")
-        raise ToolError(f"Neighbor traversal failed for {node_id}.") from None
+        raise ToolError(f"Neighbor traversal failed for {effective_node_id}.") from None
 
 
 @mcp.tool()
-def get_community_report(repository: str | None = None) -> list[dict[str, Any]]:
+def get_community_report(
+    repository: str | None = None,
+    repository_name: str | None = None,
+    repo_name: str | None = None,
+) -> list[dict[str, Any]]:
     """Retrieve Directory-based community partitioning summaries for architectural queries.
 
     Args:
         repository: Scope community summaries to a specific repository namespace (optional).
+        repository_name: Alias for repository.
+        repo_name: Alias for repository.
     """
+    effective_repo = repository or repository_name or repo_name
+
     try:
         graph_store, _, _ = get_components()
-        if repository:
+        if effective_repo:
             cypher = (
                 "MATCH (c:Community)<-[:IN_COMMUNITY]-(n) "
                 "WHERE n.repository = $repository "
                 "RETURN DISTINCT c.id AS id, c.name AS name, "
                 "c.summary AS summary, c.level AS level"
             )
-            res = graph_store.query(cypher, {"repository": repository})
+            res = graph_store.query(cypher, {"repository": effective_repo})
         else:
             cypher = (
                 "MATCH (c:Community) "

@@ -218,7 +218,9 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Sample cloned fixtures
-fixtures/
+fixtures/*
+!fixtures/demo_checkout/
+!fixtures/demo_checkout/**
 
 # AI Coding Agent local stores
 .agent/

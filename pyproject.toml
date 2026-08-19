@@ -45,7 +45,7 @@ eval = [
     "tiktoken>=0.7.0",
 ]
 mcp = [
-    "mcp>=0.1.0",
+    "mcp>=1.0.0,<2.0.0",
 ]
 observability = [
     "opentelemetry-api>=1.20.0",

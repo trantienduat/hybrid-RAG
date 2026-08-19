@@ -153,7 +153,11 @@ async def _run_periodic_sync(app_state: Any) -> None:
                 except Exception:
                     pass
 
-                repo_path = app_config.get_repo_path(repo_name)
+                repo_path = (
+                    app_config.get_repo_path(repo_name)
+                    or (metadata.get("source_path") if metadata else None)
+                    or (metadata.get("repo_path") if metadata else None)
+                )
                 if not repo_path:
                     continue
 
@@ -812,7 +816,15 @@ async def query_endpoint(req: QueryRequest) -> QueryResponse:
                 )
                 for r in ctx.chunks
             ]
-            q_type = analysis.query_type
+            if analysis.query_type == "global":
+                q_type = "global"
+            elif analysis.relation or analysis.graph_plan:
+                rel_name = analysis.relation or (
+                    analysis.graph_plan.steps[0].relation if analysis.graph_plan else "AST"
+                )
+                q_type = f"exact_link:{rel_name}"
+            else:
+                q_type = "local"
     else:
         is_viet = _is_vietnamese(req.question)
         use_thinking = _is_reasoning_model(req.llm_model)
@@ -1027,7 +1039,15 @@ async def query_stream(req: QueryRequest) -> StreamingResponse:
                 }
                 for r in ctx.chunks
             ]
-            q_type = analysis.query_type
+            if analysis.query_type == "global":
+                q_type = "global"
+            elif analysis.relation or analysis.graph_plan:
+                rel_name = analysis.relation or (
+                    analysis.graph_plan.steps[0].relation if analysis.graph_plan else "AST"
+                )
+                q_type = f"exact_link:{rel_name}"
+            else:
+                q_type = "local"
     else:
         is_viet = _is_vietnamese(req.question)
         use_thinking = _is_reasoning_model(req.llm_model)
@@ -1334,7 +1354,11 @@ async def get_repository_status(repo_name: str) -> dict[str, Any]:
 
     last_commit = metadata.get("last_indexed_commit") if metadata else None
     updated_at = metadata.get("updated_at") if metadata else None
-    repo_path = app_config.get_repo_path(repo_name)
+    repo_path = (
+        app_config.get_repo_path(repo_name)
+        or (metadata.get("source_path") if metadata else None)
+        or (metadata.get("repo_path") if metadata else None)
+    )
 
     last_synced = None
     if updated_at:

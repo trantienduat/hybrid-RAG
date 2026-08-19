@@ -225,7 +225,7 @@ app_config = Config()
 
 
 def translate_path_for_docker(path: str | None) -> str | None:
-    """Translate host-level paths to Docker volume-mounted paths if inside container."""
+    """Translate host-level paths to Docker volume-mounted paths if inside container, and vice versa."""
     if not path:
         return path
     if not os.path.exists("/Volumes/Kioxia_SSD") and os.path.isdir("/codebases"):
@@ -235,4 +235,7 @@ def translate_path_for_docker(path: str | None) -> str | None:
             return path.replace("/Volumes/Kioxia_SSD/SSD_workspace/Personal", "/codebases")
         if not path.startswith("/") and os.path.exists(f"/codebases/{path}"):
             return f"/codebases/{path}"
+    elif os.path.exists("/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG") and not os.path.isdir("/codebases"):
+        if path.startswith("/codebases/"):
+            return path.replace("/codebases", "/Volumes/Kioxia_SSD/SSD_workspace/Personal/hybrid-RAG")
     return path

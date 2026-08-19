@@ -46,6 +46,8 @@ _GLOBAL_RE = re.compile(
     r"\b(?:summarize\s+(?:the\s+)?codebase|codebase\s+summary|repository\s+summary|"
     r"architecture|high-level\s+(?:design|overview)|modules?\s+overview|dependencies\s+flow|"
     r"architectural\s+design|system\s+design|general\s+overview|how\s+is\s+the\s+project\s+structured|"
+    r"how\s+do\s+.*(?:work\s+together|interact)\s+(?:in|across)\s+(?:this\s+)?(?:repository|codebase)|"
+    r"overall\s+architecture|codebase\s+architecture|project\s+overview|"
     r"tóm\s+tắt\s+cấu\s+trúc|tổng\s+quan\s+kiến\s+trúc|sơ\s+đồ\s+hệ\s+thống|"
     r"tổng\s+quan\s+dự\s+án|tóm\s+tắt\s+codebase|luồng\s+hệ\s+thống|cấu\s+trúc\s+thư\s+mục)\b",
     re.IGNORECASE,

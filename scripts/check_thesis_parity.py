@@ -210,7 +210,18 @@ HEADING_RE = re.compile(
 SEMANTIC_ENVS = {"table", "figure", "equation", "enumerate", "itemize"}
 
 
+def _normalize_heading_markup(text: str, *, vi: bool) -> str:
+    """Map layout-only English front-matter markup to its semantic heading."""
+    if not vi:
+        return text.replace(
+            r"\frontmatterheading{Abstract}",
+            r"\chapter*{Abstract}",
+        )
+    return text
+
+
 def _headings(text: str, *, vi: bool) -> list[tuple[str, str]]:
+    text = _normalize_heading_markup(text, vi=vi)
     headings = []
     for match in HEADING_RE.finditer(text):
         level = f"{match.group('level')}{match.group('star')}"
@@ -227,6 +238,7 @@ def _environment_sequence(text: str) -> list[str]:
 
 def _block_signatures(text: str, *, vi: bool) -> list[tuple[int, ...]]:
     """Count semantic elements inside each mapped heading block."""
+    text = _normalize_heading_markup(text, vi=vi)
     matches = list(HEADING_RE.finditer(text))
     signatures = []
     for index, match in enumerate(matches):

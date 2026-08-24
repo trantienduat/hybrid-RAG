@@ -1,8 +1,11 @@
-\documentclass[12pt,a4paper,oneside]{report}
-\usepackage[utf8]{inputenc}
+% Compile with XeLaTeX so the university template can use system fonts.
+\documentclass[12pt,letterpaper,oneside]{report}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Arial}
 \usepackage[english]{babel}
 \usepackage{geometry}
-\geometry{left=3cm,right=2cm,top=2.5cm,bottom=2.5cm}
+\geometry{left=1.25in,right=0.75in,top=1in,bottom=1in,headheight=15pt}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
@@ -10,6 +13,12 @@
 \usepackage{listings}
 \usepackage{color}
 \usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{chngcntr}
+\usepackage{seqsplit}
+\usepackage{xurl}
 \usepackage{hyperref}
 \usepackage{tikz}
 \usepackage{float}
@@ -27,15 +36,65 @@
 
 \hypersetup{
     colorlinks=true,
-    linkcolor=blue,
-    citecolor=blue,
-    filecolor=magenta,
-    urlcolor=cyan,
+    allcolors=black,
     pdftitle={Thesis Report - Hybrid RAG},
 }
+\Urlmuskip=0mu plus 1mu\relax
 
-% 1.5 line spacing
-\onehalfspacing
+% The reference template uses approximately 20.7 pt leading for 12 pt body text.
+\setstretch{1.43}
+\setlength{\emergencystretch}{2em}
+
+% Baseline heading hierarchy: one-line Arial chapter titles and Arial sections.
+\titleformat{\chapter}[hang]
+    {\normalfont\sffamily\fontsize{18}{21.6}\selectfont}
+    {\thechapter}{0.6em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+\titleformat{name=\chapter,numberless}[hang]
+    {\normalfont\sffamily\fontsize{16}{19.2}\selectfont}
+    {}{0pt}{}
+\titlespacing*{name=\chapter,numberless}{0pt}{0pt}{18pt}
+\titleformat{\section}[hang]
+    {\normalfont\sffamily\fontsize{16}{19.2}\selectfont}
+    {\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{18pt}{10pt}
+\titleformat{\subsection}[hang]
+    {\normalfont\sffamily\bfseries\fontsize{14}{16.8}\selectfont}
+    {\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{14pt}{8pt}
+
+\addto\captionsenglish{%
+    \renewcommand{\contentsname}{Table of Contents}%
+    \renewcommand{\bibname}{References}%
+}
+\makeatletter
+\renewcommand{\@biblabel}[1]{#1.}
+\makeatother
+
+% Figures and tables are numbered continuously across the whole thesis.
+\counterwithout{figure}{chapter}
+\counterwithout{table}{chapter}
+\captionsetup{labelsep=period}
+
+% Main-matter pages show the page number at the upper-right, including chapter openings.
+\fancypagestyle{thesismain}{%
+    \fancyhf{}
+    \fancyhead[R]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+}
+\fancypagestyle{plain}{%
+    \fancyhf{}
+    \fancyhead[R]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+}
+
+\newcommand{\thesistitletext}{RESEARCH AND DEVELOPMENT OF A CODE RETRIEVAL SYSTEM BASED ON HYBRID-RAG ARCHITECTURE COMBINING KNOWLEDGE GRAPHS AND SEMANTIC SEARCH}
+\newcommand{\frontmatterheading}[1]{%
+    \begin{center}
+        {\sffamily\fontsize{16}{19.2}\selectfont #1\par}
+    \end{center}
+    \vspace{12pt}
+}
 
 % Definition of colors for code blocks
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -90,55 +149,100 @@
 \newacronym{mcp}{MCP}{Model Context Protocol}
 \newacronym{ui}{UI}{User Interface}
 
-\makeglossaries
+\makenoidxglossaries
 
 \begin{document}
+\pagenumbering{gobble}
+\pagestyle{empty}
 
 % ──────────────────────────────────────────────────────────────────────────────
-% COVER PAGE
+% MAIN COVER
 % ──────────────────────────────────────────────────────────────────────────────
 \begin{titlepage}
-    \begin{center}
-        \large MINISTRY OF EDUCATION AND TRAINING \\
-        \textbf{\large FPT UNIVERSITY} \\
+    \thispagestyle{empty}
+    \begin{center}\sffamily
+        {\fontsize{12}{14.4}\selectfont MINISTRY OF EDUCATION AND TRAINING\par}
+        \vspace{4pt}
+        {\fontsize{12}{14.4}\selectfont FPT UNIVERSITY\par}
         \vfill
-        \textbf{\Large MASTER'S THESIS} \\
+        {\fontsize{15}{18}\selectfont MASTER'S THESIS\par}
         \vfill
         \begin{singlespace}
-            \textbf{\Large RESEARCH AND DEVELOPMENT OF A CODE RETRIEVAL SYSTEM BASED ON HYBRID-RAG ARCHITECTURE COMBINING KNOWLEDGE GRAPHS AND SEMANTIC SEARCH}
+            {\fontsize{15}{18}\selectfont \thesistitletext\par}
         \end{singlespace}
         \vfill
-        \vspace{1.5cm}
-        \begin{tabular}{rll}
-            Student: & Tran Tien Duat \\
-            Student ID: & XXXXXXXX \\
-            Degree: & Master of Software Engineering \\
-            Advisor: & Doan Xuan Huy Minh \\
-        \end{tabular}
+        {\fontsize{12}{14.4}\selectfont Tran Tien Duat\par}
         \vfill
-        \large HO CHI MINH CITY, YEAR 2026
+        {\fontsize{12}{14.4}\selectfont HO CHI MINH CITY, 2026\par}
     \end{center}
 \end{titlepage}
 
-\tableofcontents
-\newpage
-\listoffigures
-\newpage
-\listoftables
-\newpage
-\printglossary[type=\acronymtype, title=List of Abbreviations]
-\newpage
+% ──────────────────────────────────────────────────────────────────────────────
+% SUPERVISOR COVER
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{titlepage}
+    \thispagestyle{empty}
+    \begin{center}\sffamily
+        {\fontsize{12}{14.4}\selectfont MINISTRY OF EDUCATION AND TRAINING\par}
+        \vspace{4pt}
+        {\fontsize{12}{14.4}\selectfont FPT UNIVERSITY\par}
+        \vfill
+        {\fontsize{15}{18}\selectfont MASTER'S THESIS\par}
+        \vfill
+        \begin{singlespace}
+            {\fontsize{15}{18}\selectfont \thesistitletext\par}
+        \end{singlespace}
+        \vfill
+        {\fontsize{12}{14.4}\selectfont
+        \begin{tabular}{rl}
+            Student: & Tran Tien Duat \\
+            Student ID: & XXXXXXXX \\
+            Degree: & Master of Software Engineering \\
+            Supervisor: & Doan Xuan Huy Minh \\
+        \end{tabular}\par}
+        \vfill
+        {\fontsize{12}{14.4}\selectfont HO CHI MINH CITY, 2026\par}
+    \end{center}
+\end{titlepage}
 
 % ──────────────────────────────────────────────────────────────────────────────
-% ABSTRACT
+% TITLE AND ABSTRACT
 % ──────────────────────────────────────────────────────────────────────────────
-\chapter*{Abstract}
+\clearpage
+\thispagestyle{empty}
+\begin{center}
+    {\sffamily\fontsize{15}{18}\selectfont \thesistitletext\par}
+\end{center}
+\vspace{18pt}
+\frontmatterheading{Abstract}
+\phantomsection
 \addcontentsline{toc}{chapter}{Abstract}
 Code querying is a complex problem because source code contains both static structural information (function calls, class inheritance, and module definitions) and semantic information. A vector-only \gls{rag} index can represent semantic similarity, but it does not directly expose typed code relations for relation-heavy questions.
 
-This thesis designs and evaluates a \textbf{Hybrid-RAG} architecture that combines an \gls{ast}-derived \gls{kg} in FalkorDB with dense retrieval in Qdrant. The implementation uses query-aware graph traversal, vector search, weighted \gls{rrf} \cite{cormack2009rrf}, and token-budgeted context assembly. A paired benchmark on 30 reviewed questions from one pinned LlamaIndex Core snapshot produced 180 generated and scored answers. Hybrid-RAG obtained mean Faithfulness 0.924, Answer Relevancy 0.808, and Answer Correctness 0.698, versus 0.896, 0.729, and 0.652 for vector-only retrieval. Paired case-level 95\% bootstrap intervals for the Hybrid-minus-vector differences were $[-0.069, 0.115]$, $[-0.0001, 0.175]$, and $[0.002, 0.094]$, respectively. Thus, only the observed Answer Correctness difference excludes zero at the 95\% level. All embedding, generation, and judging calls used local Ollama services. The evidence is limited to one Python repository and one executed baseline; it does not establish cross-repository or cross-language generality.
+This thesis designs and evaluates a \textbf{Hybrid-RAG} architecture that combines an \gls{ast}-derived \gls{kg} in FalkorDB with dense retrieval in Qdrant. The implementation uses query-aware graph traversal, vector search, weighted \gls{rrf} \cite{cormack2009rrf}, and token-budgeted context assembly. Paired benchmarks across pinned LlamaIndex Core, Transformers, and LangChain Core workloads contain 230 source-reviewed questions and 1,380 generated and scored answers. Hybrid-RAG produced a statistically positive Faithfulness difference on Transformers (+0.169, 95\% CI [0.043, 0.297]) and LangChain (+0.089 [0.017, 0.163]), while the LlamaIndex difference was inconclusive. Answer Correctness was statistically positive on LlamaIndex (+0.046 [0.002, 0.094]) and Transformers (+0.052 [0.002, 0.104]), but inconclusive on LangChain. No repository showed a conclusive Answer Relevancy difference. Hybrid retrieval added 182--237 ms of mean retrieval latency, while local generation remained the dominant cost at approximately 19--97 seconds. All embedding, generation, and judging calls used local Ollama services. The evidence supports replication across three Python repository workloads relative to vector-only retrieval, but not cross-language or alternative-baseline superiority.
 
-\newpage
+% ──────────────────────────────────────────────────────────────────────────────
+% ACKNOWLEDGMENTS
+% ──────────────────────────────────────────────────────────────────────────────
+\clearpage
+\thispagestyle{empty}
+\frontmatterheading{Acknowledgments}
+\phantomsection
+\addcontentsline{toc}{chapter}{Acknowledgments}
+I would like to express my sincere gratitude to my supervisor, Doan Xuan Huy Minh, for the guidance, thoughtful feedback, and encouragement provided throughout this thesis. I also thank the lecturers and reviewers at FPT University for their comments and recommendations, which helped improve both the research and this report. Finally, I am grateful to my family, colleagues, and friends for their patience and support during the completion of this work.
+
+\clearpage
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\listoffigures
+\clearpage
+\printnoidxglossary[type=\acronymtype, title=List of Abbreviations]
+
+\clearpage
+\pagenumbering{arabic}
+\pagestyle{thesismain}
 
 % ──────────────────────────────────────────────────────────────────────────────
 % CHAPTER 1: INTRODUCTION
@@ -157,7 +261,7 @@ The research problem is to retrieve evidence for questions that combine semantic
     \item \textbf{Representation gap:} dense chunks encode semantic similarity but not explicit repository topology.
     \item \textbf{Context constraint:} source evidence must be selected and serialized within a bounded prompt budget.
     \item \textbf{Index integrity:} repository identity, source revision, schema, and embedding model must remain consistent across graph and vector stores.
-    \item \textbf{Evidence gap:} positive point estimates from one repository are insufficient for broad claims without paired uncertainty estimates, additional repositories, and stronger baselines.
+    \item \textbf{Evidence gap:} repository-specific point estimates are insufficient for broad claims without paired uncertainty estimates, replicated workloads, and stronger baselines.
 \end{itemize}
 
 \section{Related Works}
@@ -196,30 +300,30 @@ Hybrid retrieval, AST parsing, graph retrieval, and RRF are established techniqu
     \item a repository-scoped dual index that maps Python AST entities and typed relations to FalkorDB while storing source-aligned semantic chunks in Qdrant;
     \item query-aware retrieval that combines deterministic relation traversal, concurrent graph--vector retrieval, weighted rank fusion, sibling expansion, and budgeted context assembly;
     \item integrity controls including conservative entity resolution, replacement-before-delete index updates, source/schema/model provenance validation, cache-generation invalidation, and a local-only Ollama boundary; and
-    \item a reproducible paired answer-quality benchmark with raw records and case-level confidence intervals, together with explicit limits on repository, language, and baseline coverage.
+    \item reproducible paired answer-quality benchmarks across three pinned Python repository workloads, with raw records, case-level confidence intervals, and explicit limits on corpus, language, and baseline coverage.
 \end{itemize}
 
 \section{Research Objectives \& Questions}
 
 \subsection{Research Objectives}
-The primary objective is to determine whether adding AST-derived structural retrieval to an otherwise identical vector-RAG pipeline improves grounded answers about a Python codebase under local execution constraints. The specific objectives are:
+The primary objective is to determine whether adding AST-derived structural retrieval to an otherwise identical vector-RAG pipeline improves grounded answers across multiple Python repository workloads under local execution constraints. The specific objectives are:
 \begin{itemize}
     \item implement a repository-scoped graph--vector retrieval pipeline with reproducible source provenance and bounded context assembly;
-    \item compare Hybrid-RAG with vector-only retrieval using the same questions, source snapshot, models, and repeated runs; and
+    \item compare Hybrid-RAG with vector-only retrieval using matched questions, pinned source identities, models, and repeated runs within each repository; and
     \item quantify answer quality, retrieval/generation latency, and token usage with paired confidence intervals while documenting threats to validity.
 \end{itemize}
 
 \subsection{Research Questions}
 The thesis addresses three research questions aligned with the available measurements:
 \begin{itemize}
-    \item \textbf{RQ1 --- Answer quality:} Under the pinned LlamaIndex workload, how does Hybrid-RAG change Faithfulness, Answer Relevancy, and Answer Correctness relative to vector-only retrieval?
+    \item \textbf{RQ1 --- Answer quality:} Across the pinned LlamaIndex, Transformers, and LangChain workloads, how does Hybrid-RAG change Faithfulness, Answer Relevancy, and Answer Correctness relative to vector-only retrieval?
     \item \textbf{RQ2 --- Efficiency trade-off:} What changes in retrieval latency, local generation latency, and prompt/completion token counts accompany Hybrid-RAG?
     \item \textbf{RQ3 --- Evidence strength:} Which observed differences remain above or below zero under paired case-level 95\% confidence intervals, and what limits their generalization?
 \end{itemize}
 
 \section{Research Scope \& Definition of Done}
 \subsection{Research Scope}
-The evaluated implementation is scoped to Python. Java indexing is explicitly rejected because a Java entity extractor and resolver are not implemented, even though a Java grammar is used by the separate context skeletonizer. The completed answer-quality benchmark covers one pinned repository (\texttt{llama-index-core==0.14.21}) and one executed baseline (vector-only). It uses \texttt{nomic-embed-text} for embeddings, \texttt{gemma4:12b} for answer generation, and \texttt{qwen2.5-coder:7b} as an independent local judge. Results for Transformers, LangChain, Kubernetes, BM25, graph-only retrieval, or Microsoft GraphRAG are not available and are not inferred.
+The evaluated implementation is scoped to Python. Java indexing is explicitly rejected because a Java entity extractor and resolver are not implemented, even though a Java grammar is used by the separate context skeletonizer. The completed answer-quality evidence covers pinned LlamaIndex Core, Transformers, and LangChain Core workloads and one executed baseline (vector-only). It uses \texttt{nomic-embed-text} for embeddings, \texttt{gemma4:12b} for answer generation, and \texttt{qwen2.5-coder:7b} as an independent local judge. The LlamaIndex workload contains 30 questions; the Transformers and LangChain workloads contain 100 questions each. Their indexed corpus scopes are not identical, so results are reported per repository rather than pooled. Results for Kubernetes, BM25, graph-only retrieval, or Microsoft GraphRAG are not available and are not inferred.
 
 \subsection{Definition of Done (DoD)}
 The evaluated prototype uses the following evidence criteria:
@@ -227,7 +331,7 @@ The evaluated prototype uses the following evidence criteria:
     \item persist complete raw records for both retrieval modes under a pinned source identity and index schema;
     \item report Faithfulness, Answer Relevancy, and Answer Correctness with paired case-level 95\% confidence intervals;
     \item report retrieval latency separately from local generation latency and token counts; and
-    \item treat cross-repository, cross-language, and additional-baseline conclusions as unverified until dedicated experiments are completed.
+    \item treat pooled cross-repository, cross-language, and additional-baseline conclusions as unverified until matched dedicated experiments are completed.
 \end{enumerate}
 
 \newpage
@@ -264,8 +368,8 @@ Source code fundamentally differs from natural language due to its strict struct
     \begin{itemize}
         \item $V$ is the set of emitted AST code entity nodes (Module, Class, Function).
         \item $E$ is the set of directed edges representing syntax relations.
-        \item $\phi: V \rightarrow L_V$ is the node labeling function mapping vertices to $L_V = \{\text{Module}, \text{Class}, \text{Function}\}$.
-        \item $\psi: E \rightarrow L_E$ is the edge labeling function mapping connections to syntax dependencies $L_E = \{\text{DEFINES}, \text{CALLS}, \text{INHERITS}, \text{IMPORTS}\}$.
+        \item $\phi: V \rightarrow L_V$ is the node labeling function mapping vertices to $L_V = \{\text{Module}, \allowbreak \text{Class}, \allowbreak \text{Function}\}$.
+        \item $\psi: E \rightarrow L_E$ is the edge labeling function mapping connections to syntax dependencies $L_E = \{\text{DEFINES}, \allowbreak \text{CALLS}, \allowbreak \text{INHERITS}, \allowbreak \text{IMPORTS}\}$.
     \end{itemize}
 \end{enumerate}
 
@@ -332,7 +436,7 @@ The ingestion pipeline converts raw source code into structural relationship gra
     \item \textbf{Phase 1 --- AST Parsing:} The Tree-Sitter library \cite{treesitter} parses Python source code into Abstract Syntax Trees. The system extracts entities (Module, Class, Function) and automatically assigns dot-notated \gls{fqn} strings (\texttt{package.module.Class.method}) to ensure uniqueness across the repository. Java projects are rejected at the indexing boundary until a Java extractor is implemented.
     \item \textbf{Phase 2 --- Global Entity Resolution:} Unresolved call stubs are resolved conservatively using caller context: (i) methods in the same class, (ii) module-level functions in the caller's module, and (iii) import-aware unique candidates. Remaining stubs are matched in one batch against previously indexed graph nodes and redirected only when exactly one target exists. The algorithm details are described in Section~\ref{sec:entity_resolution}.
     \item \textbf{Phase 3 --- Source Code Chunking:} Source code is chunked at AST function and class boundaries instead of fixed character windows, preserving symbol-level boundaries where parsing succeeds.
-    \item \textbf{Phase 4 --- Parallel Embedding:} Chunks are embedded through a bounded \texttt{ThreadPoolExecutor}; the default \texttt{EMBED\_CONCURRENCY} is 8. The \texttt{nomic-embed-text} model \cite{nussbaum2024nomic} generates 768-dimensional vectors through local Ollama \cite{ollama2024}. No controlled sequential-versus-parallel embedding benchmark is reported in this thesis.
+    \item \textbf{Phase 4 --- Parallel Embedding:} Chunks are embedded through a bounded \texttt{ThreadPool\allowbreak Executor}; the default \texttt{EMBED\_\allowbreak CONCURRENCY} is 8. The \texttt{nomic-embed-text} model \cite{nussbaum2024nomic} generates 768-dimensional vectors through local Ollama \cite{ollama2024}. No controlled sequential-versus-parallel embedding benchmark is reported in this thesis.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -434,12 +538,12 @@ The system stores parallel data structures in two databases:
         \toprule
         \textbf{Node label} & \textbf{Representative properties} & \textbf{Implemented role} \\
         \midrule
-        \texttt{RepositoryMetadata} & \texttt{id, repository, last\_indexed\_commit} & Repository identity and synchronization state. \\
+        \texttt{Repository\allowbreak Metadata} & \texttt{id, repository, last\_indexed\_commit} & Repository identity and synchronization state. \\
         \texttt{Directory} & \texttt{id, name, path, repository} & File-tree hierarchy and module ownership. \\
         \texttt{Module} & \texttt{id, name, file\_path, repository, type} & Python source file and import origin. \\
         \texttt{Class} & \texttt{id, name, file\_path, repository} & Python class definition and inheritance source. \\
         \texttt{Function} & \texttt{id, name, file\_path, signature, repository} & Function or method definition and call source. \\
-        \texttt{Document}/\texttt{Configuration} & \texttt{id, name, file\_path, repository, text} & Optional generic Markdown, YAML, and Dockerfile content. \\
+        \texttt{Document}/\allowbreak\texttt{Configuration} & \texttt{id, name, file\_path, repository, text} & Optional generic Markdown, YAML, and Dockerfile content. \\
         \texttt{Community} & \texttt{id, name, summary, level} & Directory-based architectural summary. \\
         \bottomrule
     \end{tabular}
@@ -600,10 +704,10 @@ The portal implements a three-level navigation hierarchy, illustrated in Figure~
     \begin{tikzpicture}[
         node distance=0.9cm and 1.2cm,
         font=\small,
-        level/.style={draw, rounded corners, fill=blue!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
-        level2/.style={draw, rounded corners, fill=purple!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
-        level3/.style={draw, rounded corners, fill=green!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
-        level4/.style={draw, rounded corners, fill=orange!10, minimum height=0.8cm, minimum width=3.8cm, text centered},
+        level/.style={draw, rounded corners, fill=blue!10, minimum height=0.8cm, minimum width=3.8cm, align=center},
+        level2/.style={draw, rounded corners, fill=purple!10, minimum height=0.8cm, minimum width=3.8cm, align=center},
+        level3/.style={draw, rounded corners, fill=green!10, minimum height=0.8cm, minimum width=3.8cm, align=center},
+        level4/.style={draw, rounded corners, fill=orange!10, minimum height=0.8cm, minimum width=3.8cm, align=center},
         arrow/.style={-{Stealth[length=2.5mm]}, thick}
     ]
         \node[level] (master) {Level 0: Master Graph\\ (All Repositories)};
@@ -624,8 +728,8 @@ A \textbf{breadcrumb navigation bar} persists across all levels, rendering the c
 \subsection{Performance Optimizations for Concurrent Indexing}
 Two bounded-concurrency mechanisms are implemented:
 \begin{itemize}
-    \item \textbf{Concurrent repository indexing:} API background jobs use an \texttt{asyncio.Semaphore} whose \texttt{INDEXING\_CONCURRENCY} default is 3.
-    \item \textbf{Parallel AST parsing:} files within one repository are parsed with a bounded \texttt{ThreadPoolExecutor}; the worker limit is derived from CPU count and capped at 32.
+    \item \textbf{Concurrent repository indexing:} API background jobs use an \texttt{asyncio.Semaphore} whose \texttt{INDEXING\_\allowbreak CONCURRENCY} default is 3.
+    \item \textbf{Parallel AST parsing:} files within one repository are parsed with a bounded \texttt{ThreadPool\allowbreak Executor}; the worker limit is derived from CPU count and capped at 32.
 \end{itemize}
 These mechanisms are present and unit-tested, but the thesis does not claim an end-to-end indexing speedup because no controlled sequential-versus-concurrent repository benchmark is persisted.
 
@@ -633,7 +737,7 @@ These mechanisms are present and unit-tested, but the thesis does not claim an e
 The storage ports, repository namespaces, rank fusion, and context assembly are largely language-independent after canonical entities and chunks exist. The ingestion semantics are not. The production indexing boundary currently accepts only \texttt{languages=["python"]}; Java-only repositories are rejected, and the parser returns an explicit not-implemented error for Java extraction. Supporting another language requires a Tree-Sitter grammar, language-specific entity and relation extraction, canonical symbol resolution, chunk construction, and language-specific ground-truth tests. The existing Java-aware skeletonizer only formats already selected Java files and does not constitute Java indexing support. Kubernetes, whose principal implementation language is Go, therefore cannot be used as a comparable AST benchmark until a Go ingestion adapter is implemented.
 
 \section{Software Testing}
-The codebase is validated via 313 passing automated tests, with 27 explicitly skipped integration cases and two warnings in the final merged verification. The suite covers parsing and extraction logic, end-to-end ingestion pipelines, evaluation preflight, and functional API surfaces. The answer-quality benchmark itself is a separate 180-run controlled workload and is not counted as unit-test coverage.
+The codebase is validated via 313 passing automated tests, with 27 explicitly skipped integration cases and two warnings in the final merged verification. The suite covers parsing and extraction logic, end-to-end ingestion pipelines, evaluation preflight, and functional API surfaces. The answer-quality benchmarks are separate controlled workloads totaling 1,380 generated and scored records and are not counted as unit-test coverage.
 
 \newpage
 
@@ -646,9 +750,9 @@ The codebase is validated via 313 passing automated tests, with 27 explicitly sk
 \begin{itemize}
     \item \textbf{Hardware:} Apple Mac mini M4 developer machine; the benchmark records local execution but does not claim a hardware-independent latency.
     \item \textbf{Software:} Python 3.12, FalkorDB, Qdrant, and Ollama with local embedding and generation endpoints.
-    \item \textbf{Indexed source:} Pinned \texttt{llama-index-core==0.14.21}; deterministic source digest \texttt{sha256:13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509}; schema version 3; embedding model \texttt{nomic-embed-text}.
-    \item \textbf{Answer-quality suite:} 30 cases (10 simple, 10 medium, 10 hard), two retrieval modes, three repeats, seed 42, for 180 generated and scored answers.
-    \item \textbf{Statistical unit:} the 30 question cases; the three repeats are averaged within each case before paired bootstrap resampling.
+    \item \textbf{Indexed sources:} pinned \texttt{llama-index-core==0.14.21} with deterministic source digest \texttt{sha256:\seqsplit{13b55bcf111885b7c2c9c07886b5656769041331c81c28bcf3cbfb87939ec509}}; Transformers commit \texttt{\seqsplit{0a2757da521a7a49b8143d9e0c938f08747d682e}}; and LangChain \texttt{libs/core} at commit \texttt{\seqsplit{51578289bb1f696a643e0740be1441039d8af8ce}}. All use index schema version 3 and \texttt{nomic-embed-text}.
+    \item \textbf{Answer-quality suites:} LlamaIndex contains 30 cases (10 simple, 10 medium, 10 hard); Transformers and LangChain each contain 100 cases (35 simple, 35 medium, 30 hard). Every suite evaluates two retrieval modes with three repeats and seed 42, producing 1,380 generated and scored answers in total.
+    \item \textbf{Statistical unit:} the question case within each repository; the three repeats are averaged within each case before paired bootstrap resampling with 10,000 resamples.
 \end{itemize}
 
 \section{Metrics Justification}
@@ -660,41 +764,49 @@ We selected evaluation metrics based on: (i) suitability to the code retrieval t
     \item \textbf{Faithfulness} (RAGAS \cite{shahul2023ragas}): Evaluates how loyal the generated answer is to the retrieved context, revealing LLM hallucinations.
     \item \textbf{Answer Relevancy} (RAGAS \cite{shahul2023ragas}): Measures how relevant the generated answer is to the user's question, complementary to Faithfulness.
     \item \textbf{Answer Correctness} (RAGAS \cite{shahul2023ragas}): Compares the generated answer with the reviewed reference answer.
-    \item \textbf{Paired 95\% Confidence Interval}: Quantifies uncertainty in Hybrid-minus-vector differences by resampling the 30 question-level pairs with replacement. Repeats are averaged within a case to avoid treating them as independent questions.
+    \item \textbf{Paired 95\% Confidence Interval}: Quantifies uncertainty in Hybrid-minus-vector differences by resampling question-level pairs with replacement within each repository. Repeats are averaged within a case to avoid treating them as independent questions.
     \item \textbf{Latency Breakdown}: Segmenting processing time by phase helps target bottlenecks.
 \end{itemize}
 
 BLEU and ROUGE were not selected as confirmatory metrics because lexical overlap does not directly test whether an answer is grounded in retrieved evidence or correct about code relationships.
 
 \section{Evidence Provenance and Excluded Historical Diagnostic}
-The repository also contains a historical 50-case structural report generated against a schema-v2 index. Its current status file explicitly records that it predates the schema-v3 identity repair and that its RAGAS field is null. Because it does not satisfy the present provenance preflight, this thesis does not use its Hit Rate values as current confirmatory evidence. The analysis below is therefore restricted to the completed schema-v3 answer-quality artifact, whose source digest, index run, embedding model, raw records, and review grade are persisted.
+The repository also contains a historical 50-case structural report generated against a schema-v2 index. Its current status file explicitly records that it predates the schema-v3 identity repair and that its RAGAS field is null. Because it does not satisfy the present provenance preflight, this thesis does not use its Hit Rate values as current confirmatory evidence. The analysis below is restricted to the three completed schema-v3 answer-quality artifacts, whose source identity, index run, embedding model, raw records, and review grade are persisted. The Transformers index provenance identifies a controlled \texttt{gold-sparse} source tree, whereas LangChain identifies the full \texttt{libs/core} subtree; this corpus-scope difference precludes treating the repository estimates as one pooled experiment.
 
 \section{Independent Answer-Quality Benchmark}
-We separately measured generated-answer quality with the RAGAS metrics \cite{shahul2023ragas}. The workload contains 30 source-reviewed cases (10 simple, 10 medium, and 10 hard), evaluates vector-only and Hybrid-RAG modes, and repeats each case three times with seed 42. The answer model is local \texttt{gemma4:12b}; an independent local \texttt{qwen2.5-coder:7b} judge scores Faithfulness, Answer Relevancy, and Answer Correctness. The complete workload contains 180 generated and scored records.
+We separately measured generated-answer quality with the RAGAS metrics \cite{shahul2023ragas}. Each repository workload evaluates vector-only and Hybrid-RAG modes and repeats each case three times with seed 42. The answer model is local \texttt{gemma4:12b}; an independent local \texttt{qwen2.5-coder:7b} judge scores Faithfulness, Answer Relevancy, and Answer Correctness. LlamaIndex contributes 180 records, while Transformers and LangChain contribute 600 records each, for 1,380 generated and scored records.
 
-The gold dataset is a manually maintained, checked-in artifact rather than a live dataset synchronized automatically with the latest repository release. Each case is reviewed against the pinned source snapshot, and the dataset stores the wheel and source digests together with the review type. A benchmark run is accepted only when these identities and the index provenance match; otherwise the run is rejected or treated as draft evidence. This makes the current dataset auditable, but the manual maintenance process remains a limitation and does not replace independent human annotation.
+The gold dataset is a manually maintained, checked-in artifact rather than a live dataset synchronized automatically with the latest repository release. Each case is reviewed against its pinned source snapshot; LlamaIndex records package/source digests, while the two Git-based workloads record immutable source commits and index provenance. A benchmark run is accepted only when these identities and the index provenance match; otherwise the run is rejected or treated as draft evidence. This makes the datasets auditable, but the manual maintenance process and AI source review remain limitations and do not replace independent human annotation.
 
 \begin{table}[H]
     \centering
-    \caption{Answer quality with paired case-level 95\% confidence intervals}
+    \caption{Answer quality by repository with paired case-level 95\% confidence intervals}
     \label{tab:answer_quality_results}
     \resizebox{\textwidth}{!}{%
-    \begin{tabular}{lccc}
+    \begin{tabular}{llccc}
         \toprule
-        \textbf{Metric} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
+        \textbf{Repository} & \textbf{Metric} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
         \midrule
-        Faithfulness & 0.896 [0.816, 0.956] & 0.924 [0.843, 0.980] & +0.029 [$-0.069$, 0.115] \\
-        Answer Relevancy & 0.729 [0.618, 0.826] & 0.808 [0.737, 0.859] & +0.079 [$-0.0001$, 0.175] \\
-        Answer Correctness & 0.652 [0.606, 0.703] & 0.698 [0.650, 0.748] & +0.046 [0.002, 0.094] \\
+        LlamaIndex & Faithfulness & 0.896 [0.816, 0.956] & 0.924 [0.843, 0.980] & +0.029 [$-0.069$, 0.115] \\
+        & Answer Relevancy & 0.729 [0.618, 0.826] & 0.808 [0.737, 0.859] & +0.079 [$-0.0001$, 0.175] \\
+        & Answer Correctness & 0.652 [0.606, 0.703] & 0.698 [0.650, 0.748] & +0.046 [0.002, 0.094] \\
+        \midrule
+        Transformers & Faithfulness & 0.441 [0.344, 0.538] & 0.610 [0.514, 0.702] & +0.169 [0.043, 0.297] \\
+        & Answer Relevancy & 0.716 [0.656, 0.772] & 0.772 [0.719, 0.819] & +0.055 [$-0.014$, 0.126] \\
+        & Answer Correctness & 0.574 [0.523, 0.625] & 0.626 [0.582, 0.669] & +0.052 [0.002, 0.104] \\
+        \midrule
+        LangChain & Faithfulness & 0.856 [0.786, 0.920] & 0.945 [0.900, 0.983] & +0.089 [0.017, 0.163] \\
+        & Answer Relevancy & 0.854 [0.823, 0.877] & 0.845 [0.818, 0.866] & $-0.009$ [$-0.043$, 0.026] \\
+        & Answer Correctness & 0.699 [0.662, 0.734] & 0.717 [0.679, 0.754] & +0.018 [$-0.021$, 0.057] \\
         \bottomrule
     \end{tabular}
     }
 \end{table}
 
-The point estimates favor Hybrid-RAG for all three metrics, but the paired intervals change the strength of the conclusion. Faithfulness includes both negative and positive differences. Answer Relevancy is borderline and still touches zero at the reported precision. Only Answer Correctness has a 95\% interval entirely above zero. This is evidence uncertainty, not proof of a software defect. All 180 records received valid scores and all had a source hit. The gold answers were approved by an AI source review, not independent human annotation; therefore the result is controlled local evidence rather than a human-evaluated production accuracy rate.
+The paired intervals show a repository-dependent pattern. For LlamaIndex, only Answer Correctness excludes zero. For Transformers, Faithfulness and Answer Correctness exclude zero, while Answer Relevancy is inconclusive. For LangChain, only Faithfulness excludes zero; Answer Relevancy and Answer Correctness are inconclusive. Thus, Faithfulness replicates positively in the two new 100-case workloads, but no quality metric is conclusively positive in all three repositories. The source-hit rates are 1.00 in both LlamaIndex modes, 0.94 vector versus 0.97 hybrid for Transformers, and 1.00 vector versus 0.99 hybrid for LangChain. These source-hit fields are diagnostics and are not substituted for the excluded schema-v2 Hit Rate@5 result. The gold answers were approved by an AI source review, not independent human annotation; therefore the results are controlled local evidence rather than human-evaluated production accuracy rates.
 
 \section{Generalizability and Baseline Coverage}
-The requested multi-repository evaluation is not yet complete. Table~\ref{tab:evaluation_coverage} separates completed evidence from planned experiments.
+The requested replication on Transformers and LangChain is complete. Table~\ref{tab:evaluation_coverage} separates completed repository evidence from experiments that remain outstanding.
 
 \begin{table}[H]
     \centering
@@ -705,15 +817,15 @@ The requested multi-repository evaluation is not yet complete. Table~\ref{tab:ev
         \textbf{Target} & \textbf{Status} & \textbf{Interpretation} \\
         \midrule
         LlamaIndex Core & Completed & 30 reviewed questions, 3 repeats, Hybrid and vector-only modes. \\
-        Transformers & Not executed & Requires a pinned source artifact and reviewed repository-specific questions. \\
-        LangChain & Not executed & Requires an independent index, source digest, and gold dataset. \\
+        Transformers & Completed & 100 reviewed questions, 3 repeats, pinned Git commit, and controlled \texttt{gold-sparse} index. \\
+        LangChain & Completed & 100 reviewed questions, 3 repeats, pinned Git commit, and independent \texttt{libs/core} index. \\
         Kubernetes & Not comparable yet & Primarily Go; the current AST ingestion pipeline is Python-only. \\
         BM25 / graph-only / GraphRAG & Not executed & Required to distinguish hybrid gains from lexical, graph-only, and alternative graph-RAG designs. \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Consequently, the benchmark answers RQ1--RQ3 only for the pinned LlamaIndex workload. It does not establish generalization across repositories, programming languages, or retrieval families.
+Consequently, the benchmark answers RQ1--RQ3 separately for three pinned Python repository workloads. Replication across Transformers and LangChain is stronger evidence than a single-repository result, but the unequal case counts and corpus scopes do not support a pooled effect estimate. The experiment also does not establish generalization across programming languages or retrieval families.
 
 \section{Architectural Optimization and Enhancements}
 The implemented reliability improvements are evaluated as engineering controls rather than collapsed into one unsupported optimization percentage. When a repository is supplied as query scope, repository filtering prevents results from other namespaces; without that optional scope, retrieval may search across indexed repositories. Index replacement writes the new graph and vector records before stale data is removed, reducing an empty-index window, but it does not provide reader-isolated generation cutover. Provenance checks require matching source identity, index run, schema, and embedding model; cache generations separate responses after indexing; and unsupported Java input is rejected before indexing. Optional YAML, Markdown, and Dockerfile ingestion is generic document/configuration chunking and is disabled by default; it does not provide Python-style AST semantics.
@@ -721,29 +833,39 @@ The implemented reliability improvements are evaluated as engineering controls r
 These controls make the retrieval and evaluation measurements reproducible. They should not be described as a single token-savings or accuracy percentage without a separate controlled experiment.
 
 \section{Latency Breakdown}
-The completed answer-quality benchmark recorded retrieval, local generation, and token statistics for both retrieval modes. Table~\ref{tab:latency_breakdown} reports case-level means and paired-bootstrap intervals; these are not service-level percentiles.
+The completed answer-quality benchmarks recorded retrieval, local generation, and token statistics for both retrieval modes. Table~\ref{tab:latency_breakdown} reports case-level means and paired-bootstrap intervals per repository; these are not service-level percentiles.
 
 \begin{table}[H]
     \centering
-    \caption{Latency breakdown of system processes}
+    \caption{Latency and token breakdown by repository}
     \label{tab:latency_breakdown}
     \resizebox{\textwidth}{!}{%
-    \begin{tabular}{lccc}
+    \begin{tabular}{llccc}
         \toprule
-        \textbf{Measure} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
+        \textbf{Repository} & \textbf{Measure} & \textbf{Vector mean [95\% CI]} & \textbf{Hybrid mean [95\% CI]} & \textbf{$\Delta$ [95\% CI]} \\
         \midrule
-        Retrieval latency (ms) & 134 [118, 151] & 371 [348, 395] & +237 [208, 266] \\
-        Generation latency (ms) & 96,754 [84,413, 110,142] & 87,268 [78,110, 96,465] & $-9,486$ [$-23,036$, 1,438] \\
-        Prompt tokens & 1,841 [1,633, 2,047] & 1,740 [1,566, 1,913] & $-101$ [$-282$, 77] \\
-        Completion tokens & 934 [788, 1,092] & 834 [734, 938] & $-100$ [$-259$, 30] \\
+        LlamaIndex & Retrieval (ms) & 134 [118, 151] & 371 [348, 395] & +237 [208, 266] \\
+        & Generation (ms) & 96,754 [84,413, 110,142] & 87,268 [78,110, 96,465] & $-9,486$ [$-23,036$, 1,438] \\
+        & Prompt tokens & 1,841 [1,633, 2,047] & 1,740 [1,566, 1,913] & $-101$ [$-282$, 77] \\
+        & Completion tokens & 934 [788, 1,092] & 834 [734, 938] & $-100$ [$-259$, 30] \\
+        \midrule
+        Transformers & Retrieval (ms) & 138 [127, 149] & 319 [307, 331] & +182 [166, 197] \\
+        & Generation (ms) & 47,892 [44,298, 51,487] & 44,005 [40,497, 47,487] & $-3,887$ [$-6,995$, $-938$] \\
+        & Prompt tokens & 2,161 [2,031, 2,294] & 2,323 [2,169, 2,480] & +162 [$-6$, 328] \\
+        & Completion tokens & 330 [289, 370] & 263 [224, 303] & $-67$ [$-102$, $-33$] \\
+        \midrule
+        LangChain & Retrieval (ms) & 105 [95, 116] & 316 [300, 332] & +211 [192, 230] \\
+        & Generation (ms) & 21,407 [19,297, 23,557] & 19,499 [17,751, 21,302] & $-1,908$ [$-3,815$, $-27$] \\
+        & Prompt tokens & 1,788 [1,599, 1,976] & 1,607 [1,442, 1,774] & $-181$ [$-380$, 17] \\
+        & Completion tokens & 65 [53, 77] & 52 [44, 62] & $-12$ [$-24$, $-1$] \\
         \bottomrule
     \end{tabular}
     }
 \end{table}
 
-Hybrid retrieval adds a measured 237 ms of retrieval time, with a paired 95\% interval of 208--266 ms, in this workload. The intervals for generation latency and token deltas include zero, so their apparent reductions are not conclusive. Local generation dominates end-to-end latency for both modes; the result supports a sub-second mean retrieval claim on this machine, not a sub-second answer-response SLA.
+Hybrid retrieval adds a statistically positive mean retrieval overhead in every workload: 237 ms for LlamaIndex, 182 ms for Transformers, and 211 ms for LangChain. The LlamaIndex generation-latency and token intervals include zero. In contrast, generation latency and completion tokens are lower for Hybrid-RAG on both new 100-case workloads, although prompt-token differences remain inconclusive. Local generation dominates end-to-end latency for both modes; the results support a sub-second mean retrieval claim on this machine, not a sub-second answer-response SLA.
 
-The end-to-end user experience includes retrieval, context assembly, prompt processing, and local answer generation. Consequently, the measured retrieval target and the total time before a developer receives an answer are separate quantities: sub-second retrieval does not imply interactive end-to-end response time when local generation takes approximately 87--97 seconds.
+The end-to-end user experience includes retrieval, context assembly, prompt processing, and local answer generation. Consequently, the measured retrieval target and the total time before a developer receives an answer are separate quantities: sub-second retrieval does not imply interactive end-to-end response time when mean local generation ranges from approximately 19 to 97 seconds across the measured workloads.
 
 \section{Case Study}
 To illustrate practical feasibility, we trace the benchmark query: ``\textit{What sequence does BaseRetriever.retrieve follow when it receives a plain query string, including callbacks and recursive retrieval?}''.
@@ -768,11 +890,11 @@ To illustrate practical feasibility, we trace the benchmark query: ``\textit{Wha
 \chapter{Conclusion and Future Work}
 
 \section{Conclusion}
-The completed experiment supports a narrower conclusion than the earlier point-estimate-only report:
+The completed experiments support a replicated but repository-specific conclusion:
 \begin{enumerate}
-    \item \textbf{RQ1:} Hybrid-RAG has higher point estimates for Faithfulness (+0.029), Answer Relevancy (+0.079), and Answer Correctness (+0.046) on the pinned LlamaIndex workload.
-    \item \textbf{RQ2:} Mean retrieval latency increases from 134 ms to 371 ms. Local generation remains dominant at approximately 87--97 seconds; observed token and generation-latency reductions have intervals that include zero.
-    \item \textbf{RQ3:} Only the Answer Correctness difference has a paired 95\% confidence interval entirely above zero. Faithfulness is inconclusive, and Answer Relevancy is borderline at zero. These results do not establish cross-repository or cross-language superiority.
+    \item \textbf{RQ1:} Hybrid-RAG has a statistically positive Faithfulness difference on Transformers and LangChain, and a statistically positive Answer Correctness difference on LlamaIndex and Transformers. Answer Relevancy is inconclusive in all three repositories.
+    \item \textbf{RQ2:} Mean retrieval latency increases by 182--237 ms across the workloads. Local generation remains dominant at approximately 19--97 seconds; the two 100-case workloads show lower Hybrid-RAG generation latency and completion-token counts, while the LlamaIndex intervals remain inconclusive.
+    \item \textbf{RQ3:} No quality metric has a positive paired 95\% interval in all three repositories. The replication strengthens the evidence beyond one repository but does not establish pooled cross-repository, cross-language, or alternative-baseline superiority.
 \end{enumerate}
 
 The principal technical contributions are:
@@ -781,23 +903,23 @@ The principal technical contributions are:
     \item repository identity scoping when supplied, replacement-before-delete indexing, provenance, cache-generation, and local-provider controls that make retrieval and evaluation runs auditable;
     \item deterministic directory-based communities with local Ollama-generated summaries, persisted dependencies, and repository-filtered global retrieval;
     \item a multi-repository 3D/2D visualization portal and bounded-concurrency indexing implementation; and
-    \item a reproducible 180-record benchmark plus a deterministic paired case-level confidence-interval analysis.
+    \item reproducible benchmarks totaling 1,380 generated and scored records across three pinned repository workloads, with deterministic paired case-level confidence-interval analyses.
 \end{itemize}
 
 \section{Limitations}
 \label{sec:limitations}
 \begin{itemize}
-    \item \textbf{Local Generation Latency:} Answer generation averages approximately 87 seconds for hybrid retrieval and 97 seconds for vector-only retrieval on the measured developer machine; this is not a sub-second end-to-end system.
+    \item \textbf{Local Generation Latency:} Mean answer generation ranges from approximately 19 to 87 seconds for hybrid retrieval and 21 to 97 seconds for vector-only retrieval across the measured workloads; this is not a sub-second end-to-end system.
     \item \textbf{Language Constraints:} Semantic AST indexing currently supports Python only. Java projects are rejected explicitly, and optional non-code ingestion provides generic chunks rather than language-aware AST semantics.
-    \item \textbf{Evaluation Scale:} The complete answer-quality benchmark uses one pinned Python repository and AI-reviewed reference answers. Confidence intervals quantify within-workload uncertainty, but additional repositories and independent human review are still required for generalization.
+    \item \textbf{Evaluation Scale:} The answer-quality evidence covers three pinned Python repository workloads with AI-reviewed reference answers, but LlamaIndex has 30 cases while Transformers and LangChain have 100 each. The corpus scopes also differ, so the estimates are reported separately and do not constitute a pooled benchmark. Independent human review is still required.
     \item \textbf{Baseline Coverage:} Only vector-only retrieval is executed under the paired protocol. BM25, graph-only retrieval, learned code encoders, and an independent GraphRAG implementation are not measured.
     \item \textbf{Cost Evidence:} Local Ollama produces no hosted API bill in this experiment, but the benchmark does not measure electricity, hardware depreciation, storage, or maintenance cost.
-    \item \textbf{Statistical Power:} Faithfulness and Answer Relevancy intervals include or touch zero. More independent questions are required before interpreting their positive point estimates as reliable improvements.
+    \item \textbf{Statistical Power:} Significance varies by repository and metric, and no Answer Relevancy interval excludes zero. More independent questions and a matched cross-repository design are required before interpreting the estimates as universal improvements.
 \end{itemize}
 
 \section{Future Work}
 \begin{itemize}
-    \item \textbf{Multi-Repository Replication:} Build independent, source-reviewed workloads for at least Transformers and LangChain, pin each source identity, and report per-repository and pooled paired intervals.
+    \item \textbf{Standardized Multi-Repository Replication:} Expand LlamaIndex to 100 cases, apply the same corpus-selection policy to all repositories, add further Python repositories, and report a pooled estimate only after those design differences are removed.
     \item \textbf{Additional Baselines and Ablations:} Execute BM25, graph-only, vector-only, Hybrid-RAG, and a documented external GraphRAG baseline under matched questions and generation settings.
     \item \textbf{Language Adapters:} Add complete entity extraction, relation resolution, chunking, and tests for Java and Go before using Java projects or Kubernetes as evaluation corpora.
     \item \textbf{Ambiguous Cross-Repository Resolution:} Extend the current unique-match resolver with import-aware namespace disambiguation, then evaluate cross-repository relation questions explicitly.
@@ -809,6 +931,7 @@ The principal technical contributions are:
 % ──────────────────────────────────────────────────────────────────────────────
 % BIBLIOGRAPHY
 % ──────────────────────────────────────────────────────────────────────────────
+\sloppy
 \begin{thebibliography}{99}
 
 \bibitem{lewis2020rag}
@@ -875,5 +998,14 @@ C.~S.~Xia, Y.~Deng, S.~Dunn, and L.~Zhang, ``Automated program repair in the era
 N.~Thakur, N.~Reimers, A.~R{\"u}ckl{\'e}, A.~Srivastava, and I.~Gurevych, ``BEIR: A heterogeneous benchmark for zero-shot evaluation of information retrieval models,'' in \textit{Proceedings of the 35th Conference on Neural Information Processing Systems (NeurIPS)}, 2021.
 
 \end{thebibliography}
+\fussy
+
+% ──────────────────────────────────────────────────────────────────────────────
+% COPYRIGHT ACKNOWLEDGEMENTS
+% ──────────────────────────────────────────────────────────────────────────────
+\clearpage
+\phantomsection
+\frontmatterheading{Copyright Acknowledgements}
+Except where otherwise stated through citations and source acknowledgements, the text, diagrams, tables, and experimental analysis in this thesis were prepared by the author. Third-party publications, software, datasets, and online resources are identified in the References. Their inclusion is solely for academic discussion and does not transfer ownership of the original material.
 
 \end{document}

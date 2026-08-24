@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import subprocess
 import time
 import uuid
@@ -20,6 +21,20 @@ from hybrid_rag.constants import INDEX_SCHEMA_VERSION
 from hybrid_rag.ports import GraphStore, VectorStore
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_EMBED_BATCH_SIZE = 128
+
+
+def _embedding_batch_size() -> int:
+    """Read the embedding batch size, rejecting values that cannot make progress."""
+    raw_value = os.environ.get("EMBED_BATCH_SIZE", str(_DEFAULT_EMBED_BATCH_SIZE))
+    try:
+        batch_size = int(raw_value)
+    except ValueError as exc:
+        raise ValueError("EMBED_BATCH_SIZE must be a positive integer") from exc
+    if batch_size < 1:
+        raise ValueError("EMBED_BATCH_SIZE must be a positive integer")
+    return batch_size
 
 
 def _validate_python_repository(
@@ -589,7 +604,7 @@ def run_indexing_pipeline(
             with start_span(
                 "pipeline_embed_chunks", {"total_chunks": total_chunks, "model": embed_model}
             ):
-                batch_size = 128
+                batch_size = _embedding_batch_size()
                 for i in range(0, total_chunks, batch_size):
                     batch = chunks_to_embed[i : i + batch_size]
                     batch_texts = [ch.text for ch in batch]

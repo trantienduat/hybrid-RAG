@@ -181,6 +181,33 @@ def test_generate_answer_requires_exact_ollama_usage(monkeypatch):
     assert client.__enter__.return_value.post.call_count == 2
 
 
+def test_generate_answer_disables_hidden_reasoning(monkeypatch):
+    response = MagicMock()
+    response.json.return_value = {
+        "response": "A visible answer.",
+        "prompt_eval_count": 12,
+        "eval_count": 4,
+    }
+    response.raise_for_status.return_value = None
+    client = MagicMock()
+    client.__enter__.return_value.post.return_value = response
+    monkeypatch.setattr(
+        "hybrid_rag.eval.answer_quality.httpx.Client",
+        lambda **_kwargs: client,
+    )
+
+    generate_answer(
+        ollama_url="http://localhost:11434",
+        model="answer-model",
+        question="Question?",
+        contexts=["Context."],
+        seed=9,
+    )
+
+    request = client.__enter__.return_value.post.call_args
+    assert request.kwargs["json"]["think"] is False
+
+
 def test_runner_compares_modes_and_resumes_atomic_checkpoint(monkeypatch, tmp_path):
     dataset = GoldAnswerDataset(
         name="gold-v1",

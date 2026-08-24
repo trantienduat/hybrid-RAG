@@ -1,3 +1,1354 @@
 {
-  "cases": []
+  "cases": [
+    {
+      "id": "langchain-l011",
+      "difficulty": "simple",
+      "question": "What does `AgentFinish.is_lc_serializable` do in LangChain Core?",
+      "reference_answer": "Return `True` as this class is serializable.",
+      "source_files": [
+        "langchain_core/agents.py"
+      ],
+      "source_anchors": [
+        "langchain_core/agents.py:174-176"
+      ],
+      "reference_contexts": [
+        "Return `True` as this class is serializable."
+      ]
+    },
+    {
+      "id": "langchain-l012",
+      "difficulty": "simple",
+      "question": "What does `AgentAction.is_lc_serializable` do in LangChain Core?",
+      "reference_answer": "`AgentAction` is serializable. Returns: `True`",
+      "source_files": [
+        "langchain_core/agents.py"
+      ],
+      "source_anchors": [
+        "langchain_core/agents.py:84-90"
+      ],
+      "reference_contexts": [
+        "`AgentAction` is serializable. Returns: `True`"
+      ]
+    },
+    {
+      "id": "langchain-l013",
+      "difficulty": "medium",
+      "question": "What does `AgentAction.messages` do in LangChain Core?",
+      "reference_answer": "Return the messages that correspond to this action.",
+      "source_files": [
+        "langchain_core/agents.py"
+      ],
+      "source_anchors": [
+        "langchain_core/agents.py:102-104"
+      ],
+      "reference_contexts": [
+        "Return the messages that correspond to this action."
+      ]
+    },
+    {
+      "id": "langchain-l014",
+      "difficulty": "simple",
+      "question": "What does `BaseCache.clear` do in LangChain Core?",
+      "reference_answer": "Clear cache that can take additional keyword arguments.",
+      "source_files": [
+        "langchain_core/caches.py"
+      ],
+      "source_anchors": [
+        "langchain_core/caches.py:97-98"
+      ],
+      "reference_contexts": [
+        "Clear cache that can take additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l015",
+      "difficulty": "medium",
+      "question": "What does `InMemoryCache.clear` do in LangChain Core?",
+      "reference_answer": "Clear cache.",
+      "source_files": [
+        "langchain_core/caches.py"
+      ],
+      "source_anchors": [
+        "langchain_core/caches.py:234-236"
+      ],
+      "reference_contexts": [
+        "Clear cache."
+      ]
+    },
+    {
+      "id": "langchain-l016",
+      "difficulty": "medium",
+      "question": "What does `InMemoryCache.aclear` do in LangChain Core?",
+      "reference_answer": "Async clear cache.",
+      "source_files": [
+        "langchain_core/caches.py"
+      ],
+      "source_anchors": [
+        "langchain_core/caches.py:270-272"
+      ],
+      "reference_contexts": [
+        "Async clear cache."
+      ]
+    },
+    {
+      "id": "langchain-l017",
+      "difficulty": "simple",
+      "question": "What does `BaseCallbackHandler.ignore_custom_event` do in LangChain Core?",
+      "reference_answer": "Ignore custom event.",
+      "source_files": [
+        "langchain_core/callbacks/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/base.py:543-545"
+      ],
+      "reference_contexts": [
+        "Ignore custom event."
+      ]
+    },
+    {
+      "id": "langchain-l018",
+      "difficulty": "simple",
+      "question": "What does `BaseCallbackHandler.ignore_llm` do in LangChain Core?",
+      "reference_answer": "Whether to ignore LLM callbacks.",
+      "source_files": [
+        "langchain_core/callbacks/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/base.py:513-515"
+      ],
+      "reference_contexts": [
+        "Whether to ignore LLM callbacks."
+      ]
+    },
+    {
+      "id": "langchain-l019",
+      "difficulty": "simple",
+      "question": "What does `BaseCallbackHandler.ignore_retry` do in LangChain Core?",
+      "reference_answer": "Whether to ignore retry callbacks.",
+      "source_files": [
+        "langchain_core/callbacks/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/base.py:518-520"
+      ],
+      "reference_contexts": [
+        "Whether to ignore retry callbacks."
+      ]
+    },
+    {
+      "id": "langchain-l020",
+      "difficulty": "simple",
+      "question": "What does `FileCallbackHandler.__del__` do in LangChain Core?",
+      "reference_answer": "Destructor to cleanup when done.",
+      "source_files": [
+        "langchain_core/callbacks/file.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/file.py:112-114"
+      ],
+      "reference_contexts": [
+        "Destructor to cleanup when done."
+      ]
+    },
+    {
+      "id": "langchain-l021",
+      "difficulty": "medium",
+      "question": "What does `FileCallbackHandler.__enter__` do in LangChain Core?",
+      "reference_answer": "Enter the context manager. Returns: The `FileCallbackHandler` instance. !!! note The file is already opened in `__init__`, so this just marks that the handler is being used as a context manager.",
+      "source_files": [
+        "langchain_core/callbacks/file.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/file.py:81-94"
+      ],
+      "reference_contexts": [
+        "Enter the context manager. Returns: The `FileCallbackHandler` instance. !!! note The file is already opened in `__init__`, so this just marks that the handler is being used as a context manager."
+      ]
+    },
+    {
+      "id": "langchain-l022",
+      "difficulty": "hard",
+      "question": "What does `FileCallbackHandler.on_chain_end` do in LangChain Core?",
+      "reference_answer": "Print that we finished a chain. Args: outputs: The outputs of the chain. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/file.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/file.py:183-191"
+      ],
+      "reference_contexts": [
+        "Print that we finished a chain. Args: outputs: The outputs of the chain. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l023",
+      "difficulty": "simple",
+      "question": "What does `AsyncRunManager.get_sync` do in LangChain Core?",
+      "reference_answer": "Get the equivalent sync `RunManager`. Returns: The sync `RunManager`.",
+      "source_files": [
+        "langchain_core/callbacks/manager.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/manager.py:625-631"
+      ],
+      "reference_contexts": [
+        "Get the equivalent sync `RunManager`. Returns: The sync `RunManager`."
+      ]
+    },
+    {
+      "id": "langchain-l024",
+      "difficulty": "simple",
+      "question": "What does `AsyncCallbackManager.is_async` do in LangChain Core?",
+      "reference_answer": "Return whether the handler is async.",
+      "source_files": [
+        "langchain_core/callbacks/manager.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/manager.py:1863-1865"
+      ],
+      "reference_contexts": [
+        "Return whether the handler is async."
+      ]
+    },
+    {
+      "id": "langchain-l025",
+      "difficulty": "hard",
+      "question": "What does `CallbackManagerForChainGroup.on_chain_error` do in LangChain Core?",
+      "reference_answer": "Run when chain errors. Args: error: The error. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/manager.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/manager.py:1843-1856"
+      ],
+      "reference_contexts": [
+        "Run when chain errors. Args: error: The error. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l026",
+      "difficulty": "medium",
+      "question": "What does `StdOutCallbackHandler.__init__` do in LangChain Core?",
+      "reference_answer": "Initialize callback handler. Args: color: The color to use for the text.",
+      "source_files": [
+        "langchain_core/callbacks/stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/stdout.py:19-25"
+      ],
+      "reference_contexts": [
+        "Initialize callback handler. Args: color: The color to use for the text."
+      ]
+    },
+    {
+      "id": "langchain-l027",
+      "difficulty": "medium",
+      "question": "What does `StdOutCallbackHandler.on_chain_end` do in LangChain Core?",
+      "reference_answer": "Print out that we finished a chain. Args: outputs: The outputs of the chain. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/stdout.py:47-54"
+      ],
+      "reference_contexts": [
+        "Print out that we finished a chain. Args: outputs: The outputs of the chain. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l028",
+      "difficulty": "hard",
+      "question": "What does `StdOutCallbackHandler.on_agent_action` do in LangChain Core?",
+      "reference_answer": "Run on agent action. Args: action: The agent action. color: The color to use for the text. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/stdout.py:57-67"
+      ],
+      "reference_contexts": [
+        "Run on agent action. Args: action: The agent action. color: The color to use for the text. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l029",
+      "difficulty": "simple",
+      "question": "What does `StreamingStdOutCallbackHandler.on_agent_finish` do in LangChain Core?",
+      "reference_answer": "Run on the agent end. Args: finish: The agent finish. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/streaming_stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/streaming_stdout.py:148-154"
+      ],
+      "reference_contexts": [
+        "Run on the agent end. Args: finish: The agent finish. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l030",
+      "difficulty": "simple",
+      "question": "What does `StreamingStdOutCallbackHandler.on_text` do in LangChain Core?",
+      "reference_answer": "Run on an arbitrary text. Args: text: The text to print. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/streaming_stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/streaming_stdout.py:140-146"
+      ],
+      "reference_contexts": [
+        "Run on an arbitrary text. Args: text: The text to print. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l031",
+      "difficulty": "simple",
+      "question": "What does `StreamingStdOutCallbackHandler.on_llm_error` do in LangChain Core?",
+      "reference_answer": "Run when LLM errors. Args: error: The error that occurred. **kwargs: Additional keyword arguments.",
+      "source_files": [
+        "langchain_core/callbacks/streaming_stdout.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/streaming_stdout.py:70-76"
+      ],
+      "reference_contexts": [
+        "Run when LLM errors. Args: error: The error that occurred. **kwargs: Additional keyword arguments."
+      ]
+    },
+    {
+      "id": "langchain-l032",
+      "difficulty": "hard",
+      "question": "What does `UsageMetadataCallbackHandler.__init__` do in LangChain Core?",
+      "reference_answer": "Initialize the `UsageMetadataCallbackHandler`.",
+      "source_files": [
+        "langchain_core/callbacks/usage.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/usage.py:39-43"
+      ],
+      "reference_contexts": [
+        "Initialize the `UsageMetadataCallbackHandler`."
+      ]
+    },
+    {
+      "id": "langchain-l033",
+      "difficulty": "hard",
+      "question": "What does `get_usage_metadata_callback` do in LangChain Core?",
+      "reference_answer": "Get usage metadata callback. Get context manager for tracking usage metadata across chat model calls using [`AIMessage.usage_metadata`][langchain.messages.AIMessage.usage_metadata]. Args: name: The name of the context variable. Yields: The usage metadata callback. Example: ```python from langchain.chat_models import init_chat_model from langchain_core.callba",
+      "source_files": [
+        "langchain_core/callbacks/usage.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/usage.py:81-119"
+      ],
+      "reference_contexts": [
+        "Get usage metadata callback. Get context manager for tracking usage metadata across chat model calls using [`AIMessage.usage_metadata`][langchain.messages.AIMessage.usage_metadata]. Args: name: The name of the context variable. Yields: The usage metadata callback. Example: ```python from langchain.chat_models import init_chat_model from langchain_core.callba"
+      ]
+    },
+    {
+      "id": "langchain-l034",
+      "difficulty": "hard",
+      "question": "What does `UsageMetadataCallbackHandler.on_llm_end` do in LangChain Core?",
+      "reference_answer": "Collect token usage.",
+      "source_files": [
+        "langchain_core/callbacks/usage.py"
+      ],
+      "source_anchors": [
+        "langchain_core/callbacks/usage.py:50-77"
+      ],
+      "reference_contexts": [
+        "Collect token usage."
+      ]
+    },
+    {
+      "id": "langchain-l035",
+      "difficulty": "simple",
+      "question": "What does `BaseChatMessageHistory.clear` do in LangChain Core?",
+      "reference_answer": "Remove all messages from the store.",
+      "source_files": [
+        "langchain_core/chat_history.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_history.py:190-191"
+      ],
+      "reference_contexts": [
+        "Remove all messages from the store."
+      ]
+    },
+    {
+      "id": "langchain-l036",
+      "difficulty": "simple",
+      "question": "What does `InMemoryChatMessageHistory.aclear` do in LangChain Core?",
+      "reference_answer": "Async clear all messages from the store.",
+      "source_files": [
+        "langchain_core/chat_history.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_history.py:244-246"
+      ],
+      "reference_contexts": [
+        "Async clear all messages from the store."
+      ]
+    },
+    {
+      "id": "langchain-l037",
+      "difficulty": "medium",
+      "question": "What does `InMemoryChatMessageHistory.clear` do in LangChain Core?",
+      "reference_answer": "Clear all messages from the store.",
+      "source_files": [
+        "langchain_core/chat_history.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_history.py:240-242"
+      ],
+      "reference_contexts": [
+        "Clear all messages from the store."
+      ]
+    },
+    {
+      "id": "langchain-l038",
+      "difficulty": "medium",
+      "question": "What does `BaseChatLoader.lazy_load` do in LangChain Core?",
+      "reference_answer": "Lazy load the chat sessions. Returns: An iterator of chat sessions.",
+      "source_files": [
+        "langchain_core/chat_loaders.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_loaders.py:13-18"
+      ],
+      "reference_contexts": [
+        "Lazy load the chat sessions. Returns: An iterator of chat sessions."
+      ]
+    },
+    {
+      "id": "langchain-l039",
+      "difficulty": "medium",
+      "question": "What does `BaseChatLoader.load` do in LangChain Core?",
+      "reference_answer": "Eagerly load the chat sessions into memory. Returns: A list of chat sessions.",
+      "source_files": [
+        "langchain_core/chat_loaders.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_loaders.py:20-26"
+      ],
+      "reference_contexts": [
+        "Eagerly load the chat sessions into memory. Returns: A list of chat sessions."
+      ]
+    },
+    {
+      "id": "langchain-l040",
+      "difficulty": "hard",
+      "question": "What does `BaseChatLoader` do in LangChain Core?",
+      "reference_answer": "Base class for chat loaders.",
+      "source_files": [
+        "langchain_core/chat_loaders.py"
+      ],
+      "source_anchors": [
+        "langchain_core/chat_loaders.py:9-26"
+      ],
+      "reference_contexts": [
+        "Base class for chat loaders."
+      ]
+    },
+    {
+      "id": "langchain-l041",
+      "difficulty": "medium",
+      "question": "What does `BaseBlobParser.lazy_parse` do in LangChain Core?",
+      "reference_answer": "Lazy parsing interface. Subclasses are required to implement this method. Args: blob: `Blob` instance Returns: Generator of `Document` objects",
+      "source_files": [
+        "langchain_core/document_loaders/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/document_loaders/base.py:128-138"
+      ],
+      "reference_contexts": [
+        "Lazy parsing interface. Subclasses are required to implement this method. Args: blob: `Blob` instance Returns: Generator of `Document` objects"
+      ]
+    },
+    {
+      "id": "langchain-l042",
+      "difficulty": "medium",
+      "question": "What does `BaseLoader.load` do in LangChain Core?",
+      "reference_answer": "Load data into `Document` objects. Returns: The documents.",
+      "source_files": [
+        "langchain_core/document_loaders/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/document_loaders/base.py:37-43"
+      ],
+      "reference_contexts": [
+        "Load data into `Document` objects. Returns: The documents."
+      ]
+    },
+    {
+      "id": "langchain-l043",
+      "difficulty": "medium",
+      "question": "What does `BaseLoader.aload` do in LangChain Core?",
+      "reference_answer": "Load data into `Document` objects. Returns: The documents.",
+      "source_files": [
+        "langchain_core/document_loaders/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/document_loaders/base.py:45-51"
+      ],
+      "reference_contexts": [
+        "Load data into `Document` objects. Returns: The documents."
+      ]
+    },
+    {
+      "id": "langchain-l044",
+      "difficulty": "simple",
+      "question": "What does `Document.is_lc_serializable` do in LangChain Core?",
+      "reference_answer": "Return `True` as this class is serializable.",
+      "source_files": [
+        "langchain_core/documents/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/base.py:318-320"
+      ],
+      "reference_contexts": [
+        "Return `True` as this class is serializable."
+      ]
+    },
+    {
+      "id": "langchain-l045",
+      "difficulty": "medium",
+      "question": "What does `Document.get_lc_namespace` do in LangChain Core?",
+      "reference_answer": "Get the namespace of the LangChain object. Returns: `[\"langchain\", \"schema\", \"document\"]`",
+      "source_files": [
+        "langchain_core/documents/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/base.py:323-329"
+      ],
+      "reference_contexts": [
+        "Get the namespace of the LangChain object. Returns: `[\"langchain\", \"schema\", \"document\"]`"
+      ]
+    },
+    {
+      "id": "langchain-l046",
+      "difficulty": "medium",
+      "question": "What does `Document.__init__` do in LangChain Core?",
+      "reference_answer": "Pass page_content in as positional or named arg.",
+      "source_files": [
+        "langchain_core/documents/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/base.py:311-315"
+      ],
+      "reference_contexts": [
+        "Pass page_content in as positional or named arg."
+      ]
+    },
+    {
+      "id": "langchain-l047",
+      "difficulty": "medium",
+      "question": "What does `BaseDocumentCompressor.compress_documents` do in LangChain Core?",
+      "reference_answer": "Compress retrieved documents given the query context. Args: documents: The retrieved `Document` objects. query: The query context. callbacks: Optional `Callbacks` to run during compression. Returns: The compressed documents.",
+      "source_files": [
+        "langchain_core/documents/compressor.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/compressor.py:37-53"
+      ],
+      "reference_contexts": [
+        "Compress retrieved documents given the query context. Args: documents: The retrieved `Document` objects. query: The query context. callbacks: Optional `Callbacks` to run during compression. Returns: The compressed documents."
+      ]
+    },
+    {
+      "id": "langchain-l048",
+      "difficulty": "hard",
+      "question": "What does `BaseDocumentCompressor.acompress_documents` do in LangChain Core?",
+      "reference_answer": "Async compress retrieved documents given the query context. Args: documents: The retrieved `Document` objects. query: The query context. callbacks: Optional `Callbacks` to run during compression. Returns: The compressed documents.",
+      "source_files": [
+        "langchain_core/documents/compressor.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/compressor.py:55-74"
+      ],
+      "reference_contexts": [
+        "Async compress retrieved documents given the query context. Args: documents: The retrieved `Document` objects. query: The query context. callbacks: Optional `Callbacks` to run during compression. Returns: The compressed documents."
+      ]
+    },
+    {
+      "id": "langchain-l049",
+      "difficulty": "hard",
+      "question": "What does `BaseDocumentCompressor` do in LangChain Core?",
+      "reference_answer": "Base class for document compressors. This abstraction is primarily used for post-processing of retrieved documents. `Document` objects matching a given query are first retrieved. Then the list of documents can be further processed. For example, one could re-rank the retrieved documents using an LLM. !!! note Users should favor using a `RunnableLambda` instea",
+      "source_files": [
+        "langchain_core/documents/compressor.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/compressor.py:19-74"
+      ],
+      "reference_contexts": [
+        "Base class for document compressors. This abstraction is primarily used for post-processing of retrieved documents. `Document` objects matching a given query are first retrieved. Then the list of documents can be further processed. For example, one could re-rank the retrieved documents using an LLM. !!! note Users should favor using a `RunnableLambda` instea"
+      ]
+    },
+    {
+      "id": "langchain-l050",
+      "difficulty": "medium",
+      "question": "What does `BaseDocumentTransformer.transform_documents` do in LangChain Core?",
+      "reference_answer": "Transform a list of documents. Args: documents: A sequence of `Document` objects to be transformed. Returns: A sequence of transformed `Document` objects.",
+      "source_files": [
+        "langchain_core/documents/transformers.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/transformers.py:54-64"
+      ],
+      "reference_contexts": [
+        "Transform a list of documents. Args: documents: A sequence of `Document` objects to be transformed. Returns: A sequence of transformed `Document` objects."
+      ]
+    },
+    {
+      "id": "langchain-l051",
+      "difficulty": "hard",
+      "question": "What does `BaseDocumentTransformer.atransform_documents` do in LangChain Core?",
+      "reference_answer": "Asynchronously transform a list of documents. Args: documents: A sequence of `Document` objects to be transformed. Returns: A sequence of transformed `Document` objects.",
+      "source_files": [
+        "langchain_core/documents/transformers.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/transformers.py:66-79"
+      ],
+      "reference_contexts": [
+        "Asynchronously transform a list of documents. Args: documents: A sequence of `Document` objects to be transformed. Returns: A sequence of transformed `Document` objects."
+      ]
+    },
+    {
+      "id": "langchain-l052",
+      "difficulty": "hard",
+      "question": "What does `BaseDocumentTransformer` do in LangChain Core?",
+      "reference_answer": "Abstract base class for document transformation. A document transformation takes a sequence of `Document` objects and returns a sequence of transformed `Document` objects. Example: ```python class EmbeddingsRedundantFilter(BaseDocumentTransformer, BaseModel): embeddings: Embeddings similarity_fn: Callable = cosine_similarity similarity_threshold: float = 0.9",
+      "source_files": [
+        "langchain_core/documents/transformers.py"
+      ],
+      "source_anchors": [
+        "langchain_core/documents/transformers.py:16-79"
+      ],
+      "reference_contexts": [
+        "Abstract base class for document transformation. A document transformation takes a sequence of `Document` objects and returns a sequence of transformed `Document` objects. Example: ```python class EmbeddingsRedundantFilter(BaseDocumentTransformer, BaseModel): embeddings: Embeddings similarity_fn: Callable = cosine_similarity similarity_threshold: float = 0.9"
+      ]
+    },
+    {
+      "id": "langchain-l053",
+      "difficulty": "medium",
+      "question": "What does `Embeddings.embed_query` do in LangChain Core?",
+      "reference_answer": "Embed query text. Args: text: Text to embed. Returns: Embedding.",
+      "source_files": [
+        "langchain_core/embeddings/embeddings.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/embeddings.py:48-56"
+      ],
+      "reference_contexts": [
+        "Embed query text. Args: text: Text to embed. Returns: Embedding."
+      ]
+    },
+    {
+      "id": "langchain-l054",
+      "difficulty": "medium",
+      "question": "What does `Embeddings.embed_documents` do in LangChain Core?",
+      "reference_answer": "Embed search docs. Args: texts: List of text to embed. Returns: List of embeddings.",
+      "source_files": [
+        "langchain_core/embeddings/embeddings.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/embeddings.py:37-45"
+      ],
+      "reference_contexts": [
+        "Embed search docs. Args: texts: List of text to embed. Returns: List of embeddings."
+      ]
+    },
+    {
+      "id": "langchain-l055",
+      "difficulty": "medium",
+      "question": "What does `Embeddings.aembed_query` do in LangChain Core?",
+      "reference_answer": "Asynchronous Embed query text. Args: text: Text to embed. Returns: Embedding.",
+      "source_files": [
+        "langchain_core/embeddings/embeddings.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/embeddings.py:69-78"
+      ],
+      "reference_contexts": [
+        "Asynchronous Embed query text. Args: text: Text to embed. Returns: Embedding."
+      ]
+    },
+    {
+      "id": "langchain-l056",
+      "difficulty": "hard",
+      "question": "What does `DeterministicFakeEmbedding._get_seed` do in LangChain Core?",
+      "reference_answer": "Get a seed for the random generator, using the hash of the text.",
+      "source_files": [
+        "langchain_core/embeddings/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/fake.py:119-121"
+      ],
+      "reference_contexts": [
+        "Get a seed for the random generator, using the hash of the text."
+      ]
+    },
+    {
+      "id": "langchain-l057",
+      "difficulty": "hard",
+      "question": "What does `FakeEmbeddings` do in LangChain Core?",
+      "reference_answer": "Fake embedding model for unit testing purposes. This embedding model creates embeddings by sampling from a normal distribution. !!! danger \"Toy model\" Do not use this outside of testing, as it is not a real embedding model. Instantiate: ```python from langchain_core.embeddings import FakeEmbeddings embed = FakeEmbeddings(size=100) ``` Embed single text: ```p",
+      "source_files": [
+        "langchain_core/embeddings/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/fake.py:16-67"
+      ],
+      "reference_contexts": [
+        "Fake embedding model for unit testing purposes. This embedding model creates embeddings by sampling from a normal distribution. !!! danger \"Toy model\" Do not use this outside of testing, as it is not a real embedding model. Instantiate: ```python from langchain_core.embeddings import FakeEmbeddings embed = FakeEmbeddings(size=100) ``` Embed single text: ```p"
+      ]
+    },
+    {
+      "id": "langchain-l058",
+      "difficulty": "hard",
+      "question": "What does `DeterministicFakeEmbedding` do in LangChain Core?",
+      "reference_answer": "Deterministic fake embedding model for unit testing purposes. This embedding model creates embeddings by sampling from a normal distribution with a seed based on the hash of the text. !!! danger \"Toy model\" Do not use this outside of testing, as it is not a real embedding model. Instantiate: ```python from langchain_core.embeddings import DeterministicFakeEm",
+      "source_files": [
+        "langchain_core/embeddings/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/embeddings/fake.py:70-129"
+      ],
+      "reference_contexts": [
+        "Deterministic fake embedding model for unit testing purposes. This embedding model creates embeddings by sampling from a normal distribution with a seed based on the hash of the text. !!! danger \"Toy model\" Do not use this outside of testing, as it is not a real embedding model. Instantiate: ```python from langchain_core.embeddings import DeterministicFakeEm"
+      ]
+    },
+    {
+      "id": "langchain-l059",
+      "difficulty": "medium",
+      "question": "What does `BaseExampleSelector.add_example` do in LangChain Core?",
+      "reference_answer": "Add new example to store. Args: example: A dictionary with keys as input variables and values as their values. Returns: Any return value.",
+      "source_files": [
+        "langchain_core/example_selectors/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/base.py:13-22"
+      ],
+      "reference_contexts": [
+        "Add new example to store. Args: example: A dictionary with keys as input variables and values as their values. Returns: Any return value."
+      ]
+    },
+    {
+      "id": "langchain-l060",
+      "difficulty": "medium",
+      "question": "What does `BaseExampleSelector.aadd_example` do in LangChain Core?",
+      "reference_answer": "Async add new example to store. Args: example: A dictionary with keys as input variables and values as their values. Returns: Any return value.",
+      "source_files": [
+        "langchain_core/example_selectors/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/base.py:24-34"
+      ],
+      "reference_contexts": [
+        "Async add new example to store. Args: example: A dictionary with keys as input variables and values as their values. Returns: Any return value."
+      ]
+    },
+    {
+      "id": "langchain-l061",
+      "difficulty": "hard",
+      "question": "What does `BaseExampleSelector.select_examples` do in LangChain Core?",
+      "reference_answer": "Select which examples to use based on the inputs. Args: input_variables: A dictionary with keys as input variables and values as their values. Returns: A list of examples.",
+      "source_files": [
+        "langchain_core/example_selectors/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/base.py:37-46"
+      ],
+      "reference_contexts": [
+        "Select which examples to use based on the inputs. Args: input_variables: A dictionary with keys as input variables and values as their values. Returns: A list of examples."
+      ]
+    },
+    {
+      "id": "langchain-l062",
+      "difficulty": "medium",
+      "question": "What does `LengthBasedExampleSelector.aadd_example` do in LangChain Core?",
+      "reference_answer": "Async add new example to list. Args: example: A dictionary with keys as input variables and values as their values.",
+      "source_files": [
+        "langchain_core/example_selectors/length_based.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/length_based.py:78-85"
+      ],
+      "reference_contexts": [
+        "Async add new example to list. Args: example: A dictionary with keys as input variables and values as their values."
+      ]
+    },
+    {
+      "id": "langchain-l063",
+      "difficulty": "hard",
+      "question": "What does `LengthBasedExampleSelector.aselect_examples` do in LangChain Core?",
+      "reference_answer": "Async select which examples to use based on the input lengths. Args: input_variables: A dictionary with keys as input variables and values as their values. Returns: A list of examples to include in the prompt.",
+      "source_files": [
+        "langchain_core/example_selectors/length_based.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/length_based.py:119-131"
+      ],
+      "reference_contexts": [
+        "Async select which examples to use based on the input lengths. Args: input_variables: A dictionary with keys as input variables and values as their values. Returns: A list of examples to include in the prompt."
+      ]
+    },
+    {
+      "id": "langchain-l064",
+      "difficulty": "hard",
+      "question": "What does `LengthBasedExampleSelector.add_example` do in LangChain Core?",
+      "reference_answer": "Add new example to list. Args: example: A dictionary with keys as input variables and values as their values.",
+      "source_files": [
+        "langchain_core/example_selectors/length_based.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/length_based.py:67-76"
+      ],
+      "reference_contexts": [
+        "Add new example to list. Args: example: A dictionary with keys as input variables and values as their values."
+      ]
+    },
+    {
+      "id": "langchain-l065",
+      "difficulty": "hard",
+      "question": "What does `sorted_values` do in LangChain Core?",
+      "reference_answer": "Return a list of values in dict sorted by key. Args: values: A dictionary with keys as input variables and values as their values. Returns: A list of values in dict sorted by key.",
+      "source_files": [
+        "langchain_core/example_selectors/semantic_similarity.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/semantic_similarity.py:18-28"
+      ],
+      "reference_contexts": [
+        "Return a list of values in dict sorted by key. Args: values: A dictionary with keys as input variables and values as their values. Returns: A list of values in dict sorted by key."
+      ]
+    },
+    {
+      "id": "langchain-l066",
+      "difficulty": "hard",
+      "question": "What does `_VectorStoreExampleSelector.add_example` do in LangChain Core?",
+      "reference_answer": "Add a new example to vectorstore. Args: example: A dictionary with keys as input variables and values as their values. Returns: The ID of the added example.",
+      "source_files": [
+        "langchain_core/example_selectors/semantic_similarity.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/semantic_similarity.py:70-83"
+      ],
+      "reference_contexts": [
+        "Add a new example to vectorstore. Args: example: A dictionary with keys as input variables and values as their values. Returns: The ID of the added example."
+      ]
+    },
+    {
+      "id": "langchain-l067",
+      "difficulty": "hard",
+      "question": "What does `_VectorStoreExampleSelector.aadd_example` do in LangChain Core?",
+      "reference_answer": "Async add new example to vectorstore. Args: example: A dictionary with keys as input variables and values as their values. Returns: The ID of the added example.",
+      "source_files": [
+        "langchain_core/example_selectors/semantic_similarity.py"
+      ],
+      "source_anchors": [
+        "langchain_core/example_selectors/semantic_similarity.py:85-98"
+      ],
+      "reference_contexts": [
+        "Async add new example to vectorstore. Args: example: A dictionary with keys as input variables and values as their values. Returns: The ID of the added example."
+      ]
+    },
+    {
+      "id": "langchain-l068",
+      "difficulty": "simple",
+      "question": "What does `LangChainException` do in LangChain Core?",
+      "reference_answer": "General LangChain exception.",
+      "source_files": [
+        "langchain_core/exceptions.py"
+      ],
+      "source_anchors": [
+        "langchain_core/exceptions.py:7-8"
+      ],
+      "reference_contexts": [
+        "General LangChain exception."
+      ]
+    },
+    {
+      "id": "langchain-l069",
+      "difficulty": "simple",
+      "question": "What does `TracerException` do in LangChain Core?",
+      "reference_answer": "Base class for exceptions in tracers module.",
+      "source_files": [
+        "langchain_core/exceptions.py"
+      ],
+      "source_anchors": [
+        "langchain_core/exceptions.py:11-12"
+      ],
+      "reference_contexts": [
+        "Base class for exceptions in tracers module."
+      ]
+    },
+    {
+      "id": "langchain-l070",
+      "difficulty": "simple",
+      "question": "What does `ContextOverflowError` do in LangChain Core?",
+      "reference_answer": "Exception raised when input exceeds the model's context limit. This exception is raised by chat models when the input tokens exceed the maximum context window supported by the model.",
+      "source_files": [
+        "langchain_core/exceptions.py"
+      ],
+      "source_anchors": [
+        "langchain_core/exceptions.py:68-73"
+      ],
+      "reference_contexts": [
+        "Exception raised when input exceeds the model's context limit. This exception is raised by chat models when the input tokens exceed the maximum context window supported by the model."
+      ]
+    },
+    {
+      "id": "langchain-l071",
+      "difficulty": "simple",
+      "question": "What does `get_debug` do in LangChain Core?",
+      "reference_answer": "Get the value of the `debug` global setting. Returns: The value of the `debug` global setting.",
+      "source_files": [
+        "langchain_core/globals.py"
+      ],
+      "source_anchors": [
+        "langchain_core/globals.py:47-53"
+      ],
+      "reference_contexts": [
+        "Get the value of the `debug` global setting. Returns: The value of the `debug` global setting."
+      ]
+    },
+    {
+      "id": "langchain-l072",
+      "difficulty": "simple",
+      "question": "What does `get_verbose` do in LangChain Core?",
+      "reference_answer": "Get the value of the `verbose` global setting. Returns: The value of the `verbose` global setting.",
+      "source_files": [
+        "langchain_core/globals.py"
+      ],
+      "source_anchors": [
+        "langchain_core/globals.py:28-34"
+      ],
+      "reference_contexts": [
+        "Get the value of the `verbose` global setting. Returns: The value of the `verbose` global setting."
+      ]
+    },
+    {
+      "id": "langchain-l073",
+      "difficulty": "simple",
+      "question": "What does `get_llm_cache` do in LangChain Core?",
+      "reference_answer": "Get the value of the `llm_cache` global setting. Returns: The value of the `llm_cache` global setting.",
+      "source_files": [
+        "langchain_core/globals.py"
+      ],
+      "source_anchors": [
+        "langchain_core/globals.py:66-72"
+      ],
+      "reference_contexts": [
+        "Get the value of the `llm_cache` global setting. Returns: The value of the `llm_cache` global setting."
+      ]
+    },
+    {
+      "id": "langchain-l074",
+      "difficulty": "simple",
+      "question": "What does `IndexingException` do in LangChain Core?",
+      "reference_answer": "Raised when an indexing operation fails.",
+      "source_files": [
+        "langchain_core/indexing/api.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/api.py:153-154"
+      ],
+      "reference_contexts": [
+        "Raised when an indexing operation fails."
+      ]
+    },
+    {
+      "id": "langchain-l075",
+      "difficulty": "medium",
+      "question": "What does `_HashedDocument.__init__` do in LangChain Core?",
+      "reference_answer": "Raise an error if this class is instantiated.",
+      "source_files": [
+        "langchain_core/indexing/api.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/api.py:236-244"
+      ],
+      "reference_contexts": [
+        "Raise an error if this class is instantiated."
+      ]
+    },
+    {
+      "id": "langchain-l076",
+      "difficulty": "medium",
+      "question": "What does `_to_async_iterator` do in LangChain Core?",
+      "reference_answer": "Convert an iterable to an async iterator.",
+      "source_files": [
+        "langchain_core/indexing/api.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/api.py:607-610"
+      ],
+      "reference_contexts": [
+        "Convert an iterable to an async iterator."
+      ]
+    },
+    {
+      "id": "langchain-l077",
+      "difficulty": "simple",
+      "question": "What does `InMemoryRecordManager.create_schema` do in LangChain Core?",
+      "reference_answer": "In-memory schema creation is simply ensuring the structure is initialized.",
+      "source_files": [
+        "langchain_core/indexing/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/base.py:255-256"
+      ],
+      "reference_contexts": [
+        "In-memory schema creation is simply ensuring the structure is initialized."
+      ]
+    },
+    {
+      "id": "langchain-l078",
+      "difficulty": "simple",
+      "question": "What does `InMemoryRecordManager.acreate_schema` do in LangChain Core?",
+      "reference_answer": "In-memory schema creation is simply ensuring the structure is initialized.",
+      "source_files": [
+        "langchain_core/indexing/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/base.py:258-259"
+      ],
+      "reference_contexts": [
+        "In-memory schema creation is simply ensuring the structure is initialized."
+      ]
+    },
+    {
+      "id": "langchain-l079",
+      "difficulty": "simple",
+      "question": "What does `RecordManager.create_schema` do in LangChain Core?",
+      "reference_answer": "Create the database schema for the record manager.",
+      "source_files": [
+        "langchain_core/indexing/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/base.py:69-70"
+      ],
+      "reference_contexts": [
+        "Create the database schema for the record manager."
+      ]
+    },
+    {
+      "id": "langchain-l080",
+      "difficulty": "hard",
+      "question": "What does `InMemoryDocumentIndex.delete` do in LangChain Core?",
+      "reference_answer": "Delete by IDs. Args: ids: List of IDs to delete. Raises: ValueError: If IDs is None. Returns: A response object that contains the list of IDs that were successfully deleted and the list of IDs that failed to be deleted.",
+      "source_files": [
+        "langchain_core/indexing/in_memory.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/in_memory.py:61-87"
+      ],
+      "reference_contexts": [
+        "Delete by IDs. Args: ids: List of IDs to delete. Raises: ValueError: If IDs is None. Returns: A response object that contains the list of IDs that were successfully deleted and the list of IDs that failed to be deleted."
+      ]
+    },
+    {
+      "id": "langchain-l081",
+      "difficulty": "hard",
+      "question": "What does `InMemoryDocumentIndex.upsert` do in LangChain Core?",
+      "reference_answer": "Upsert documents into the index. Args: items: Sequence of documents to add to the index. **kwargs: Additional keyword arguments. Returns: A response object that contains the list of IDs that were successfully added or updated in the index and the list of IDs that failed to be added or updated.",
+      "source_files": [
+        "langchain_core/indexing/in_memory.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/in_memory.py:32-58"
+      ],
+      "reference_contexts": [
+        "Upsert documents into the index. Args: items: Sequence of documents to add to the index. **kwargs: Additional keyword arguments. Returns: A response object that contains the list of IDs that were successfully added or updated in the index and the list of IDs that failed to be added or updated."
+      ]
+    },
+    {
+      "id": "langchain-l082",
+      "difficulty": "hard",
+      "question": "What does `InMemoryDocumentIndex` do in LangChain Core?",
+      "reference_answer": "In memory document index. This is an in-memory document index that stores documents in a dictionary. It provides a simple search API that returns documents by the number of counts the given query appears in the document.",
+      "source_files": [
+        "langchain_core/indexing/in_memory.py"
+      ],
+      "source_anchors": [
+        "langchain_core/indexing/in_memory.py:19-104"
+      ],
+      "reference_contexts": [
+        "In memory document index. This is an in-memory document index that stores documents in a dictionary. It provides a simple search API that returns documents by the number of counts the given query appears in the document."
+      ]
+    },
+    {
+      "id": "langchain-l083",
+      "difficulty": "medium",
+      "question": "What does `_to_finalized_block` do in LangChain Core?",
+      "reference_answer": "Counterpart of `_to_protocol_block` for finalized blocks.",
+      "source_files": [
+        "langchain_core/language_models/_compat_bridge.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_compat_bridge.py:109-111"
+      ],
+      "reference_contexts": [
+        "Counterpart of `_to_protocol_block` for finalized blocks."
+      ]
+    },
+    {
+      "id": "langchain-l084",
+      "difficulty": "medium",
+      "question": "What does `_to_block_delta_fields` do in LangChain Core?",
+      "reference_answer": "Narrow an internal working dict to protocol block-delta fields.",
+      "source_files": [
+        "langchain_core/language_models/_compat_bridge.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_compat_bridge.py:114-116"
+      ],
+      "reference_contexts": [
+        "Narrow an internal working dict to protocol block-delta fields."
+      ]
+    },
+    {
+      "id": "langchain-l085",
+      "difficulty": "medium",
+      "question": "What does `_to_protocol_block` do in LangChain Core?",
+      "reference_answer": "Narrow an internal working dict to a protocol `ContentBlock`. Single seam between the two `ContentBlock` type systems: `langchain_core.messages.content` (what `msg.content_blocks` returns) and `langchain_protocol.protocol` (what event payloads require).  The two Unions overlap structurally but are nominally distinct to mypy, so we launder through `dict[str,",
+      "source_files": [
+        "langchain_core/language_models/_compat_bridge.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_compat_bridge.py:95-106"
+      ],
+      "reference_contexts": [
+        "Narrow an internal working dict to a protocol `ContentBlock`. Single seam between the two `ContentBlock` type systems: `langchain_core.messages.content` (what `msg.content_blocks` returns) and `langchain_protocol.protocol` (what event payloads require).  The two Unions overlap structurally but are nominally distinct to mypy, so we launder through `dict[str,"
+      ]
+    },
+    {
+      "id": "langchain-l086",
+      "difficulty": "hard",
+      "question": "What does `_update_content_block` do in LangChain Core?",
+      "reference_answer": "Update a content block at the given index, handling type issues.",
+      "source_files": [
+        "langchain_core/language_models/_utils.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_utils.py:320-331"
+      ],
+      "reference_contexts": [
+        "Update a content block at the given index, handling type issues."
+      ]
+    },
+    {
+      "id": "langchain-l087",
+      "difficulty": "hard",
+      "question": "What does `_ensure_message_copy` do in LangChain Core?",
+      "reference_answer": "Create a copy of the message if it hasn't been copied yet.",
+      "source_files": [
+        "langchain_core/language_models/_utils.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_utils.py:311-317"
+      ],
+      "reference_contexts": [
+        "Create a copy of the message if it hasn't been copied yet."
+      ]
+    },
+    {
+      "id": "langchain-l088",
+      "difficulty": "hard",
+      "question": "What does `_filter_invocation_params_for_tracing` do in LangChain Core?",
+      "reference_answer": "Filter out large/inappropriate fields from invocation params for tracing. Removes fields like tools, functions, messages, response_format that can be large. Args: params: The invocation parameters to filter. Returns: The filtered parameters with large fields removed.",
+      "source_files": [
+        "langchain_core/language_models/_utils.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/_utils.py:18-30"
+      ],
+      "reference_contexts": [
+        "Filter out large/inappropriate fields from invocation params for tracing. Removes fields like tools, functions, messages, response_format that can be large. Args: params: The invocation parameters to filter. Returns: The filtered parameters with large fields removed."
+      ]
+    },
+    {
+      "id": "langchain-l089",
+      "difficulty": "medium",
+      "question": "What does `BaseLanguageModel.get_num_tokens` do in LangChain Core?",
+      "reference_answer": "Get the number of tokens present in the text. Useful for checking if an input fits in a model's context window. This should be overridden by model-specific implementations to provide accurate token counts via model-specific tokenizers. Args: text: The string input to tokenize. Returns: The integer number of tokens in the text.",
+      "source_files": [
+        "langchain_core/language_models/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/base.py:432-447"
+      ],
+      "reference_contexts": [
+        "Get the number of tokens present in the text. Useful for checking if an input fits in a model's context window. This should be overridden by model-specific implementations to provide accurate token counts via model-specific tokenizers. Args: text: The string input to tokenize. Returns: The integer number of tokens in the text."
+      ]
+    },
+    {
+      "id": "langchain-l090",
+      "difficulty": "medium",
+      "question": "What does `BaseLanguageModel._identifying_params` do in LangChain Core?",
+      "reference_answer": "Get the identifying parameters.",
+      "source_files": [
+        "langchain_core/language_models/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/base.py:414-416"
+      ],
+      "reference_contexts": [
+        "Get the identifying parameters."
+      ]
+    },
+    {
+      "id": "langchain-l091",
+      "difficulty": "medium",
+      "question": "What does `BaseLanguageModel._get_ls_params` do in LangChain Core?",
+      "reference_answer": "Get standard params for tracing.",
+      "source_files": [
+        "langchain_core/language_models/base.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/base.py:397-403"
+      ],
+      "reference_contexts": [
+        "Get standard params for tracing."
+      ]
+    },
+    {
+      "id": "langchain-l092",
+      "difficulty": "simple",
+      "question": "What does `AsyncChatModelStream.__aenter__` do in LangChain Core?",
+      "reference_answer": "Enter the async context — returns self.",
+      "source_files": [
+        "langchain_core/language_models/chat_model_stream.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_model_stream.py:1401-1403"
+      ],
+      "reference_contexts": [
+        "Enter the async context — returns self."
+      ]
+    },
+    {
+      "id": "langchain-l093",
+      "difficulty": "simple",
+      "question": "What does `_AsyncProjectionIterator.__aiter__` do in LangChain Core?",
+      "reference_answer": "Return self for the async iteration protocol.",
+      "source_files": [
+        "langchain_core/language_models/chat_model_stream.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_model_stream.py:418-420"
+      ],
+      "reference_contexts": [
+        "Return self for the async iteration protocol."
+      ]
+    },
+    {
+      "id": "langchain-l094",
+      "difficulty": "medium",
+      "question": "What does `AsyncProjection.__aiter__` do in LangChain Core?",
+      "reference_answer": "Return an async iterator over deltas.",
+      "source_files": [
+        "langchain_core/language_models/chat_model_stream.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_model_stream.py:371-373"
+      ],
+      "reference_contexts": [
+        "Return an async iterator over deltas."
+      ]
+    },
+    {
+      "id": "langchain-l095",
+      "difficulty": "simple",
+      "question": "What does `BaseChatModel._llm_type` do in LangChain Core?",
+      "reference_answer": "Return type of chat model.",
+      "source_files": [
+        "langchain_core/language_models/chat_models.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_models.py:2303-2304"
+      ],
+      "reference_contexts": [
+        "Return type of chat model."
+      ]
+    },
+    {
+      "id": "langchain-l096",
+      "difficulty": "simple",
+      "question": "What does `BaseChatModel._resolve_model_profile` do in LangChain Core?",
+      "reference_answer": "Return the default model profile, or `None` if unavailable. Override this in subclasses instead of `_set_model_profile`. The base validator calls it automatically and handles assignment. This avoids coupling partner code to Pydantic validator mechanics. Each partner needs its own override because things can vary per-partner, such as the attribute that identi",
+      "source_files": [
+        "langchain_core/language_models/chat_models.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_models.py:386-403"
+      ],
+      "reference_contexts": [
+        "Return the default model profile, or `None` if unavailable. Override this in subclasses instead of `_set_model_profile`. The base validator calls it automatically and handles assignment. This avoids coupling partner code to Pydantic validator mechanics. Each partner needs its own override because things can vary per-partner, such as the attribute that identi"
+      ]
+    },
+    {
+      "id": "langchain-l097",
+      "difficulty": "medium",
+      "question": "What does `BaseChatModel.OutputType` do in LangChain Core?",
+      "reference_answer": "Get the output type for this `Runnable`.",
+      "source_files": [
+        "langchain_core/language_models/chat_models.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/chat_models.py:445-447"
+      ],
+      "reference_contexts": [
+        "Get the output type for this `Runnable`."
+      ]
+    },
+    {
+      "id": "langchain-l098",
+      "difficulty": "simple",
+      "question": "What does `FakeListLLMError` do in LangChain Core?",
+      "reference_answer": "Fake error for testing purposes.",
+      "source_files": [
+        "langchain_core/language_models/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/fake.py:81-82"
+      ],
+      "reference_contexts": [
+        "Fake error for testing purposes."
+      ]
+    },
+    {
+      "id": "langchain-l099",
+      "difficulty": "simple",
+      "question": "What does `FakeListLLM._llm_type` do in LangChain Core?",
+      "reference_answer": "Return type of llm.",
+      "source_files": [
+        "langchain_core/language_models/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/fake.py:39-41"
+      ],
+      "reference_contexts": [
+        "Return type of llm."
+      ]
+    },
+    {
+      "id": "langchain-l100",
+      "difficulty": "hard",
+      "question": "What does `FakeListLLM._call` do in LangChain Core?",
+      "reference_answer": "Return next response.",
+      "source_files": [
+        "langchain_core/language_models/fake.py"
+      ],
+      "source_anchors": [
+        "langchain_core/language_models/fake.py:44-57"
+      ],
+      "reference_contexts": [
+        "Return next response."
+      ]
+    }
+  ]
 }

@@ -223,6 +223,7 @@ def generate_answer(
                         "model": model,
                         "prompt": prompt,
                         "stream": False,
+                        "think": False,
                         "options": {"temperature": 0, "seed": seed},
                     },
                 )

@@ -11,7 +11,11 @@ import pytest
 
 from hybrid_rag.constants import DEFAULT_EMBED_MODEL, DEFAULT_LLM_MODEL
 from hybrid_rag.ingestion.parser import EdgeData, NodeData, ParseResult
-from hybrid_rag.ingestion.pipeline import IndexingListener, run_indexing_pipeline
+from hybrid_rag.ingestion.pipeline import (
+    IndexingListener,
+    _embedding_batch_size,
+    run_indexing_pipeline,
+)
 
 
 class MockListener(IndexingListener):
@@ -23,6 +27,11 @@ class MockListener(IndexingListener):
 
 
 class TestIndexingPipeline:
+    def test_embedding_batch_size_reads_positive_environment_value(self, monkeypatch):
+        monkeypatch.setenv("EMBED_BATCH_SIZE", "16")
+
+        assert _embedding_batch_size() == 16
+
     @patch("hybrid_rag.ingestion.parser.parse_repo")
     @patch("hybrid_rag.ingestion.entity_resolver.resolve")
     @patch("hybrid_rag.ingestion.entity_resolver.resolve_global")

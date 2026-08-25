@@ -12,8 +12,13 @@ THESIS_PATH = ROOT / "docs/thesis_report_en.tex"
 
 
 def _ordered(text: str, markers: list[str]) -> bool:
-    positions = [text.find(marker) for marker in markers]
-    return all(position >= 0 for position in positions) and positions == sorted(positions)
+    cursor = 0
+    for marker in markers:
+        position = text.find(marker, cursor)
+        if position < 0:
+            return False
+        cursor = position + len(marker)
+    return True
 
 
 def main() -> None:
@@ -54,8 +59,8 @@ def main() -> None:
         "% TITLE AND ABSTRACT",
         "% ACKNOWLEDGMENTS",
         r"\tableofcontents",
-        r"\listoftables",
-        r"\listoffigures",
+        r"\thesislistoftables",
+        r"\thesislistoffigures",
         r"\printnoidxglossary",
         r"\pagenumbering{arabic}",
         r"\chapter{Introduction}",
